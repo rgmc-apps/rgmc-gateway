@@ -32,18 +32,18 @@ SITES = [
         "id": "travel-expense",
         "name": "RGMC Travel And Expense Web",
         "category": "RGMC",
-        "primary_url": "https://rgmc-portal-935246372408.asia-southeast1.run.app/login?returnUrl=%2F",
+        "primary_url": "http://portal.rgmcgroup.com:7171/",
         "primary_label": "Primary",
-        "backup_url": "http://portal.rgmcgroup.com:7171/",
+        "backup_url": "https://rgmc-portal-935246372408.asia-southeast1.run.app/login?returnUrl=%2F",
         "backup_label": "Backup",
     },
     {
         "id": "creatives",
         "name": "RGMC Creatives",
         "category": "RGMC",
-        "primary_url": "https://rgmccreatives-935246372408.asia-southeast1.run.app/",
+        "primary_url": "http://portal.rgmcgroup.com:6060/",
         "primary_label": "Primary",
-        "backup_url": "http://portal.rgmcgroup.com:6060/",
+        "backup_url": "https://rgmccreatives-935246372408.asia-southeast1.run.app/",
         "backup_label": "Backup",
     },
     {
@@ -103,7 +103,7 @@ SITES = [
     {
         "id": "nav-keywest",
         "name": "Keywest",
-        "category": "NAV Site",
+        "category": "NAV Sites",
         "primary_url": "http://portal.rgmcgroup.com:8088/KEYWEST",
         "primary_label": "Open",
         "backup_url": None,
@@ -112,7 +112,7 @@ SITES = [
     {
         "id": "nav-alvita-prod",
         "name": "Alvita Prod",
-        "category": "NAV Site",
+        "category": "NAV Sites",
         "primary_url": "http://portal.rgmcgroup.com:8088/ALVITA_PROD",
         "primary_label": "Open",
         "backup_url": None,
@@ -121,7 +121,7 @@ SITES = [
     {
         "id": "nav-covent-runway-prod",
         "name": "Covent Runway Prod",
-        "category": "NAV Site",
+        "category": "NAV Sites",
         "primary_url": "http://portal.rgmcgroup.com:8088/COVENT_RUNWAY_PROD",
         "primary_label": "Open",
         "backup_url": None,
@@ -130,7 +130,7 @@ SITES = [
     {
         "id": "nav-lgap-prod",
         "name": "LGAP Prod",
-        "category": "NAV Site",
+        "category": "NAV Sites",
         "primary_url": "http://portal.rgmcgroup.com:8088/LGAP_PROD",
         "primary_label": "Open",
         "backup_url": None,
@@ -139,7 +139,7 @@ SITES = [
     {
         "id": "nav-manila-taste",
         "name": "Manila Taste",
-        "category": "NAV Site",
+        "category": "NAV Sites",
         "primary_url": "http://portal.rgmcgroup.com:8088/MANILA_TASTE",
         "primary_label": "Open",
         "backup_url": None,
@@ -148,7 +148,7 @@ SITES = [
     {
         "id": "nav-richfield-live",
         "name": "Richfield Live",
-        "category": "NAV Site",
+        "category": "NAV Sites",
         "primary_url": "http://portal.rgmcgroup.com:8088/RICHFIELD_LIVE",
         "primary_label": "Open",
         "backup_url": None,
@@ -157,7 +157,7 @@ SITES = [
     {
         "id": "nav-other-comp-prod",
         "name": "Other Comp Prod",
-        "category": "NAV Site",
+        "category": "NAV Sites",
         "primary_url": "http://portal.rgmcgroup.com:8088/OTHER_COMP_PROD/WebClient/",
         "primary_label": "Open",
         "backup_url": None,
@@ -166,7 +166,7 @@ SITES = [
     {
         "id": "nav-suncoast-prod",
         "name": "Suncoast Prod",
-        "category": "NAV Site",
+        "category": "NAV Sites",
         "primary_url": "http://portal.rgmcgroup.com:8088/SUNCOAST_PROD",
         "primary_label": "Open",
         "backup_url": None,
@@ -175,7 +175,7 @@ SITES = [
     {
         "id": "nav-usgi-prod-live",
         "name": "USGI Prod Live",
-        "category": "NAV Site",
+        "category": "NAV Sites",
         "primary_url": "http://portal.rgmcgroup.com:8088/USGI_PROD_LIVE",
         "primary_label": "Open",
         "backup_url": None,
@@ -184,7 +184,7 @@ SITES = [
     {
         "id": "nav-usgi-lgap-uat",
         "name": "USGI LGAP UAT",
-        "category": "NAV Site",
+        "category": "NAV Sites",
         "primary_url": "http://portal.rgmcgroup.com:8088/USGI_LGAP_UAT",
         "primary_label": "Open",
         "backup_url": None,
