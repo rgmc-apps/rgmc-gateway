@@ -127,12 +127,10 @@ HEALTH_CHECKS = [
 
 def _sb_headers():
     return {
-        "apikey":          SUPABASE_SERVICE_KEY,
-        "Authorization":   f"Bearer {SUPABASE_SERVICE_KEY}",
-        "Content-Type":    "application/json",
-        "Content-Profile": "rgmc_main",
-        "Accept-Profile":  "rgmc_main",
-        "Prefer":          "return=representation",
+        "apikey":        SUPABASE_SERVICE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+        "Content-Type":  "application/json",
+        "Prefer":        "return=representation",
     }
 
 

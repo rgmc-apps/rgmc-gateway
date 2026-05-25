@@ -2,15 +2,14 @@
 -- Run this in the Supabase SQL Editor:
 --   Dashboard → SQL Editor → New Query → paste & run
 --
--- ALSO REQUIRED (dashboard step):
---   Settings → API → "Exposed schemas" → add "rgmc_main"
---   Without this, the REST API cannot reach the schema.
+-- NOTE: Table lives in the PUBLIC schema so no extra
+-- "Exposed schemas" configuration is required.
 
--- 1. Schema
-CREATE SCHEMA IF NOT EXISTS rgmc_main;
+-- Drop old table if you ran the previous rgmc_main version
+DROP TABLE IF EXISTS rgmc_main.access_requests;
 
--- 2. Access requests table
-CREATE TABLE IF NOT EXISTS rgmc_main.access_requests (
+-- Access requests table (public schema — always exposed by PostgREST)
+CREATE TABLE IF NOT EXISTS public.access_requests (
     id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     first_name       TEXT        NOT NULL,
     last_name        TEXT        NOT NULL,
@@ -28,13 +27,13 @@ CREATE TABLE IF NOT EXISTS rgmc_main.access_requests (
     CONSTRAINT chk_ar_status CHECK (status IN ('pending', 'approved', 'rejected'))
 );
 
--- 3. Indexes for lookup paths used by the app
+-- Indexes for the two lookup paths the app uses
 CREATE INDEX IF NOT EXISTS idx_ar_approval_token
-    ON rgmc_main.access_requests (approval_token);
+    ON public.access_requests (approval_token);
 
 CREATE INDEX IF NOT EXISTS idx_ar_status
-    ON rgmc_main.access_requests (status);
+    ON public.access_requests (status);
 
--- 4. Row Level Security — service role key bypasses RLS automatically;
---    this prevents direct browser/anon access to the table.
-ALTER TABLE rgmc_main.access_requests ENABLE ROW LEVEL SECURITY;
+-- Row Level Security — service role key bypasses RLS automatically;
+-- this blocks direct browser/anon access to the table.
+ALTER TABLE public.access_requests ENABLE ROW LEVEL SECURITY;
