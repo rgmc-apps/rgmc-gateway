@@ -435,7 +435,7 @@ function openAdditionalAccess() {
 
   const approved = new Set((session.systems || []).map(s => s.toLowerCase()));
   const available = (typeof ALL_SITES !== 'undefined' ? ALL_SITES : [])
-    .filter(s => !approved.has(s.toLowerCase()));
+    .filter(s => !approved.has((s.name || s).toLowerCase()));
 
   if (available.length === 0) {
     showToast('You already have access to all available systems.');
@@ -443,11 +443,14 @@ function openAdditionalAccess() {
   }
 
   const grid = document.getElementById('additionalGrid');
-  grid.innerHTML = available.map(s => `
+  grid.innerHTML = available.map(s => {
+    const name = s.name || s;
+    return `
     <label class="check-item">
-      <input type="checkbox" name="systems" value="${escapeAttr(s)}">
-      <span>${escapeHtml(s)}</span>
-    </label>`).join('');
+      <input type="checkbox" name="systems" value="${escapeAttr(name)}">
+      <span>${escapeHtml(name)}</span>
+    </label>`;
+  }).join('');
 
   resetAdditionalFormState();
   document.getElementById('additionalModal').classList.add('open');
