@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RGMC Gateway — Internal Systems Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <div class="header-logo-wrap">
+          <img src="/static/logo.png" alt="RGMC Gateway" class="header-logo-img">
+        </div>
+        <div class="header-divider"></div>
+        <div class="header-tagline">Internal Systems Portal</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- RGMC Systems -->
+    <section class="section">
+      <div class="section-label">
+        <span class="label-badge label-rgmc">RGMC</span>
+        <h2 class="section-title">RGMC Systems</h2>
+      </div>
+      <div class="systems-grid">
+        {% for site in sites if site.category == 'RGMC' %}
+        <div class="site-card">
+          <div class="site-card-name">{{ site.name }}</div>
+          <div class="site-card-actions">
+            <a href="{{ site.primary_url }}" target="_blank" rel="noopener" class="btn btn-primary">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              {{ site.primary_label }}
+            </a>
+            {% if site.backup_url %}
+            <a href="{{ site.backup_url }}" target="_blank" rel="noopener" class="btn btn-backup">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              {{ site.backup_label }}
+            </a>
+            {% endif %}
+            <button class="btn btn-report" onclick="openReport('{{ site.name }}')">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Report Problem
+            </button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- SBIC Systems -->
+    <section class="section">
+      <div class="section-label">
+        <span class="label-badge label-sbic">SBIC</span>
+        <h2 class="section-title">SBIC Systems</h2>
+      </div>
+      <div class="systems-grid">
+        {% for site in sites if site.category == 'SBIC' %}
+        <div class="site-card">
+          <div class="site-card-name">{{ site.name }}</div>
+          <div class="site-card-actions">
+            <a href="{{ site.primary_url }}" target="_blank" rel="noopener" class="btn btn-primary">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              {{ site.primary_label }}
+            </a>
+            {% if site.backup_url %}
+            <a href="{{ site.backup_url }}" target="_blank" rel="noopener" class="btn btn-backup">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              {{ site.backup_label }}
+            </a>
+            {% endif %}
+            <button class="btn btn-report" onclick="openReport('{{ site.name }}')">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Report Problem
+            </button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- Health Check Section -->
+    <section class="section health-section">
+      <div class="health-header-row" style="margin-bottom:18px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span class="label-badge label-health">API</span>
+          <h2 class="section-title">Health Status</h2>
+        </div>
+        <div class="health-controls">
+          <span id="lastUpdated" class="last-updated"></span>
+          <button id="refreshBtn" class="btn-refresh" onclick="refreshHealth()">
+            <svg id="refreshIcon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            Refresh
+          </button>
+        </div>
+      </div>
+      <div id="healthGrid" class="health-grid">
+        <div class="health-loading">
+          <div class="spinner"></div>
+          <span>Checking API status…</span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">RGMC Group &mdash; Internal Systems Portal</div>
+  </footer>
+
+  <!-- Report Modal -->
+  <div id="reportModal" class="modal-overlay" onclick="overlayClose(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Report a Problem</h3>
+          <p id="modalSiteName" class="modal-site-name"></p>
+        </div>
+        <button class="modal-close" onclick="closeReport()" aria-label="Close">&times;</button>
+      </div>
+      <form id="reportForm" class="modal-form" onsubmit="submitReport(event)">
+        <input type="hidden" name="site_name" id="siteNameField">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="employeeName">Employee Name <span class="required">*</span></label>
+            <input class="form-input" type="text" id="employeeName" name="employee_name" placeholder="Juan dela Cruz" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="companyName">Company Name <span class="required">*</span></label>
+            <input class="form-input" type="text" id="companyName" name="company_name" placeholder="RGMC Group" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="department">Department <span class="required">*</span></label>
+            <input class="form-input" type="text" id="department" name="department" placeholder="IT / Finance / Operations" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="emailAddr">Email Address <span class="required">*</span></label>
+            <input class="form-input" type="email" id="emailAddr" name="email" placeholder="you@rgmcgroup.com" required>
+          </div>
+        </div>
+        <div class="form-group form-group-full">
+          <label class="form-label" for="description">Problem Description <span class="required">*</span></label>
+          <textarea class="form-input form-textarea" id="description" name="description" rows="4" placeholder="Describe the problem in detail — when it started, what you were doing, any error messages…" required></textarea>
+        </div>
+        <div class="form-group form-group-full">
+          <label class="form-label" for="screenshots">Screenshots <span class="form-label-hint">(optional — images only, max 5 files)</span></label>
+          <div class="file-drop-zone" id="fileDropZone">
+            <input class="file-input" type="file" id="screenshots" name="screenshots" multiple accept="image/*" onchange="updateFileList(this)">
+            <div class="file-drop-content">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <span id="fileLabel">Click to attach screenshots or drag &amp; drop</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit / Loading / Result states -->
+        <div id="formActions" class="modal-actions">
+          <button type="button" class="btn-modal-cancel" onclick="closeReport()">Cancel</button>
+          <button type="submit" class="btn-modal-submit" id="submitBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            Submit Report
+          </button>
+        </div>
+        <div id="formLoading" class="form-state" style="display:none;">
+          <div class="spinner"></div>
+          <span>Submitting report…</span>
+        </div>
+        <div id="formSuccess" class="form-state form-success" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span id="successMsg"></span>
+        </div>
+        <div id="formError" class="form-state form-error" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="errorMsg"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>
