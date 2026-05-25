@@ -266,9 +266,9 @@ function applySession(session) {
     headerUser.innerHTML = `
       <span class="header-username">${escapeHtml(session.firstName || session.username)}</span>
       <button class="btn-sign-out" onclick="signOut()">Sign Out</button>
-      <button class="btn-header-access" onclick="openAccessRequest()">
+      <button class="btn-header-access" onclick="openAdditionalAccess()">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        Request Access
+        Request Additional Access
       </button>`;
   }
 
@@ -427,6 +427,94 @@ async function submitAccessRequest(e) {
   }
 }
 
+/* ── Additional Access Modal ── */
+
+function openAdditionalAccess() {
+  const session = loadSession();
+  if (!session) return;
+
+  const approved = new Set((session.systems || []).map(s => s.toLowerCase()));
+  const available = (typeof ALL_SITES !== 'undefined' ? ALL_SITES : [])
+    .filter(s => !approved.has(s.toLowerCase()));
+
+  if (available.length === 0) {
+    showToast('You already have access to all available systems.');
+    return;
+  }
+
+  const grid = document.getElementById('additionalGrid');
+  grid.innerHTML = available.map(s => `
+    <label class="check-item">
+      <input type="checkbox" name="systems" value="${escapeAttr(s)}">
+      <span>${escapeHtml(s)}</span>
+    </label>`).join('');
+
+  resetAdditionalFormState();
+  document.getElementById('additionalModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeAdditionalAccess() {
+  document.getElementById('additionalModal').classList.remove('open');
+  document.body.style.overflow = '';
+  resetAdditionalFormState();
+}
+
+function overlayCloseAdditional(e) {
+  if (e.target === document.getElementById('additionalModal')) closeAdditionalAccess();
+}
+
+function resetAdditionalFormState() {
+  show('addlFormActions');
+  hide('addlFormLoading');
+  hide('addlFormSuccess');
+  hide('addlFormError');
+  hide('additionalSystemsError');
+}
+
+async function submitAdditionalAccess(e) {
+  e.preventDefault();
+
+  const checked = document.querySelectorAll('#additionalForm input[name="systems"]:checked');
+  if (checked.length === 0) {
+    document.getElementById('additionalSystemsError').style.display = '';
+    return;
+  }
+  hide('additionalSystemsError');
+
+  hide('addlFormActions');
+  hide('addlFormSuccess');
+  hide('addlFormError');
+  show('addlFormLoading');
+
+  const session = loadSession();
+  const formData = new FormData();
+  formData.append('username', session?.username || '');
+  checked.forEach(cb => formData.append('systems', cb.value));
+
+  try {
+    const res = await fetch('/access-request/additional', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    hide('addlFormLoading');
+
+    if (data.success) {
+      show('addlFormSuccess');
+      document.getElementById('addlSuccessMsg').textContent = data.message;
+      setTimeout(() => { closeAdditionalAccess(); showToast('Additional access request submitted.'); }, 3500);
+    } else {
+      show('addlFormActions');
+      show('addlFormError');
+      document.getElementById('addlErrorMsg').textContent = data.error || 'An unexpected error occurred.';
+    }
+  } catch {
+    hide('addlFormLoading');
+    show('addlFormActions');
+    show('addlFormError');
+    document.getElementById('addlErrorMsg').textContent = 'Network error — please try again.';
+  }
+}
+
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', () => {
   // Check for existing session — shows gate or restores portal
@@ -442,6 +530,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape') {
       closeReport();
       closeAccessRequest();
+      closeAdditionalAccess();
     }
   });
 });

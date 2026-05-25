@@ -273,7 +273,7 @@ def send_report_email(form_data: dict, screenshots: list) -> bool:
         return False
 
 
-def send_approval_request_email(record: dict, base_url: str) -> bool:
+def send_approval_request_email(record: dict, base_url: str, is_additional: bool = False) -> bool:
     """Send an email to the approver with one-click approve/reject links."""
     if not APPROVER_EMAIL:
         app.logger.warning("APPROVER_EMAIL not set — skipping approval email")
@@ -294,11 +294,11 @@ def send_approval_request_email(record: dict, base_url: str) -> bool:
 <body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
   <div style="max-width:620px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
     <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid #C4972A;">
-      <h2 style="margin:0;font-size:22px;color:#C4972A;">Access Request</h2>
+      <h2 style="margin:0;font-size:22px;color:#C4972A;">{'Additional Access Request' if is_additional else 'Access Request'}</h2>
       <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">RGMC Gateway &mdash; Action Required</p>
     </div>
     <div style="padding:28px 32px;">
-      <p style="margin:0 0 22px;font-size:15px;color:#374151;">A new access request has been submitted and requires your approval.</p>
+      <p style="margin:0 0 22px;font-size:15px;color:#374151;">{'An existing user is requesting access to additional systems.' if is_additional else 'A new access request has been submitted and requires your approval.'}</p>
       <table style="width:100%;border-collapse:collapse;margin-bottom:24px;border-radius:8px;overflow:hidden;">
         <tr style="background:#f8fafc;">
           <td style="padding:11px 16px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;width:130px;border-bottom:1px solid #e2e8f0;">Full Name</td>
@@ -346,7 +346,8 @@ def send_approval_request_email(record: dict, base_url: str) -> bool:
 </html>"""
 
     msg = MIMEMultipart("alternative")
-    msg["Subject"]  = f"[Access Request] {full_name} — RGMC Gateway"
+    label = "Additional Access Request" if is_additional else "Access Request"
+    msg["Subject"]  = f"[{label}] {full_name} — RGMC Gateway"
     msg["From"]     = from_addr
     msg["To"]       = APPROVER_EMAIL
     msg["Reply-To"] = record.get("email", from_addr)
@@ -354,8 +355,8 @@ def send_approval_request_email(record: dict, base_url: str) -> bool:
     return _smtp_send(msg, [APPROVER_EMAIL])
 
 
-def send_access_granted_email(record: dict) -> bool:
-    """Notify the user that their access has been approved, including their username."""
+def send_access_granted_email(record: dict, is_additional: bool = False) -> bool:
+    """Notify the user that their access has been approved."""
     user_email = record.get("email", "")
     if not user_email:
         return False
@@ -368,28 +369,36 @@ def send_access_granted_email(record: dict) -> bool:
         f'<li style="margin:5px 0;font-size:14px;color:#374151;">{s}</li>'
         for s in (record.get("systems") or [])
     )
+    heading      = "Additional Access Approved" if is_additional else "Access Approved"
+    intro        = (
+        "Your request for additional system access has been <strong style='color:#15803d;'>approved</strong>. "
+        "The following systems have been added to your account:"
+        if is_additional else
+        "Your access request for the <strong>RGMC Gateway</strong> has been "
+        "<strong style='color:#15803d;'>approved</strong>. Your account has been created "
+        "with the following credentials:"
+    )
+    username_block = "" if is_additional else f"""
+      <div style="background:linear-gradient(135deg,#f8fafc,#f1f5f9);border:1px solid #e2e8f0;border-left:4px solid #C4972A;border-radius:8px;padding:22px 24px;margin-bottom:28px;text-align:center;">
+        <p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.1em;">Your Username</p>
+        <p style="margin:0;font-size:32px;font-weight:700;color:#1a120a;font-family:monospace;letter-spacing:.06em;">{username}</p>
+        <p style="margin:10px 0 0;font-size:12px;color:#94a3b8;">Contact the IT department to set your password and complete account activation.</p>
+      </div>"""
+    systems_label = "Additional Systems Granted" if is_additional else "Systems Access Granted"
 
     html = f"""<!DOCTYPE html>
 <html>
 <body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
   <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
     <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid #C4972A;">
-      <h2 style="margin:0;font-size:22px;color:#C4972A;">Access Approved</h2>
+      <h2 style="margin:0;font-size:22px;color:#C4972A;">{heading}</h2>
       <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">RGMC System Gateway</p>
     </div>
     <div style="padding:28px 32px;">
       <p style="margin:0 0 16px;font-size:15px;">Hello <strong>{record.get('first_name','')}</strong>,</p>
-      <p style="margin:0 0 28px;font-size:15px;line-height:1.7;color:#374151;">
-        Your access request for the <strong>RGMC Gateway</strong> has been
-        <strong style="color:#15803d;">approved</strong>. Your account has been created
-        with the following credentials:
-      </p>
-      <div style="background:linear-gradient(135deg,#f8fafc,#f1f5f9);border:1px solid #e2e8f0;border-left:4px solid #C4972A;border-radius:8px;padding:22px 24px;margin-bottom:28px;text-align:center;">
-        <p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.1em;">Your Username</p>
-        <p style="margin:0;font-size:32px;font-weight:700;color:#1a120a;font-family:monospace;letter-spacing:.06em;">{username}</p>
-        <p style="margin:10px 0 0;font-size:12px;color:#94a3b8;">Contact the IT department to set your password and complete account activation.</p>
-      </div>
-      <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Systems Access Granted</p>
+      <p style="margin:0 0 28px;font-size:15px;line-height:1.7;color:#374151;">{intro}</p>
+      {username_block}
+      <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">{systems_label}</p>
       <ul style="margin:0 0 28px;padding:0 0 0 18px;line-height:1.9;">{systems_html}</ul>
       <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">For any questions or assistance, please contact the IT department at
         <a href="mailto:{it_email}" style="color:#C4972A;text-decoration:none;font-weight:600;">{it_email}</a>.
@@ -400,8 +409,9 @@ def send_access_granted_email(record: dict) -> bool:
 </body>
 </html>"""
 
+    subject = "Additional Systems Access Approved — RGMC Gateway" if is_additional else "Your RGMC Gateway Access Has Been Approved"
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = "Your RGMC Gateway Access Has Been Approved"
+    msg["Subject"] = subject
     msg["From"]    = from_addr
     msg["To"]      = user_email
     msg.attach(MIMEText(html, "html"))
@@ -480,6 +490,68 @@ def access_request():
     })
 
 
+@app.route("/access-request/additional", methods=["POST"])
+def access_request_additional():
+    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+        return jsonify({"success": False, "error": "Access request system is not configured."}), 503
+
+    username    = request.form.get("username", "").strip().lower()
+    new_systems = request.form.getlist("systems")
+
+    if not username:
+        return jsonify({"success": False, "error": "Session expired. Please sign in again."}), 400
+    if not new_systems:
+        return jsonify({"success": False, "error": "Please select at least one system."}), 400
+
+    # Look up the existing approved record to copy the user's info
+    try:
+        rows = supabase_req("GET", "/access_requests", params={
+            "username": f"eq.{username}",
+            "status":   "eq.approved",
+            "select":   "*",
+            "order":    "created_at.asc",
+            "limit":    "1",
+        })
+    except Exception as exc:
+        app.logger.error("Supabase lookup failed: %s", exc)
+        return jsonify({"success": False, "error": "Failed to retrieve your account. Please try again."}), 500
+
+    if not rows:
+        return jsonify({"success": False, "error": "Account not found. Please sign in again."}), 404
+
+    existing = rows[0]
+
+    # Create the additional-access request record.
+    # Pre-setting username is the signal that access_approve() uses to detect "additional" requests
+    # and merge systems rather than creating a fresh account.
+    new_data = {
+        "first_name":     existing["first_name"],
+        "last_name":      existing["last_name"],
+        "middle_initial": existing.get("middle_initial", ""),
+        "company":        existing["company"],
+        "department":     existing["department"],
+        "position":       existing["position"],
+        "email":          existing["email"],
+        "systems":        new_systems,
+        "username":       username,
+    }
+
+    try:
+        ins = supabase_req("POST", "/access_requests", data=new_data)
+        record = ins[0] if ins else {}
+    except Exception as exc:
+        app.logger.error("Supabase insert failed: %s", exc)
+        return jsonify({"success": False, "error": "Failed to save request. Please try again."}), 500
+
+    base_url = (GATEWAY_BASE_URL or request.host_url).rstrip("/")
+    send_approval_request_email(record, base_url, is_additional=True)
+
+    return jsonify({
+        "success": True,
+        "message": "Your additional access request has been submitted. You will be notified once it has been approved.",
+    })
+
+
 @app.route("/verify-username", methods=["POST"])
 def verify_username():
     if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
@@ -538,7 +610,29 @@ def access_approve(token):
         return render_template("access_result.html", success=False, title="Already Processed",
                                message=Markup(f"This request has already been <strong>{processed}</strong>.")), 409
 
-    username = generate_username(record["first_name"], record["last_name"])
+    # A pre-set username signals this is an additional-access request
+    is_additional = bool(record.get("username"))
+
+    if is_additional:
+        username = record["username"]
+        # Merge the new systems into the user's primary approved record
+        try:
+            primary = supabase_req("GET", "/access_requests", params={
+                "username": f"eq.{username}",
+                "status":   "eq.approved",
+                "select":   "id,systems",
+                "order":    "created_at.asc",
+                "limit":    "1",
+            })
+            if primary:
+                merged = list({*(primary[0].get("systems") or []), *(record.get("systems") or [])})
+                supabase_req("PATCH", "/access_requests",
+                             data={"systems": merged},
+                             params={"id": f"eq.{primary[0]['id']}"})
+        except Exception as exc:
+            app.logger.error("System merge failed: %s", exc)
+    else:
+        username = generate_username(record["first_name"], record["last_name"])
 
     try:
         supabase_req("PATCH", "/access_requests", data={
@@ -552,15 +646,23 @@ def access_approve(token):
                                message=Markup("Failed to approve the request. Please try again.")), 500
 
     record["username"] = username
-    send_access_granted_email(record)
+    send_access_granted_email(record, is_additional=is_additional)
 
     full_name = _full_name(record)
-    return render_template("access_result.html", success=True, title="Access Approved",
-                           message=Markup(
-                               f"Access for <strong>{html_escape(full_name)}</strong> has been approved.<br><br>"
-                               f"Username <strong>{html_escape(username)}</strong> has been assigned.<br>"
-                               f"A confirmation email has been sent to <strong>{html_escape(record['email'])}</strong>."
-                           ))
+    if is_additional:
+        new_systems = html_escape(", ".join(record.get("systems") or []))
+        msg = Markup(
+            f"Additional access for <strong>{html_escape(full_name)}</strong> has been approved.<br><br>"
+            f"Systems added: <strong>{new_systems}</strong><br>"
+            f"A notification email has been sent to <strong>{html_escape(record['email'])}</strong>."
+        )
+    else:
+        msg = Markup(
+            f"Access for <strong>{html_escape(full_name)}</strong> has been approved.<br><br>"
+            f"Username <strong>{html_escape(username)}</strong> has been assigned.<br>"
+            f"A confirmation email has been sent to <strong>{html_escape(record['email'])}</strong>."
+        )
+    return render_template("access_result.html", success=True, title="Access Approved", message=msg)
 
 
 @app.route("/access/reject/<token>")

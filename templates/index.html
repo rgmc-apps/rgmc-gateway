@@ -333,6 +333,51 @@
     </div>
   </div>
 
+  <!-- Additional Access Modal -->
+  <div id="additionalModal" class="modal-overlay" onclick="overlayCloseAdditional(event)">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Request Additional Access</h3>
+          <p class="modal-site-name">Select systems you need access to</p>
+        </div>
+        <button class="modal-close" onclick="closeAdditionalAccess()" aria-label="Close">&times;</button>
+      </div>
+      <form id="additionalForm" class="modal-form" onsubmit="submitAdditionalAccess(event)">
+        <div class="form-group form-group-full">
+          <label class="form-label">Systems Needed <span class="required">*</span></label>
+          <div class="checkbox-grid" id="additionalGrid">
+            <!-- populated by JS with only unapproved systems -->
+          </div>
+          <div id="additionalSystemsError" class="ar-systems-error" style="display:none;">Please select at least one system.</div>
+        </div>
+        <div id="addlFormActions" class="modal-actions">
+          <button type="button" class="btn-modal-cancel" onclick="closeAdditionalAccess()">Cancel</button>
+          <button type="submit" class="btn-modal-submit">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            Submit Request
+          </button>
+        </div>
+        <div id="addlFormLoading" class="form-state" style="display:none;">
+          <div class="spinner"></div>
+          <span>Submitting request…</span>
+        </div>
+        <div id="addlFormSuccess" class="form-state form-success" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span id="addlSuccessMsg"></span>
+        </div>
+        <div id="addlFormError" class="form-state form-error" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="addlErrorMsg"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Site list for JS filtering — populated server-side
+    const ALL_SITES = {{ sites | tojson }};
+  </script>
   <script src="/static/script.js"></script>
 </body>
 </html>
