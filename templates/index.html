@@ -21,6 +21,10 @@
         <div class="header-divider"></div>
         <div class="header-tagline">Internal Systems Portal</div>
       </div>
+      <button class="btn-header-access" onclick="openAccessRequest()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Request Access
+      </button>
     </div>
   </header>
 
@@ -191,6 +195,96 @@
 
   <!-- Toast -->
   <div id="toast" class="toast"></div>
+
+  <!-- Access Request Modal -->
+  <div id="accessModal" class="modal-overlay" onclick="overlayCloseAccess(event)">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Request System Access</h3>
+          <p class="modal-site-name">Submit a request to gain access to RGMC systems</p>
+        </div>
+        <button class="modal-close" onclick="closeAccessRequest()" aria-label="Close">&times;</button>
+      </div>
+      <form id="accessRequestForm" class="modal-form" onsubmit="submitAccessRequest(event)">
+
+        <!-- Name: First / M.I. / Last -->
+        <div class="form-row form-row-3">
+          <div class="form-group">
+            <label class="form-label" for="arFirstName">First Name <span class="required">*</span></label>
+            <input class="form-input" type="text" id="arFirstName" name="first_name" placeholder="Juan" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="arMI">M.I.</label>
+            <input class="form-input" type="text" id="arMI" name="middle_initial" placeholder="A" maxlength="3">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="arLastName">Last Name <span class="required">*</span></label>
+            <input class="form-input" type="text" id="arLastName" name="last_name" placeholder="Dela Cruz" required>
+          </div>
+        </div>
+
+        <!-- Company / Department -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="arCompany">Company <span class="required">*</span></label>
+            <input class="form-input" type="text" id="arCompany" name="company" placeholder="RGMC Group" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="arDepartment">Department <span class="required">*</span></label>
+            <input class="form-input" type="text" id="arDepartment" name="department" placeholder="IT / Finance / Operations" required>
+          </div>
+        </div>
+
+        <!-- Position / Email -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="arPosition">Position <span class="required">*</span></label>
+            <input class="form-input" type="text" id="arPosition" name="position" placeholder="Manager / Analyst" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="arEmail">Email Address <span class="required">*</span></label>
+            <input class="form-input" type="email" id="arEmail" name="email" placeholder="you@rgmcgroup.com" required>
+          </div>
+        </div>
+
+        <!-- Systems -->
+        <div class="form-group form-group-full">
+          <label class="form-label">Systems Needed <span class="required">*</span></label>
+          <div class="checkbox-grid">
+            {% for site in sites %}
+            <label class="check-item">
+              <input type="checkbox" name="systems" value="{{ site.name }}">
+              <span>{{ site.name }}</span>
+            </label>
+            {% endfor %}
+          </div>
+          <div id="arSystemsError" class="ar-systems-error" style="display:none;">Please select at least one system.</div>
+        </div>
+
+        <!-- Actions -->
+        <div id="arFormActions" class="modal-actions">
+          <button type="button" class="btn-modal-cancel" onclick="closeAccessRequest()">Cancel</button>
+          <button type="submit" class="btn-modal-submit" id="arSubmitBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            Submit Request
+          </button>
+        </div>
+        <div id="arFormLoading" class="form-state" style="display:none;">
+          <div class="spinner"></div>
+          <span>Submitting request…</span>
+        </div>
+        <div id="arFormSuccess" class="form-state form-success" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span id="arSuccessMsg"></span>
+        </div>
+        <div id="arFormError" class="form-state form-error" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="arErrorMsg"></span>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script src="/static/script.js"></script>
 </body>

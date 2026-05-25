@@ -228,6 +228,75 @@ function hide(id) { const el = document.getElementById(id); if (el) el.style.dis
 function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function escapeAttr(s) { return s.replace(/"/g, '&quot;'); }
 
+/* ── Access Request Modal ── */
+
+function openAccessRequest() {
+  resetAccessFormState();
+  document.getElementById('accessModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeAccessRequest() {
+  document.getElementById('accessModal').classList.remove('open');
+  document.body.style.overflow = '';
+  document.getElementById('accessRequestForm').reset();
+  resetAccessFormState();
+}
+
+function overlayCloseAccess(e) {
+  if (e.target === document.getElementById('accessModal')) closeAccessRequest();
+}
+
+function resetAccessFormState() {
+  show('arFormActions');
+  hide('arFormLoading');
+  hide('arFormSuccess');
+  hide('arFormError');
+  hide('arSystemsError');
+  const btn = document.getElementById('arSubmitBtn');
+  if (btn) btn.disabled = false;
+}
+
+async function submitAccessRequest(e) {
+  e.preventDefault();
+
+  const checked = document.querySelectorAll('#accessRequestForm input[name="systems"]:checked');
+  if (checked.length === 0) {
+    document.getElementById('arSystemsError').style.display = '';
+    return;
+  }
+  hide('arSystemsError');
+
+  hide('arFormActions');
+  hide('arFormSuccess');
+  hide('arFormError');
+  show('arFormLoading');
+
+  const formData = new FormData(document.getElementById('accessRequestForm'));
+
+  try {
+    const res = await fetch('/access-request', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    hide('arFormLoading');
+
+    if (data.success) {
+      show('arFormSuccess');
+      document.getElementById('arSuccessMsg').textContent = data.message;
+      setTimeout(() => { closeAccessRequest(); showToast('Access request submitted successfully.'); }, 3500);
+    } else {
+      show('arFormActions');
+      show('arFormError');
+      document.getElementById('arErrorMsg').textContent = data.error || 'An unexpected error occurred.';
+    }
+  } catch {
+    hide('arFormLoading');
+    show('arFormActions');
+    show('arFormError');
+    document.getElementById('arErrorMsg').textContent = 'Network error — please try again.';
+  }
+}
+
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', () => {
   refreshHealth();
@@ -236,8 +305,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Update "last updated" text every 10 seconds
   setInterval(updateLastUpdated, 10000);
 
-  // Keyboard: Esc closes modal
+  // Keyboard: Esc closes any open modal
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeReport();
+    if (e.key === 'Escape') {
+      closeReport();
+      closeAccessRequest();
+    }
   });
 });

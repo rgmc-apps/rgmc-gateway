@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title }} — RGMC Gateway</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --gold:         #C4972A;
+      --gold-light:   #D4A83C;
+      --bg:           #0B0906;
+      --bg-card:      #161309;
+      --border:       rgba(196, 151, 42, 0.16);
+      --text-primary: #EDE5D0;
+      --text-secondary: #A89060;
+      --text-muted:   #5C4A28;
+      --success:      #52A870;
+      --error:        #D85858;
+      --font-display: 'Playfair Display', Georgia, serif;
+      --font-ui:      'DM Sans', -apple-system, sans-serif;
+      --radius-lg:    14px;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font-ui);
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      max-width: 500px;
+      width: 100%;
+      overflow: hidden;
+      box-shadow: 0 24px 80px rgba(0,0,0,.7);
+      position: relative;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      {% if success %}
+      background: linear-gradient(90deg, #15803d 0%, #52A870 100%);
+      {% else %}
+      background: linear-gradient(90deg, var(--gold) 0%, var(--gold-light) 100%);
+      {% endif %}
+    }
+    .card-icon {
+      padding: 40px 32px 20px;
+      display: flex;
+      justify-content: center;
+    }
+    .card-icon svg {
+      width: 56px;
+      height: 56px;
+      {% if success %}color: var(--success);{% else %}color: var(--gold);{% endif %}
+    }
+    .card-body {
+      padding: 0 32px 36px;
+      text-align: center;
+    }
+    h1 {
+      margin: 0 0 14px;
+      font-family: var(--font-display);
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .card-message {
+      margin: 0;
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.75;
+    }
+    .card-message strong { color: var(--text-primary); }
+    .card-footer {
+      margin-top: 32px;
+      padding-top: 22px;
+      border-top: 1px solid rgba(255,255,255,.05);
+      font-size: 12px;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+    }
+    .back-link {
+      display: inline-block;
+      margin-top: 28px;
+      font-size: 13px;
+      color: var(--gold);
+      text-decoration: none;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      opacity: 0.8;
+      transition: opacity 0.15s;
+    }
+    .back-link:hover { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-icon">
+      {% if success %}
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+      {% else %}
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      {% endif %}
+    </div>
+    <div class="card-body">
+      <h1>{{ title }}</h1>
+      <p class="card-message">{{ message }}</p>
+      <div class="card-footer">RGMC Group &mdash; Internal Systems Portal</div>
+    </div>
+  </div>
+</body>
+</html>

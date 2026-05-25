@@ -732,15 +732,96 @@ body::before {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Header: Request Access button ── */
+.btn-header-access {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 18px;
+  background: var(--gold);
+  color: #0B0906;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: all 0.17s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-header-access:hover {
+  background: var(--gold-light);
+  box-shadow: var(--shadow-btn);
+  transform: translateY(-1px);
+}
+
+/* ── Wide modal (access request) ── */
+.modal-lg { max-width: 680px; }
+
+/* 3-column form row: First Name | M.I. | Last Name */
+.form-row-3 {
+  grid-template-columns: 1fr 72px 1fr;
+}
+
+/* ── System checkboxes ── */
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 13px;
+  border: 1.5px solid rgba(196,151,42,.2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  font-size: 13px;
+  color: var(--text-primary);
+  user-select: none;
+  line-height: 1.35;
+}
+.check-item:hover {
+  border-color: var(--gold-border-h);
+  background: var(--gold-dim);
+}
+.check-item input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--gold);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.check-item:has(input:checked) {
+  border-color: var(--gold);
+  background: var(--gold-dim);
+}
+
+.ar-systems-error {
+  margin-top: 7px;
+  font-size: 13px;
+  color: var(--error);
+  font-weight: 500;
+}
+
 /* ── Responsive ── */
 @media (max-width: 640px) {
   .main { padding: 24px 18px 44px; }
   .header-inner { padding: 12px 18px; }
   .header-tagline { display: none; }
   .form-row { grid-template-columns: 1fr; }
+  .form-row-3 { grid-template-columns: 1fr; }
+  .modal-lg { max-width: 100%; }
   .systems-grid { grid-template-columns: 1fr; }
   .health-grid { grid-template-columns: 1fr; }
   .health-header-row { flex-direction: column; align-items: flex-start; }
   .site-card-actions { flex-direction: column; }
   .btn-report { margin-left: 0; }
+  .btn-header-access { padding: 8px 12px; font-size: 12px; }
 }
