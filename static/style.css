@@ -732,6 +732,220 @@ body::before {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Gate (authentication overlay) ── */
+.gate-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  transition: opacity 0.25s ease;
+}
+.gate-overlay.dismissing {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.gate-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 400px;
+  padding: 40px 36px 32px;
+  box-shadow: 0 24px 80px rgba(0,0,0,.7);
+  position: relative;
+}
+.gate-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent 0%, var(--gold) 35%, var(--gold-light) 65%, transparent 100%);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.gate-logo-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 22px;
+}
+.gate-logo-img {
+  height: 46px;
+  width: auto;
+  background: #fff;
+  border-radius: var(--radius-sm);
+  padding: 6px 16px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.45);
+}
+
+.gate-brand {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.gate-title {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.gate-tagline {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  letter-spacing: 0.05em;
+}
+
+.gate-desc {
+  margin: 0 0 22px;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.65;
+}
+
+.btn-gate-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  background: var(--gold);
+  color: #0B0906;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: all 0.17s ease;
+}
+.btn-gate-primary:hover {
+  background: var(--gold-light);
+  box-shadow: var(--shadow-btn);
+  transform: translateY(-1px);
+}
+
+.gate-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.gate-divider::before,
+.gate-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.btn-gate-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: all 0.17s ease;
+}
+.btn-gate-secondary:hover {
+  border-color: var(--gold-border-h);
+  color: var(--gold);
+  background: var(--gold-dim);
+}
+
+.gate-login-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.gate-footer-text {
+  margin: 28px 0 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+/* ── Header: authenticated user info ── */
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.header-username {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.btn-sign-out {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-sign-out:hover {
+  border-color: rgba(216,88,88,.4);
+  color: var(--error);
+  background: var(--error-bg);
+}
+
+.btn-header-access {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 15px;
+  background: var(--gold-dim);
+  color: var(--gold);
+  border: 1.5px solid var(--gold-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: all 0.17s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-header-access:hover {
+  background: var(--gold-dim);
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-dim);
+}
+
 /* ── Header: Request Access button ── */
 .btn-header-access {
   display: inline-flex;
@@ -823,5 +1037,6 @@ body::before {
   .health-header-row { flex-direction: column; align-items: flex-start; }
   .site-card-actions { flex-direction: column; }
   .btn-report { margin-left: 0; }
-  .btn-header-access { padding: 8px 12px; font-size: 12px; }
+  .gate-card { padding: 32px 24px 26px; }
+  .header-username { display: none; }
 }

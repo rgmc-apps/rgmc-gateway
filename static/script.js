@@ -228,6 +228,136 @@ function hide(id) { const el = document.getElementById(id); if (el) el.style.dis
 function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function escapeAttr(s) { return s.replace(/"/g, '&quot;'); }
 
+/* ── Gate (authentication) ── */
+
+const SESSION_KEY = 'rgmc_gateway_session';
+
+function loadSession() {
+  try { return JSON.parse(sessionStorage.getItem(SESSION_KEY)); } catch { return null; }
+}
+
+function saveSession(data) {
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(data));
+}
+
+function clearSession() {
+  sessionStorage.removeItem(SESSION_KEY);
+}
+
+function initGate() {
+  const session = loadSession();
+  if (session && session.username && Array.isArray(session.systems)) {
+    applySession(session);
+  }
+  // else: gate stays visible (default)
+}
+
+function applySession(session) {
+  // 1. Filter system cards while main is still invisible (prevents flash)
+  filterSystems(session.systems);
+
+  // 2. Reveal main content
+  const main = document.getElementById('mainContent');
+  if (main) main.style.visibility = 'visible';
+
+  // 3. Populate header user info
+  const headerUser = document.getElementById('headerUser');
+  if (headerUser) {
+    headerUser.innerHTML = `
+      <span class="header-username">${escapeHtml(session.firstName || session.username)}</span>
+      <button class="btn-sign-out" onclick="signOut()">Sign Out</button>
+      <button class="btn-header-access" onclick="openAccessRequest()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Request Access
+      </button>`;
+  }
+
+  // 4. Dismiss gate with fade
+  const gate = document.getElementById('gate');
+  if (gate) {
+    gate.classList.add('dismissing');
+    setTimeout(() => { gate.style.display = 'none'; }, 260);
+  }
+
+  // 5. Start health refresh (deferred until after authentication)
+  refreshHealth();
+  setInterval(refreshHealth, 60000);
+  setInterval(updateLastUpdated, 10000);
+}
+
+function filterSystems(approvedSystems) {
+  const approved = new Set((approvedSystems || []).map(s => s.toLowerCase()));
+
+  document.querySelectorAll('.site-card').forEach(card => {
+    const name = (card.querySelector('.site-card-name')?.textContent || '').trim();
+    card.style.display = approved.has(name.toLowerCase()) ? '' : 'none';
+  });
+
+  // Hide entire section if it has no visible cards
+  document.querySelectorAll('.section:not(.health-section)').forEach(section => {
+    const hasVisible = Array.from(section.querySelectorAll('.site-card'))
+      .some(c => c.style.display !== 'none');
+    section.style.display = hasVisible ? '' : 'none';
+  });
+}
+
+function showGateLogin() {
+  hide('gateOptions');
+  show('gateLogin');
+  show('gateLoginActions');
+  hide('gateLoading');
+  hide('gateError');
+  const input = document.getElementById('gateUsername');
+  if (input) { input.value = ''; input.focus(); }
+}
+
+function showGateOptions() {
+  hide('gateLogin');
+  show('gateOptions');
+}
+
+async function signIn() {
+  const username = (document.getElementById('gateUsername')?.value || '').trim();
+  if (!username) {
+    document.getElementById('gateError').textContent = 'Please enter your username.';
+    show('gateError');
+    return;
+  }
+
+  hide('gateError');
+  hide('gateLoginActions');
+  show('gateLoading');
+
+  try {
+    const form = new FormData();
+    form.append('username', username);
+    const res = await fetch('/verify-username', { method: 'POST', body: form });
+    const data = await res.json();
+
+    if (data.success) {
+      const session = { username: data.username, firstName: data.first_name, systems: data.systems };
+      saveSession(session);
+      applySession(session);
+    } else {
+      hide('gateLoading');
+      show('gateLoginActions');
+      document.getElementById('gateError').textContent =
+        data.error || 'Username not found. Please request access.';
+      show('gateError');
+    }
+  } catch {
+    hide('gateLoading');
+    show('gateLoginActions');
+    document.getElementById('gateError').textContent = 'Network error — please try again.';
+    show('gateError');
+  }
+}
+
+function signOut() {
+  clearSession();
+  location.reload();
+}
+
 /* ── Access Request Modal ── */
 
 function openAccessRequest() {
@@ -299,13 +429,15 @@ async function submitAccessRequest(e) {
 
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', () => {
-  refreshHealth();
-  // Auto-refresh every 60 seconds
-  setInterval(refreshHealth, 60000);
-  // Update "last updated" text every 10 seconds
-  setInterval(updateLastUpdated, 10000);
+  // Check for existing session — shows gate or restores portal
+  initGate();
 
-  // Keyboard: Esc closes any open modal
+  // Enter key in gate username field
+  document.getElementById('gateUsername')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') signIn();
+  });
+
+  // Keyboard: Esc closes modals (not the gate — that requires explicit action)
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       closeReport();

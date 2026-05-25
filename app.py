@@ -482,6 +482,40 @@ def access_request():
     })
 
 
+@app.route("/verify-username", methods=["POST"])
+def verify_username():
+    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+        return jsonify({"success": False, "error": "Authentication system is not configured."}), 503
+
+    username = request.form.get("username", "").strip().lower()
+    if not username:
+        return jsonify({"success": False, "error": "Please enter your username."}), 400
+
+    try:
+        rows = supabase_req("GET", "/access_requests", params={
+            "username": f"eq.{username}",
+            "status":   "eq.approved",
+            "select":   "username,first_name,last_name,systems",
+        })
+    except Exception as exc:
+        app.logger.error("Supabase verify-username failed: %s", exc)
+        return jsonify({"success": False, "error": "Authentication failed. Please try again."}), 500
+
+    if not rows:
+        return jsonify({
+            "success": False,
+            "error": "Username not found or access not yet approved. Please request access.",
+        }), 404
+
+    record = rows[0]
+    return jsonify({
+        "success":    True,
+        "username":   record["username"],
+        "first_name": record.get("first_name", ""),
+        "systems":    record.get("systems", []),
+    })
+
+
 @app.route("/access/approve/<token>")
 def access_approve(token):
     if not SUPABASE_URL:
