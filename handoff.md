@@ -15,8 +15,8 @@ All features are fully implemented. No known broken state.
 - 18 total sites: 5 RGMC, 3 SBIC, 10 NAV Site (NAV Site entries added this session)
 - Supabase `public.access_requests` table (RLS enabled, service role key bypasses it)
 
-**Known gap (not yet fixed):**
-- `templates/index.html` has sections for RGMC and SBIC in `<main>`, but **NO section for NAV Site**. Approved NAV Site users will sign in fine and `filterSystems()` will try to show their cards, but the cards don't exist in the DOM. They'll see a blank portal. This needs a NAV Site `<section>` block added to the HTML.
+**Known gap (fixed 2026-06-04):**
+- NAV Site `<section>` block added to `templates/index.html` between the SBIC section and Health Check section. `.label-nav` badge style (teal) added to `static/style.css`. Approved NAV Site users now see their cards after login.
 
 ## Files Actively Being Edited
 
@@ -36,41 +36,7 @@ All features are fully implemented. No known broken state.
 
 ## Next Step
 
-**Add the NAV Site section to `templates/index.html`** so approved NAV Site users see their cards after login.
-
-Insert this block between the SBIC `</section>` (around line 91) and the Health Check `<section class="section health-section">` (around line 93). Copy the SVG icons from the existing SBIC section. Also add a `.label-nav` badge style in `static/style.css` (follow `.label-rgmc` / `.label-sbic` pattern — pick a distinct color, e.g. teal or purple):
-
-```html
-<!-- NAV Sites -->
-<section class="section">
-  <div class="section-label">
-    <span class="label-badge label-nav">NAV</span>
-    <h2 class="section-title">NAV Sites</h2>
-  </div>
-  <div class="systems-grid">
-    {% for site in sites if site.category == 'NAV Site' %}
-    <div class="site-card">
-      <div class="site-card-name">{{ site.name }}</div>
-      <div class="site-card-actions">
-        <a href="{{ site.primary_url }}" target="_blank" rel="noopener" class="btn btn-primary">
-          <!-- copy external-link SVG from RGMC section -->
-          {{ site.primary_label }}
-        </a>
-        {% if site.backup_url %}
-        <a href="{{ site.backup_url }}" target="_blank" rel="noopener" class="btn btn-backup">
-          {{ site.backup_label }}
-        </a>
-        {% endif %}
-        <button class="btn btn-report" onclick="openReport('{{ site.name }}')">
-          <!-- copy alert SVG from RGMC section -->
-          Report Problem
-        </button>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-</section>
-```
+No known gaps. All features are complete and working. Monitor for new feature requests or bug reports.
 
 ## Context & Gotchas
 

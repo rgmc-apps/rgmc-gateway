@@ -74,6 +74,15 @@ SITES = [
         "backup_label": None,
     },
     {
+        "id": "rgmc-consignment-app",
+        "name": "RGMC Consignment Web App",
+        "category": "RGMC",
+        "primary_url": "https://rgmc-consignment-webapp-935246372408.asia-southeast1.run.app/",
+        "primary_label": "Open",
+        "backup_url": None,
+        "backup_label": None,
+    },
+    {
         "id": "sbic-po-uploader",
         "name": "SBIC PO Uploader",
         "category": "SBIC",

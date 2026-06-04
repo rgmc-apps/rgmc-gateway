@@ -90,6 +90,37 @@
       </div>
     </section>
 
+    <!-- NAV Sites -->
+    <section class="section">
+      <div class="section-label">
+        <span class="label-badge label-nav">NAV</span>
+        <h2 class="section-title">NAV Sites</h2>
+      </div>
+      <div class="systems-grid">
+        {% for site in sites if site.category == 'NAV Site' %}
+        <div class="site-card">
+          <div class="site-card-name">{{ site.name }}</div>
+          <div class="site-card-actions">
+            <a href="{{ site.primary_url }}" target="_blank" rel="noopener" class="btn btn-primary">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              {{ site.primary_label }}
+            </a>
+            {% if site.backup_url %}
+            <a href="{{ site.backup_url }}" target="_blank" rel="noopener" class="btn btn-backup">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              {{ site.backup_label }}
+            </a>
+            {% endif %}
+            <button class="btn btn-report" onclick="openReport('{{ site.name }}')">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Report Problem
+            </button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
     <!-- Health Check Section -->
     <section class="section health-section">
       <div class="health-header-row" style="margin-bottom:18px;">
