@@ -6,12 +6,12 @@
   <title>RGMC Gateway — Internal Systems Portal</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
-  <!-- Header -->
+  <!-- Floating Nav Pill -->
   <header class="site-header">
     <div class="header-inner">
       <div class="header-brand">
@@ -37,22 +37,24 @@
       <div class="systems-grid">
         {% for site in sites if site.category == 'RGMC' %}
         <div class="site-card">
-          <div class="site-card-name">{{ site.name }}</div>
-          <div class="site-card-actions">
-            <a href="{{ site.primary_url }}" target="_blank" rel="noopener" class="btn btn-primary">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-              {{ site.primary_label }}
-            </a>
-            {% if site.backup_url %}
-            <a href="{{ site.backup_url }}" target="_blank" rel="noopener" class="btn btn-backup">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-              {{ site.backup_label }}
-            </a>
-            {% endif %}
-            <button class="btn btn-report" onclick="openReport('{{ site.name }}')">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              Report Problem
-            </button>
+          <div class="site-card-inner">
+            <div class="site-card-name">{{ site.name }}</div>
+            <div class="site-card-actions">
+              <a href="{{ site.primary_url }}" target="_blank" rel="noopener" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                {{ site.primary_label }}
+              </a>
+              {% if site.backup_url %}
+              <a href="{{ site.backup_url }}" target="_blank" rel="noopener" class="btn btn-backup">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                {{ site.backup_label }}
+              </a>
+              {% endif %}
+              <button class="btn btn-report" onclick="openReport('{{ site.name }}')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                Report Problem
+              </button>
+            </div>
           </div>
         </div>
         {% endfor %}
@@ -68,22 +70,24 @@
       <div class="systems-grid">
         {% for site in sites if site.category == 'SBIC' %}
         <div class="site-card">
-          <div class="site-card-name">{{ site.name }}</div>
-          <div class="site-card-actions">
-            <a href="{{ site.primary_url }}" target="_blank" rel="noopener" class="btn btn-primary">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-              {{ site.primary_label }}
-            </a>
-            {% if site.backup_url %}
-            <a href="{{ site.backup_url }}" target="_blank" rel="noopener" class="btn btn-backup">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-              {{ site.backup_label }}
-            </a>
-            {% endif %}
-            <button class="btn btn-report" onclick="openReport('{{ site.name }}')">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              Report Problem
-            </button>
+          <div class="site-card-inner">
+            <div class="site-card-name">{{ site.name }}</div>
+            <div class="site-card-actions">
+              <a href="{{ site.primary_url }}" target="_blank" rel="noopener" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                {{ site.primary_label }}
+              </a>
+              {% if site.backup_url %}
+              <a href="{{ site.backup_url }}" target="_blank" rel="noopener" class="btn btn-backup">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                {{ site.backup_label }}
+              </a>
+              {% endif %}
+              <button class="btn btn-report" onclick="openReport('{{ site.name }}')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                Report Problem
+              </button>
+            </div>
           </div>
         </div>
         {% endfor %}
@@ -99,22 +103,24 @@
       <div class="systems-grid">
         {% for site in sites if site.category == 'NAV Sites' %}
         <div class="site-card">
-          <div class="site-card-name">{{ site.name }}</div>
-          <div class="site-card-actions">
-            <a href="{{ site.primary_url }}" target="_blank" rel="noopener" class="btn btn-primary">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-              {{ site.primary_label }}
-            </a>
-            {% if site.backup_url %}
-            <a href="{{ site.backup_url }}" target="_blank" rel="noopener" class="btn btn-backup">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-              {{ site.backup_label }}
-            </a>
-            {% endif %}
-            <button class="btn btn-report" onclick="openReport('{{ site.name }}')">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              Report Problem
-            </button>
+          <div class="site-card-inner">
+            <div class="site-card-name">{{ site.name }}</div>
+            <div class="site-card-actions">
+              <a href="{{ site.primary_url }}" target="_blank" rel="noopener" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                {{ site.primary_label }}
+              </a>
+              {% if site.backup_url %}
+              <a href="{{ site.backup_url }}" target="_blank" rel="noopener" class="btn btn-backup">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                {{ site.backup_label }}
+              </a>
+              {% endif %}
+              <button class="btn btn-report" onclick="openReport('{{ site.name }}')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                Report Problem
+              </button>
+            </div>
           </div>
         </div>
         {% endfor %}
@@ -123,15 +129,15 @@
 
     <!-- Health Check Section -->
     <section class="section health-section">
-      <div class="health-header-row" style="margin-bottom:18px;">
-        <div style="display:flex;align-items:center;gap:12px;">
+      <div class="health-header-row" style="margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:14px;">
           <span class="label-badge label-health">API</span>
           <h2 class="section-title">Health Status</h2>
         </div>
         <div class="health-controls">
           <span id="lastUpdated" class="last-updated"></span>
           <button id="refreshBtn" class="btn-refresh" onclick="refreshHealth()">
-            <svg id="refreshIcon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            <svg id="refreshIcon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
             Refresh
           </button>
         </div>
@@ -201,7 +207,7 @@
         <div id="formActions" class="modal-actions">
           <button type="button" class="btn-modal-cancel" onclick="closeReport()">Cancel</button>
           <button type="submit" class="btn-modal-submit" id="submitBtn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             Submit Report
           </button>
         </div>
@@ -227,50 +233,53 @@
   <!-- Gate (authentication) -->
   <div id="gate" class="gate-overlay">
     <div class="gate-card">
+      <div class="gate-card-inner">
 
-      <div class="gate-logo-wrap">
-        <img src="/static/logo.png" alt="RGMC" class="gate-logo-img">
-      </div>
-
-      <div class="gate-brand">
-        <h1 class="gate-title">RGMC Gateway</h1>
-        <p class="gate-tagline">Internal Systems Portal</p>
-      </div>
-
-      <!-- Step 1: Choose -->
-      <div id="gateOptions">
-        <p class="gate-desc">Welcome. Sign in with your username or submit a new access request.</p>
-        <button class="btn-gate-primary" onclick="showGateLogin()">
-          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          Sign In
-        </button>
-        <div class="gate-divider"><span>or</span></div>
-        <button class="btn-gate-secondary" onclick="openAccessRequest()">
-          Request Access
-        </button>
-      </div>
-
-      <!-- Step 2: Username form -->
-      <div id="gateLogin" style="display:none;">
-        <div class="form-group" style="margin-bottom:14px;">
-          <label class="form-label" for="gateUsername">Username <span class="required">*</span></label>
-          <input class="form-input" type="text" id="gateUsername" placeholder="e.g. jdelacruz" autocomplete="username" spellcheck="false">
+        <div class="gate-logo-wrap">
+          <img src="/static/logo.png" alt="RGMC" class="gate-logo-img">
         </div>
-        <div id="gateError" class="ar-systems-error" style="display:none;margin-bottom:12px;"></div>
-        <div id="gateLoginActions" class="gate-login-actions">
-          <button type="button" class="btn-modal-cancel" onclick="showGateOptions()">Back</button>
-          <button type="button" class="btn-modal-submit" onclick="signIn()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+
+        <div class="gate-brand">
+          <h1 class="gate-title">RGMC Gateway</h1>
+          <p class="gate-tagline">Internal Systems Portal</p>
+        </div>
+
+        <!-- Step 1: Choose -->
+        <div id="gateOptions">
+          <p class="gate-desc">Welcome. Sign in with your username or submit a new access request.</p>
+          <button class="btn-gate-primary" onclick="showGateLogin()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             Sign In
           </button>
+          <div class="gate-divider"><span>or</span></div>
+          <button class="btn-gate-secondary" onclick="openAccessRequest()">
+            Request Access
+          </button>
         </div>
-        <div id="gateLoading" class="form-state" style="display:none;margin-top:4px;">
-          <div class="spinner"></div>
-          <span>Verifying…</span>
-        </div>
-      </div>
 
-      <p class="gate-footer-text">RGMC Group &mdash; Internal Systems Portal</p>
+        <!-- Step 2: Username form -->
+        <div id="gateLogin" style="display:none;">
+          <div class="form-group" style="margin-bottom:14px;">
+            <label class="form-label" for="gateUsername">Username <span class="required">*</span></label>
+            <input class="form-input" type="text" id="gateUsername" placeholder="e.g. jdelacruz" autocomplete="username" spellcheck="false">
+          </div>
+          <div id="gateError" class="ar-systems-error" style="display:none;margin-bottom:12px;"></div>
+          <div id="gateLoginActions" class="gate-login-actions">
+            <button type="button" class="btn-modal-cancel" onclick="showGateOptions()">Back</button>
+            <button type="button" class="btn-modal-submit" onclick="signIn()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+              Sign In
+            </button>
+          </div>
+          <div id="gateLoading" class="form-state" style="display:none;margin-top:4px;">
+            <div class="spinner"></div>
+            <span>Verifying…</span>
+          </div>
+        </div>
+
+        <p class="gate-footer-text">RGMC Group &mdash; Internal Systems Portal</p>
+
+      </div>
     </div>
   </div>
 
@@ -344,7 +353,7 @@
         <div id="arFormActions" class="modal-actions">
           <button type="button" class="btn-modal-cancel" onclick="closeAccessRequest()">Cancel</button>
           <button type="submit" class="btn-modal-submit" id="arSubmitBtn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             Submit Request
           </button>
         </div>
@@ -385,7 +394,7 @@
         <div id="addlFormActions" class="modal-actions">
           <button type="button" class="btn-modal-cancel" onclick="closeAdditionalAccess()">Cancel</button>
           <button type="submit" class="btn-modal-submit">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             Submit Request
           </button>
         </div>

@@ -288,7 +288,27 @@ function applySession(session) {
     setTimeout(() => { gate.style.display = 'none'; }, 260);
   }
 
-  // 5. Start health refresh (deferred until after authentication)
+  // 5. Staggered entrance — section labels then cards
+  // Double rAF ensures the browser paints the initial (opacity:0) state first
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    let labelDelay = 0;
+    document.querySelectorAll('.section:not(.health-section)').forEach(section => {
+      if (section.style.display !== 'none') {
+        setTimeout(() => section.querySelector('.section-label')?.classList.add('label-entered'), labelDelay);
+        labelDelay += 90;
+      }
+    });
+
+    let cardDelay = 60;
+    document.querySelectorAll('.site-card').forEach(card => {
+      if (card.style.display !== 'none') {
+        setTimeout(() => card.classList.add('card-entered'), cardDelay);
+        cardDelay += 52;
+      }
+    });
+  }));
+
+  // 6. Start health refresh (deferred until after authentication)
   refreshHealth();
   setInterval(refreshHealth, 60000);
   setInterval(updateLastUpdated, 10000);
