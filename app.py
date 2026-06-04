@@ -664,7 +664,7 @@ def verify_username():
         rows = supabase_req("GET", "/access_requests", params={
             "username": f"eq.{username}",
             "status":   "eq.approved",
-            "select":   "username,first_name,last_name,systems",
+            "select":   "username,first_name,last_name,company,department,email,systems",
         })
     except Exception as exc:
         app.logger.error("Supabase verify-username failed: %s", exc)
@@ -677,10 +677,16 @@ def verify_username():
         }), 404
 
     record = rows[0]
+    first = record.get("first_name", "")
+    last  = record.get("last_name", "")
     return jsonify({
         "success":    True,
         "username":   record["username"],
-        "first_name": record.get("first_name", ""),
+        "first_name": first,
+        "full_name":  f"{first} {last}".strip(),
+        "company":    record.get("company", ""),
+        "department": record.get("department", ""),
+        "email":      record.get("email", ""),
         "systems":    record.get("systems", []),
     })
 

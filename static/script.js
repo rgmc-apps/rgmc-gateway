@@ -6,6 +6,15 @@ function openReport(siteName) {
   document.getElementById('siteNameField').value = siteName;
   document.getElementById('modalSiteName').textContent = siteName;
   resetFormState();
+
+  const session = loadSession();
+  if (session) {
+    document.getElementById('employeeName').value = session.fullName  || '';
+    document.getElementById('companyName').value  = session.company   || '';
+    document.getElementById('department').value   = session.department || '';
+    document.getElementById('emailAddr').value    = session.email     || '';
+  }
+
   document.getElementById('reportModal').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -335,7 +344,15 @@ async function signIn() {
     const data = await res.json();
 
     if (data.success) {
-      const session = { username: data.username, firstName: data.first_name, systems: data.systems };
+      const session = {
+        username:   data.username,
+        firstName:  data.first_name,
+        fullName:   data.full_name,
+        company:    data.company,
+        department: data.department,
+        email:      data.email,
+        systems:    data.systems,
+      };
       saveSession(session);
       applySession(session);
     } else {
