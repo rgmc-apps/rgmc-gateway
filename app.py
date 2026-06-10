@@ -52,8 +52,8 @@ SITES = [
         "category": "RGMC",
         "primary_url": "http://portal.rgmcgroup.com:8080/login?returnUrl=%2F",
         "primary_label": "Open",
-        "backup_url": None,
-        "backup_label": None,
+        "backup_url": "https://rgmc-production-935246372408.asia-southeast1.run.app",
+        "backup_label": "Backup",
     },
     {
         "id": "garment-attributes",
