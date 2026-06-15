@@ -213,9 +213,18 @@
           </div>
         </div>
 
-        <div class="form-group" style="max-width:160px;">
-          <label class="form-label" for="sysSortOrder">Sort Order</label>
-          <input class="form-input" type="number" id="sysSortOrder" placeholder="0" value="0" min="0">
+        <div class="form-row" style="align-items:flex-end;">
+          <div class="form-group" style="max-width:160px;">
+            <label class="form-label" for="sysSortOrder">Sort Order</label>
+            <input class="form-input" type="number" id="sysSortOrder" placeholder="0" value="0" min="0">
+          </div>
+          <div class="form-group" style="max-width:220px;">
+            <label class="form-label">Visibility</label>
+            <label class="toggle-label">
+              <input type="checkbox" id="sysIsVisible" checked>
+              <span class="toggle-text">Visible in access request form</span>
+            </label>
+          </div>
         </div>
 
         <div id="sysFormActions" class="modal-actions">

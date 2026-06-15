@@ -292,8 +292,9 @@ def get_sites() -> list:
     if SUPABASE_URL and SUPABASE_SERVICE_KEY:
         try:
             rows = supabase_req("GET", "/systems", params={
-                "select": "id,name,category,primary_url,primary_label,backup_url,backup_label",
-                "order":  "sort_order.asc,name.asc",
+                "select":     "id,name,category,primary_url,primary_label,backup_url,backup_label",
+                "is_visible": "eq.true",
+                "order":      "sort_order.asc,name.asc",
             })
             if rows:
                 _sites_cache = rows
@@ -1214,7 +1215,7 @@ def admin_update_system(system_id):
             return jsonify({"error": str(exc)}), 500
 
     data = request.get_json(silent=True) or {}
-    allowed = {"name", "category", "primary_url", "primary_label", "backup_url", "backup_label", "sort_order"}
+    allowed = {"name", "category", "primary_url", "primary_label", "backup_url", "backup_label", "sort_order", "is_visible"}
     patch = {k: v for k, v in data.items() if k in allowed}
     if not patch:
         return jsonify({"error": "No valid fields"}), 400
@@ -1335,6 +1336,7 @@ def dev_create_item():
         "title":               title,
         "description":         (data.get("description") or "").strip() or None,
         "status":              "pending",
+        "system_id":           data.get("system_id") or None,
         "start_date":          data.get("start_date") or None,
         "estimated_end_date":  data.get("estimated_end_date") or None,
         "created_by":          username,
@@ -1353,7 +1355,7 @@ def dev_update_item(item_id):
     if err:
         return jsonify(err[0]), err[1]
     data = request.get_json(silent=True) or {}
-    allowed = {"title", "description", "status", "start_date", "estimated_end_date", "actual_end_date"}
+    allowed = {"title", "description", "status", "system_id", "start_date", "estimated_end_date", "actual_end_date"}
     patch = {k: v for k, v in data.items() if k in allowed}
     if "status" in patch and patch["status"] not in ("pending", "coding", "testing", "done"):
         return jsonify({"error": "Invalid status"}), 400
@@ -1417,6 +1419,45 @@ def dev_add_log(item_id):
     except Exception as exc:
         app.logger.error("dev_add_log failed: %s", exc)
         return jsonify({"error": "Failed to add log"}), 500
+
+
+@app.route("/api/dev/systems", methods=["GET"])
+def dev_get_systems():
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/systems", params={
+            "select": "id,name,category,primary_url,primary_label,backup_url,backup_label,sort_order,is_visible",
+            "order":  "sort_order.asc,name.asc",
+        })
+        return jsonify(rows)
+    except Exception as exc:
+        app.logger.error("dev_get_systems failed: %s", exc)
+        return jsonify({"error": "Failed to fetch systems"}), 500
+
+
+@app.route("/api/dev/systems", methods=["POST"])
+def dev_create_system():
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    data = request.get_json(silent=True) or {}
+    required = ["id", "name", "category", "primary_url", "primary_label"]
+    missing = [f for f in required if not str(data.get(f, "")).strip()]
+    if missing:
+        return jsonify({"error": f"Missing: {', '.join(missing)}"}), 400
+    if "sort_order" not in data:
+        data["sort_order"] = 999
+    if "is_visible" not in data:
+        data["is_visible"] = True
+    try:
+        rows = supabase_req("POST", "/systems", data=data)
+        _invalidate_sites_cache()
+        return jsonify(rows[0] if rows else {}), 201
+    except Exception as exc:
+        app.logger.error("dev_create_system failed: %s", exc)
+        return jsonify({"error": str(exc)}), 500
 
 
 if __name__ == "__main__":

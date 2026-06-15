@@ -46,6 +46,7 @@ function daysElapsed(item) {
 
 /* ── State ── */
 let _items       = [];
+let _systems     = [];
 let _editingId   = null;
 let _loggingId   = null;
 let _draggingId  = null;
@@ -58,12 +59,35 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
   document.getElementById('devUsername').textContent = session.firstName || session.username;
-  loadItems();
+  loadSystems().then(() => loadItems());
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeItemModal(); closeLogModal(); }
+    if (e.key === 'Escape') { closeItemModal(); closeLogModal(); closeAddSystemModal(); }
   });
 });
+
+/* ── Systems ── */
+async function loadSystems() {
+  try {
+    const res = await fetch('/api/dev/systems', { headers: authHeaders() });
+    if (res.ok) {
+      _systems = await res.json();
+      populateSystemDropdown(document.getElementById('itemSystem'), null);
+    }
+  } catch { /* non-fatal */ }
+}
+
+function populateSystemDropdown(select, selectedId) {
+  const prev = selectedId ?? select.value;
+  select.innerHTML = '<option value="">— None —</option>' +
+    _systems.map(s => `<option value="${escHtml(s.id)}" ${s.id === prev ? 'selected' : ''}>${escHtml(s.name)}</option>`).join('');
+}
+
+function systemName(id) {
+  if (!id) return null;
+  const s = _systems.find(s => s.id === id);
+  return s ? s.name : id;
+}
 
 /* ── Load & render board ── */
 async function loadItems() {
@@ -104,10 +128,12 @@ function renderCard(item) {
                      new Date(item.estimated_end_date + 'T00:00:00') < new Date();
   const statusIdx  = STATUSES.indexOf(item.status);
 
+  const sysLabel = systemName(item.system_id);
   return `<div class="kanban-card" id="card-${escHtml(item.id)}"
                draggable="true"
                ondragstart="onDragStart(event,'${escHtml(item.id)}')"
                ondragend="onDragEnd(event)">
+    ${sysLabel ? `<div class="kcard-system-tag">${escHtml(sysLabel)}</div>` : ''}
     <div class="kcard-title">${escHtml(item.title)}</div>
     ${item.description ? `<div class="kcard-desc">${escHtml(item.description)}</div>` : ''}
     <div class="kcard-meta">
@@ -250,6 +276,7 @@ function openItemModal(idOrNull) {
   document.getElementById('itemStart').value       = item?.start_date ?? '';
   document.getElementById('itemEstEnd').value      = item?.estimated_end_date ?? '';
   document.getElementById('itemActualEnd').value   = item?.actual_end_date ?? '';
+  populateSystemDropdown(document.getElementById('itemSystem'), item?.system_id ?? null);
 
   resetItemForm();
   document.getElementById('itemModal').classList.add('open');
@@ -287,6 +314,7 @@ async function saveItem(e) {
     title,
     description:        document.getElementById('itemDesc').value.trim() || null,
     status:             document.getElementById('itemStatus').value,
+    system_id:          document.getElementById('itemSystem').value || null,
     start_date:         document.getElementById('itemStart').value || null,
     estimated_end_date: document.getElementById('itemEstEnd').value || null,
     actual_end_date:    document.getElementById('itemActualEnd').value || null,
@@ -374,6 +402,66 @@ async function refreshLogs() {
     list.scrollTop = list.scrollHeight;
   } catch (err) {
     list.innerHTML = `<div class="admin-error">Failed to load: ${escHtml(err.message)}</div>`;
+  }
+}
+
+/* ── Add System modal ── */
+function openAddSystemModal() {
+  document.getElementById('addSystemForm').reset();
+  document.getElementById('newSysIsVisible').checked = true;
+  document.getElementById('addSysFormActions').style.display = '';
+  document.getElementById('addSysFormLoading').style.display = 'none';
+  document.getElementById('addSysFormError').style.display   = 'none';
+  document.getElementById('addSystemModal').classList.add('open');
+}
+
+function closeAddSystemModal() {
+  document.getElementById('addSystemModal').classList.remove('open');
+}
+
+function overlayCloseAddSystem(e) {
+  if (e.target === document.getElementById('addSystemModal')) closeAddSystemModal();
+}
+
+async function saveNewSystem(e) {
+  e.preventDefault();
+  const id           = document.getElementById('newSysId').value.trim();
+  const name         = document.getElementById('newSysName').value.trim();
+  const category     = document.getElementById('newSysCategory').value;
+  const primaryUrl   = document.getElementById('newSysPrimaryUrl').value.trim();
+  const primaryLabel = document.getElementById('newSysPrimaryLabel').value.trim();
+  const backupUrl    = document.getElementById('newSysBackupUrl').value.trim() || null;
+  const backupLabel  = document.getElementById('newSysBackupLabel').value.trim() || null;
+  const sortOrder    = parseInt(document.getElementById('newSysSortOrder').value, 10) || 0;
+  const isVisible    = document.getElementById('newSysIsVisible').checked;
+
+  if (!id || !name || !primaryUrl || !primaryLabel) {
+    document.getElementById('addSysFormError').style.display = '';
+    document.getElementById('addSysErrorMsg').textContent    = 'ID, Name, Primary URL, and Button Label are required.';
+    return;
+  }
+
+  document.getElementById('addSysFormActions').style.display = 'none';
+  document.getElementById('addSysFormLoading').style.display = '';
+
+  try {
+    const res = await fetch('/api/dev/systems', {
+      method:  'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ id, name, category, primary_url: primaryUrl, primary_label: primaryLabel, backup_url: backupUrl, backup_label: backupLabel, sort_order: sortOrder, is_visible: isVisible }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    const saved = await res.json();
+    _systems.push(saved);
+    _systems.sort((a, b) => (a.sort_order - b.sort_order) || a.name.localeCompare(b.name));
+    populateSystemDropdown(document.getElementById('itemSystem'), saved.id);
+    closeAddSystemModal();
+    showToast(`System "${name}" added.`);
+  } catch (err) {
+    document.getElementById('addSysFormLoading').style.display = 'none';
+    document.getElementById('addSysFormActions').style.display = '';
+    document.getElementById('addSysFormError').style.display   = '';
+    document.getElementById('addSysErrorMsg').textContent      = err.message;
   }
 }
 

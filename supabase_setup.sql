@@ -189,3 +189,14 @@ CREATE TABLE IF NOT EXISTS public.dev_activity_logs (
 CREATE INDEX IF NOT EXISTS idx_dev_logs_item ON public.dev_activity_logs (item_id);
 
 ALTER TABLE public.dev_activity_logs ENABLE ROW LEVEL SECURITY;
+
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Systems visibility + coding item association (safe to run on existing installs)
+-- ──────────────────────────────────────────────────────────────────────────────
+
+-- Controls whether a system appears on the access request form
+ALTER TABLE public.systems ADD COLUMN IF NOT EXISTS is_visible BOOLEAN NOT NULL DEFAULT true;
+
+-- Link a dev item to the system it belongs to
+ALTER TABLE public.dev_items ADD COLUMN IF NOT EXISTS system_id TEXT REFERENCES public.systems(id) ON DELETE SET NULL;

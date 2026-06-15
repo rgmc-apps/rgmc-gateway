@@ -381,6 +381,7 @@ async function loadSystems() {
           <tr>
             <th>Name</th>
             <th>Category</th>
+            <th>Visible</th>
             <th>Primary URL</th>
             <th>Label</th>
             <th>Backup URL</th>
@@ -400,9 +401,13 @@ async function loadSystems() {
 
 function renderSystemRow(s) {
   const catClass = { RGMC: 'label-rgmc', SBIC: 'label-sbic', 'NAV Sites': 'label-nav' }[s.category] || 'label-rgmc';
+  const visibleBadge = s.is_visible !== false
+    ? '<span class="badge-visible">Visible</span>'
+    : '<span class="badge-hidden">Hidden</span>';
   return `<tr>
     <td><span class="user-name">${escHtml(s.name)}</span></td>
     <td><span class="label-badge ${catClass}">${escHtml(s.category)}</span></td>
+    <td>${visibleBadge}</td>
     <td><a href="${escHtml(s.primary_url)}" target="_blank" rel="noopener" class="tbl-link url-cell" title="${escHtml(s.primary_url)}">${escHtml(truncUrl(s.primary_url))}</a></td>
     <td>${escHtml(s.primary_label)}</td>
     <td>${s.backup_url ? `<a href="${escHtml(s.backup_url)}" target="_blank" rel="noopener" class="tbl-link url-cell" title="${escHtml(s.backup_url)}">${escHtml(truncUrl(s.backup_url))}</a>` : '<span class="text-muted">—</span>'}</td>
@@ -440,6 +445,7 @@ function openSystemModal(system) {
   document.getElementById('sysBackupUrl').value    = system?.backup_url    ?? '';
   document.getElementById('sysBackupLabel').value  = system?.backup_label  ?? '';
   document.getElementById('sysSortOrder').value    = system?.sort_order    ?? 0;
+  document.getElementById('sysIsVisible').checked  = system ? (system.is_visible !== false) : true;
 
   resetSysForm();
   document.getElementById('systemModal').classList.add('open');
@@ -474,6 +480,7 @@ async function saveSystem(e) {
   const backupUrl   = document.getElementById('sysBackupUrl').value.trim() || null;
   const backupLabel = document.getElementById('sysBackupLabel').value.trim() || null;
   const sortOrder   = parseInt(document.getElementById('sysSortOrder').value, 10) || 0;
+  const isVisible   = document.getElementById('sysIsVisible').checked;
 
   if (!_editingSystemId && !id) {
     showSysError('System ID is required.');
@@ -493,13 +500,13 @@ async function saveSystem(e) {
       res = await fetch(`/api/admin/systems/${encodeURIComponent(_editingSystemId)}`, {
         method:  'PATCH',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ name, category, primary_url: primaryUrl, primary_label: primaryLabel, backup_url: backupUrl, backup_label: backupLabel, sort_order: sortOrder }),
+        body:    JSON.stringify({ name, category, primary_url: primaryUrl, primary_label: primaryLabel, backup_url: backupUrl, backup_label: backupLabel, sort_order: sortOrder, is_visible: isVisible }),
       });
     } else {
       res = await fetch('/api/admin/systems', {
         method:  'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ id, name, category, primary_url: primaryUrl, primary_label: primaryLabel, backup_url: backupUrl, backup_label: backupLabel, sort_order: sortOrder }),
+        body:    JSON.stringify({ id, name, category, primary_url: primaryUrl, primary_label: primaryLabel, backup_url: backupUrl, backup_label: backupLabel, sort_order: sortOrder, is_visible: isVisible }),
       });
     }
     if (!res.ok) {
