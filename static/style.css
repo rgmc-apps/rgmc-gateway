@@ -614,6 +614,36 @@ body::before {
 .form-input::placeholder { color: var(--text-muted); }
 .form-textarea { resize: vertical; min-height: 90px; }
 
+/* ── Select dropdowns — consistent dark theme across admin & dev board ── */
+select.form-input {
+  background-color: #0F0C07;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23C4972A' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 14px;
+  padding-right: 38px;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+select.form-input:focus {
+  background-color: #131008;
+}
+select.form-input option {
+  background-color: #0F0C07;
+  color: #EDE5D0;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  padding: 8px 12px;
+}
+select.form-input option:checked {
+  background-color: #1c1508;
+  color: #C4972A;
+}
+select.form-input option:hover {
+  background-color: #1c1508;
+}
+
 /* File drop zone */
 .file-drop-zone {
   position: relative;
