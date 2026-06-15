@@ -1,99 +1,90 @@
 # Handoff
 
 ## Goal
-Run the pending SQL migrations against the Supabase project (`eesrzpgmsrbhjeenfojq`) using the Supabase MCP server, which is now configured in `.mcp.json`. All application code changes are complete and committed — the only remaining blocker is executing the migration SQL so the new tables and columns exist in the live database.
+Build and iterate the RGMC Gateway internal portal — a Flask + Supabase web app for RGMC Group staff. The developer board (`/developer`) is the current focus: a kanban board with physics drag-and-drop, animated stats bar, All/My Issues filter, and a unified item detail modal (edit fields + activity log in one two-pane view). Dark-gold design system, production-quality, no slop.
 
 ## Current State
-- **All code is committed** — master branch is clean (`git status` shows only untracked `.agents/`, `.mcp.json`, `skills-lock.json`).
-- **Supabase MCP is configured** in `.mcp.json` (HTTP transport, project ref `eesrzpgmsrbhjeenfojq`), but **authentication has not been completed**. The `/mcp` dialog was dismissed without finishing the OAuth flow, so MCP tools are not yet available in the session.
-- **3 pending migrations** need to be run against the live Supabase DB (all are safe `IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS` statements):
+**All code changes for this session are written but NOT yet live-tested in a browser.** JS is syntactically valid (braces balanced, no stale references). The dev server has not been run since the modal refactor — visual/behavioral verification is the next step.
 
-### Migration 1 — Developer dashboard tables
-```sql
-ALTER TABLE public.users ADD COLUMN IF NOT EXISTS is_developer BOOLEAN NOT NULL DEFAULT false;
+### What should be working:
+- Physics drag-and-drop on kanban cards (spring physics, pointer events, ghost placeholder)
+- Animated stat pills in header bar (rollNumber ease-out-cubic + SVG arc progress rings per column)
+- All/My Issues segmented filter toggle
+- Auto-set `actual_end_date` to today when status → done, null otherwise
+- **Unified item detail modal** (`#itemDetailModal`):
+  - Two-pane layout (edit form left, activity log right) when editing existing item
+  - Single-pane (log hidden) when creating new item
+  - Sticky footer with Delete + Save buttons
+  - Delete button visible only when editing (calls `deleteItemFromDetail()`)
+- Supabase Storage avatar upload/delete flow
+- Profile display name PATCH (bug fixed: `data=` kwarg, `params=` for filter)
+- Avatar URL validation: accepts `data:` (canvas preview) and `https://` (storage URL)
 
-CREATE INDEX IF NOT EXISTS idx_users_is_developer
-    ON public.users (is_developer) WHERE is_developer = true;
-
-CREATE TABLE IF NOT EXISTS public.dev_items (
-    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    title               TEXT        NOT NULL,
-    description         TEXT,
-    status              TEXT        NOT NULL DEFAULT 'pending',
-    start_date          DATE,
-    estimated_end_date  DATE,
-    actual_end_date     DATE,
-    created_by          TEXT        NOT NULL,
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT chk_dev_status CHECK (status IN ('pending', 'coding', 'testing', 'done'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_dev_items_status   ON public.dev_items (status);
-CREATE INDEX IF NOT EXISTS idx_dev_items_created  ON public.dev_items (created_at);
-
-ALTER TABLE public.dev_items ENABLE ROW LEVEL SECURITY;
-
-CREATE TABLE IF NOT EXISTS public.dev_activity_logs (
-    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    item_id     UUID        NOT NULL REFERENCES public.dev_items(id) ON DELETE CASCADE,
-    username    TEXT        NOT NULL,
-    message     TEXT        NOT NULL,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_dev_logs_item ON public.dev_activity_logs (item_id);
-
-ALTER TABLE public.dev_activity_logs ENABLE ROW LEVEL SECURITY;
-```
-
-### Migration 2 — Systems visibility + coding item association
-```sql
-ALTER TABLE public.systems ADD COLUMN IF NOT EXISTS is_visible BOOLEAN NOT NULL DEFAULT true;
-
-ALTER TABLE public.dev_items ADD COLUMN IF NOT EXISTS system_id TEXT REFERENCES public.systems(id) ON DELETE SET NULL;
-```
-
-### Migration 3 — Rejection remarks (may already exist)
-```sql
-ALTER TABLE public.access_requests ADD COLUMN IF NOT EXISTS rejection_remarks TEXT;
-```
-
-All three are also captured verbatim at the bottom of `supabase_setup.sql`.
+### What has NOT been tested post-edit:
+- Opening existing item → two-pane modal, log loads via `refreshLogs()`
+- Creating new item → single-column modal, no log pane
+- Posting a log entry → appears in list, list scrolls to bottom
+- Delete from within modal → confirm dialog, board re-renders
+- Responsive collapse at ≤640px → single stacked column
 
 ## Files Actively Being Edited
-No files are mid-edit. All changes are committed. Key files changed this session:
 
-- `supabase_setup.sql` — Added developer dashboard tables (`is_developer`, `dev_items`, `dev_activity_logs`) and systems extensions (`is_visible`, `system_id`). These are the pending migrations.
-- `app.py` — Added `is_developer` to `verify_username` response; `_require_developer()` guard; `/developer` page route; all `/api/dev/items` CRUD routes; `/api/dev/items/<id>/logs` routes; `/api/dev/systems` GET+POST routes; `get_sites()` now filters `is_visible=eq.true`; allowed `is_developer` and `system_id` in relevant patch handlers.
-- `templates/admin.html` — Added `is_visible` checkbox to system add/edit modal.
-- `templates/developer.html` — New file: Kanban board page with item modal, activity log modal, and add-system modal.
-- `static/admin.js` — Added `toggleDeveloper()`; Dev badge + Make Dev/Revoke Dev button in user rows; Visible/Hidden badge in systems table; wired `is_visible` into `openSystemModal()` and `saveSystem()`; updated systems table header.
-- `static/developer.js` — New file: full Kanban JS (drag-and-drop, move arrows, CRUD, activity log, add-system modal, system dropdown).
-- `static/script.js` — Added `isDeveloper` to session; "Dev Board" header link for devs/admins.
-- `static/style.css` — Kanban styles, activity log, system tag on card, system select row, toggle checkbox, Visible/Hidden badges, Dev badge; fixed `select.form-input` dropdown colors (dark bg + gold chevron + explicit `option` colors).
-- `.mcp.json` — Created by `claude mcp add` with Supabase HTTP MCP config (project scope).
-- `.agents/` — Created by `npx skills add supabase/agent-skills`.
+- `templates/developer.html` — Replaced old `itemModal` + `logModal` with single `itemDetailModal` (two-pane CSS grid). Stats bar added. New Item button calls `openDetailModal(null)`. Old modals fully removed.
+- `static/developer.js` — Major refactor:
+  - Removed `_loggingId` state
+  - Removed `openItemModal`, `closeItemModal`, `overlayCloseItem`, `openLogModal`, `closeLogModal`, `overlayCloseLog`
+  - Added `openDetailModal(idOrNull)`, `closeDetailModal()`, `overlayCloseDetail(e)`, `deleteItemFromDetail()`
+  - `refreshLogs()` and `addLog()` now reference `_editingId` (was `_loggingId`)
+  - `renderCard()`: removed separate log button; single edit button calls `openDetailModal`
+  - `saveItem()`: calls `closeDetailModal()`
+  - ESC handler: `closeDetailModal()` + `closeAddSystemModal()` + `closeProfileMenu()`
+  - Also from prior session: `rollNumber()`, `initColArcs()`, `updateColArcs()`, full physics drag system
+- `static/style.css` — Added around line 1016 (XL modal block):
+  - `.modal-xl` — flex-column, `overflow: hidden`, 960px max-width
+  - `.item-detail-body` — CSS grid 1fr 1fr, 520px fixed height, `max-height: calc(90vh - 100px)`
+  - `.detail-new` — collapses to 1fr, forces log pane hidden
+  - `.item-detail-form` — scrollable left pane with padding, sticky footer via `position: sticky; bottom: 0; background: var(--bg-modal)`
+  - `.item-detail-log` — flex-column right pane, `overflow: hidden`
+  - `.detail-log-header`, `.item-detail-footer`, `.item-detail-footer-right`, `.detail-save-group`, `.btn-detail-delete`
+  - Activity log styles (`.activity-log-list`, `.activity-log-empty`, `.activity-log-entry`, `.log-meta`, `.activity-log-add`, `.log-post-row`) at line ~1927
+  - Responsive at 640px: xl modal reverts to block/scrollable, body stacks to 1 column
+- `app.py` — Fixed `api_profile_patch` (`body=patch` → `data=patch`, path filter → `params=`); added `POST/DELETE /api/profile/avatar` using direct Supabase Storage REST API
+- `static/profile.js` — `saveProfile()` calls avatar endpoints separately; stores storage URL with `?v=timestamp` cache-buster in localStorage
+- `static/admin.js` — Avatar URL check accepts `https://` not just `data:image/`
+- `static/script.js` — Same avatar URL check update
 
 ## Failed Attempts
-- **What was tried**: Running SQL migrations via Supabase MCP in-session — **Why it failed**: MCP requires OAuth authentication via `claude /mcp` → Authenticate browser flow. The dialog was opened but dismissed before completing auth. MCP tools never became available.
-- **What was tried**: `ToolSearch` for supabase/postgres/sql tools — **Why it failed**: MCP tools only appear after authentication; before that they don't show up in ToolSearch.
+- **Side-stripe `border-left` on kanban cards**: Used `border-left: 3px solid` for status accents. `/impeccable` skill bans `border-left > 1px` as colored accent. Replaced with `background: rgba(...)` tints.
+- **`api_profile_patch` with `body=patch`**: `supabase_req()` uses `data=` not `body=`. Also tried embedding filter in path (`/users?username=eq.{username}`) — wrong, must use `params={"username": f"eq.{username}"}`.
+- **`--radius-md` CSS variable**: Used in kanban CSS but never defined. Replaced with `var(--radius)`.
+- **Duplicate `.activity-log-list` CSS rule**: When adding XL modal styles, accidentally placed activity-log rules in both the new XL block and the developer section. Fixed by removing from XL block, keeping only in developer section (~line 1927).
+- **Conflicting `padding` on `.activity-log-add`**: Had `padding: 0 20px 18px` and `padding-top: 14px` simultaneously. Merged to `padding: 14px 20px 18px`.
 
 ## Next Step
-Complete Supabase MCP authentication, then run the migrations:
+**Start the dev server and visually test the item detail modal:**
 
-1. In the chat prompt type: `! claude /mcp` (runs in-session terminal)
-2. Select **supabase** → **Authenticate** → complete the browser OAuth flow
-3. Come back to Claude and say: **"run the SQL migrations using the Supabase MCP"**
+```
+python app.py
+```
 
-Run migrations in order: Migration 1 → Migration 2 → Migration 3. All are idempotent.
+Navigate to `http://localhost:5000/developer` and test in order:
+1. Click a kanban card's edit button → two-pane modal opens, fields pre-filled left, logs load right
+2. Click "New Item" → single-column modal, no log pane
+3. Post a log → appears in log list, textarea cleared
+4. Click Delete in modal → confirm dialog fires, closes modal, board re-renders
+5. Save edits → modal closes, board reflects changes
+6. Resize below 640px → modal collapses to single stacked column
+
+If two-pane height looks wrong, check `.item-detail-body` (line ~1025 in style.css): `height: 520px; max-height: calc(90vh - 100px)` and `.modal-xl` flex setup (line ~1017).
 
 ## Context & Gotchas
-- **Supabase project ref**: `eesrzpgmsrbhjeenfojq` (in `.mcp.json` and the MCP URL).
-- **MCP is HTTP transport** (not stdio), project-scoped at `C:\claude\rgmc-gateway\.mcp.json`.
-- **All SQL uses `IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS`** — every migration is safe to re-run.
-- **`users.systems` stores system names, not IDs** — the access request form submits display names (e.g. `"RGMC Travel And Expense Web"`) as checkbox values. The admin edit-systems modal matches on `s.name` not `s.id`. This was a bug found and fixed this session.
-- **`get_sites()` filters `is_visible=eq.true`** — systems with `is_visible = false` won't appear in the portal access request form. All existing rows default to `true`.
-- **Developer access**: `_require_developer()` allows users where `is_developer = true` OR `is_admin = true`.
-- **`dev_items.system_id`** is a nullable FK to `systems.id` (the slug). ON DELETE SET NULL — deleting a system won't cascade-delete dev items.
-- **Admin skills installed**: `.agents/skills/supabase` and `.agents/skills/supabase-postgres-best-practices` are agent skill files for future use.
+- **`supabase_req(method, path, *, data=None, params=None)`** — `data=` is request body, `params=` is URL query string. Never embed filters in the path string.
+- **Supabase Storage avatar path**: `avatars/{username}.{ext}` in the `avatars` bucket. Public URL: `/storage/v1/object/public/avatars/{filename}`. DELETE tries all extensions (jpg/jpeg/png/webp) since extension isn't stored separately in DB.
+- **Session shape**: `rgmc_gateway_session` in `localStorage` → `{ username, firstName, fullName, displayName, avatarUrl, isAdmin, isDeveloper, systems }`.
+- **`_rm` ordering**: `rollNumber()` uses `_rm = window.matchMedia('(prefers-reduced-motion: reduce)')` which is defined at line ~399 (after `renderCard`). Safe because `rollNumber` is only called at runtime, not at parse time.
+- **Physics drag card detachment**: Cards are cloned to `document.body` with `position: fixed` during drag. Ghost `div.drag-ghost` (dashed border, same dimensions) holds the column slot. On release, CSS transition springs the floating card back to ghost position, then board re-renders.
+- **`detail-new` CSS class**: Applied to `#itemDetailBody` for new items (collapses grid to 1 column, hides log pane). Removed when editing existing items. Controlled purely via JS `openDetailModal()`.
+- **`deleteItemFromDetail()`**: Captures `_editingId` into local `id` variable BEFORE calling `closeDetailModal()` (which nulls `_editingId`), then calls `deleteItem(id)`. The confirm dialog runs inside `deleteItem`.
+- **No `/impeccable` design bans**: No `border-left > 1px` colored accents, no gradient text, no hero-metric template.
+- **Supabase project ref**: `eesrzpgmsrbhjeenfojq`. All migrations are done (ran in a prior session). Tables: `users`, `systems`, `access_requests`, `dev_items`, `dev_activity_logs`.
+- **Git state**: All modified files are unstaged. Files changed: `app.py`, `static/admin.js`, `static/developer.js`, `static/logo.png`, `static/profile.js`, `static/script.js`, `static/style.css`, `templates/developer.html`.
