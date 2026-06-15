@@ -44,12 +44,42 @@ function daysElapsed(item) {
   return diff >= 0 ? diff : 0;
 }
 
+/* ── Number roll animation ── */
+function rollNumber(el, from, to, ms = 480) {
+  if (_rm.matches || from === to) { el.textContent = to; return; }
+  const t0 = performance.now();
+  (function step(now) {
+    const p = Math.min(1, (now - t0) / ms);
+    const e = 1 - Math.pow(1 - p, 3); // ease-out-cubic
+    el.textContent = Math.round(from + (to - from) * e);
+    if (p < 1) requestAnimationFrame(step);
+  })(t0);
+}
+
 /* ── State ── */
 let _items       = [];
 let _systems     = [];
+let _members     = {};   // username → { displayName, avatarUrl }
 let _editingId   = null;
 let _loggingId   = null;
-let _draggingId  = null;
+
+/* ── Profile dropdown ── */
+function toggleProfileMenu(e) {
+  if (e) e.stopPropagation();
+  const trigger = document.getElementById('profileTrigger');
+  const menu    = document.getElementById('profileMenu');
+  if (!trigger || !menu) return;
+  if (menu.classList.contains('open')) {
+    closeProfileMenu();
+  } else {
+    trigger.classList.add('open');
+    menu.classList.add('open');
+  }
+}
+function closeProfileMenu() {
+  document.getElementById('profileTrigger')?.classList.remove('open');
+  document.getElementById('profileMenu')?.classList.remove('open');
+}
 
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', () => {
@@ -58,13 +88,141 @@ document.addEventListener('DOMContentLoaded', () => {
     location.href = '/';
     return;
   }
-  document.getElementById('devUsername').textContent = session.firstName || session.username;
-  loadSystems().then(() => loadItems());
+
+  // Build profile dropdown
+  const container = document.getElementById('devHeaderUser');
+  if (container) {
+    const initial     = escHtml((session.firstName || session.username).charAt(0).toUpperCase());
+    const displayName = escHtml(session.displayName || session.firstName || session.username);
+    const fullName    = escHtml(session.fullName  || session.username);
+    const username    = escHtml(session.username);
+    const av          = session.avatarUrl && session.avatarUrl.startsWith('data:image/') ? session.avatarUrl : '';
+
+    const avatarSmHtml = av
+      ? `<div class="profile-avatar-sm"><img src="${av}" class="profile-avatar-img" alt="${initial}"></div>`
+      : `<div class="profile-avatar-sm">${initial}</div>`;
+    const avatarLgHtml = av
+      ? `<div class="profile-avatar-lg"><img src="${av}" class="profile-avatar-img" alt="${initial}"></div>`
+      : `<div class="profile-avatar-lg">${initial}</div>`;
+
+    const navItems = [
+      `<a href="/profile" class="profile-menu-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        My Profile
+      </a>`,
+      `<a href="/" class="profile-menu-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Portal
+      </a>`,
+    ];
+    if (session.isAdmin) {
+      navItems.push(`
+        <a href="/admin" class="profile-menu-item">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Admin Panel
+        </a>`);
+    }
+
+    container.innerHTML = `
+      <div class="profile-trigger" id="profileTrigger" onclick="toggleProfileMenu(event)">
+        ${avatarSmHtml}
+        <span class="profile-trigger-name">${displayName}</span>
+        <svg class="profile-chevron" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="profile-menu" id="profileMenu">
+        <div class="profile-menu-head">
+          ${avatarLgHtml}
+          <div class="profile-menu-info">
+            <div class="profile-menu-fullname">${fullName}</div>
+            <div class="profile-menu-handle">@${username}</div>
+          </div>
+        </div>
+        <div class="profile-menu-divider"></div>
+        <div class="profile-menu-section">${navItems.join('')}</div>
+        <div class="profile-menu-divider"></div>
+        <div class="profile-menu-section">
+          <button class="profile-menu-item profile-menu-item--danger" onclick="devSignOut()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Sign Out
+          </button>
+        </div>
+      </div>`;
+  }
+
+  initColArcs();
+  initPhysicsDrag();
+  loadMembers().then(() => loadSystems()).then(() => loadItems());
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeItemModal(); closeLogModal(); closeAddSystemModal(); }
+    if (e.key === 'Escape') { closeItemModal(); closeLogModal(); closeAddSystemModal(); closeProfileMenu(); }
   });
+  document.addEventListener('click', () => closeProfileMenu());
 });
+
+/* ── Members (avatars for cards) ── */
+async function loadMembers() {
+  try {
+    const res = await fetch('/api/dev/members', { headers: authHeaders() });
+    const data = await res.json();
+    _members = {};
+    (Array.isArray(data) ? data : []).forEach(m => {
+      _members[m.username] = {
+        displayName: m.display_name || m.first_name || m.username,
+        avatarUrl:   m.avatar_url && m.avatar_url.startsWith('data:image/') ? m.avatar_url : '',
+      };
+    });
+  } catch { /* fallback: show initials only */ }
+}
+
+function authorBubble(username) {
+  const m       = _members[username] || {};
+  const name    = m.displayName || username;
+  const initial = escHtml((name.charAt(0) || '?').toUpperCase());
+  const label   = escHtml(name);
+  if (m.avatarUrl) {
+    return `<img src="${m.avatarUrl}" class="kcard-avatar" alt="${initial}" title="${label}">`;
+  }
+  return `<div class="kcard-avatar kcard-avatar-initial" title="${label}">${initial}</div>`;
+}
+
+/* ── Column arcs ── */
+const ARC_R = 10;
+const ARC_C = +(2 * Math.PI * ARC_R).toFixed(1); // circumference ≈ 62.8
+
+function initColArcs() {
+  STATUSES.forEach(status => {
+    const header = document.querySelector(`#col-${status} .kanban-col-header`);
+    if (!header || header.querySelector('.col-arc')) return;
+    const ns  = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('class',   'col-arc');
+    svg.setAttribute('viewBox', '0 0 26 26');
+    svg.setAttribute('aria-hidden', 'true');
+    const bg   = document.createElementNS(ns, 'circle');
+    bg.setAttribute('class', 'col-arc-bg');
+    bg.setAttribute('cx', '13'); bg.setAttribute('cy', '13');
+    bg.setAttribute('r', String(ARC_R));
+    const fill = document.createElementNS(ns, 'circle');
+    fill.setAttribute('class', 'col-arc-fill');
+    fill.setAttribute('cx', '13'); fill.setAttribute('cy', '13');
+    fill.setAttribute('r', String(ARC_R));
+    fill.setAttribute('stroke-dasharray', String(ARC_C));
+    fill.setAttribute('stroke-dashoffset', String(ARC_C)); // starts empty
+    svg.appendChild(bg);
+    svg.appendChild(fill);
+    header.appendChild(svg);
+  });
+}
+
+function updateColArcs(counts) {
+  const max = Math.max(...Object.values(counts), 1);
+  STATUSES.forEach(status => {
+    const fill = document.querySelector(`#col-${status} .col-arc-fill`);
+    if (!fill) return;
+    const offset = ARC_C * (1 - counts[status] / max);
+    fill.style.strokeDashoffset = offset.toFixed(2);
+  });
+}
 
 /* ── Systems ── */
 async function loadSystems() {
@@ -112,17 +270,34 @@ async function loadItems() {
 const STATUSES = ['pending', 'coding', 'testing', 'done'];
 
 function renderBoard() {
+  const counts = {};
   STATUSES.forEach(status => {
     const col   = document.getElementById(`cards-${status}`);
     const items = _items.filter(i => i.status === status);
-    document.getElementById(`count-${status}`).textContent = items.length;
-    col.innerHTML = items.length
-      ? items.map(renderCard).join('')
-      : `<div class="kanban-empty">No items</div>`;
+    const count = items.length;
+    counts[status] = count;
+
+    const countEl  = document.getElementById(`count-${status}`);
+    const prevCol  = parseInt(countEl.textContent, 10);
+    rollNumber(countEl, isNaN(prevCol) ? 0 : prevCol, count);
+
+    const statEl   = document.getElementById(`stat-count-${status}`);
+    if (statEl) {
+      const prevStat = parseInt(statEl.textContent, 10);
+      rollNumber(statEl, isNaN(prevStat) ? 0 : prevStat, count);
+    }
+
+    col.innerHTML = count
+      ? items.map((item, idx) => renderCard(item, idx)).join('')
+      : `<div class="kanban-empty">
+           <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+           No items
+         </div>`;
   });
+  updateColArcs(counts);
 }
 
-function renderCard(item) {
+function renderCard(item, idx = 0) {
   const elapsed    = daysElapsed(item);
   const overdue    = item.estimated_end_date && !item.actual_end_date &&
                      new Date(item.estimated_end_date + 'T00:00:00') < new Date();
@@ -130,9 +305,7 @@ function renderCard(item) {
 
   const sysLabel = systemName(item.system_id);
   return `<div class="kanban-card" id="card-${escHtml(item.id)}"
-               draggable="true"
-               ondragstart="onDragStart(event,'${escHtml(item.id)}')"
-               ondragend="onDragEnd(event)">
+               style="animation-delay:${idx * 55}ms">
     ${sysLabel ? `<div class="kcard-system-tag">${escHtml(sysLabel)}</div>` : ''}
     <div class="kcard-title">${escHtml(item.title)}</div>
     ${item.description ? `<div class="kcard-desc">${escHtml(item.description)}</div>` : ''}
@@ -155,7 +328,7 @@ function renderCard(item) {
           ${elapsed} day${elapsed !== 1 ? 's' : ''} elapsed
         </span>` : ''}
       </div>
-      <span class="kcard-author">${escHtml(item.created_by)}</span>
+      ${authorBubble(item.created_by)}
     </div>
     <div class="kcard-actions">
       ${statusIdx > 0
@@ -207,38 +380,127 @@ async function moveItem(id, newStatus) {
   }
 }
 
-/* ── Drag and drop ── */
-function onDragStart(e, id) {
-  _draggingId = id;
-  e.dataTransfer.effectAllowed = 'move';
-  setTimeout(() => {
-    const el = document.getElementById(`card-${id}`);
-    if (el) el.classList.add('dragging');
-  }, 0);
+/* ── Physics drag-and-drop ── */
+const SPRING_K    = 0.16;
+const SPRING_D    = 0.70;
+const MAX_TILT    = 8;
+const TILT_FACTOR = 0.55;
+const _rm         = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+let _drag = null;
+
+function initPhysicsDrag() {
+  document.getElementById('kanbanBoard').addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    const card = e.target.closest('.kanban-card');
+    if (!card || e.target.closest('button, a')) return;
+    e.preventDefault();
+    _startDrag(e, card);
+  });
 }
-function onDragEnd(e) {
-  if (_draggingId) {
-    const el = document.getElementById(`card-${_draggingId}`);
-    if (el) el.classList.remove('dragging');
+
+function _startDrag(e, card) {
+  const rect = card.getBoundingClientRect();
+  const offX = e.clientX - rect.left;
+  const offY = e.clientY - rect.top;
+  const id   = card.id.replace('card-', '');
+
+  const ghost = document.createElement('div');
+  ghost.className    = 'drag-ghost';
+  ghost.style.width  = rect.width  + 'px';
+  ghost.style.height = rect.height + 'px';
+  card.parentNode.insertBefore(ghost, card);
+
+  card.classList.add('dragging-physics');
+  card.style.width = rect.width + 'px';
+  document.body.appendChild(card);
+  document.body.classList.add('is-dragging');
+
+  const initX = rect.left;
+  const initY = rect.top;
+  card.style.transform = `translate(${initX}px,${initY}px) scale(1.03)`;
+
+  _drag = { id, el: card, ghost, x: initX, y: initY, vx: 0, vy: 0,
+            tx: initX, ty: initY, offX, offY, activeCol: null, raf: null };
+
+  document.addEventListener('pointermove', _onDragMove);
+  document.addEventListener('pointerup',     _onDragRelease);
+  document.addEventListener('pointercancel', _onDragRelease);
+  _drag.raf = requestAnimationFrame(_physicsLoop);
+}
+
+function _onDragMove(e) {
+  if (!_drag) return;
+  e.preventDefault();
+  _drag.tx = e.clientX - _drag.offX;
+  _drag.ty = e.clientY - _drag.offY;
+  const col = _getColAt(e.clientX, e.clientY);
+  if (col !== _drag.activeCol) {
+    document.querySelectorAll('.kanban-col').forEach(c => c.classList.remove('drag-over'));
+    if (col) col.classList.add('drag-over');
+    _drag.activeCol = col;
   }
-  document.querySelectorAll('.kanban-col').forEach(c => c.classList.remove('drag-over'));
-  _draggingId = null;
 }
-function onDragOver(e) {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-  const col = e.currentTarget;
-  document.querySelectorAll('.kanban-col').forEach(c => c.classList.remove('drag-over'));
-  col.classList.add('drag-over');
+
+function _physicsLoop() {
+  if (!_drag) return;
+  if (_rm.matches) {
+    _drag.x = _drag.tx; _drag.y = _drag.ty;
+    _drag.el.style.transform = `translate(${_drag.x}px,${_drag.y}px) scale(1.02)`;
+  } else {
+    const ax = (_drag.tx - _drag.x) * SPRING_K;
+    const ay = (_drag.ty - _drag.y) * SPRING_K;
+    _drag.vx = (_drag.vx + ax) * SPRING_D;
+    _drag.vy = (_drag.vy + ay) * SPRING_D;
+    _drag.x += _drag.vx;
+    _drag.y += _drag.vy;
+    const tilt = Math.max(-MAX_TILT, Math.min(MAX_TILT, _drag.vx * TILT_FACTOR));
+    _drag.el.style.transform = `translate(${_drag.x}px,${_drag.y}px) rotate(${tilt.toFixed(2)}deg) scale(1.03)`;
+  }
+  _drag.raf = requestAnimationFrame(_physicsLoop);
 }
-async function onDrop(e, newStatus) {
-  e.preventDefault();
+
+function _getColAt(x, y) {
+  for (const col of document.querySelectorAll('.kanban-col')) {
+    const r = col.getBoundingClientRect();
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return col;
+  }
+  return null;
+}
+
+async function _onDragRelease() {
+  if (!_drag) return;
+  cancelAnimationFrame(_drag.raf);
+  document.removeEventListener('pointermove', _onDragMove);
+  document.removeEventListener('pointerup',     _onDragRelease);
+  document.removeEventListener('pointercancel', _onDragRelease);
   document.querySelectorAll('.kanban-col').forEach(c => c.classList.remove('drag-over'));
-  if (!_draggingId) return;
-  const id   = _draggingId;
-  const item = _items.find(i => i.id === id);
-  if (!item || item.status === newStatus) return;
-  await moveItem(id, newStatus);
+  document.body.classList.remove('is-dragging');
+
+  const { el, ghost, id, activeCol } = _drag;
+  _drag = null;
+
+  const item      = _items.find(i => i.id === id);
+  const newStatus = activeCol?.dataset.status;
+
+  const gr = ghost.getBoundingClientRect();
+  if (!_rm.matches) {
+    el.style.transition = 'transform 0.28s cubic-bezier(0.16,1,0.3,1), box-shadow 0.28s ease';
+    el.style.boxShadow  = '';
+  }
+  el.style.transform = `translate(${gr.left}px,${gr.top}px) rotate(0deg) scale(1)`;
+  await new Promise(r => setTimeout(r, _rm.matches ? 0 : 260));
+
+  el.classList.remove('dragging-physics');
+  el.style.cssText = '';
+  el.remove();
+  ghost.remove();
+
+  if (item && newStatus && newStatus !== item.status) {
+    await moveItem(id, newStatus);
+  } else {
+    renderBoard();
+  }
 }
 
 /* ── Delete ── */

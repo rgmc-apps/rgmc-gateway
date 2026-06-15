@@ -883,7 +883,7 @@ def verify_username():
     try:
         user_rows = supabase_req("GET", "/users", params={
             "username": f"eq.{username}",
-            "select":   "username,first_name,last_name,company,department,email,systems,is_admin,is_developer",
+            "select":   "username,first_name,last_name,display_name,avatar_url,company,department,email,systems,is_admin,is_developer",
         })
         if user_rows:
             u = user_rows[0]
@@ -894,6 +894,8 @@ def verify_username():
                 "username":     u["username"],
                 "first_name":   first,
                 "full_name":    f"{first} {last}".strip(),
+                "display_name": u.get("display_name") or "",
+                "avatar_url":   u.get("avatar_url") or "",
                 "company":      u.get("company", ""),
                 "department":   u.get("department", ""),
                 "email":        u.get("email", ""),
@@ -1458,6 +1460,81 @@ def dev_create_system():
     except Exception as exc:
         app.logger.error("dev_create_system failed: %s", exc)
         return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/profile")
+def profile_page():
+    return render_template("profile.html")
+
+
+@app.route("/api/profile", methods=["GET"])
+def api_profile_get():
+    username = request.headers.get("X-Gateway-Username", "").strip().lower()
+    if not username:
+        return jsonify({"error": "Not authenticated"}), 401
+    try:
+        rows = supabase_req("GET", "/users", params={
+            "username": f"eq.{username}",
+            "select":   "username,first_name,last_name,display_name,avatar_url",
+        })
+    except Exception as exc:
+        app.logger.error("Profile GET failed: %s", exc)
+        return jsonify({"error": "Failed to fetch profile"}), 500
+    if not rows:
+        return jsonify({"error": "User not found"}), 404
+    u = rows[0]
+    return jsonify({
+        "username":     u["username"],
+        "first_name":   u.get("first_name", ""),
+        "last_name":    u.get("last_name", ""),
+        "display_name": u.get("display_name") or "",
+        "avatar_url":   u.get("avatar_url") or "",
+    })
+
+
+@app.route("/api/profile", methods=["PATCH"])
+def api_profile_patch():
+    username = request.headers.get("X-Gateway-Username", "").strip().lower()
+    if not username:
+        return jsonify({"error": "Not authenticated"}), 401
+    data = request.get_json(force=True, silent=True) or {}
+
+    patch = {}
+    if "display_name" in data:
+        dn = str(data["display_name"]).strip()[:80]
+        patch["display_name"] = dn or None
+    if "avatar_url" in data:
+        av = data["avatar_url"]
+        if av and not str(av).startswith("data:image/"):
+            return jsonify({"error": "Invalid avatar format"}), 400
+        patch["avatar_url"] = av or None
+
+    if not patch:
+        return jsonify({"success": True})
+
+    try:
+        supabase_req("PATCH", f"/users?username=eq.{username}", body=patch)
+    except Exception as exc:
+        app.logger.error("Profile PATCH failed: %s", exc)
+        return jsonify({"error": "Failed to update profile"}), 500
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/dev/members", methods=["GET"])
+def dev_get_members():
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/users", params={
+            "or":     "(is_developer.eq.true,is_admin.eq.true)",
+            "select": "username,first_name,last_name,display_name,avatar_url",
+        })
+    except Exception as exc:
+        app.logger.error("dev_get_members failed: %s", exc)
+        return jsonify({"error": "Failed to fetch members"}), 500
+    return jsonify(rows or [])
 
 
 if __name__ == "__main__":

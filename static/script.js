@@ -272,12 +272,25 @@ function applySession(session) {
   // 3. Populate header profile dropdown
   const headerUser = document.getElementById('headerUser');
   if (headerUser) {
-    const initial = escapeHtml((session.firstName || session.username).charAt(0).toUpperCase());
-    const displayName = escapeHtml(session.firstName || session.username);
-    const fullName = escapeHtml(session.fullName || session.username);
-    const username = escapeHtml(session.username);
+    const initial     = escapeHtml((session.firstName || session.username).charAt(0).toUpperCase());
+    const displayName = escapeHtml(session.displayName || session.firstName || session.username);
+    const fullName    = escapeHtml(session.fullName || session.username);
+    const username    = escapeHtml(session.username);
+    const av          = session.avatarUrl && session.avatarUrl.startsWith('data:image/') ? session.avatarUrl : '';
 
-    const navItems = [];
+    const avatarSmHtml = av
+      ? `<div class="profile-avatar-sm"><img src="${av}" class="profile-avatar-img" alt="${initial}"></div>`
+      : `<div class="profile-avatar-sm">${initial}</div>`;
+    const avatarLgHtml = av
+      ? `<div class="profile-avatar-lg"><img src="${av}" class="profile-avatar-img" alt="${initial}"></div>`
+      : `<div class="profile-avatar-lg">${initial}</div>`;
+
+    const navItems = [
+      `<a href="/profile" class="profile-menu-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        My Profile
+      </a>`,
+    ];
     if (session.isDeveloper || session.isAdmin) {
       navItems.push(`
         <a href="/developer" class="profile-menu-item">
@@ -292,26 +305,24 @@ function applySession(session) {
           Admin Panel
         </a>`);
     }
-    const navSection = navItems.length > 0
-      ? `<div class="profile-menu-section">${navItems.join('')}</div><div class="profile-menu-divider"></div>`
-      : '';
 
     headerUser.innerHTML = `
       <div class="profile-trigger" id="profileTrigger" onclick="toggleProfileMenu(event)">
-        <div class="profile-avatar-sm">${initial}</div>
+        ${avatarSmHtml}
         <span class="profile-trigger-name">${displayName}</span>
         <svg class="profile-chevron" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
       <div class="profile-menu" id="profileMenu">
         <div class="profile-menu-head">
-          <div class="profile-avatar-lg">${initial}</div>
+          ${avatarLgHtml}
           <div class="profile-menu-info">
             <div class="profile-menu-fullname">${fullName}</div>
             <div class="profile-menu-handle">@${username}</div>
           </div>
         </div>
         <div class="profile-menu-divider"></div>
-        ${navSection}
+        <div class="profile-menu-section">${navItems.join('')}</div>
+        <div class="profile-menu-divider"></div>
         <div class="profile-menu-section">
           <button class="profile-menu-item" onclick="openAdditionalAccess(); closeProfileMenu()">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -412,13 +423,15 @@ async function signIn() {
 
     if (data.success) {
       const session = {
-        username:   data.username,
-        firstName:  data.first_name,
-        fullName:   data.full_name,
-        company:    data.company,
-        department: data.department,
-        email:      data.email,
-        systems:    data.systems,
+        username:    data.username,
+        firstName:   data.first_name,
+        fullName:    data.full_name,
+        displayName: data.display_name || '',
+        avatarUrl:   data.avatar_url   || '',
+        company:     data.company,
+        department:  data.department,
+        email:       data.email,
+        systems:     data.systems,
         isAdmin:       data.is_admin     || false,
         isDeveloper:   data.is_developer || false,
       };

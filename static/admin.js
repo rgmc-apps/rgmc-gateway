@@ -50,6 +50,24 @@ let _usersCache         = [];
 let _systemsCache       = [];
 let _editingUserSystems = null;
 
+/* ── Profile dropdown ── */
+function toggleProfileMenu(e) {
+  if (e) e.stopPropagation();
+  const trigger = document.getElementById('profileTrigger');
+  const menu    = document.getElementById('profileMenu');
+  if (!trigger || !menu) return;
+  if (menu.classList.contains('open')) {
+    closeProfileMenu();
+  } else {
+    trigger.classList.add('open');
+    menu.classList.add('open');
+  }
+}
+function closeProfileMenu() {
+  document.getElementById('profileTrigger')?.classList.remove('open');
+  document.getElementById('profileMenu')?.classList.remove('open');
+}
+
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', () => {
   const session = loadSession();
@@ -57,12 +75,70 @@ document.addEventListener('DOMContentLoaded', () => {
     location.href = '/';
     return;
   }
-  document.getElementById('adminUsername').textContent = session.firstName || session.username;
+
+  // Build profile dropdown
+  const container = document.getElementById('adminHeaderUser');
+  if (container) {
+    const initial     = escHtml((session.firstName || session.username).charAt(0).toUpperCase());
+    const displayName = escHtml(session.displayName || session.firstName || session.username);
+    const fullName    = escHtml(session.fullName  || session.username);
+    const username    = escHtml(session.username);
+    const av          = session.avatarUrl && session.avatarUrl.startsWith('data:image/') ? session.avatarUrl : '';
+
+    const avatarSmHtml = av
+      ? `<div class="profile-avatar-sm"><img src="${av}" class="profile-avatar-img" alt="${initial}"></div>`
+      : `<div class="profile-avatar-sm">${initial}</div>`;
+    const avatarLgHtml = av
+      ? `<div class="profile-avatar-lg"><img src="${av}" class="profile-avatar-img" alt="${initial}"></div>`
+      : `<div class="profile-avatar-lg">${initial}</div>`;
+
+    const navItems = [
+      `<a href="/profile" class="profile-menu-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        My Profile
+      </a>`,
+      `<a href="/" class="profile-menu-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Portal
+      </a>`,
+      `<a href="/developer" class="profile-menu-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Dev Board
+      </a>`,
+    ];
+
+    container.innerHTML = `
+      <div class="profile-trigger" id="profileTrigger" onclick="toggleProfileMenu(event)">
+        ${avatarSmHtml}
+        <span class="profile-trigger-name">${displayName}</span>
+        <svg class="profile-chevron" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="profile-menu" id="profileMenu">
+        <div class="profile-menu-head">
+          ${avatarLgHtml}
+          <div class="profile-menu-info">
+            <div class="profile-menu-fullname">${fullName}</div>
+            <div class="profile-menu-handle">@${username}</div>
+          </div>
+        </div>
+        <div class="profile-menu-divider"></div>
+        <div class="profile-menu-section">${navItems.join('')}</div>
+        <div class="profile-menu-divider"></div>
+        <div class="profile-menu-section">
+          <button class="profile-menu-item profile-menu-item--danger" onclick="adminSignOut()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Sign Out
+          </button>
+        </div>
+      </div>`;
+  }
+
   loadRequests('pending');
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); }
+    if (e.key === 'Escape') { closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeProfileMenu(); }
   });
+  document.addEventListener('click', () => closeProfileMenu());
 });
 
 /* ── Tab switching ── */

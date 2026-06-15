@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Profile — RGMC Gateway</title>
+  <link rel="icon" type="image/png" href="/static/badge.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <div class="header-logo-wrap">
+          <img src="/static/logo.png" alt="RGMC Gateway" class="header-logo-img">
+        </div>
+        <div class="header-divider"></div>
+        <div class="header-tagline">My Profile</div>
+      </div>
+      <div id="profileHeaderUser" class="header-user"></div>
+    </div>
+  </header>
+
+  <main class="profile-main">
+    <div class="profile-page-header">
+      <h1 class="admin-page-title">My Profile</h1>
+      <p class="profile-page-sub">Customize your display name and avatar shown across the portal.</p>
+    </div>
+
+    <div class="profile-page-card">
+
+      <!-- Avatar upload -->
+      <div class="profile-upload-section">
+        <div class="profile-upload-wrap" id="avatarUploadWrap" onclick="document.getElementById('avatarInput').click()" title="Change profile picture">
+          <div class="profile-upload-preview" id="avatarPreview"></div>
+          <div class="profile-upload-overlay">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <span>Change photo</span>
+          </div>
+        </div>
+        <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="handleAvatarFile(this)">
+        <button class="profile-remove-avatar" id="removeAvatarBtn" style="display:none" onclick="removeAvatar()">Remove photo</button>
+      </div>
+
+      <!-- Fields -->
+      <div class="profile-fields">
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input class="form-input profile-readonly" id="fieldUsername" type="text" readonly>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input class="form-input profile-readonly" id="fieldFullName" type="text" readonly>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Display Name <span class="form-label-hint">(optional — shown in the portal header and on dev board cards)</span></label>
+          <input class="form-input" id="fieldDisplayName" type="text" placeholder="e.g. Juan D." maxlength="80" oninput="markDirty()">
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="profile-save-row">
+        <div id="profileSaveStatus" class="profile-save-status"></div>
+        <button class="btn-modal-submit" id="saveBtn" onclick="saveProfile()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save Changes
+        </button>
+      </div>
+
+    </div>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="/static/profile.js"></script>
+</body>
+</html>

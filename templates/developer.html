@@ -21,30 +21,45 @@
         <div class="header-divider"></div>
         <div class="header-tagline">RGMC Developer Board</div>
       </div>
-      <div class="header-user">
-        <span id="devUsername" class="header-username"></span>
-        <a href="/" class="btn-header-access">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          Back to Portal
-        </a>
-        <button class="btn-sign-out" onclick="devSignOut()">Sign Out</button>
-      </div>
+      <div id="devHeaderUser" class="header-user"></div>
     </div>
   </header>
 
   <main class="admin-main">
 
-    <div class="admin-page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div class="dev-page-header">
       <h1 class="admin-page-title">Dev Board</h1>
       <button class="btn-admin-add" onclick="openItemModal(null)">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         New Item
       </button>
     </div>
+    <div class="dev-stats-bar">
+      <div class="dev-stat-pill stat-pending">
+        <span class="dev-stat-dot dot-pending"></span>
+        <span class="dev-stat-count" id="stat-count-pending">—</span>
+        <span class="dev-stat-label">Pending</span>
+      </div>
+      <div class="dev-stat-pill stat-coding">
+        <span class="dev-stat-dot dot-coding"></span>
+        <span class="dev-stat-count" id="stat-count-coding">—</span>
+        <span class="dev-stat-label">Coding</span>
+      </div>
+      <div class="dev-stat-pill stat-testing">
+        <span class="dev-stat-dot dot-testing"></span>
+        <span class="dev-stat-count" id="stat-count-testing">—</span>
+        <span class="dev-stat-label">Testing</span>
+      </div>
+      <div class="dev-stat-pill stat-done">
+        <span class="dev-stat-dot dot-done"></span>
+        <span class="dev-stat-count" id="stat-count-done">—</span>
+        <span class="dev-stat-label">Done</span>
+      </div>
+    </div>
 
     <!-- Kanban board -->
     <div class="kanban-board" id="kanbanBoard">
-      <div class="kanban-col" id="col-pending" data-status="pending" ondragover="onDragOver(event)" ondrop="onDrop(event,'pending')">
+      <div class="kanban-col" id="col-pending" data-status="pending">
         <div class="kanban-col-header">
           <span class="kanban-col-dot dot-pending"></span>
           Pending
@@ -52,7 +67,7 @@
         </div>
         <div class="kanban-cards" id="cards-pending"></div>
       </div>
-      <div class="kanban-col" id="col-coding" data-status="coding" ondragover="onDragOver(event)" ondrop="onDrop(event,'coding')">
+      <div class="kanban-col" id="col-coding" data-status="coding">
         <div class="kanban-col-header">
           <span class="kanban-col-dot dot-coding"></span>
           Coding
@@ -60,7 +75,7 @@
         </div>
         <div class="kanban-cards" id="cards-coding"></div>
       </div>
-      <div class="kanban-col" id="col-testing" data-status="testing" ondragover="onDragOver(event)" ondrop="onDrop(event,'testing')">
+      <div class="kanban-col" id="col-testing" data-status="testing">
         <div class="kanban-col-header">
           <span class="kanban-col-dot dot-testing"></span>
           Testing
@@ -68,7 +83,7 @@
         </div>
         <div class="kanban-cards" id="cards-testing"></div>
       </div>
-      <div class="kanban-col" id="col-done" data-status="done" ondragover="onDragOver(event)" ondrop="onDrop(event,'done')">
+      <div class="kanban-col" id="col-done" data-status="done">
         <div class="kanban-col-header">
           <span class="kanban-col-dot dot-done"></span>
           Done
