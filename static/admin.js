@@ -572,7 +572,7 @@ function renderEditSystemsGrid(currentSystems) {
       <div class="edit-systems-checks">
         ${systems.map(s => `
           <label class="edit-systems-item">
-            <input type="checkbox" name="sys" value="${escHtml(s.id)}" ${checked.has(s.id) ? 'checked' : ''}>
+            <input type="checkbox" name="sys" value="${escHtml(s.name)}" ${checked.has(s.name) ? 'checked' : ''}>
             <span>${escHtml(s.name)}</span>
           </label>`).join('')}
       </div>
