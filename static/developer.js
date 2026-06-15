@@ -61,7 +61,15 @@ let _items       = [];
 let _systems     = [];
 let _members     = {};   // username → { displayName, avatarUrl }
 let _editingId   = null;
-let _loggingId   = null;
+let _filter      = 'all'; // 'all' | 'mine'
+
+function setFilter(f) {
+  _filter = f;
+  document.querySelectorAll('.dev-filter-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === f);
+  });
+  renderBoard();
+}
 
 /* ── Profile dropdown ── */
 function toggleProfileMenu(e) {
@@ -96,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const displayName = escHtml(session.displayName || session.firstName || session.username);
     const fullName    = escHtml(session.fullName  || session.username);
     const username    = escHtml(session.username);
-    const av          = session.avatarUrl && session.avatarUrl.startsWith('data:image/') ? session.avatarUrl : '';
+    const av          = session.avatarUrl && (session.avatarUrl.startsWith('data:') || session.avatarUrl.startsWith('https://')) ? session.avatarUrl : '';
 
     const avatarSmHtml = av
       ? `<div class="profile-avatar-sm"><img src="${av}" class="profile-avatar-img" alt="${initial}"></div>`
@@ -154,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadMembers().then(() => loadSystems()).then(() => loadItems());
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeItemModal(); closeLogModal(); closeAddSystemModal(); closeProfileMenu(); }
+    if (e.key === 'Escape') { closeDetailModal(); closeAddSystemModal(); closeProfileMenu(); }
   });
   document.addEventListener('click', () => closeProfileMenu());
 });
@@ -168,7 +176,7 @@ async function loadMembers() {
     (Array.isArray(data) ? data : []).forEach(m => {
       _members[m.username] = {
         displayName: m.display_name || m.first_name || m.username,
-        avatarUrl:   m.avatar_url && m.avatar_url.startsWith('data:image/') ? m.avatar_url : '',
+        avatarUrl:   m.avatar_url && (m.avatar_url.startsWith('data:') || m.avatar_url.startsWith('https://')) ? m.avatar_url : '',
       };
     });
   } catch { /* fallback: show initials only */ }
@@ -271,9 +279,11 @@ const STATUSES = ['pending', 'coding', 'testing', 'done'];
 
 function renderBoard() {
   const counts = {};
+  const me = loadSession()?.username || '';
+  const visible = _filter === 'mine' ? _items.filter(i => i.created_by === me) : _items;
   STATUSES.forEach(status => {
     const col   = document.getElementById(`cards-${status}`);
-    const items = _items.filter(i => i.status === status);
+    const items = visible.filter(i => i.status === status);
     const count = items.length;
     counts[status] = count;
 
@@ -291,7 +301,7 @@ function renderBoard() {
       ? items.map((item, idx) => renderCard(item, idx)).join('')
       : `<div class="kanban-empty">
            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
-           No items
+           ${_filter === 'mine' ? 'None assigned to you' : 'No items'}
          </div>`;
   });
   updateColArcs(counts);
@@ -337,14 +347,8 @@ function renderCard(item, idx = 0) {
            </button>`
         : '<span class="kcard-btn-placeholder"></span>'}
       <div class="kcard-actions-center">
-        <button class="kcard-btn" onclick="openItemModal('${escHtml(item.id)}')" title="Edit">
+        <button class="kcard-btn" onclick="openDetailModal('${escHtml(item.id)}')" title="Details &amp; Activity">
           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        </button>
-        <button class="kcard-btn kcard-btn-log" onclick="openLogModal('${escHtml(item.id)}')" title="Activity log">
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        </button>
-        <button class="kcard-btn kcard-btn-del" onclick="deleteItem('${escHtml(item.id)}')" title="Delete">
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
         </button>
       </div>
       ${statusIdx < STATUSES.length - 1
@@ -522,38 +526,59 @@ async function deleteItem(id) {
   }
 }
 
-/* ── Item modal (add / edit) ── */
-function openItemModal(idOrNull) {
+/* ── Item detail modal (add / edit + activity log) ── */
+function openDetailModal(idOrNull) {
   const item = idOrNull ? _items.find(i => i.id === idOrNull) : null;
   _editingId = item?.id ?? null;
 
-  document.getElementById('itemModalTitle').textContent = item ? 'Edit Item' : 'New Item';
-  document.getElementById('itemModalSub').textContent   = item
+  document.getElementById('detailModalTitle').textContent = item ? 'Edit Item' : 'New Item';
+  document.getElementById('detailModalMeta').textContent  = item
     ? `Created by ${item.created_by}`
     : 'Fill in the details below';
-  document.getElementById('itemEditId').value      = item?.id ?? '';
-  document.getElementById('itemTitle').value       = item?.title ?? '';
-  document.getElementById('itemDesc').value        = item?.description ?? '';
-  document.getElementById('itemStatus').value      = item?.status ?? 'pending';
-  document.getElementById('itemStart').value       = item?.start_date ?? '';
-  document.getElementById('itemEstEnd').value      = item?.estimated_end_date ?? '';
-  document.getElementById('itemActualEnd').value   = item?.actual_end_date ?? '';
+  document.getElementById('itemEditId').value   = item?.id ?? '';
+  document.getElementById('itemTitle').value    = item?.title ?? '';
+  document.getElementById('itemDesc').value     = item?.description ?? '';
+  document.getElementById('itemStatus').value   = item?.status ?? 'pending';
+  document.getElementById('itemStart').value    = item?.start_date ?? '';
+  document.getElementById('itemEstEnd').value   = item?.estimated_end_date ?? '';
   populateSystemDropdown(document.getElementById('itemSystem'), item?.system_id ?? null);
 
+  const body      = document.getElementById('itemDetailBody');
+  const logPane   = document.getElementById('detailLogPane');
+  const deleteBtn = document.getElementById('detailDeleteBtn');
+
+  if (item) {
+    body.classList.remove('detail-new');
+    logPane.style.display   = '';
+    deleteBtn.style.display = '';
+    refreshLogs();
+  } else {
+    body.classList.add('detail-new');
+    logPane.style.display   = 'none';
+    deleteBtn.style.display = 'none';
+  }
+
   resetItemForm();
-  document.getElementById('itemModal').classList.add('open');
+  document.getElementById('itemDetailModal').classList.add('open');
   document.body.style.overflow = 'hidden';
   setTimeout(() => document.getElementById('itemTitle').focus(), 60);
 }
 
-function closeItemModal() {
-  document.getElementById('itemModal').classList.remove('open');
+function closeDetailModal() {
+  document.getElementById('itemDetailModal').classList.remove('open');
   document.body.style.overflow = '';
   _editingId = null;
 }
 
-function overlayCloseItem(e) {
-  if (e.target === document.getElementById('itemModal')) closeItemModal();
+function overlayCloseDetail(e) {
+  if (e.target === document.getElementById('itemDetailModal')) closeDetailModal();
+}
+
+async function deleteItemFromDetail() {
+  if (!_editingId) return;
+  const id = _editingId;
+  closeDetailModal();
+  await deleteItem(id);
 }
 
 function resetItemForm() {
@@ -572,14 +597,25 @@ async function saveItem(e) {
     return;
   }
 
+  const newStatus = document.getElementById('itemStatus').value;
+  const prevItem  = _editingId ? _items.find(i => i.id === _editingId) : null;
+
+  // Auto-set actual_end_date: today when done, null when moving away from done
+  let actual_end_date = prevItem?.actual_end_date ?? null;
+  if (newStatus === 'done' && !actual_end_date) {
+    actual_end_date = new Date().toISOString().slice(0, 10);
+  } else if (newStatus !== 'done') {
+    actual_end_date = null;
+  }
+
   const payload = {
     title,
     description:        document.getElementById('itemDesc').value.trim() || null,
-    status:             document.getElementById('itemStatus').value,
+    status:             newStatus,
     system_id:          document.getElementById('itemSystem').value || null,
     start_date:         document.getElementById('itemStart').value || null,
     estimated_end_date: document.getElementById('itemEstEnd').value || null,
-    actual_end_date:    document.getElementById('itemActualEnd').value || null,
+    actual_end_date,
   };
 
   document.getElementById('itemFormActions').style.display = 'none';
@@ -609,7 +645,7 @@ async function saveItem(e) {
       _items.push(saved);
     }
     renderBoard();
-    closeItemModal();
+    closeDetailModal();
     showToast(`Item ${_editingId ? 'updated' : 'created'}.`);
   } catch (err) {
     document.getElementById('itemFormLoading').style.display = 'none';
@@ -619,34 +655,13 @@ async function saveItem(e) {
   }
 }
 
-/* ── Activity log modal ── */
-async function openLogModal(id) {
-  const item = _items.find(i => i.id === id);
-  _loggingId = id;
-  document.getElementById('logModalTitle').textContent = item?.title ?? id;
-  document.getElementById('logMessage').value          = '';
-  document.getElementById('logAddError').style.display = 'none';
-  document.getElementById('logModal').classList.add('open');
-  document.body.style.overflow = 'hidden';
-  await refreshLogs();
-  setTimeout(() => document.getElementById('logMessage').focus(), 80);
-}
-
-function closeLogModal() {
-  document.getElementById('logModal').classList.remove('open');
-  document.body.style.overflow = '';
-  _loggingId = null;
-}
-
-function overlayCloseLog(e) {
-  if (e.target === document.getElementById('logModal')) closeLogModal();
-}
-
+/* ── Activity log (inside detail pane) ── */
 async function refreshLogs() {
+  if (!_editingId) return;
   const list = document.getElementById('logList');
   list.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
   try {
-    const res  = await fetch(`/api/dev/items/${encodeURIComponent(_loggingId)}/logs`, { headers: authHeaders() });
+    const res  = await fetch(`/api/dev/items/${encodeURIComponent(_editingId)}/logs`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     const logs = await res.json();
     if (logs.length === 0) {
@@ -728,6 +743,7 @@ async function saveNewSystem(e) {
 }
 
 async function addLog() {
+  if (!_editingId) return;
   const message = document.getElementById('logMessage').value.trim();
   document.getElementById('logAddError').style.display = 'none';
   if (!message) {
@@ -736,7 +752,7 @@ async function addLog() {
     return;
   }
   try {
-    const res = await fetch(`/api/dev/items/${encodeURIComponent(_loggingId)}/logs`, {
+    const res = await fetch(`/api/dev/items/${encodeURIComponent(_editingId)}/logs`, {
       method:  'POST',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
       body:    JSON.stringify({ message }),

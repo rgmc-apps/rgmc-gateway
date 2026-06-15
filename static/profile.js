@@ -49,7 +49,7 @@ function buildHeaderDropdown(session) {
   const displayName = escHtml(session.displayName || session.firstName || session.username);
   const fullName    = escHtml(session.fullName || session.username);
   const username    = escHtml(session.username);
-  const av          = session.avatarUrl && session.avatarUrl.startsWith('data:image/') ? session.avatarUrl : '';
+  const av          = session.avatarUrl && (session.avatarUrl.startsWith('data:') || session.avatarUrl.startsWith('https://')) ? session.avatarUrl : '';
 
   const avatarSmHtml = av
     ? `<div class="profile-avatar-sm"><img src="${av}" class="profile-avatar-img" alt="${initial}"></div>`
@@ -167,53 +167,65 @@ function removeAvatar() {
 
 /* ── Save ── */
 async function saveProfile() {
+  if (!_dirty) { showToast('No changes to save.'); return; }
+
   const displayName = document.getElementById('fieldDisplayName').value.trim();
-  const patch = {};
-
-  if (_dirty) {
-    patch.display_name = displayName;
-    if (_pendingAvatarUrl !== null) {
-      patch.avatar_url = _pendingAvatarUrl;
-    }
-  } else if (!_dirty) {
-    showToast('No changes to save.');
-    return;
-  }
-
-  const btn = document.getElementById('saveBtn');
+  const btn    = document.getElementById('saveBtn');
   const status = document.getElementById('profileSaveStatus');
   btn.disabled = true;
   status.textContent = 'Saving…';
   status.className = 'profile-save-status saving';
 
   try {
-    const res = await fetch('/api/profile', {
+    let newAvatarUrl = undefined; // undefined = no change
+
+    // ── Avatar: upload to Storage or delete ──
+    if (_pendingAvatarUrl !== null) {
+      if (_pendingAvatarUrl === '') {
+        // Remove avatar
+        const res  = await fetch('/api/profile/avatar', { method: 'DELETE', headers: authHeaders() });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to remove avatar');
+        newAvatarUrl = '';
+      } else {
+        // Upload new avatar (base64 data URL)
+        const res  = await fetch('/api/profile/avatar', {
+          method:  'POST',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ avatar: _pendingAvatarUrl }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to upload avatar');
+        newAvatarUrl = data.avatar_url;
+      }
+    }
+
+    // ── Display name ──
+    const res  = await fetch('/api/profile', {
       method:  'PATCH',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body:    JSON.stringify(patch),
+      body:    JSON.stringify({ display_name: displayName }),
     });
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Unknown error');
 
-    if (res.ok && data.success) {
-      // Update local session
-      const session = loadSession();
-      if (session) {
-        if ('display_name' in patch) session.displayName = patch.display_name || '';
-        if ('avatar_url' in patch)   session.avatarUrl   = patch.avatar_url   || '';
-        // Refresh displayName shown in trigger
-        const dn = session.displayName || session.firstName || session.username;
-        session.displayName = dn;
-        saveSession(session);
+    // ── Update local session ──
+    const session = loadSession();
+    if (session) {
+      session.displayName = displayName || '';
+      if (newAvatarUrl !== undefined) {
+        // Append cache-buster so the browser reloads the new image
+        session.avatarUrl = newAvatarUrl ? `${newAvatarUrl}?v=${Date.now()}` : '';
       }
-      _dirty = false;
-      _pendingAvatarUrl = null;
-      status.textContent = 'Saved!';
-      status.className = 'profile-save-status saved';
-      showToast('Profile updated.');
-      setTimeout(() => { status.textContent = ''; status.className = 'profile-save-status'; }, 3000);
-    } else {
-      throw new Error(data.error || 'Unknown error');
+      saveSession(session);
     }
+
+    _dirty = false;
+    _pendingAvatarUrl = null;
+    status.textContent = 'Saved!';
+    status.className = 'profile-save-status saved';
+    showToast('Profile updated.');
+    setTimeout(() => { status.textContent = ''; status.className = 'profile-save-status'; }, 3000);
   } catch (err) {
     status.textContent = err.message || 'Save failed.';
     status.className = 'profile-save-status error';

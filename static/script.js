@@ -276,7 +276,7 @@ function applySession(session) {
     const displayName = escapeHtml(session.displayName || session.firstName || session.username);
     const fullName    = escapeHtml(session.fullName || session.username);
     const username    = escapeHtml(session.username);
-    const av          = session.avatarUrl && session.avatarUrl.startsWith('data:image/') ? session.avatarUrl : '';
+    const av          = session.avatarUrl && (session.avatarUrl.startsWith('data:') || session.avatarUrl.startsWith('https://')) ? session.avatarUrl : '';
 
     const avatarSmHtml = av
       ? `<div class="profile-avatar-sm"><img src="${av}" class="profile-avatar-img" alt="${initial}"></div>`

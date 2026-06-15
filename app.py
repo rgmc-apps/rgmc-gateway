@@ -1503,22 +1503,99 @@ def api_profile_patch():
     if "display_name" in data:
         dn = str(data["display_name"]).strip()[:80]
         patch["display_name"] = dn or None
-    if "avatar_url" in data:
-        av = data["avatar_url"]
-        if av and not str(av).startswith("data:image/"):
-            return jsonify({"error": "Invalid avatar format"}), 400
-        patch["avatar_url"] = av or None
 
     if not patch:
         return jsonify({"success": True})
 
     try:
-        supabase_req("PATCH", f"/users?username=eq.{username}", body=patch)
+        supabase_req("PATCH", "/users", data=patch, params={"username": f"eq.{username}"})
     except Exception as exc:
         app.logger.error("Profile PATCH failed: %s", exc)
         return jsonify({"error": "Failed to update profile"}), 500
 
     return jsonify({"success": True})
+
+
+@app.route("/api/profile/avatar", methods=["POST"])
+def api_profile_avatar_upload():
+    import base64 as _b64
+    username = request.headers.get("X-Gateway-Username", "").strip().lower()
+    if not username:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    body = request.get_json(force=True, silent=True) or {}
+    data_url = body.get("avatar", "")
+    if not data_url or not str(data_url).startswith("data:image/"):
+        return jsonify({"error": "Invalid image data"}), 400
+
+    try:
+        header, b64 = data_url.split(",", 1)
+        image_bytes = _b64.b64decode(b64)
+    except Exception:
+        return jsonify({"error": "Failed to decode image"}), 400
+
+    content_type = "image/jpeg"
+    if "image/png"  in header: content_type = "image/png"
+    if "image/webp" in header: content_type = "image/webp"
+    ext = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}.get(content_type, "jpg")
+    filename = f"{username}.{ext}"
+
+    storage_put = f"{SUPABASE_URL.rstrip('/')}/storage/v1/object/avatars/{filename}"
+    try:
+        resp = requests.put(
+            storage_put,
+            headers={
+                "apikey":        SUPABASE_SERVICE_KEY,
+                "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                "Content-Type":  content_type,
+                "x-upsert":      "true",
+            },
+            data=image_bytes,
+            timeout=20,
+        )
+        resp.raise_for_status()
+    except Exception as exc:
+        app.logger.error("Avatar storage upload failed: %s", exc)
+        return jsonify({"error": "Failed to upload avatar"}), 500
+
+    public_url = f"{SUPABASE_URL.rstrip('/')}/storage/v1/object/public/avatars/{filename}"
+    try:
+        supabase_req("PATCH", "/users", data={"avatar_url": public_url},
+                     params={"username": f"eq.{username}"})
+    except Exception as exc:
+        app.logger.error("Avatar URL save failed: %s", exc)
+        return jsonify({"error": "Failed to save avatar URL"}), 500
+
+    return jsonify({"success": True, "avatar_url": public_url})
+
+
+@app.route("/api/profile/avatar", methods=["DELETE"])
+def api_profile_avatar_delete():
+    username = request.headers.get("X-Gateway-Username", "").strip().lower()
+    if not username:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    for ext in ("jpg", "jpeg", "png", "webp"):
+        try:
+            requests.delete(
+                f"{SUPABASE_URL.rstrip('/')}/storage/v1/object/avatars/{username}.{ext}",
+                headers={
+                    "apikey":        SUPABASE_SERVICE_KEY,
+                    "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                },
+                timeout=10,
+            )
+        except Exception:
+            pass
+
+    try:
+        supabase_req("PATCH", "/users", data={"avatar_url": None},
+                     params={"username": f"eq.{username}"})
+    except Exception as exc:
+        app.logger.error("Avatar clear failed: %s", exc)
+        return jsonify({"error": "Failed to remove avatar"}), 500
+
+    return jsonify({"success": True, "avatar_url": ""})
 
 
 @app.route("/api/dev/members", methods=["GET"])
