@@ -1,5 +1,6 @@
 import os
 import re
+import time
 import smtplib
 from datetime import datetime, timezone
 from email.mime.multipart import MIMEMultipart
@@ -27,7 +28,8 @@ SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 APPROVER_EMAIL       = os.environ.get("APPROVER_EMAIL", "")
 GATEWAY_BASE_URL     = os.environ.get("GATEWAY_BASE_URL", "")
 
-SITES = [
+# Fallback site list used when the systems table is empty or DB is unreachable.
+SITES_FALLBACK = [
     {
         "id": "travel-expense",
         "name": "RGMC Travel And Expense Web",
@@ -233,10 +235,13 @@ def _sb_headers():
     }
 
 
-def supabase_req(method, path, *, data=None, params=None):
+def supabase_req(method, path, *, data=None, params=None, extra_headers=None):
     url = SUPABASE_URL.rstrip("/") + "/rest/v1" + path
+    headers = _sb_headers()
+    if extra_headers:
+        headers.update(extra_headers)
     resp = requests.request(
-        method, url, headers=_sb_headers(), json=data, params=params, timeout=10
+        method, url, headers=headers, json=data, params=params, timeout=10
     )
     resp.raise_for_status()
     return resp.json() if resp.text else []
@@ -270,6 +275,40 @@ def _full_name(record: dict) -> str:
     mi = record.get("middle_initial", "").strip()
     parts = [record.get("first_name", ""), mi + "." if mi else "", record.get("last_name", "")]
     return " ".join(p for p in parts if p).replace("  ", " ").strip()
+
+
+# ── Sites cache (DB-backed, falls back to SITES_FALLBACK) ────────────────────
+
+_sites_cache: list | None = None
+_sites_cache_ts: float = 0.0
+_SITES_CACHE_TTL = 300  # seconds
+
+
+def get_sites() -> list:
+    global _sites_cache, _sites_cache_ts
+    now = time.time()
+    if _sites_cache is not None and (now - _sites_cache_ts) < _SITES_CACHE_TTL:
+        return _sites_cache
+    if SUPABASE_URL and SUPABASE_SERVICE_KEY:
+        try:
+            rows = supabase_req("GET", "/systems", params={
+                "select": "id,name,category,primary_url,primary_label,backup_url,backup_label",
+                "order":  "sort_order.asc,name.asc",
+            })
+            if rows:
+                _sites_cache = rows
+                _sites_cache_ts = now
+                return _sites_cache
+        except Exception as exc:
+            app.logger.warning("Failed to load sites from DB, using fallback: %s", exc)
+    _sites_cache = SITES_FALLBACK
+    _sites_cache_ts = now
+    return _sites_cache
+
+
+def _invalidate_sites_cache():
+    global _sites_cache
+    _sites_cache = None
 
 
 # ── Email helpers ─────────────────────────────────────────────────────────────
@@ -521,7 +560,7 @@ def send_access_granted_email(record: dict, is_additional: bool = False) -> bool
 
 @app.route("/")
 def index():
-    return render_template("index.html", sites=SITES)
+    return render_template("index.html", sites=get_sites())
 
 
 @app.route("/report", methods=["POST"])
@@ -602,7 +641,6 @@ def access_request_additional():
     if not new_systems:
         return jsonify({"success": False, "error": "Please select at least one system."}), 400
 
-    # Look up the existing approved record to copy the user's info
     try:
         rows = supabase_req("GET", "/access_requests", params={
             "username": f"eq.{username}",
@@ -620,9 +658,6 @@ def access_request_additional():
 
     existing = rows[0]
 
-    # Create the additional-access request record.
-    # Pre-setting username is the signal that access_approve() uses to detect "additional" requests
-    # and merge systems rather than creating a fresh account.
     new_data = {
         "first_name":     existing["first_name"],
         "last_name":      existing["last_name"],
@@ -660,11 +695,38 @@ def verify_username():
     if not username:
         return jsonify({"success": False, "error": "Please enter your username."}), 400
 
+    # 1. Check users table first — preferred path, has is_admin flag
+    try:
+        user_rows = supabase_req("GET", "/users", params={
+            "username": f"eq.{username}",
+            "select":   "username,first_name,last_name,company,department,email,systems,is_admin",
+        })
+        if user_rows:
+            u = user_rows[0]
+            first = u.get("first_name", "")
+            last  = u.get("last_name", "")
+            return jsonify({
+                "success":    True,
+                "username":   u["username"],
+                "first_name": first,
+                "full_name":  f"{first} {last}".strip(),
+                "company":    u.get("company", ""),
+                "department": u.get("department", ""),
+                "email":      u.get("email", ""),
+                "systems":    u.get("systems", []),
+                "is_admin":   u.get("is_admin", False),
+            })
+    except Exception as exc:
+        app.logger.error("Supabase users lookup failed: %s", exc)
+
+    # 2. Fallback: check access_requests for users not yet in users table
     try:
         rows = supabase_req("GET", "/access_requests", params={
             "username": f"eq.{username}",
             "status":   "eq.approved",
             "select":   "username,first_name,last_name,company,department,email,systems",
+            "order":    "created_at.asc",
+            "limit":    "1",
         })
     except Exception as exc:
         app.logger.error("Supabase verify-username failed: %s", exc)
@@ -688,6 +750,7 @@ def verify_username():
         "department": record.get("department", ""),
         "email":      record.get("email", ""),
         "systems":    record.get("systems", []),
+        "is_admin":   False,
     })
 
 
@@ -751,6 +814,37 @@ def access_approve(token):
                                message=Markup("Failed to approve the request. Please try again.")), 500
 
     record["username"] = username
+
+    # Sync to users table
+    if is_additional:
+        try:
+            user_rows = supabase_req("GET", "/users", params={
+                "username": f"eq.{username}", "select": "systems",
+            })
+            if user_rows:
+                current = set(user_rows[0].get("systems") or [])
+                current.update(record.get("systems") or [])
+                supabase_req("PATCH", "/users",
+                             data={"systems": list(current)},
+                             params={"username": f"eq.{username}"})
+        except Exception as exc:
+            app.logger.error("Users systems sync failed: %s", exc)
+    else:
+        try:
+            supabase_req("POST", "/users", data={
+                "username":       username,
+                "first_name":     record.get("first_name", ""),
+                "last_name":      record.get("last_name", ""),
+                "middle_initial": record.get("middle_initial", ""),
+                "company":        record.get("company", ""),
+                "department":     record.get("department", ""),
+                "position":       record.get("position", ""),
+                "email":          record.get("email", ""),
+                "systems":        record.get("systems", []),
+            }, extra_headers={"Prefer": "resolution=merge-duplicates,return=minimal"})
+        except Exception as exc:
+            app.logger.error("Users upsert failed: %s", exc)
+
     send_access_granted_email(record, is_additional=is_additional)
 
     full_name = _full_name(record)
@@ -866,6 +960,149 @@ def health_check():
                 })
         results.append(api_result)
     return jsonify(results)
+
+
+# ── Admin ─────────────────────────────────────────────────────────────────────
+
+@app.route("/admin")
+def admin_page():
+    return render_template("admin.html")
+
+
+def _require_admin():
+    """Returns (username, None) if valid admin, else (None, (error_dict, status_code))."""
+    username = request.headers.get("X-Gateway-Username", "").strip().lower()
+    if not username:
+        return None, ({"error": "Authentication required"}, 401)
+    try:
+        rows = supabase_req("GET", "/users", params={
+            "username": f"eq.{username}",
+            "select":   "username,is_admin",
+        })
+    except Exception:
+        return None, ({"error": "Authentication failed"}, 500)
+    if not rows or not rows[0].get("is_admin"):
+        return None, ({"error": "Admin access required"}, 403)
+    return rows[0]["username"], None
+
+
+@app.route("/api/admin/requests")
+def admin_get_requests():
+    _, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+    status = request.args.get("status")
+    params = {"select": "*", "order": "created_at.desc"}
+    if status:
+        params["status"] = f"eq.{status}"
+    try:
+        rows = supabase_req("GET", "/access_requests", params=params)
+        return jsonify(rows)
+    except Exception as exc:
+        app.logger.error("Admin requests fetch failed: %s", exc)
+        return jsonify({"error": "Failed to fetch requests"}), 500
+
+
+@app.route("/api/admin/users", methods=["GET"])
+def admin_get_users():
+    _, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/users", params={
+            "select": "username,first_name,last_name,company,department,position,email,systems,is_admin,created_at",
+            "order":  "created_at.asc",
+        })
+        return jsonify(rows)
+    except Exception as exc:
+        app.logger.error("Admin users fetch failed: %s", exc)
+        return jsonify({"error": "Failed to fetch users"}), 500
+
+
+@app.route("/api/admin/users/<string:uname>", methods=["PATCH", "DELETE"])
+def admin_update_user(uname):
+    _, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+
+    if request.method == "DELETE":
+        try:
+            supabase_req("DELETE", "/users", params={"username": f"eq.{uname}"})
+            return jsonify({"success": True})
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
+
+    data = request.get_json(silent=True) or {}
+    patch = {k: v for k, v in data.items() if k in {"is_admin", "systems"}}
+    if not patch:
+        return jsonify({"error": "No valid fields to update"}), 400
+    try:
+        supabase_req("PATCH", "/users", data=patch, params={"username": f"eq.{uname}"})
+        return jsonify({"success": True})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/admin/systems", methods=["GET"])
+def admin_get_systems():
+    _, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/systems", params={
+            "select": "*",
+            "order":  "sort_order.asc,name.asc",
+        })
+        return jsonify(rows)
+    except Exception as exc:
+        return jsonify({"error": "Failed to fetch systems"}), 500
+
+
+@app.route("/api/admin/systems", methods=["POST"])
+def admin_create_system():
+    _, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+    data = request.get_json(silent=True) or {}
+    required = ["id", "name", "category", "primary_url", "primary_label"]
+    missing = [f for f in required if not str(data.get(f, "")).strip()]
+    if missing:
+        return jsonify({"error": f"Missing: {', '.join(missing)}"}), 400
+    if "sort_order" not in data:
+        data["sort_order"] = 999
+    try:
+        rows = supabase_req("POST", "/systems", data=data)
+        _invalidate_sites_cache()
+        return jsonify(rows[0] if rows else {}), 201
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/admin/systems/<string:system_id>", methods=["PATCH", "DELETE"])
+def admin_update_system(system_id):
+    _, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+
+    if request.method == "DELETE":
+        try:
+            supabase_req("DELETE", "/systems", params={"id": f"eq.{system_id}"})
+            _invalidate_sites_cache()
+            return jsonify({"success": True})
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
+
+    data = request.get_json(silent=True) or {}
+    allowed = {"name", "category", "primary_url", "primary_label", "backup_url", "backup_label", "sort_order"}
+    patch = {k: v for k, v in data.items() if k in allowed}
+    if not patch:
+        return jsonify({"error": "No valid fields"}), 400
+    try:
+        supabase_req("PATCH", "/systems", data=patch, params={"id": f"eq.{system_id}"})
+        _invalidate_sites_cache()
+        return jsonify({"success": True})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
 
 
 if __name__ == "__main__":

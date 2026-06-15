@@ -1043,3 +1043,293 @@ body::before {
   .btn-report { margin-left: 0; }
   .gate-card-inner { padding: 36px 26px 30px; }
 }
+
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Admin Panel
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Admin panel button in the portal header */
+.btn-admin-panel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: rgba(196,151,42,0.12);
+  border: 1px solid var(--gold-border);
+  border-radius: var(--radius-pill);
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.18s, border-color 0.18s;
+  white-space: nowrap;
+}
+.btn-admin-panel:hover {
+  background: rgba(196,151,42,0.2);
+  border-color: var(--gold-border-h);
+}
+
+/* ── Admin page layout ── */
+.admin-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 100px 28px 60px;
+}
+
+.admin-page-header {
+  margin-bottom: 28px;
+}
+.admin-page-title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* ── Tab navigation ── */
+.admin-tabs {
+  display: flex;
+  gap: 4px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 5px;
+  margin-bottom: 28px;
+  width: fit-content;
+}
+
+.admin-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 20px;
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--radius) - 2px);
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+  position: relative;
+}
+.admin-tab:hover { color: var(--text-primary); background: rgba(255,255,255,0.04); }
+.admin-tab.active {
+  background: rgba(196,151,42,0.14);
+  color: var(--gold);
+  border: 1px solid var(--gold-border);
+}
+
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: var(--gold);
+  color: #0d0a06;
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* ── Panels ── */
+.admin-panel { display: none; }
+.admin-panel.active { display: block; }
+
+/* ── Status sub-tabs ── */
+.admin-status-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+.status-tab {
+  padding: 6px 18px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.status-tab:hover { border-color: var(--border); color: var(--text-primary); }
+.status-tab.active {
+  background: rgba(196,151,42,0.12);
+  border-color: var(--gold-border);
+  color: var(--gold);
+}
+
+/* ── Toolbar ── */
+.admin-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+.btn-admin-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 20px;
+  background: var(--gold);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #0d0a06;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s, box-shadow 0.18s;
+}
+.btn-admin-add:hover {
+  background: var(--gold-light);
+  box-shadow: var(--shadow-btn);
+}
+
+/* ── Table wrapper ── */
+.admin-table-wrap {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  overflow-x: auto;
+}
+
+/* ── Data table ── */
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.admin-table thead tr {
+  background: rgba(255,255,255,0.03);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.admin-table th {
+  padding: 11px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+}
+.admin-table td {
+  padding: 12px 16px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+.admin-table tbody tr:last-child td { border-bottom: none; }
+.admin-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+/* ── Table cell helpers ── */
+.user-name   { font-weight: 600; color: var(--text-primary); }
+.mono-val    { font-family: monospace; font-size: 13px; color: var(--gold); background: rgba(196,151,42,0.08); padding: 2px 7px; border-radius: 5px; }
+.tbl-link    { color: var(--text-secondary); text-decoration: none; transition: color 0.15s; }
+.tbl-link:hover { color: var(--gold); }
+.url-cell    { max-width: 200px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.date-cell   { color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+.text-muted  { color: var(--text-muted); }
+.systems-count { color: var(--text-secondary); font-size: 12px; }
+
+/* System pills on requests table */
+.sys-pills { display: flex; flex-wrap: wrap; gap: 4px; max-width: 260px; }
+.sys-pill  {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* ── Action buttons in table ── */
+.action-cell { white-space: nowrap; }
+.btn-tbl-secondary {
+  padding: 5px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-right: 6px;
+}
+.btn-tbl-secondary:hover {
+  border-color: var(--gold-border-h);
+  color: var(--gold);
+}
+.btn-tbl-danger {
+  padding: 5px 12px;
+  background: transparent;
+  border: 1px solid rgba(216,88,88,0.25);
+  border-radius: var(--radius-sm);
+  color: var(--error);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-tbl-danger:hover {
+  background: var(--error-bg);
+  border-color: rgba(216,88,88,0.5);
+}
+
+/* ── Admin/User badges ── */
+.badge-admin {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  background: rgba(196,151,42,0.14);
+  border: 1px solid var(--gold-border);
+  border-radius: var(--radius-pill);
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.badge-user {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ── Empty / loading / error states ── */
+.admin-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 24px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+.admin-empty {
+  padding: 40px 24px;
+  color: var(--text-muted);
+  font-size: 14px;
+  text-align: center;
+}
+.admin-error {
+  padding: 20px 24px;
+  color: var(--error);
+  font-size: 13px;
+}
