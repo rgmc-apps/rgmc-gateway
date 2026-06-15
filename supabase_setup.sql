@@ -144,3 +144,7 @@ SELECT
 FROM first_approved fa
 LEFT JOIN all_systems als ON fa.username = als.username
 ON CONFLICT (username) DO NOTHING;
+
+
+-- Add rejection_remarks column (safe to run on existing installations)
+ALTER TABLE public.access_requests ADD COLUMN IF NOT EXISTS rejection_remarks TEXT;

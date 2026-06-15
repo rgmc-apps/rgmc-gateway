@@ -89,6 +89,75 @@
 
   </main>
 
+  <!-- ── Edit User Systems Modal ── -->
+  <div id="editSystemsModal" class="modal-overlay" onclick="overlayCloseEditSystems(event)">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Edit Systems</h3>
+          <p class="modal-site-name" id="editSystemsUser"></p>
+        </div>
+        <button class="modal-close" onclick="closeEditSystemsModal()" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-form">
+        <div id="editSystemsGrid">
+          <!-- populated by JS -->
+        </div>
+        <div id="editSystemsActions" class="modal-actions">
+          <button type="button" class="btn-modal-cancel" onclick="closeEditSystemsModal()">Cancel</button>
+          <button type="button" class="btn-modal-submit" onclick="saveUserSystems()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Save Systems
+          </button>
+        </div>
+        <div id="editSystemsLoading" class="form-state" style="display:none;">
+          <div class="spinner"></div><span>Saving…</span>
+        </div>
+        <div id="editSystemsError" class="form-state form-error" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="editSystemsErrorMsg"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Reject Request Modal ── -->
+  <div id="rejectModal" class="modal-overlay" onclick="overlayCloseReject(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Reject Access Request</h3>
+          <p class="modal-site-name" id="rejectModalName"></p>
+        </div>
+        <button class="modal-close" onclick="closeRejectModal()" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-form">
+        <div class="form-group form-group-full" style="margin-bottom:8px;">
+          <label class="form-label">Systems Requested</label>
+          <p id="rejectSystems" style="margin:6px 0 0;font-size:13px;color:var(--text-secondary);line-height:1.7;"></p>
+        </div>
+        <div class="form-group form-group-full">
+          <label class="form-label" for="rejectRemarks">Reason for Rejection <span class="form-label-hint">(optional — included in the notification email)</span></label>
+          <textarea class="form-input form-textarea" id="rejectRemarks" rows="3" placeholder="e.g. Insufficient justification, please resubmit with manager approval…"></textarea>
+        </div>
+        <div id="rejectFormActions" class="modal-actions">
+          <button type="button" class="btn-modal-cancel" onclick="closeRejectModal()">Cancel</button>
+          <button type="button" class="btn-modal-reject" onclick="confirmReject()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Confirm Rejection
+          </button>
+        </div>
+        <div id="rejectFormLoading" class="form-state" style="display:none;">
+          <div class="spinner"></div><span>Rejecting request…</span>
+        </div>
+        <div id="rejectFormError" class="form-state form-error" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="rejectErrorMsg"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── System Add / Edit Modal ── -->
   <div id="systemModal" class="modal-overlay" onclick="overlayCloseSystem(event)">
     <div class="modal modal-lg">

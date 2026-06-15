@@ -42,8 +42,13 @@ function fmtDateTime(iso) {
 }
 
 /* ── State ── */
-let currentTab    = 'requests';
-let currentStatus = 'pending';
+let currentTab          = 'requests';
+let currentStatus       = 'pending';
+let _requestsCache      = [];
+let _rejectingId        = null;
+let _usersCache         = [];
+let _systemsCache       = [];
+let _editingUserSystems = null;
 
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', () => {
@@ -56,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadRequests('pending');
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeSystemModal();
+    if (e.key === 'Escape') { closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); }
   });
 });
 
@@ -86,6 +91,7 @@ async function loadRequests(status) {
     const res = await fetch(`/api/admin/requests?status=${status}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     const rows = await res.json();
+    _requestsCache = rows;
 
     // Update pending badge
     if (status === 'pending') {
@@ -111,6 +117,8 @@ async function loadRequests(status) {
             <th>Systems</th>
             ${status === 'approved' ? '<th>Username</th>' : ''}
             <th>${status === 'pending' ? 'Requested' : status === 'approved' ? 'Approved' : 'Rejected'}</th>
+            ${status === 'rejected' ? '<th>Reason</th>' : ''}
+            ${status === 'pending'  ? '<th>Actions</th>' : ''}
           </tr>
         </thead>
         <tbody>
@@ -127,7 +135,14 @@ function renderRequestRow(r, status) {
   const name = `${escHtml(r.first_name)}${escHtml(mi)} ${escHtml(r.last_name)}`;
   const systems = (r.systems || []).map(s => `<span class="sys-pill">${escHtml(s)}</span>`).join('');
   const date = status === 'pending' ? fmtDateTime(r.created_at) : fmtDateTime(r.processed_at);
-  const usernameCol = status === 'approved' ? `<td><code class="mono-val">${escHtml(r.username || '—')}</code></td>` : '';
+  const usernameCol  = status === 'approved' ? `<td><code class="mono-val">${escHtml(r.username || '—')}</code></td>` : '';
+  const remarkCol    = status === 'rejected'
+    ? `<td class="date-cell">${r.rejection_remarks ? escHtml(r.rejection_remarks) : '<span class="text-muted">—</span>'}</td>` : '';
+  const actionCol    = status === 'pending'
+    ? `<td class="action-cell">
+        <button class="btn-tbl-approve" onclick="approveRequest('${r.id}')">Approve</button>
+        <button class="btn-tbl-danger"  onclick="openRejectModal('${r.id}')">Reject</button>
+       </td>` : '';
   return `<tr>
     <td><span class="user-name">${name}</span></td>
     <td>${escHtml(r.company)}</td>
@@ -137,7 +152,86 @@ function renderRequestRow(r, status) {
     <td><div class="sys-pills">${systems || '—'}</div></td>
     ${usernameCol}
     <td class="date-cell">${date}</td>
+    ${remarkCol}
+    ${actionCol}
   </tr>`;
+}
+
+/* ── Request actions (approve / reject) ── */
+
+async function approveRequest(id) {
+  const r = _requestsCache.find(x => x.id === id);
+  const name = r ? `${r.first_name} ${r.last_name}`.trim() : id;
+  if (!confirm(`Approve the access request from ${name}?\n\nThis will generate a username and send a notification email.`)) return;
+
+  try {
+    const res = await fetch(`/api/admin/requests/${encodeURIComponent(id)}/approve`, {
+      method: 'POST', headers: authHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Approval failed');
+    showToast(`Request approved. Username: ${data.username || '—'}`);
+    loadRequests(currentStatus);
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+function openRejectModal(id) {
+  const r = _requestsCache.find(x => x.id === id);
+  if (!r) return;
+  _rejectingId = id;
+  const name = `${r.first_name} ${r.last_name}`.trim();
+  document.getElementById('rejectModalName').textContent = name;
+  document.getElementById('rejectSystems').textContent = (r.systems || []).join(', ') || '—';
+  document.getElementById('rejectRemarks').value = '';
+  resetRejectModal();
+  document.getElementById('rejectModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('rejectRemarks').focus(), 60);
+}
+
+function closeRejectModal() {
+  document.getElementById('rejectModal').classList.remove('open');
+  document.body.style.overflow = '';
+  _rejectingId = null;
+}
+
+function overlayCloseReject(e) {
+  if (e.target === document.getElementById('rejectModal')) closeRejectModal();
+}
+
+function resetRejectModal() {
+  document.getElementById('rejectFormActions').style.display = '';
+  document.getElementById('rejectFormLoading').style.display = 'none';
+  document.getElementById('rejectFormError').style.display   = 'none';
+}
+
+async function confirmReject() {
+  if (!_rejectingId) return;
+  const remarks = document.getElementById('rejectRemarks').value.trim() || null;
+
+  document.getElementById('rejectFormActions').style.display = 'none';
+  document.getElementById('rejectFormLoading').style.display = '';
+  document.getElementById('rejectFormError').style.display   = 'none';
+
+  try {
+    const res = await fetch(`/api/admin/requests/${encodeURIComponent(_rejectingId)}/reject`, {
+      method:  'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ remarks }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Rejection failed');
+    closeRejectModal();
+    showToast('Request rejected. Notification sent to user.');
+    loadRequests(currentStatus);
+  } catch (err) {
+    document.getElementById('rejectFormLoading').style.display = 'none';
+    document.getElementById('rejectFormActions').style.display = '';
+    document.getElementById('rejectFormError').style.display   = '';
+    document.getElementById('rejectErrorMsg').textContent = err.message;
+  }
 }
 
 /* ── Users ── */
@@ -149,6 +243,7 @@ async function loadUsers() {
     const res = await fetch('/api/admin/users', { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     const rows = await res.json();
+    _usersCache = rows;
 
     if (rows.length === 0) {
       wrap.innerHTML = '<div class="admin-empty">No users found. Run the migration SQL to seed users from existing approved requests.</div>';
@@ -197,6 +292,7 @@ function renderUserRow(u) {
     <td>${adminBadge}</td>
     <td class="date-cell">${fmtDate(u.created_at)}</td>
     <td class="action-cell">
+      <button class="btn-tbl-secondary" onclick="openEditSystemsModal('${escHtml(u.username)}')">Edit Systems</button>
       <button class="btn-tbl-secondary" onclick="toggleAdmin('${escHtml(u.username)}', ${u.is_admin})">${toggleLabel}</button>
       <button class="btn-tbl-danger" onclick="deleteUser('${escHtml(u.username)}')">Delete</button>
     </td>
@@ -248,6 +344,7 @@ async function loadSystems() {
     const res = await fetch('/api/admin/systems', { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     const rows = await res.json();
+    _systemsCache = rows;
 
     if (rows.length === 0) {
       wrap.innerHTML = '<div class="admin-empty">No systems found. Add one above.</div>';
@@ -412,5 +509,103 @@ async function deleteSystem(id) {
     loadSystems();
   } catch (err) {
     showToast(`Error: ${err.message}`);
+  }
+}
+
+/* ── Edit User Systems modal ── */
+
+async function openEditSystemsModal(username) {
+  const user = _usersCache.find(u => u.username === username);
+  if (!user) return;
+  _editingUserSystems = username;
+
+  document.getElementById('editSystemsUser').textContent = `${user.first_name} ${user.last_name}`.trim() || username;
+
+  // Ensure systems cache is populated
+  if (_systemsCache.length === 0) {
+    try {
+      const res = await fetch('/api/admin/systems', { headers: authHeaders() });
+      if (res.ok) _systemsCache = await res.json();
+    } catch { /* non-fatal — grid will be empty */ }
+  }
+
+  renderEditSystemsGrid(user.systems || []);
+  resetEditSystemsModal();
+  document.getElementById('editSystemsModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeEditSystemsModal() {
+  document.getElementById('editSystemsModal').classList.remove('open');
+  document.body.style.overflow = '';
+  _editingUserSystems = null;
+}
+
+function overlayCloseEditSystems(e) {
+  if (e.target === document.getElementById('editSystemsModal')) closeEditSystemsModal();
+}
+
+function resetEditSystemsModal() {
+  document.getElementById('editSystemsActions').style.display = '';
+  document.getElementById('editSystemsLoading').style.display = 'none';
+  document.getElementById('editSystemsError').style.display   = 'none';
+}
+
+function renderEditSystemsGrid(currentSystems) {
+  const grid = document.getElementById('editSystemsGrid');
+  const checked = new Set(currentSystems);
+
+  const categories = ['RGMC', 'SBIC', 'NAV Sites'];
+  const grouped = {};
+  categories.forEach(c => { grouped[c] = []; });
+  _systemsCache.forEach(s => {
+    if (grouped[s.category]) grouped[s.category].push(s);
+    else grouped['RGMC'].push(s);
+  });
+
+  let html = '';
+  categories.forEach(cat => {
+    const systems = grouped[cat];
+    if (!systems.length) return;
+    html += `<div class="edit-systems-group">
+      <div class="edit-systems-cat-label">${escHtml(cat)}</div>
+      <div class="edit-systems-checks">
+        ${systems.map(s => `
+          <label class="edit-systems-item">
+            <input type="checkbox" name="sys" value="${escHtml(s.id)}" ${checked.has(s.id) ? 'checked' : ''}>
+            <span>${escHtml(s.name)}</span>
+          </label>`).join('')}
+      </div>
+    </div>`;
+  });
+
+  grid.innerHTML = html || '<p class="text-muted">No systems defined yet.</p>';
+}
+
+async function saveUserSystems() {
+  if (!_editingUserSystems) return;
+
+  const checkboxes = document.querySelectorAll('#editSystemsGrid input[name="sys"]');
+  const systems = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+
+  document.getElementById('editSystemsActions').style.display = 'none';
+  document.getElementById('editSystemsLoading').style.display = '';
+  document.getElementById('editSystemsError').style.display   = 'none';
+
+  try {
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(_editingUserSystems)}`, {
+      method:  'PATCH',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ systems }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    closeEditSystemsModal();
+    showToast(`Systems updated for ${_editingUserSystems}.`);
+    loadUsers();
+  } catch (err) {
+    document.getElementById('editSystemsLoading').style.display = 'none';
+    document.getElementById('editSystemsActions').style.display = '';
+    document.getElementById('editSystemsError').style.display   = '';
+    document.getElementById('editSystemsErrorMsg').textContent  = err.message;
   }
 }

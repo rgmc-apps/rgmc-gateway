@@ -556,6 +556,189 @@ def send_access_granted_email(record: dict, is_additional: bool = False) -> bool
     return _smtp_send(msg, [user_email])
 
 
+def send_access_rejected_email(record: dict, remarks: str = None) -> bool:
+    """Notify the user that their access request was not approved."""
+    user_email = record.get("email", "")
+    if not user_email:
+        return False
+
+    from_addr = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    it_email  = EMAIL_CONFIG["developer_email"] or from_addr
+    full_name = _full_name(record)
+    systems_html = "".join(
+        f'<li style="margin:5px 0;font-size:14px;color:#374151;">{s}</li>'
+        for s in (record.get("systems") or [])
+    )
+    remarks_block = ""
+    if remarks:
+        remarks_html = remarks.replace("\n", "<br>")
+        remarks_block = f"""
+      <div style="background:#fef2f2;border:1px solid rgba(220,38,38,.2);border-left:4px solid #dc2626;border-radius:0 6px 6px 0;padding:14px 16px;margin-bottom:24px;">
+        <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;">Reason</p>
+        <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">{remarks_html}</p>
+      </div>"""
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid #dc2626;">
+      <h2 style="margin:0;font-size:22px;color:#f87171;">Access Request Not Approved</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">RGMC System Gateway</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 16px;font-size:15px;">Hello <strong>{record.get('first_name','')}</strong>,</p>
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#374151;">
+        We regret to inform you that your access request for the <strong>RGMC Gateway</strong> has not been approved at this time.
+      </p>
+      {remarks_block}
+      <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Systems Requested</p>
+      <ul style="margin:0 0 28px;padding:0 0 0 18px;line-height:1.9;">{systems_html}</ul>
+      <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">
+        If you believe this is in error or would like further clarification, please contact the IT department at
+        <a href="mailto:{it_email}" style="color:#C4972A;text-decoration:none;font-weight:600;">{it_email}</a>.
+      </p>
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "Your RGMC Gateway Access Request — Not Approved"
+    msg["From"]    = from_addr
+    msg["To"]      = user_email
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [user_email])
+
+
+def send_admin_granted_email(user_record: dict) -> bool:
+    """Notify a user that they have been granted admin access to the portal."""
+    user_email = user_record.get("email", "")
+    if not user_email:
+        return False
+
+    from_addr  = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    first_name = user_record.get("first_name", "")
+    username   = user_record.get("username", "")
+    admin_url  = (GATEWAY_BASE_URL or "").rstrip("/") + "/admin"
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid #C4972A;">
+      <h2 style="margin:0;font-size:22px;color:#C4972A;">Admin Access Granted</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">RGMC System Gateway</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 16px;font-size:15px;">Hello <strong>{first_name}</strong>,</p>
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#374151;">
+        You have been granted <strong>Admin access</strong> to the RGMC Gateway. You can now manage user
+        requests, update user system access, and configure available systems from the Admin Panel.
+      </p>
+      <div style="background:linear-gradient(135deg,#f8fafc,#f1f5f9);border:1px solid #e2e8f0;border-left:4px solid #C4972A;border-radius:0 8px 8px 0;padding:18px 20px;margin-bottom:28px;">
+        <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.1em;">Your Username</p>
+        <p style="margin:0;font-size:24px;font-weight:700;color:#1a120a;font-family:monospace;">{username}</p>
+      </div>
+      {'<p style="margin:0 0 20px;font-size:14px;color:#374151;">Access the Admin Panel here:</p><a href="' + admin_url + '" style="display:inline-block;padding:12px 28px;background:#C4972A;color:#0d0a06;text-decoration:none;border-radius:7px;font-size:14px;font-weight:700;">' + admin_url + '</a>' if admin_url.strip('/') else ''}
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "Admin Access Granted — RGMC Gateway"
+    msg["From"]    = from_addr
+    msg["To"]      = user_email
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [user_email])
+
+
+# ── Approval / rejection helpers ──────────────────────────────────────────────
+
+def _approve_record(record: dict):
+    """Core approval logic shared by token route and admin API.
+    Mutates record['username'] in place. Returns (username, error_msg)."""
+    is_additional = bool(record.get("username"))
+
+    if is_additional:
+        username = record["username"]
+        try:
+            primary = supabase_req("GET", "/access_requests", params={
+                "username": f"eq.{username}",
+                "status":   "eq.approved",
+                "select":   "id,systems",
+                "order":    "created_at.asc",
+                "limit":    "1",
+            })
+            if primary:
+                merged = list({*(primary[0].get("systems") or []), *(record.get("systems") or [])})
+                supabase_req("PATCH", "/access_requests",
+                             data={"systems": merged},
+                             params={"id": f"eq.{primary[0]['id']}"})
+        except Exception as exc:
+            app.logger.error("System merge failed: %s", exc)
+    else:
+        username = generate_username(record["first_name"], record["last_name"])
+
+    try:
+        supabase_req("PATCH", "/access_requests", data={
+            "status":       "approved",
+            "username":     username,
+            "processed_at": datetime.now(timezone.utc).isoformat(),
+        }, params={"id": f"eq.{record['id']}"})
+    except Exception as exc:
+        app.logger.error("Supabase approve failed: %s", exc)
+        return None, "Failed to approve the request"
+
+    record["username"] = username
+
+    if is_additional:
+        try:
+            user_rows = supabase_req("GET", "/users", params={"username": f"eq.{username}", "select": "systems"})
+            if user_rows:
+                current = set(user_rows[0].get("systems") or [])
+                current.update(record.get("systems") or [])
+                supabase_req("PATCH", "/users", data={"systems": list(current)}, params={"username": f"eq.{username}"})
+        except Exception as exc:
+            app.logger.error("Users systems sync failed: %s", exc)
+    else:
+        try:
+            supabase_req("POST", "/users", data={
+                "username":       username,
+                "first_name":     record.get("first_name", ""),
+                "last_name":      record.get("last_name", ""),
+                "middle_initial": record.get("middle_initial", ""),
+                "company":        record.get("company", ""),
+                "department":     record.get("department", ""),
+                "position":       record.get("position", ""),
+                "email":          record.get("email", ""),
+                "systems":        record.get("systems", []),
+            }, extra_headers={"Prefer": "resolution=merge-duplicates,return=minimal"})
+        except Exception as exc:
+            app.logger.error("Users upsert failed: %s", exc)
+
+    return username, None
+
+
+def _reject_record(record_id: str, remarks: str = None):
+    """Core rejection logic. Returns (True, None) or (False, error_msg)."""
+    patch_data = {
+        "status":       "rejected",
+        "processed_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if remarks:
+        patch_data["rejection_remarks"] = remarks
+    try:
+        supabase_req("PATCH", "/access_requests", data=patch_data, params={"id": f"eq.{record_id}"})
+        return True, None
+    except Exception as exc:
+        app.logger.error("Supabase reject failed: %s", exc)
+        return False, "Failed to reject the request"
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.route("/")
@@ -778,72 +961,11 @@ def access_approve(token):
         return render_template("access_result.html", success=False, title="Already Processed",
                                message=Markup(f"This request has already been <strong>{processed}</strong>.")), 409
 
-    # A pre-set username signals this is an additional-access request
     is_additional = bool(record.get("username"))
-
-    if is_additional:
-        username = record["username"]
-        # Merge the new systems into the user's primary approved record
-        try:
-            primary = supabase_req("GET", "/access_requests", params={
-                "username": f"eq.{username}",
-                "status":   "eq.approved",
-                "select":   "id,systems",
-                "order":    "created_at.asc",
-                "limit":    "1",
-            })
-            if primary:
-                merged = list({*(primary[0].get("systems") or []), *(record.get("systems") or [])})
-                supabase_req("PATCH", "/access_requests",
-                             data={"systems": merged},
-                             params={"id": f"eq.{primary[0]['id']}"})
-        except Exception as exc:
-            app.logger.error("System merge failed: %s", exc)
-    else:
-        username = generate_username(record["first_name"], record["last_name"])
-
-    try:
-        supabase_req("PATCH", "/access_requests", data={
-            "status":       "approved",
-            "username":     username,
-            "processed_at": datetime.now(timezone.utc).isoformat(),
-        }, params={"id": f"eq.{record['id']}"})
-    except Exception as exc:
-        app.logger.error("Supabase update failed: %s", exc)
+    username, approve_err = _approve_record(record)
+    if approve_err:
         return render_template("access_result.html", success=False, title="Error",
                                message=Markup("Failed to approve the request. Please try again.")), 500
-
-    record["username"] = username
-
-    # Sync to users table
-    if is_additional:
-        try:
-            user_rows = supabase_req("GET", "/users", params={
-                "username": f"eq.{username}", "select": "systems",
-            })
-            if user_rows:
-                current = set(user_rows[0].get("systems") or [])
-                current.update(record.get("systems") or [])
-                supabase_req("PATCH", "/users",
-                             data={"systems": list(current)},
-                             params={"username": f"eq.{username}"})
-        except Exception as exc:
-            app.logger.error("Users systems sync failed: %s", exc)
-    else:
-        try:
-            supabase_req("POST", "/users", data={
-                "username":       username,
-                "first_name":     record.get("first_name", ""),
-                "last_name":      record.get("last_name", ""),
-                "middle_initial": record.get("middle_initial", ""),
-                "company":        record.get("company", ""),
-                "department":     record.get("department", ""),
-                "position":       record.get("position", ""),
-                "email":          record.get("email", ""),
-                "systems":        record.get("systems", []),
-            }, extra_headers={"Prefer": "resolution=merge-duplicates,return=minimal"})
-        except Exception as exc:
-            app.logger.error("Users upsert failed: %s", exc)
 
     send_access_granted_email(record, is_additional=is_additional)
 
@@ -888,16 +1010,12 @@ def access_reject(token):
         return render_template("access_result.html", success=False, title="Already Processed",
                                message=Markup(f"This request has already been <strong>{processed}</strong>.")), 409
 
-    try:
-        supabase_req("PATCH", "/access_requests", data={
-            "status":       "rejected",
-            "processed_at": datetime.now(timezone.utc).isoformat(),
-        }, params={"id": f"eq.{record['id']}"})
-    except Exception as exc:
-        app.logger.error("Supabase update failed: %s", exc)
+    ok, reject_err = _reject_record(record["id"])
+    if reject_err:
         return render_template("access_result.html", success=False, title="Error",
                                message=Markup("Failed to reject the request. Please try again.")), 500
 
+    send_access_rejected_email(record)
     full_name = _full_name(record)
     return render_template("access_result.html", success=False, title="Request Rejected",
                            message=Markup(
@@ -1037,7 +1155,9 @@ def admin_update_user(uname):
     if not patch:
         return jsonify({"error": "No valid fields to update"}), 400
     try:
-        supabase_req("PATCH", "/users", data=patch, params={"username": f"eq.{uname}"})
+        rows = supabase_req("PATCH", "/users", data=patch, params={"username": f"eq.{uname}"})
+        if patch.get("is_admin") is True and rows:
+            send_admin_granted_email(rows[0])
         return jsonify({"success": True})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
@@ -1103,6 +1223,62 @@ def admin_update_system(system_id):
         return jsonify({"success": True})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/admin/requests/<string:request_id>/approve", methods=["POST"])
+def admin_approve_request(request_id):
+    _, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+
+    try:
+        rows = supabase_req("GET", "/access_requests", params={"id": f"eq.{request_id}", "select": "*"})
+    except Exception:
+        return jsonify({"error": "Failed to fetch request"}), 500
+
+    if not rows:
+        return jsonify({"error": "Request not found"}), 404
+
+    record = rows[0]
+    if record["status"] != "pending":
+        return jsonify({"error": f"Request is already {record['status']}"}), 409
+
+    is_additional = bool(record.get("username"))
+    username, approve_err = _approve_record(record)
+    if approve_err:
+        return jsonify({"error": approve_err}), 500
+
+    send_access_granted_email(record, is_additional=is_additional)
+    return jsonify({"success": True, "username": username})
+
+
+@app.route("/api/admin/requests/<string:request_id>/reject", methods=["POST"])
+def admin_reject_request(request_id):
+    _, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+
+    try:
+        rows = supabase_req("GET", "/access_requests", params={"id": f"eq.{request_id}", "select": "*"})
+    except Exception:
+        return jsonify({"error": "Failed to fetch request"}), 500
+
+    if not rows:
+        return jsonify({"error": "Request not found"}), 404
+
+    record = rows[0]
+    if record["status"] != "pending":
+        return jsonify({"error": f"Request is already {record['status']}"}), 409
+
+    body    = request.get_json(silent=True) or {}
+    remarks = (body.get("remarks") or "").strip() or None
+
+    ok, reject_err = _reject_record(request_id, remarks)
+    if reject_err:
+        return jsonify({"error": reject_err}), 500
+
+    send_access_rejected_email(record, remarks)
+    return jsonify({"success": True})
 
 
 if __name__ == "__main__":
