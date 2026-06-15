@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dev Board — RGMC Gateway</title>
+  <link rel="icon" type="image/png" href="/static/badge.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <div class="header-logo-wrap">
+          <img src="/static/logo.png" alt="RGMC Gateway" class="header-logo-img">
+        </div>
+        <div class="header-divider"></div>
+        <div class="header-tagline">Dev Board</div>
+      </div>
+      <div class="header-user">
+        <span id="devUsername" class="header-username"></span>
+        <a href="/" class="btn-header-access">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Back to Portal
+        </a>
+        <button class="btn-sign-out" onclick="devSignOut()">Sign Out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="admin-main">
+
+    <div class="admin-page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <h1 class="admin-page-title">Dev Board</h1>
+      <button class="btn-admin-add" onclick="openItemModal(null)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        New Item
+      </button>
+    </div>
+
+    <!-- Kanban board -->
+    <div class="kanban-board" id="kanbanBoard">
+      <div class="kanban-col" id="col-pending" data-status="pending" ondragover="onDragOver(event)" ondrop="onDrop(event,'pending')">
+        <div class="kanban-col-header">
+          <span class="kanban-col-dot dot-pending"></span>
+          Pending
+          <span class="kanban-count" id="count-pending">0</span>
+        </div>
+        <div class="kanban-cards" id="cards-pending"></div>
+      </div>
+      <div class="kanban-col" id="col-coding" data-status="coding" ondragover="onDragOver(event)" ondrop="onDrop(event,'coding')">
+        <div class="kanban-col-header">
+          <span class="kanban-col-dot dot-coding"></span>
+          Coding
+          <span class="kanban-count" id="count-coding">0</span>
+        </div>
+        <div class="kanban-cards" id="cards-coding"></div>
+      </div>
+      <div class="kanban-col" id="col-testing" data-status="testing" ondragover="onDragOver(event)" ondrop="onDrop(event,'testing')">
+        <div class="kanban-col-header">
+          <span class="kanban-col-dot dot-testing"></span>
+          Testing
+          <span class="kanban-count" id="count-testing">0</span>
+        </div>
+        <div class="kanban-cards" id="cards-testing"></div>
+      </div>
+      <div class="kanban-col" id="col-done" data-status="done" ondragover="onDragOver(event)" ondrop="onDrop(event,'done')">
+        <div class="kanban-col-header">
+          <span class="kanban-col-dot dot-done"></span>
+          Done
+          <span class="kanban-count" id="count-done">0</span>
+        </div>
+        <div class="kanban-cards" id="cards-done"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ── Add / Edit Item Modal ── -->
+  <div id="itemModal" class="modal-overlay" onclick="overlayCloseItem(event)">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="itemModalTitle">New Item</h3>
+          <p class="modal-site-name" id="itemModalSub">Fill in the details below</p>
+        </div>
+        <button class="modal-close" onclick="closeItemModal()" aria-label="Close">&times;</button>
+      </div>
+      <form id="itemForm" class="modal-form" onsubmit="saveItem(event)">
+        <input type="hidden" id="itemEditId">
+
+        <div class="form-group form-group-full">
+          <label class="form-label" for="itemTitle">Title <span class="required">*</span></label>
+          <input class="form-input" type="text" id="itemTitle" placeholder="Brief description of the task">
+        </div>
+
+        <div class="form-group form-group-full">
+          <label class="form-label" for="itemDesc">Description</label>
+          <textarea class="form-input form-textarea" id="itemDesc" rows="3" placeholder="More detail, acceptance criteria, notes…"></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="itemStatus">Status</label>
+            <select class="form-input" id="itemStatus">
+              <option value="pending">Pending</option>
+              <option value="coding">Coding</option>
+              <option value="testing">Testing</option>
+              <option value="done">Done</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="itemStart">Start Date</label>
+            <input class="form-input" type="date" id="itemStart">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="itemEstEnd">Estimated End Date</label>
+            <input class="form-input" type="date" id="itemEstEnd">
+          </div>
+          <div class="form-group" id="itemActualEndGroup">
+            <label class="form-label" for="itemActualEnd">Actual End Date</label>
+            <input class="form-input" type="date" id="itemActualEnd">
+          </div>
+        </div>
+
+        <div id="itemFormActions" class="modal-actions">
+          <button type="button" class="btn-modal-cancel" onclick="closeItemModal()">Cancel</button>
+          <button type="submit" class="btn-modal-submit" id="itemSubmitBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Save
+          </button>
+        </div>
+        <div id="itemFormLoading" class="form-state" style="display:none;">
+          <div class="spinner"></div><span>Saving…</span>
+        </div>
+        <div id="itemFormError" class="form-state form-error" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="itemErrorMsg"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Activity Log Modal ── -->
+  <div id="logModal" class="modal-overlay" onclick="overlayCloseLog(event)">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Activity Log</h3>
+          <p class="modal-site-name" id="logModalTitle"></p>
+        </div>
+        <button class="modal-close" onclick="closeLogModal()" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-form">
+        <div id="logList" class="activity-log-list">
+          <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
+        </div>
+        <div class="activity-log-add">
+          <textarea class="form-input form-textarea" id="logMessage" rows="2" placeholder="Add an activity note…"></textarea>
+          <div class="modal-actions" style="margin-top:10px;">
+            <button type="button" class="btn-modal-cancel" onclick="closeLogModal()">Close</button>
+            <button type="button" class="btn-modal-submit" onclick="addLog()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              Post
+            </button>
+          </div>
+          <div id="logAddError" class="form-state form-error" style="display:none;margin-top:8px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="logAddErrorMsg"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script src="/static/developer.js"></script>
+</body>
+</html>

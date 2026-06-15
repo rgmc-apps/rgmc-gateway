@@ -882,22 +882,23 @@ def verify_username():
     try:
         user_rows = supabase_req("GET", "/users", params={
             "username": f"eq.{username}",
-            "select":   "username,first_name,last_name,company,department,email,systems,is_admin",
+            "select":   "username,first_name,last_name,company,department,email,systems,is_admin,is_developer",
         })
         if user_rows:
             u = user_rows[0]
             first = u.get("first_name", "")
             last  = u.get("last_name", "")
             return jsonify({
-                "success":    True,
-                "username":   u["username"],
-                "first_name": first,
-                "full_name":  f"{first} {last}".strip(),
-                "company":    u.get("company", ""),
-                "department": u.get("department", ""),
-                "email":      u.get("email", ""),
-                "systems":    u.get("systems", []),
-                "is_admin":   u.get("is_admin", False),
+                "success":      True,
+                "username":     u["username"],
+                "first_name":   first,
+                "full_name":    f"{first} {last}".strip(),
+                "company":      u.get("company", ""),
+                "department":   u.get("department", ""),
+                "email":        u.get("email", ""),
+                "systems":      u.get("systems", []),
+                "is_admin":     u.get("is_admin", False),
+                "is_developer": u.get("is_developer", False),
             })
     except Exception as exc:
         app.logger.error("Supabase users lookup failed: %s", exc)
@@ -1128,7 +1129,7 @@ def admin_get_users():
         return jsonify(err[0]), err[1]
     try:
         rows = supabase_req("GET", "/users", params={
-            "select": "username,first_name,last_name,company,department,position,email,systems,is_admin,created_at",
+            "select": "username,first_name,last_name,company,department,position,email,systems,is_admin,is_developer,created_at",
             "order":  "created_at.asc",
         })
         return jsonify(rows)
@@ -1151,7 +1152,7 @@ def admin_update_user(uname):
             return jsonify({"error": str(exc)}), 500
 
     data = request.get_json(silent=True) or {}
-    patch = {k: v for k, v in data.items() if k in {"is_admin", "systems"}}
+    patch = {k: v for k, v in data.items() if k in {"is_admin", "is_developer", "systems"}}
     if not patch:
         return jsonify({"error": "No valid fields to update"}), 400
     try:
@@ -1279,6 +1280,143 @@ def admin_reject_request(request_id):
 
     send_access_rejected_email(record, remarks)
     return jsonify({"success": True})
+
+
+# ── Developer Dashboard ───────────────────────────────────────────────────────
+
+@app.route("/developer")
+def developer_page():
+    return render_template("developer.html")
+
+
+def _require_developer():
+    """Returns (username, None) if valid developer or admin, else (None, (error_dict, status))."""
+    username = request.headers.get("X-Gateway-Username", "").strip().lower()
+    if not username:
+        return None, ({"error": "Authentication required"}, 401)
+    try:
+        rows = supabase_req("GET", "/users", params={
+            "username": f"eq.{username}",
+            "select":   "username,is_developer,is_admin",
+        })
+    except Exception:
+        return None, ({"error": "Authentication failed"}, 500)
+    if not rows or not (rows[0].get("is_developer") or rows[0].get("is_admin")):
+        return None, ({"error": "Developer access required"}, 403)
+    return rows[0]["username"], None
+
+
+@app.route("/api/dev/items", methods=["GET"])
+def dev_get_items():
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/dev_items", params={
+            "select": "*",
+            "order":  "created_at.asc",
+        })
+        return jsonify(rows)
+    except Exception as exc:
+        app.logger.error("dev_get_items failed: %s", exc)
+        return jsonify({"error": "Failed to fetch items"}), 500
+
+
+@app.route("/api/dev/items", methods=["POST"])
+def dev_create_item():
+    username, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    data = request.get_json(silent=True) or {}
+    title = (data.get("title") or "").strip()
+    if not title:
+        return jsonify({"error": "Title is required"}), 400
+    item = {
+        "title":               title,
+        "description":         (data.get("description") or "").strip() or None,
+        "status":              "pending",
+        "start_date":          data.get("start_date") or None,
+        "estimated_end_date":  data.get("estimated_end_date") or None,
+        "created_by":          username,
+    }
+    try:
+        rows = supabase_req("POST", "/dev_items", data=item)
+        return jsonify(rows[0] if rows else {}), 201
+    except Exception as exc:
+        app.logger.error("dev_create_item failed: %s", exc)
+        return jsonify({"error": "Failed to create item"}), 500
+
+
+@app.route("/api/dev/items/<string:item_id>", methods=["PATCH"])
+def dev_update_item(item_id):
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    data = request.get_json(silent=True) or {}
+    allowed = {"title", "description", "status", "start_date", "estimated_end_date", "actual_end_date"}
+    patch = {k: v for k, v in data.items() if k in allowed}
+    if "status" in patch and patch["status"] not in ("pending", "coding", "testing", "done"):
+        return jsonify({"error": "Invalid status"}), 400
+    if not patch:
+        return jsonify({"error": "No valid fields to update"}), 400
+    patch["updated_at"] = datetime.now(timezone.utc).isoformat()
+    try:
+        rows = supabase_req("PATCH", "/dev_items", data=patch, params={"id": f"eq.{item_id}"})
+        return jsonify(rows[0] if rows else {})
+    except Exception as exc:
+        app.logger.error("dev_update_item failed: %s", exc)
+        return jsonify({"error": "Failed to update item"}), 500
+
+
+@app.route("/api/dev/items/<string:item_id>", methods=["DELETE"])
+def dev_delete_item(item_id):
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        supabase_req("DELETE", "/dev_items", params={"id": f"eq.{item_id}"})
+        return jsonify({"success": True})
+    except Exception as exc:
+        app.logger.error("dev_delete_item failed: %s", exc)
+        return jsonify({"error": "Failed to delete item"}), 500
+
+
+@app.route("/api/dev/items/<string:item_id>/logs", methods=["GET"])
+def dev_get_logs(item_id):
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/dev_activity_logs", params={
+            "item_id": f"eq.{item_id}",
+            "select":  "*",
+            "order":   "created_at.asc",
+        })
+        return jsonify(rows)
+    except Exception as exc:
+        app.logger.error("dev_get_logs failed: %s", exc)
+        return jsonify({"error": "Failed to fetch logs"}), 500
+
+
+@app.route("/api/dev/items/<string:item_id>/logs", methods=["POST"])
+def dev_add_log(item_id):
+    username, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    data = request.get_json(silent=True) or {}
+    message = (data.get("message") or "").strip()
+    if not message:
+        return jsonify({"error": "Message is required"}), 400
+    try:
+        rows = supabase_req("POST", "/dev_activity_logs", data={
+            "item_id":  item_id,
+            "username": username,
+            "message":  message,
+        })
+        return jsonify(rows[0] if rows else {}), 201
+    except Exception as exc:
+        app.logger.error("dev_add_log failed: %s", exc)
+        return jsonify({"error": "Failed to add log"}), 500
 
 
 if __name__ == "__main__":

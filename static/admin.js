@@ -280,7 +280,11 @@ function renderUserRow(u) {
   const adminBadge = u.is_admin
     ? '<span class="badge-admin">Admin</span>'
     : '<span class="badge-user">User</span>';
-  const toggleLabel = u.is_admin ? 'Revoke Admin' : 'Make Admin';
+  const devBadge = u.is_developer
+    ? '<span class="badge-dev">Dev</span>'
+    : '';
+  const toggleAdminLabel = u.is_admin ? 'Revoke Admin' : 'Make Admin';
+  const toggleDevLabel   = u.is_developer ? 'Revoke Dev' : 'Make Dev';
 
   return `<tr id="user-row-${escHtml(u.username)}">
     <td><code class="mono-val">${escHtml(u.username)}</code></td>
@@ -289,11 +293,12 @@ function renderUserRow(u) {
     <td>${escHtml(u.department)}</td>
     <td><a href="mailto:${escHtml(u.email)}" class="tbl-link">${escHtml(u.email)}</a></td>
     <td><span class="systems-count">${systems} system${systems !== 1 ? 's' : ''}</span></td>
-    <td>${adminBadge}</td>
+    <td>${adminBadge} ${devBadge}</td>
     <td class="date-cell">${fmtDate(u.created_at)}</td>
     <td class="action-cell">
       <button class="btn-tbl-secondary" onclick="openEditSystemsModal('${escHtml(u.username)}')">Edit Systems</button>
-      <button class="btn-tbl-secondary" onclick="toggleAdmin('${escHtml(u.username)}', ${u.is_admin})">${toggleLabel}</button>
+      <button class="btn-tbl-secondary" onclick="toggleAdmin('${escHtml(u.username)}', ${u.is_admin})">${toggleAdminLabel}</button>
+      <button class="btn-tbl-secondary" onclick="toggleDeveloper('${escHtml(u.username)}', ${u.is_developer})">${toggleDevLabel}</button>
       <button class="btn-tbl-danger" onclick="deleteUser('${escHtml(u.username)}')">Delete</button>
     </td>
   </tr>`;
@@ -312,6 +317,25 @@ async function toggleAdmin(username, currentIsAdmin) {
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Failed');
     showToast(`Admin ${newVal ? 'granted to' : 'revoked from'} ${username}`);
+    loadUsers();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+async function toggleDeveloper(username, currentIsDev) {
+  const newVal = !currentIsDev;
+  const label  = newVal ? 'grant developer access to' : 'revoke developer access from';
+  if (!confirm(`Are you sure you want to ${label} "${username}"?`)) return;
+
+  try {
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(username)}`, {
+      method:  'PATCH',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ is_developer: newVal }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    showToast(`Developer access ${newVal ? 'granted to' : 'revoked from'} ${username}`);
     loadUsers();
   } catch (err) {
     showToast(`Error: ${err.message}`);

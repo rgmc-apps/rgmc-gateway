@@ -148,3 +148,44 @@ ON CONFLICT (username) DO NOTHING;
 
 -- Add rejection_remarks column (safe to run on existing installations)
 ALTER TABLE public.access_requests ADD COLUMN IF NOT EXISTS rejection_remarks TEXT;
+
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Developer dashboard additions (safe to run on existing installations)
+-- ──────────────────────────────────────────────────────────────────────────────
+
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS is_developer BOOLEAN NOT NULL DEFAULT false;
+
+CREATE INDEX IF NOT EXISTS idx_users_is_developer
+    ON public.users (is_developer) WHERE is_developer = true;
+
+CREATE TABLE IF NOT EXISTS public.dev_items (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    title               TEXT        NOT NULL,
+    description         TEXT,
+    status              TEXT        NOT NULL DEFAULT 'pending',
+    start_date          DATE,
+    estimated_end_date  DATE,
+    actual_end_date     DATE,
+    created_by          TEXT        NOT NULL,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT chk_dev_status CHECK (status IN ('pending', 'coding', 'testing', 'done'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_dev_items_status   ON public.dev_items (status);
+CREATE INDEX IF NOT EXISTS idx_dev_items_created  ON public.dev_items (created_at);
+
+ALTER TABLE public.dev_items ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS public.dev_activity_logs (
+    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    item_id     UUID        NOT NULL REFERENCES public.dev_items(id) ON DELETE CASCADE,
+    username    TEXT        NOT NULL,
+    message     TEXT        NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_dev_logs_item ON public.dev_activity_logs (item_id);
+
+ALTER TABLE public.dev_activity_logs ENABLE ROW LEVEL SECURITY;
