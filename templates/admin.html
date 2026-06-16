@@ -46,6 +46,11 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
         Systems
       </button>
+      <button class="admin-tab" data-tab="issues" onclick="switchTab('issues')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Issues
+        <span class="tab-badge" id="openIssuesCount" style="display:none;"></span>
+      </button>
     </div>
 
     <!-- ── Requests Panel ── -->
@@ -77,6 +82,20 @@
       </div>
       <div id="systems-body" class="admin-table-wrap">
         <div class="admin-loading"><div class="spinner"></div><span>Loading systems…</span></div>
+      </div>
+    </div>
+
+    <!-- ── Issues Panel ── -->
+    <div id="panel-issues" class="admin-panel">
+      <div class="admin-status-tabs" id="issueStatusTabs">
+        <button class="status-tab active" data-istatus="open"        onclick="switchIssueStatus('open')">Open</button>
+        <button class="status-tab"        data-istatus="in_progress" onclick="switchIssueStatus('in_progress')">In Progress</button>
+        <button class="status-tab"        data-istatus="resolved"    onclick="switchIssueStatus('resolved')">Resolved</button>
+        <button class="status-tab"        data-istatus="closed"      onclick="switchIssueStatus('closed')">Closed</button>
+        <button class="status-tab"        data-istatus="all"         onclick="switchIssueStatus('all')">All</button>
+      </div>
+      <div id="issues-body" class="admin-table-wrap">
+        <div class="admin-loading"><div class="spinner"></div><span>Loading issues…</span></div>
       </div>
     </div>
 
@@ -235,6 +254,102 @@
           <span id="sysErrorMsg"></span>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ── Issue Detail Modal ── -->
+  <div id="issueModal" class="modal-overlay" onclick="overlayCloseIssue(event)">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="issueModalTitle">Issue Report</h3>
+          <p class="modal-site-name" id="issueModalMeta"></p>
+        </div>
+        <button class="modal-close" onclick="closeIssueModal()" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-form">
+
+        <!-- Reporter info -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Reporter</label>
+            <p class="modal-detail-val" id="issueReporter"></p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <p class="modal-detail-val" id="issueEmail"></p>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Company</label>
+            <p class="modal-detail-val" id="issueCompany"></p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Department</label>
+            <p class="modal-detail-val" id="issueDepartment"></p>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div class="form-group form-group-full">
+          <label class="form-label">Description</label>
+          <div class="issue-description-box" id="issueDescription"></div>
+        </div>
+
+        <!-- Attachments -->
+        <div class="form-group form-group-full" id="issueAttachmentsGroup" style="display:none;">
+          <label class="form-label">Attachments</label>
+          <div class="issue-attachments-list" id="issueAttachmentsList"></div>
+        </div>
+
+        <!-- Status + Assigned To -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="issueStatusSelect">Status</label>
+            <select class="form-input" id="issueStatusSelect">
+              <option value="open">Open</option>
+              <option value="in_progress">In Progress</option>
+              <option value="resolved">Resolved</option>
+              <option value="closed">Closed</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="issueAssignedTo">Assigned To</label>
+            <select class="form-input" id="issueAssignedTo">
+              <option value="">— Unassigned —</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Dev item link -->
+        <div class="form-group form-group-full" id="issueDevItemGroup" style="display:none;">
+          <label class="form-label">Dev Board Item</label>
+          <p class="modal-detail-val">
+            <span class="badge-dev">Promoted</span>
+            <span id="issueDevItemId" style="font-size:12px;color:var(--text-muted);margin-left:6px;"></span>
+          </p>
+        </div>
+
+        <div id="issueModalActions" class="modal-actions">
+          <button type="button" class="btn-modal-cancel" onclick="closeIssueModal()">Cancel</button>
+          <button type="button" class="btn-modal-promote" id="issuePromoteBtn" onclick="promoteIssueToDevItem()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            Promote to Dev Item
+          </button>
+          <button type="button" class="btn-modal-submit" onclick="saveIssuePatch()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Save
+          </button>
+        </div>
+        <div id="issueModalLoading" class="form-state" style="display:none;">
+          <div class="spinner"></div><span>Saving…</span>
+        </div>
+        <div id="issueModalError" class="form-state form-error" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="issueModalErrorMsg"></span>
+        </div>
+      </div>
     </div>
   </div>
 

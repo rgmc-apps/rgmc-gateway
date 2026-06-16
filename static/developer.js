@@ -656,26 +656,49 @@ async function saveItem(e) {
 }
 
 /* ── Activity log (inside detail pane) ── */
+function fmtHours(h) {
+  if (h == null) return '';
+  const n = parseFloat(h);
+  if (!n) return '';
+  return n % 1 === 0 ? `${n}h` : `${n.toFixed(2).replace(/\.?0+$/, '')}h`;
+}
+
 async function refreshLogs() {
   if (!_editingId) return;
-  const list = document.getElementById('logList');
-  list.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  const list       = document.getElementById('logList');
+  const totalEl    = document.getElementById('logTotalHours');
+  list.innerHTML   = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
   try {
     const res  = await fetch(`/api/dev/items/${encodeURIComponent(_editingId)}/logs`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     const logs = await res.json();
+
+    // Compute total hours
+    const total = logs.reduce((sum, l) => sum + (parseFloat(l.hours_spent) || 0), 0);
+    if (total > 0) {
+      const display = total % 1 === 0 ? `${total}` : total.toFixed(2).replace(/\.?0+$/, '');
+      totalEl.textContent = `${display} hrs total`;
+      totalEl.style.display = '';
+    } else {
+      totalEl.style.display = 'none';
+    }
+
     if (logs.length === 0) {
       list.innerHTML = '<div class="activity-log-empty">No activity yet. Be the first to log something.</div>';
       return;
     }
-    list.innerHTML = logs.map(log => `
+    list.innerHTML = logs.map(log => {
+      const hrs = fmtHours(log.hours_spent);
+      return `
       <div class="activity-log-entry">
         <div class="log-meta">
           <span class="log-author">${escHtml(log.username)}</span>
+          ${hrs ? `<span class="log-hours-badge">${escHtml(hrs)}</span>` : ''}
           <span class="log-time">${fmtDateTime(log.created_at)}</span>
         </div>
         <div class="log-message">${escHtml(log.message)}</div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
     list.scrollTop = list.scrollHeight;
   } catch (err) {
     list.innerHTML = `<div class="admin-error">Failed to load: ${escHtml(err.message)}</div>`;
@@ -747,18 +770,21 @@ async function addLog() {
   const message = document.getElementById('logMessage').value.trim();
   document.getElementById('logAddError').style.display = 'none';
   if (!message) {
-    document.getElementById('logAddError').style.display    = '';
-    document.getElementById('logAddErrorMsg').textContent   = 'Message cannot be empty.';
+    document.getElementById('logAddError').style.display  = '';
+    document.getElementById('logAddErrorMsg').textContent = 'Message cannot be empty.';
     return;
   }
+  const rawHours = document.getElementById('logHours').value.trim();
+  const hours_spent = rawHours !== '' && parseFloat(rawHours) >= 0 ? parseFloat(rawHours) : null;
   try {
     const res = await fetch(`/api/dev/items/${encodeURIComponent(_editingId)}/logs`, {
       method:  'POST',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ message }),
+      body:    JSON.stringify({ message, hours_spent }),
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Failed');
     document.getElementById('logMessage').value = '';
+    document.getElementById('logHours').value   = '';
     await refreshLogs();
   } catch (err) {
     document.getElementById('logAddError').style.display  = '';

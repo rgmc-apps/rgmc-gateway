@@ -49,6 +49,10 @@ let _rejectingId        = null;
 let _usersCache         = [];
 let _systemsCache       = [];
 let _editingUserSystems = null;
+let _issuesCache        = [];
+let _currentIssueStatus = 'open';
+let _editingIssueId     = null;
+let _developersCache    = [];
 
 /* ── Profile dropdown ── */
 function toggleProfileMenu(e) {
@@ -136,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadRequests('pending');
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeProfileMenu(); }
+    if (e.key === 'Escape') { closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeIssueModal(); closeProfileMenu(); }
   });
   document.addEventListener('click', () => closeProfileMenu());
 });
@@ -150,6 +154,7 @@ function switchTab(tab) {
   if (tab === 'requests') loadRequests(currentStatus);
   if (tab === 'users')    loadUsers();
   if (tab === 'systems')  loadSystems();
+  if (tab === 'issues')   loadIssues(_currentIssueStatus);
 }
 
 function switchStatus(status) {
@@ -714,5 +719,221 @@ async function saveUserSystems() {
     document.getElementById('editSystemsActions').style.display = '';
     document.getElementById('editSystemsError').style.display   = '';
     document.getElementById('editSystemsErrorMsg').textContent  = err.message;
+  }
+}
+
+/* ── Issues ── */
+
+function switchIssueStatus(status) {
+  _currentIssueStatus = status;
+  document.querySelectorAll('#issueStatusTabs .status-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.istatus === status)
+  );
+  loadIssues(status);
+}
+
+const ISSUE_STATUS_LABELS = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed' };
+const ISSUE_STATUS_CLASS  = { open: 'badge-issue-open', in_progress: 'badge-issue-progress', resolved: 'badge-issue-resolved', closed: 'badge-issue-closed' };
+
+async function loadIssues(filterStatus) {
+  const wrap = document.getElementById('issues-body');
+  wrap.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading issues…</span></div>';
+
+  try {
+    const res = await fetch('/api/admin/issues', { headers: authHeaders() });
+    if (!res.ok) throw new Error(await res.text());
+    const all = await res.json();
+    _issuesCache = all;
+
+    // Update open badge
+    const openCount = all.filter(i => i.status === 'open').length;
+    const badge = document.getElementById('openIssuesCount');
+    badge.textContent = openCount || '';
+    badge.style.display = openCount ? '' : 'none';
+
+    const rows = filterStatus === 'all' ? all : all.filter(i => i.status === filterStatus);
+    if (rows.length === 0) {
+      wrap.innerHTML = `<div class="admin-empty">No ${filterStatus === 'all' ? '' : filterStatus.replace('_',' ')+' '}issues.</div>`;
+      return;
+    }
+
+    wrap.innerHTML = `
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>System</th>
+            <th>Reporter</th>
+            <th>Description</th>
+            <th>Attachments</th>
+            <th>Status</th>
+            <th>Assigned To</th>
+            <th>Reported</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>${rows.map(renderIssueRow).join('')}</tbody>
+      </table>`;
+  } catch (err) {
+    wrap.innerHTML = `<div class="admin-error">Failed to load issues: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function renderIssueRow(issue) {
+  const statusBadge = `<span class="label-badge ${ISSUE_STATUS_CLASS[issue.status] || 'label-rgmc'}">${ISSUE_STATUS_LABELS[issue.status] || issue.status}</span>`;
+  const desc = issue.description.length > 60 ? issue.description.slice(0, 58) + '…' : issue.description;
+  const attachCount = (issue.attachment_urls || []).length;
+  const devBadge = issue.dev_item_id ? '<span class="badge-dev" title="Promoted to dev item">Dev</span> ' : '';
+  return `<tr>
+    <td><span class="user-name">${escHtml(issue.site_name)}</span></td>
+    <td>${escHtml(issue.employee_name)}<br><small class="text-muted">${escHtml(issue.company_name)}</small></td>
+    <td class="issue-desc-cell">${devBadge}${escHtml(desc)}</td>
+    <td class="date-cell">${attachCount > 0 ? `<span class="attach-count">${attachCount} file${attachCount > 1 ? 's' : ''}</span>` : '<span class="text-muted">—</span>'}</td>
+    <td>${statusBadge}</td>
+    <td>${issue.assigned_to ? `<code class="mono-val">${escHtml(issue.assigned_to)}</code>` : '<span class="text-muted">—</span>'}</td>
+    <td class="date-cell">${fmtDateTime(issue.created_at)}</td>
+    <td class="action-cell">
+      <button class="btn-tbl-secondary" onclick="openIssueModal('${escHtml(issue.id)}')">View</button>
+    </td>
+  </tr>`;
+}
+
+async function _ensureDevelopers() {
+  if (_developersCache.length > 0) return;
+  try {
+    const res = await fetch('/api/admin/users', { headers: authHeaders() });
+    if (res.ok) {
+      const all = await res.json();
+      _developersCache = all.filter(u => u.is_developer || u.is_admin);
+    }
+  } catch { /* non-fatal */ }
+}
+
+async function openIssueModal(id) {
+  const issue = _issuesCache.find(i => i.id === id);
+  if (!issue) return;
+  _editingIssueId = id;
+
+  document.getElementById('issueModalTitle').textContent = `Issue: ${issue.site_name}`;
+  document.getElementById('issueModalMeta').textContent  = `Submitted ${fmtDateTime(issue.created_at)}`;
+  document.getElementById('issueReporter').textContent   = issue.employee_name;
+  document.getElementById('issueEmail').innerHTML        = `<a href="mailto:${escHtml(issue.email)}" class="tbl-link">${escHtml(issue.email)}</a>`;
+  document.getElementById('issueCompany').textContent    = issue.company_name;
+  document.getElementById('issueDepartment').textContent = issue.department;
+  document.getElementById('issueDescription').textContent = issue.description;
+  document.getElementById('issueStatusSelect').value     = issue.status;
+
+  // Attachments
+  const urls = issue.attachment_urls || [];
+  const attGroup = document.getElementById('issueAttachmentsGroup');
+  const attList  = document.getElementById('issueAttachmentsList');
+  if (urls.length > 0) {
+    attGroup.style.display = '';
+    attList.innerHTML = urls.map(u => {
+      const name = decodeURIComponent(u.split('/').pop().replace(/^\d+_/, ''));
+      const isImg = /\.(jpg|jpeg|png|gif|webp)$/i.test(name);
+      return `<a href="${escHtml(u)}" target="_blank" rel="noopener" class="attach-link">
+        ${isImg
+          ? `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`
+          : `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`}
+        ${escHtml(name)}
+      </a>`;
+    }).join('');
+  } else {
+    attGroup.style.display = 'none';
+  }
+
+  // Dev item link
+  const devGroup = document.getElementById('issueDevItemGroup');
+  const promoteBtn = document.getElementById('issuePromoteBtn');
+  if (issue.dev_item_id) {
+    devGroup.style.display = '';
+    document.getElementById('issueDevItemId').textContent = issue.dev_item_id;
+    promoteBtn.style.display = 'none';
+  } else {
+    devGroup.style.display = 'none';
+    promoteBtn.style.display = '';
+  }
+
+  // Populate assigned-to dropdown
+  await _ensureDevelopers();
+  const sel = document.getElementById('issueAssignedTo');
+  sel.innerHTML = '<option value="">— Unassigned —</option>' +
+    _developersCache.map(u => {
+      const label = `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username;
+      const selected = u.username === issue.assigned_to ? ' selected' : '';
+      return `<option value="${escHtml(u.username)}"${selected}>${escHtml(label)} (@${escHtml(u.username)})</option>`;
+    }).join('');
+
+  resetIssueModal();
+  document.getElementById('issueModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeIssueModal() {
+  document.getElementById('issueModal').classList.remove('open');
+  document.body.style.overflow = '';
+  _editingIssueId = null;
+}
+
+function overlayCloseIssue(e) {
+  if (e.target === document.getElementById('issueModal')) closeIssueModal();
+}
+
+function resetIssueModal() {
+  document.getElementById('issueModalActions').style.display = '';
+  document.getElementById('issueModalLoading').style.display = 'none';
+  document.getElementById('issueModalError').style.display   = 'none';
+}
+
+async function saveIssuePatch() {
+  if (!_editingIssueId) return;
+  const status     = document.getElementById('issueStatusSelect').value;
+  const assignedTo = document.getElementById('issueAssignedTo').value || null;
+
+  document.getElementById('issueModalActions').style.display = 'none';
+  document.getElementById('issueModalLoading').style.display = '';
+  document.getElementById('issueModalError').style.display   = 'none';
+
+  try {
+    const res = await fetch(`/api/admin/issues/${encodeURIComponent(_editingIssueId)}`, {
+      method:  'PATCH',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ status, assigned_to: assignedTo }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    closeIssueModal();
+    showToast('Issue updated.');
+    loadIssues(_currentIssueStatus);
+  } catch (err) {
+    document.getElementById('issueModalLoading').style.display = 'none';
+    document.getElementById('issueModalActions').style.display = '';
+    document.getElementById('issueModalError').style.display   = '';
+    document.getElementById('issueModalErrorMsg').textContent  = err.message;
+  }
+}
+
+async function promoteIssueToDevItem() {
+  if (!_editingIssueId) return;
+  if (!confirm('Create a dev board item from this issue?')) return;
+
+  document.getElementById('issueModalActions').style.display = 'none';
+  document.getElementById('issueModalLoading').style.display = '';
+  document.getElementById('issueModalError').style.display   = 'none';
+
+  try {
+    const res = await fetch(`/api/admin/issues/${encodeURIComponent(_editingIssueId)}/promote`, {
+      method:  'POST',
+      headers: authHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Promote failed');
+    closeIssueModal();
+    showToast('Issue promoted to dev board item.');
+    loadIssues(_currentIssueStatus);
+  } catch (err) {
+    document.getElementById('issueModalLoading').style.display = 'none';
+    document.getElementById('issueModalActions').style.display = '';
+    document.getElementById('issueModalError').style.display   = '';
+    document.getElementById('issueModalErrorMsg').textContent  = err.message;
   }
 }

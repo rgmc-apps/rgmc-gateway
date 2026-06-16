@@ -749,6 +749,38 @@ def index():
 
 @app.route("/report", methods=["POST"])
 def report():
+    """Legacy endpoint — kept for backwards compat, redirects logic to /api/issues."""
+    return api_submit_issue()
+
+
+# ── Issues ────────────────────────────────────────────────────────────────────
+
+def _upload_issue_attachment(issue_id: str, index: int, filename: str, data: bytes, content_type: str) -> str | None:
+    """Upload one attachment to Supabase Storage. Returns public URL or None."""
+    safe_name = re.sub(r"[^a-zA-Z0-9.\-_]", "_", filename)
+    path = f"{issue_id}/{index}_{safe_name}"
+    url = f"{SUPABASE_URL.rstrip('/')}/storage/v1/object/issue-attachments/{path}"
+    try:
+        resp = requests.put(
+            url,
+            headers={
+                "apikey":        SUPABASE_SERVICE_KEY,
+                "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                "Content-Type":  content_type or "application/octet-stream",
+                "x-upsert":      "true",
+            },
+            data=data,
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return f"{SUPABASE_URL.rstrip('/')}/storage/v1/object/public/issue-attachments/{path}"
+    except Exception as exc:
+        app.logger.error("Attachment upload failed: %s", exc)
+        return None
+
+
+@app.route("/api/issues", methods=["POST"])
+def api_submit_issue():
     form_data = {
         "employee_name": request.form.get("employee_name", "").strip(),
         "company_name":  request.form.get("company_name", "").strip(),
@@ -762,15 +794,140 @@ def report():
     if missing:
         return jsonify({"success": False, "error": f"Missing: {', '.join(missing)}"}), 400
 
-    screenshots = []
-    for f in request.files.getlist("screenshots"):
+    # Read attachments before saving (files can only be read once)
+    raw_files = []
+    for f in request.files.getlist("attachments"):
         if f and f.filename:
-            screenshots.append({"filename": f.filename, "data": f.read()})
+            raw_files.append({
+                "filename":     f.filename,
+                "content_type": f.content_type or "application/octet-stream",
+                "data":         f.read(),
+            })
+    raw_files = raw_files[:5]
 
-    success = send_report_email(form_data, screenshots)
-    if success:
-        return jsonify({"success": True, "message": "Your report has been submitted. The IT team will be in touch shortly."})
-    return jsonify({"success": False, "error": "Failed to send report. Please contact IT directly."}), 500
+    # Save issue to DB
+    issue_id = None
+    attachment_urls: list[str] = []
+
+    if SUPABASE_URL and SUPABASE_SERVICE_KEY:
+        try:
+            rows = supabase_req("POST", "/issues", data={
+                "site_name":     form_data["site_name"],
+                "employee_name": form_data["employee_name"],
+                "company_name":  form_data["company_name"],
+                "department":    form_data["department"],
+                "email":         form_data["email"],
+                "description":   form_data["description"],
+            }, extra_headers={"Prefer": "return=representation"})
+            if rows:
+                issue_id = rows[0]["id"]
+        except Exception as exc:
+            app.logger.error("Issue save failed: %s", exc)
+
+        # Upload attachments now that we have the issue_id
+        if issue_id and raw_files:
+            for i, f in enumerate(raw_files):
+                url = _upload_issue_attachment(issue_id, i, f["filename"], f["data"], f["content_type"])
+                if url:
+                    attachment_urls.append(url)
+            if attachment_urls:
+                try:
+                    supabase_req("PATCH", "/issues",
+                                 data={"attachment_urls": attachment_urls},
+                                 params={"id": f"eq.{issue_id}"})
+                except Exception as exc:
+                    app.logger.error("Attachment URL save failed: %s", exc)
+
+    # Send notification email (pass raw file dicts for attachments)
+    email_attachments = [{"filename": f["filename"], "data": f["data"]} for f in raw_files]
+    send_report_email(form_data, email_attachments)
+
+    return jsonify({"success": True, "message": "Your report has been submitted. The IT team will be in touch shortly."})
+
+
+@app.route("/api/admin/issues", methods=["GET"])
+def admin_get_issues():
+    _, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/issues", params={
+            "select": "*",
+            "order":  "created_at.desc",
+        })
+        return jsonify(rows or [])
+    except Exception as exc:
+        app.logger.error("admin_get_issues failed: %s", exc)
+        return jsonify({"error": "Failed to fetch issues"}), 500
+
+
+@app.route("/api/admin/issues/<issue_id>", methods=["PATCH"])
+def admin_patch_issue(issue_id):
+    _, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+    body = request.get_json(silent=True) or {}
+    allowed = {"status", "assigned_to"}
+    patch = {k: v for k, v in body.items() if k in allowed}
+    if not patch:
+        return jsonify({"error": "Nothing to update"}), 400
+    try:
+        supabase_req("PATCH", "/issues", data=patch,
+                     params={"id": f"eq.{issue_id}"})
+        return jsonify({"success": True})
+    except Exception as exc:
+        app.logger.error("admin_patch_issue failed: %s", exc)
+        return jsonify({"error": "Update failed"}), 500
+
+
+@app.route("/api/admin/issues/<issue_id>/promote", methods=["POST"])
+def admin_promote_issue(issue_id):
+    admin_username, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+    # Fetch the issue
+    try:
+        rows = supabase_req("GET", "/issues", params={
+            "id":     f"eq.{issue_id}",
+            "select": "*",
+        })
+    except Exception as exc:
+        app.logger.error("promote fetch issue failed: %s", exc)
+        return jsonify({"error": "Failed to fetch issue"}), 500
+    if not rows:
+        return jsonify({"error": "Issue not found"}), 404
+    issue = rows[0]
+
+    if issue.get("dev_item_id"):
+        return jsonify({"error": "Already promoted to a dev item"}), 409
+
+    title = f"[{issue['site_name']}] {issue['description'][:80]}{'…' if len(issue['description']) > 80 else ''}"
+    desc  = (
+        f"Reported by {issue['employee_name']} ({issue['company_name']}, {issue['department']})\n"
+        f"Email: {issue['email']}\n\n"
+        f"{issue['description']}"
+    )
+    try:
+        new_item = supabase_req("POST", "/dev_items", data={
+            "title":       title,
+            "description": desc,
+            "status":      "pending",
+            "created_by":  admin_username,
+        }, extra_headers={"Prefer": "return=representation"})
+    except Exception as exc:
+        app.logger.error("promote create dev_item failed: %s", exc)
+        return jsonify({"error": "Failed to create dev item"}), 500
+
+    dev_item_id = new_item[0]["id"] if new_item else None
+    if dev_item_id:
+        try:
+            supabase_req("PATCH", "/issues",
+                         data={"dev_item_id": dev_item_id, "status": "in_progress"},
+                         params={"id": f"eq.{issue_id}"})
+        except Exception as exc:
+            app.logger.error("promote link issue failed: %s", exc)
+
+    return jsonify({"success": True, "dev_item_id": dev_item_id})
 
 
 @app.route("/access-request", methods=["POST"])
@@ -1411,12 +1568,18 @@ def dev_add_log(item_id):
     message = (data.get("message") or "").strip()
     if not message:
         return jsonify({"error": "Message is required"}), 400
+    raw_hours = data.get("hours_spent")
     try:
-        rows = supabase_req("POST", "/dev_activity_logs", data={
-            "item_id":  item_id,
-            "username": username,
-            "message":  message,
-        })
+        hours_spent = float(raw_hours) if raw_hours is not None and str(raw_hours).strip() != "" else None
+        if hours_spent is not None and hours_spent < 0:
+            hours_spent = None
+    except (ValueError, TypeError):
+        hours_spent = None
+    log_row = {"item_id": item_id, "username": username, "message": message}
+    if hours_spent is not None:
+        log_row["hours_spent"] = hours_spent
+    try:
+        rows = supabase_req("POST", "/dev_activity_logs", data=log_row)
         return jsonify(rows[0] if rows else {}), 201
     except Exception as exc:
         app.logger.error("dev_add_log failed: %s", exc)

@@ -194,12 +194,14 @@
           <textarea class="form-input form-textarea" id="description" name="description" rows="4" placeholder="Describe the problem in detail — when it started, what you were doing, any error messages…" required></textarea>
         </div>
         <div class="form-group form-group-full">
-          <label class="form-label" for="screenshots">Screenshots <span class="form-label-hint">(optional — images only, max 5 files)</span></label>
+          <label class="form-label" for="attachments">Attachments <span class="form-label-hint">(optional — images, PDF, Word, text — max 5 files, 10 MB each)</span></label>
           <div class="file-drop-zone" id="fileDropZone">
-            <input class="file-input" type="file" id="screenshots" name="screenshots" multiple accept="image/*" onchange="updateFileList(this)">
+            <input class="file-input" type="file" id="attachments" name="attachments" multiple
+              accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+              onchange="updateFileList(this)">
             <div class="file-drop-content">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              <span id="fileLabel">Click to attach screenshots or drag &amp; drop</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              <span id="fileLabel">Click to attach files or drag &amp; drop</span>
             </div>
           </div>
         </div>

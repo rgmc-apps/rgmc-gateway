@@ -51,14 +51,14 @@ async function submitReport(e) {
 
   const formData = new FormData(form);
 
-  // Limit to 5 screenshots
-  const fileInput = document.getElementById('screenshots');
+  // Limit to 5 attachments
+  const fileInput = document.getElementById('attachments');
   const files = Array.from(fileInput.files).slice(0, 5);
-  formData.delete('screenshots');
-  files.forEach(f => formData.append('screenshots', f));
+  formData.delete('attachments');
+  files.forEach(f => formData.append('attachments', f));
 
   try {
-    const res = await fetch('/report', { method: 'POST', body: formData });
+    const res = await fetch('/api/issues', { method: 'POST', body: formData });
     const data = await res.json();
 
     hide('formLoading');
@@ -85,7 +85,7 @@ function updateFileList(input) {
   const files = Array.from(input.files);
   const label = document.getElementById('fileLabel');
   if (files.length === 0) {
-    label.textContent = 'Click to attach screenshots or drag & drop';
+    label.textContent = 'Click to attach files or drag & drop';
   } else {
     label.textContent = files.slice(0, 5).map(f => f.name).join(', ');
     if (files.length > 5) label.textContent += ` (+${files.length - 5} ignored — max 5)`;

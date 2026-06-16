@@ -187,14 +187,25 @@
         <!-- ── Right: activity log (hidden for new items) ── -->
         <div class="item-detail-log" id="detailLogPane" style="display:none;">
           <div class="detail-log-header">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            Activity Log
+            <div class="log-header-left">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Activity Log
+            </div>
+            <div id="logTotalHours" class="log-total-hours" style="display:none;"></div>
           </div>
           <div id="logList" class="activity-log-list">
             <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
           </div>
           <div class="activity-log-add">
             <textarea class="form-input form-textarea" id="logMessage" rows="2" placeholder="Add an activity note…"></textarea>
+            <div class="log-hours-row">
+              <label class="log-hours-label" for="logHours">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Hours spent
+              </label>
+              <input class="form-input log-hours-input" type="number" id="logHours"
+                placeholder="0.0" min="0" max="24" step="0.25">
+            </div>
             <div class="log-post-row">
               <div id="logAddError" class="form-state form-error" style="display:none;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
