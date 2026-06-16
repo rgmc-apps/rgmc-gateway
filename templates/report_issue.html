@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report an Issue — RGMC Gateway</title>
+  <link rel="icon" type="image/png" href="/static/badge.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="ri-body-root">
+
+  <!-- ── Auth Wall ─────────────────────────────────────────────── -->
+  <div id="riWall" class="ri-wall">
+    <div class="ri-wall-card">
+
+      <div class="ri-wall-logo">
+        <img src="/static/logo.png" alt="RGMC" class="ri-wall-logo-img">
+        <span class="ri-wall-logo-text">RGMC Gateway</span>
+      </div>
+
+      <h1 class="ri-wall-title">Sign in to report an issue</h1>
+      <p class="ri-wall-hint" id="wallSystemHint" style="display:none;"></p>
+
+      <!-- Sign-in form -->
+      <div id="wallLogin" class="ri-wall-section">
+        <div class="ri-wall-field-wrap">
+          <label class="ri-wall-label" for="wallUsername">Your Username</label>
+          <input class="form-input ri-wall-input" type="text" id="wallUsername"
+            placeholder="e.g. jdelacruz" autocomplete="username" autocapitalize="none" spellcheck="false">
+        </div>
+        <div id="wallError" class="ri-wall-error" style="display:none;"></div>
+        <div id="wallLoading" class="form-state" style="display:none;">
+          <div class="spinner"></div><span>Signing in…</span>
+        </div>
+        <div id="wallActions" class="ri-wall-actions">
+          <button class="ri-wall-btn-primary" onclick="wallSignIn()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            Sign In
+          </button>
+        </div>
+      </div>
+
+      <div class="ri-wall-divider"><span>or</span></div>
+
+      <div class="ri-wall-section ri-wall-register">
+        <p class="ri-wall-register-text">Don't have an account yet?</p>
+        <a href="/" class="ri-wall-btn-secondary">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          Request Access on the Portal
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Authenticated page ─────────────────────────────────────── -->
+  <div id="riPage" class="ri-page" style="display:none;">
+
+    <!-- Header -->
+    <header class="ri-header">
+      <div class="ri-header-inner">
+        <div class="ri-header-brand">
+          <img src="/static/logo.png" alt="RGMC" class="ri-header-logo">
+          <div class="ri-header-divider"></div>
+          <span class="ri-header-title">Report an Issue</span>
+        </div>
+        <div class="ri-header-user" id="riHeaderUser"></div>
+      </div>
+    </header>
+
+    <!-- Form area -->
+    <main class="ri-main">
+      <div class="ri-card">
+
+        <!-- System banner -->
+        <div class="ri-system-strip" id="riSystemStrip">
+          <svg class="ri-system-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          <span id="riSystemName" class="ri-system-name"></span>
+        </div>
+
+        <!-- Card heading -->
+        <div class="ri-card-head">
+          <h2 class="ri-card-title">Problem Report</h2>
+          <p class="ri-card-sub">All fields marked <span class="required">*</span> are required.</p>
+        </div>
+
+        <form id="riForm" onsubmit="riSubmit(event)">
+          <input type="hidden" id="riSiteName" name="site_name">
+
+          <!-- Affected system (shown when no ?system= param) -->
+          <div class="form-group form-group-full" id="riSystemInputGroup" style="display:none;">
+            <label class="form-label" for="riSystemInput">Affected System <span class="required">*</span></label>
+            <input class="form-input" type="text" id="riSystemInput" name="site_name_manual"
+              placeholder="e.g. RGMC Travel and Expense Web">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="riEmployeeName">Employee Name <span class="required">*</span></label>
+              <input class="form-input" type="text" id="riEmployeeName" name="employee_name"
+                placeholder="Juan dela Cruz" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="riCompanyName">Company Name <span class="required">*</span></label>
+              <input class="form-input" type="text" id="riCompanyName" name="company_name"
+                placeholder="RGMC Group" required>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="riDepartment">Department <span class="required">*</span></label>
+              <input class="form-input" type="text" id="riDepartment" name="department"
+                placeholder="IT / Finance / Operations" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="riEmail">Email Address <span class="required">*</span></label>
+              <input class="form-input" type="email" id="riEmail" name="email"
+                placeholder="you@rgmcgroup.com" required>
+            </div>
+          </div>
+
+          <div class="form-group form-group-full">
+            <label class="form-label" for="riTitle">Issue Title
+              <span class="form-label-hint">(optional — brief summary)</span>
+            </label>
+            <input class="form-input" type="text" id="riTitle" name="title"
+              placeholder="e.g. Cannot log in to the system">
+          </div>
+
+          <div class="form-group form-group-full">
+            <label class="form-label" for="riDescription">Problem Description <span class="required">*</span></label>
+            <textarea class="form-input form-textarea ri-textarea" id="riDescription" name="description" rows="5"
+              placeholder="Describe the problem in detail — when it started, what you were doing, any error messages…"
+              required></textarea>
+          </div>
+
+          <div class="form-group form-group-full">
+            <label class="form-label" for="riAttachments">Attachments
+              <span class="form-label-hint">(optional — images, PDF, Word, text — max 5 files, 10 MB each)</span>
+            </label>
+            <div class="file-drop-zone" id="riDropZone">
+              <input class="file-input" type="file" id="riAttachments" name="attachments" multiple
+                accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                onchange="riUpdateFiles(this)">
+              <div class="file-drop-content">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                <span id="riFileLabel">Click to attach files or drag &amp; drop</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action row -->
+          <div id="riFormActions" class="ri-form-actions">
+            <button type="submit" class="ri-submit-btn" id="riSubmitBtn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              Submit Report
+            </button>
+          </div>
+          <div id="riLoading" class="form-state" style="display:none;">
+            <div class="spinner"></div><span>Submitting report…</span>
+          </div>
+          <div id="riSuccess" class="form-state form-success ri-success" style="display:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <div>
+              <div id="riSuccessMsg" style="font-weight:600;"></div>
+              <div class="ri-success-sub">The IT team will be in touch shortly.</div>
+            </div>
+          </div>
+          <div id="riError" class="form-state form-error" style="display:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="riErrorMsg"></span>
+          </div>
+        </form>
+
+      </div>
+    </main>
+
+    <footer class="ri-footer">
+      <div>RGMC Group &mdash; Internal Systems Portal</div>
+    </footer>
+
+  </div><!-- /ri-page -->
+
+  <script src="/static/report_issue.js"></script>
+</body>
+</html>

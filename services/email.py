@@ -1,0 +1,433 @@
+import smtplib
+import logging
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
+
+from config import EMAIL_CONFIG, APPROVER_EMAIL, GATEWAY_BASE_URL
+
+logger = logging.getLogger(__name__)
+
+
+def _smtp_send(msg, to_addrs: list) -> bool:
+    if not EMAIL_CONFIG["smtp_user"] or not EMAIL_CONFIG["smtp_password"]:
+        logger.warning("SMTP credentials not configured — skipping send")
+        return False
+    try:
+        with smtplib.SMTP(EMAIL_CONFIG["smtp_host"], EMAIL_CONFIG["smtp_port"]) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(EMAIL_CONFIG["smtp_user"], EMAIL_CONFIG["smtp_password"])
+            server.sendmail(msg["From"], to_addrs, msg.as_string())
+        return True
+    except Exception as exc:
+        logger.error("SMTP send error: %s", exc)
+        return False
+
+
+def send_report_email(form_data: dict, screenshots: list) -> bool:
+    if not EMAIL_CONFIG["smtp_user"] or not EMAIL_CONFIG["smtp_password"]:
+        logger.warning("Email credentials not set — skipping send")
+        return False
+
+    developer_email = EMAIL_CONFIG["developer_email"]
+    if not developer_email:
+        logger.warning("DEVELOPER_EMAIL not set — skipping send")
+        return False
+
+    from_addr = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    subject   = f"[RGMC Problem Report] {form_data.get('site_name', 'Unknown System')}"
+    description_html = form_data.get("description", "").replace("\n", "<br>")
+
+    html_body = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1);">
+    <div style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);padding:24px;color:#fff;">
+      <h2 style="margin:0;font-size:20px;">Problem Report</h2>
+      <p style="margin:4px 0 0;opacity:.7;font-size:14px;">{form_data.get('site_name','')}</p>
+    </div>
+    <div style="padding:24px;">
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+        <tr style="background:#f1f5f9;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;width:160px;border-bottom:1px solid #e2e8f0;">EMPLOYEE NAME</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">{form_data.get('employee_name','')}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">COMPANY</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">{form_data.get('company_name','')}</td>
+        </tr>
+        <tr style="background:#f1f5f9;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">DEPARTMENT</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">{form_data.get('department','')}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">EMAIL</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">{form_data.get('email','')}</td>
+        </tr>
+        <tr style="background:#f1f5f9;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;">SYSTEM</td>
+          <td style="padding:10px 14px;">{form_data.get('site_name','')}</td>
+        </tr>
+      </table>
+      <h3 style="margin:0 0 10px;font-size:15px;color:#1e293b;">Problem Description</h3>
+      <div style="background:#f8fafc;border-left:4px solid #2563eb;padding:14px 16px;border-radius:0 6px 6px 0;font-size:14px;line-height:1.6;">{description_html}</div>
+      {'<p style="margin-top:16px;color:#64748b;font-size:13px;">&#128206; ' + str(len(screenshots)) + ' screenshot(s) attached.</p>' if screenshots else ''}
+    </div>
+    <div style="background:#f1f5f9;padding:12px 24px;font-size:12px;color:#94a3b8;">Sent via RGMC System Gateway</div>
+  </div>
+</body>
+</html>"""
+
+    msg = MIMEMultipart("mixed")
+    msg["Subject"]  = subject
+    msg["From"]     = from_addr
+    msg["To"]       = developer_email
+    msg["Reply-To"] = form_data.get("email", from_addr)
+    msg.attach(MIMEText(html_body, "html"))
+
+    for screenshot in screenshots:
+        part = MIMEBase("application", "octet-stream")
+        part.set_payload(screenshot["data"])
+        encoders.encode_base64(part)
+        part.add_header("Content-Disposition", f'attachment; filename="{screenshot["filename"]}"')
+        msg.attach(part)
+
+    try:
+        with smtplib.SMTP(EMAIL_CONFIG["smtp_host"], EMAIL_CONFIG["smtp_port"]) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(EMAIL_CONFIG["smtp_user"], EMAIL_CONFIG["smtp_password"])
+            server.sendmail(from_addr, [developer_email], msg.as_string())
+        logger.info("Report email sent: %s", subject)
+        return True
+    except Exception as exc:
+        logger.error("Email send failed: %s", exc)
+        return False
+
+
+def send_approval_request_email(record: dict, base_url: str, is_additional: bool = False) -> bool:
+    if not APPROVER_EMAIL:
+        logger.warning("APPROVER_EMAIL not set — skipping approval email")
+        return False
+
+    from_addr    = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    full_name    = _full_name(record)
+    token        = record.get("approval_token", "")
+    approve_url  = f"{base_url}/access/approve/{token}"
+    reject_url   = f"{base_url}/access/reject/{token}"
+    systems_html = "".join(
+        f'<li style="margin:5px 0;font-size:14px;color:#374151;">{s}</li>'
+        for s in (record.get("systems") or [])
+    )
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:620px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid #C4972A;">
+      <h2 style="margin:0;font-size:22px;color:#C4972A;">{'Additional Access Request' if is_additional else 'Access Request'}</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">RGMC Gateway &mdash; Action Required</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 22px;font-size:15px;color:#374151;">{'An existing user is requesting access to additional systems.' if is_additional else 'A new access request has been submitted and requires your approval.'}</p>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;border-radius:8px;overflow:hidden;">
+        <tr style="background:#f8fafc;">
+          <td style="padding:11px 16px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;width:130px;border-bottom:1px solid #e2e8f0;">Full Name</td>
+          <td style="padding:11px 16px;font-size:14px;color:#1e293b;border-bottom:1px solid #e2e8f0;font-weight:600;">{full_name}</td>
+        </tr>
+        <tr>
+          <td style="padding:11px 16px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e2e8f0;">Company</td>
+          <td style="padding:11px 16px;font-size:14px;color:#1e293b;border-bottom:1px solid #e2e8f0;">{record.get('company','')}</td>
+        </tr>
+        <tr style="background:#f8fafc;">
+          <td style="padding:11px 16px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e2e8f0;">Department</td>
+          <td style="padding:11px 16px;font-size:14px;color:#1e293b;border-bottom:1px solid #e2e8f0;">{record.get('department','')}</td>
+        </tr>
+        <tr>
+          <td style="padding:11px 16px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e2e8f0;">Position</td>
+          <td style="padding:11px 16px;font-size:14px;color:#1e293b;border-bottom:1px solid #e2e8f0;">{record.get('position','')}</td>
+        </tr>
+        <tr style="background:#f8fafc;">
+          <td style="padding:11px 16px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Email</td>
+          <td style="padding:11px 16px;font-size:14px;color:#1e293b;">{record.get('email','')}</td>
+        </tr>
+      </table>
+      <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Systems Requested</p>
+      <ul style="margin:0 0 32px;padding:0 0 0 18px;line-height:1.9;">{systems_html}</ul>
+      <table style="border-collapse:collapse;">
+        <tr>
+          <td style="padding-right:14px;">
+            <a href="{approve_url}" style="display:inline-block;padding:14px 36px;background:#15803d;color:#fff;text-decoration:none;border-radius:7px;font-size:15px;font-weight:700;letter-spacing:.02em;">&#10003;&nbsp; Approve</a>
+          </td>
+          <td>
+            <a href="{reject_url}" style="display:inline-block;padding:14px 36px;background:#dc2626;color:#fff;text-decoration:none;border-radius:7px;font-size:15px;font-weight:700;letter-spacing:.02em;">&#10007;&nbsp; Reject</a>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:22px 0 0;font-size:12px;color:#94a3b8;line-height:1.8;">
+        Clicking a button above will immediately process this request.<br>
+        If buttons don't work, copy the URL into your browser:<br>
+        <span style="color:#64748b;">Approve:</span> {approve_url}<br>
+        <span style="color:#64748b;">Reject:</span> {reject_url}
+      </p>
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">Sent via RGMC System Gateway</div>
+  </div>
+</body>
+</html>"""
+
+    msg = MIMEMultipart("alternative")
+    label           = "Additional Access Request" if is_additional else "Access Request"
+    msg["Subject"]  = f"[{label}] {full_name} — RGMC Gateway"
+    msg["From"]     = from_addr
+    msg["To"]       = APPROVER_EMAIL
+    msg["Reply-To"] = record.get("email", from_addr)
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [APPROVER_EMAIL])
+
+
+def send_access_granted_email(record: dict, is_additional: bool = False) -> bool:
+    user_email = record.get("email", "")
+    if not user_email:
+        return False
+
+    from_addr    = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    it_email     = EMAIL_CONFIG["developer_email"] or from_addr
+    full_name    = _full_name(record)
+    username     = record.get("username", "—")
+    systems_html = "".join(
+        f'<li style="margin:5px 0;font-size:14px;color:#374151;">{s}</li>'
+        for s in (record.get("systems") or [])
+    )
+    heading      = "Additional Access Approved" if is_additional else "Access Approved"
+    intro        = (
+        "Your request for additional system access has been <strong style='color:#15803d;'>approved</strong>. "
+        "The following systems have been added to your account:"
+        if is_additional else
+        "Your access request for the <strong>RGMC Gateway</strong> has been "
+        "<strong style='color:#15803d;'>approved</strong>. Your account has been created "
+        "with the following credentials:"
+    )
+    username_block = "" if is_additional else f"""
+      <div style="background:linear-gradient(135deg,#f8fafc,#f1f5f9);border:1px solid #e2e8f0;border-left:4px solid #C4972A;border-radius:8px;padding:22px 24px;margin-bottom:28px;text-align:center;">
+        <p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.1em;">Your Username</p>
+        <p style="margin:0;font-size:32px;font-weight:700;color:#1a120a;font-family:monospace;letter-spacing:.06em;">{username}</p>
+        <p style="margin:10px 0 0;font-size:12px;color:#94a3b8;">Contact the IT department to set your password and complete account activation.</p>
+      </div>"""
+    systems_label = "Additional Systems Granted" if is_additional else "Systems Access Granted"
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid #C4972A;">
+      <h2 style="margin:0;font-size:22px;color:#C4972A;">{heading}</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">RGMC System Gateway</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 16px;font-size:15px;">Hello <strong>{record.get('first_name','')}</strong>,</p>
+      <p style="margin:0 0 28px;font-size:15px;line-height:1.7;color:#374151;">{intro}</p>
+      {username_block}
+      <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">{systems_label}</p>
+      <ul style="margin:0 0 28px;padding:0 0 0 18px;line-height:1.9;">{systems_html}</ul>
+      <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">For any questions or assistance, please contact the IT department at
+        <a href="mailto:{it_email}" style="color:#C4972A;text-decoration:none;font-weight:600;">{it_email}</a>.
+      </p>
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    subject     = "Additional Systems Access Approved — RGMC Gateway" if is_additional else "Your RGMC Gateway Access Has Been Approved"
+    msg         = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"]    = from_addr
+    msg["To"]      = user_email
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [user_email])
+
+
+def send_access_rejected_email(record: dict, remarks: str = None) -> bool:
+    user_email = record.get("email", "")
+    if not user_email:
+        return False
+
+    from_addr    = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    it_email     = EMAIL_CONFIG["developer_email"] or from_addr
+    systems_html = "".join(
+        f'<li style="margin:5px 0;font-size:14px;color:#374151;">{s}</li>'
+        for s in (record.get("systems") or [])
+    )
+    remarks_block = ""
+    if remarks:
+        remarks_html  = remarks.replace("\n", "<br>")
+        remarks_block = f"""
+      <div style="background:#fef2f2;border:1px solid rgba(220,38,38,.2);border-left:4px solid #dc2626;border-radius:0 6px 6px 0;padding:14px 16px;margin-bottom:24px;">
+        <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;">Reason</p>
+        <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">{remarks_html}</p>
+      </div>"""
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid #dc2626;">
+      <h2 style="margin:0;font-size:22px;color:#f87171;">Access Request Not Approved</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">RGMC System Gateway</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 16px;font-size:15px;">Hello <strong>{record.get('first_name','')}</strong>,</p>
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#374151;">
+        We regret to inform you that your access request for the <strong>RGMC Gateway</strong> has not been approved at this time.
+      </p>
+      {remarks_block}
+      <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Systems Requested</p>
+      <ul style="margin:0 0 28px;padding:0 0 0 18px;line-height:1.9;">{systems_html}</ul>
+      <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">
+        If you believe this is in error or would like further clarification, please contact the IT department at
+        <a href="mailto:{it_email}" style="color:#C4972A;text-decoration:none;font-weight:600;">{it_email}</a>.
+      </p>
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    msg            = MIMEMultipart("alternative")
+    msg["Subject"] = "Your RGMC Gateway Access Request — Not Approved"
+    msg["From"]    = from_addr
+    msg["To"]      = user_email
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [user_email])
+
+
+def send_admin_granted_email(user_record: dict) -> bool:
+    user_email = user_record.get("email", "")
+    if not user_email:
+        return False
+
+    from_addr  = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    first_name = user_record.get("first_name", "")
+    username   = user_record.get("username", "")
+    admin_url  = (GATEWAY_BASE_URL or "").rstrip("/") + "/admin"
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid #C4972A;">
+      <h2 style="margin:0;font-size:22px;color:#C4972A;">Admin Access Granted</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">RGMC System Gateway</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 16px;font-size:15px;">Hello <strong>{first_name}</strong>,</p>
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#374151;">
+        You have been granted <strong>Admin access</strong> to the RGMC Gateway. You can now manage user
+        requests, update user system access, and configure available systems from the Admin Panel.
+      </p>
+      <div style="background:linear-gradient(135deg,#f8fafc,#f1f5f9);border:1px solid #e2e8f0;border-left:4px solid #C4972A;border-radius:0 8px 8px 0;padding:18px 20px;margin-bottom:28px;">
+        <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.1em;">Your Username</p>
+        <p style="margin:0;font-size:24px;font-weight:700;color:#1a120a;font-family:monospace;">{username}</p>
+      </div>
+      {'<p style="margin:0 0 20px;font-size:14px;color:#374151;">Access the Admin Panel here:</p><a href="' + admin_url + '" style="display:inline-block;padding:12px 28px;background:#C4972A;color:#0d0a06;text-decoration:none;border-radius:7px;font-size:14px;font-weight:700;">' + admin_url + '</a>' if admin_url.strip('/') else ''}
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    msg            = MIMEMultipart("alternative")
+    msg["Subject"] = "Admin Access Granted — RGMC Gateway"
+    msg["From"]    = from_addr
+    msg["To"]      = user_email
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [user_email])
+
+
+def send_issue_resolved_email(issue: dict, resolution_notes: str, resolver_name: str, new_status: str) -> bool:
+    user_email = issue.get("email", "")
+    if not user_email:
+        logger.warning("Issue has no reporter email — skipping resolved notification")
+        return False
+
+    from_addr     = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    it_email      = EMAIL_CONFIG["developer_email"] or from_addr
+    site_name     = issue.get("site_name", "Unknown System")
+    employee_name = issue.get("employee_name", "")
+    raw_desc      = issue.get("description", "")
+    title         = issue.get("title") or raw_desc[:80] + ("…" if len(raw_desc) > 80 else "")
+
+    def _he(s): return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    status_label = "Resolved" if new_status == "resolved" else "Closed"
+    accent_color = "#15803d" if new_status == "resolved" else "#64748b"
+
+    notes_block = ""
+    if resolution_notes:
+        notes_block = f"""
+      <div style="margin-bottom:24px;">
+        <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Resolution Notes</p>
+        <div style="background:#f0fdf4;border:1px solid rgba(21,128,61,.18);border-left:4px solid #15803d;border-radius:0 6px 6px 0;padding:14px 16px;font-size:14px;line-height:1.6;color:#374151;">{_he(resolution_notes).replace(chr(10), "<br>")}</div>
+      </div>"""
+
+    resolver_block = ""
+    if resolver_name:
+        resolver_block = f"""
+      <p style="margin:0 0 24px;font-size:14px;color:#374151;">
+        <span style="font-weight:700;color:#64748b;text-transform:uppercase;font-size:11px;letter-spacing:.06em;">Resolved by</span><br>
+        <span style="font-size:15px;font-weight:600;color:#1e293b;">{_he(resolver_name)}</span>
+      </p>"""
+
+    desc_preview = _he(raw_desc)
+    if len(desc_preview) > 300:
+        desc_preview = desc_preview[:300] + "…"
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid {accent_color};">
+      <h2 style="margin:0;font-size:22px;color:#fff;">Issue {status_label}</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">{_he(site_name)}</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 16px;font-size:15px;">Hello <strong>{_he(employee_name)}</strong>,</p>
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#374151;">
+        Your issue report for <strong>{_he(site_name)}</strong> has been marked as
+        <strong style="color:{accent_color};">{status_label}</strong> by the IT team.
+      </p>
+
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+        <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Your Original Report</p>
+        <p style="margin:0 0 8px;font-size:15px;font-weight:600;color:#1e293b;">{_he(title)}</p>
+        <p style="margin:0;font-size:13px;color:#64748b;line-height:1.6;">{desc_preview}</p>
+      </div>
+
+      {notes_block}
+      {resolver_block}
+
+      <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">
+        If the issue persists or you have further questions, please contact the IT department at
+        <a href="mailto:{_he(it_email)}" style="color:#C4972A;text-decoration:none;font-weight:600;">{_he(it_email)}</a>.
+      </p>
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    msg            = MIMEMultipart("alternative")
+    msg["Subject"] = f"Your Issue Has Been {status_label} — {site_name}"
+    msg["From"]    = from_addr
+    msg["To"]      = user_email
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [user_email])
+
+
+def _full_name(record: dict) -> str:
+    mi    = record.get("middle_initial", "").strip()
+    parts = [record.get("first_name", ""), mi + "." if mi else "", record.get("last_name", "")]
+    return " ".join(p for p in parts if p).replace("  ", " ").strip()

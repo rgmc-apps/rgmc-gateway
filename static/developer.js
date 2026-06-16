@@ -165,7 +165,32 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape') { closeDetailModal(); closeAddSystemModal(); closeProfileMenu(); }
   });
   document.addEventListener('click', () => closeProfileMenu());
+
+  document.getElementById('itemType').addEventListener('change', function () {
+    const othersGroup = document.getElementById('itemTypeOthersGroup');
+    othersGroup.style.display = this.value === 'Others' ? '' : 'none';
+    if (this.value !== 'Others') document.getElementById('itemTypeOthers').value = '';
+  });
 });
+
+/* ── Per-developer card color palette ── */
+const DEV_PALETTE = [
+  'rgba(125,211,252,0.60)',  // sky
+  'rgba(249,168,212,0.60)',  // pink
+  'rgba(134,239,172,0.60)',  // green
+  'rgba(253,224,71,0.55)',   // yellow
+  'rgba(196,181,253,0.60)',  // violet
+  'rgba(251,146,60,0.60)',   // orange
+  'rgba(103,232,249,0.60)',  // cyan
+  'rgba(248,113,113,0.60)',  // red
+];
+
+function devColor(username) {
+  if (!username) return DEV_PALETTE[0];
+  let h = 5381;
+  for (let i = 0; i < username.length; i++) h = (h * 33 ^ username.charCodeAt(i)) >>> 0;
+  return DEV_PALETTE[h % DEV_PALETTE.length];
+}
 
 /* ── Members (avatars for cards) ── */
 async function loadMembers() {
@@ -266,7 +291,7 @@ async function loadItems() {
     _items = await res.json();
     renderBoard();
   } catch (err) {
-    ['pending','coding','testing','done'].forEach(s => {
+    ['pending','ongoing','coding','testing','done'].forEach(s => {
       document.getElementById(`cards-${s}`).innerHTML =
         `<div class="admin-error" style="margin:8px;">Failed to load: ${escHtml(err.message)}</div>`;
     });
@@ -275,7 +300,7 @@ async function loadItems() {
   }
 }
 
-const STATUSES = ['pending', 'coding', 'testing', 'done'];
+const STATUSES = ['pending', 'ongoing', 'coding', 'testing', 'done'];
 
 function renderBoard() {
   const counts = {};
@@ -307,6 +332,23 @@ function renderBoard() {
   updateColArcs(counts);
 }
 
+const TYPE_CLASS = {
+  'New Feature':  'ktype-feature',
+  'Improvement':  'ktype-improvement',
+  'Bug Fix':      'ktype-bugfix',
+  'Admin Task':   'ktype-admin',
+  'Discussion':   'ktype-discussion',
+  'Maintenance':  'ktype-maintenance',
+};
+
+function typeBadge(devItemType) {
+  if (!devItemType) return '';
+  const label = devItemType.startsWith('Others: ') ? devItemType : devItemType;
+  const display = devItemType.startsWith('Others: ') ? devItemType.slice('Others: '.length) : devItemType;
+  const cls = TYPE_CLASS[devItemType] || 'ktype-others';
+  return `<span class="kcard-type-badge ${cls}" title="${escHtml(label)}">${escHtml(display)}</span>`;
+}
+
 function renderCard(item, idx = 0) {
   const elapsed    = daysElapsed(item);
   const overdue    = item.estimated_end_date && !item.actual_end_date &&
@@ -314,9 +356,14 @@ function renderCard(item, idx = 0) {
   const statusIdx  = STATUSES.indexOf(item.status);
 
   const sysLabel = systemName(item.system_id);
+  const devClr   = devColor(item.created_by);
+  const topRow = (sysLabel || item.dev_item_type) ? `<div class="kcard-top-row">
+      ${sysLabel ? `<div class="kcard-system-tag">${escHtml(sysLabel)}</div>` : ''}
+      ${typeBadge(item.dev_item_type)}
+    </div>` : '';
   return `<div class="kanban-card" id="card-${escHtml(item.id)}"
-               style="animation-delay:${idx * 55}ms">
-    ${sysLabel ? `<div class="kcard-system-tag">${escHtml(sysLabel)}</div>` : ''}
+               style="animation-delay:${idx * 55}ms;--dev-clr:${devClr}">
+    ${topRow}
     <div class="kcard-title">${escHtml(item.title)}</div>
     ${item.description ? `<div class="kcard-desc">${escHtml(item.description)}</div>` : ''}
     <div class="kcard-meta">
@@ -543,6 +590,22 @@ function openDetailModal(idOrNull) {
   document.getElementById('itemEstEnd').value   = item?.estimated_end_date ?? '';
   populateSystemDropdown(document.getElementById('itemSystem'), item?.system_id ?? null);
 
+  // Item type — handle "Others: ..." case
+  const savedType = item?.dev_item_type ?? '';
+  const knownTypes = ['New Feature','Improvement','Bug Fix','Admin Task','Discussion','Maintenance','Others'];
+  const typeSelect = document.getElementById('itemType');
+  const othersGroup = document.getElementById('itemTypeOthersGroup');
+  const othersInput = document.getElementById('itemTypeOthers');
+  if (savedType.startsWith('Others: ')) {
+    typeSelect.value   = 'Others';
+    othersInput.value  = savedType.slice('Others: '.length);
+    othersGroup.style.display = '';
+  } else {
+    typeSelect.value   = knownTypes.includes(savedType) ? savedType : '';
+    othersInput.value  = '';
+    othersGroup.style.display = 'none';
+  }
+
   const body      = document.getElementById('itemDetailBody');
   const logPane   = document.getElementById('detailLogPane');
   const deleteBtn = document.getElementById('detailDeleteBtn');
@@ -608,6 +671,12 @@ async function saveItem(e) {
     actual_end_date = null;
   }
 
+  const typeVal    = document.getElementById('itemType').value;
+  const othersText = document.getElementById('itemTypeOthers').value.trim();
+  const devItemType = typeVal === 'Others'
+    ? (othersText ? `Others: ${othersText}` : 'Others')
+    : (typeVal || null);
+
   const payload = {
     title,
     description:        document.getElementById('itemDesc').value.trim() || null,
@@ -616,6 +685,7 @@ async function saveItem(e) {
     start_date:         document.getElementById('itemStart').value || null,
     estimated_end_date: document.getElementById('itemEstEnd').value || null,
     actual_end_date,
+    dev_item_type:      devItemType,
   };
 
   document.getElementById('itemFormActions').style.display = 'none';

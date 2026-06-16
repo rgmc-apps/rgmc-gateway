@@ -46,6 +46,11 @@
         <span class="dev-stat-count" id="stat-count-pending">—</span>
         <span class="dev-stat-label">Pending</span>
       </div>
+      <div class="dev-stat-pill stat-ongoing">
+        <span class="dev-stat-dot dot-ongoing"></span>
+        <span class="dev-stat-count" id="stat-count-ongoing">—</span>
+        <span class="dev-stat-label">Ongoing</span>
+      </div>
       <div class="dev-stat-pill stat-coding">
         <span class="dev-stat-dot dot-coding"></span>
         <span class="dev-stat-count" id="stat-count-coding">—</span>
@@ -72,6 +77,14 @@
           <span class="kanban-count" id="count-pending">0</span>
         </div>
         <div class="kanban-cards" id="cards-pending"></div>
+      </div>
+      <div class="kanban-col" id="col-ongoing" data-status="ongoing">
+        <div class="kanban-col-header">
+          <span class="kanban-col-dot dot-ongoing"></span>
+          Ongoing
+          <span class="kanban-count" id="count-ongoing">0</span>
+        </div>
+        <div class="kanban-cards" id="cards-ongoing"></div>
       </div>
       <div class="kanban-col" id="col-coding" data-status="coding">
         <div class="kanban-col-header">
@@ -124,6 +137,24 @@
           </div>
 
           <div class="form-group">
+            <label class="form-label" for="itemType">Item Type</label>
+            <select class="form-input" id="itemType">
+              <option value="">— Select Type —</option>
+              <option value="New Feature">New Feature</option>
+              <option value="Improvement">Improvement</option>
+              <option value="Bug Fix">Bug Fix</option>
+              <option value="Admin Task">Admin Task</option>
+              <option value="Discussion">Discussion</option>
+              <option value="Maintenance">Maintenance</option>
+              <option value="Others">Others (please specify)</option>
+            </select>
+          </div>
+          <div class="form-group" id="itemTypeOthersGroup" style="display:none;">
+            <label class="form-label" for="itemTypeOthers">Please specify</label>
+            <input class="form-input" type="text" id="itemTypeOthers" placeholder="Describe the item type…">
+          </div>
+
+          <div class="form-group">
             <label class="form-label" for="itemDesc">Description</label>
             <textarea class="form-input form-textarea" id="itemDesc" rows="3" placeholder="More detail, acceptance criteria, notes…"></textarea>
           </div>
@@ -146,6 +177,7 @@
               <label class="form-label" for="itemStatus">Status</label>
               <select class="form-input" id="itemStatus">
                 <option value="pending">Pending</option>
+                <option value="ongoing">Ongoing</option>
                 <option value="coding">Coding</option>
                 <option value="testing">Testing</option>
                 <option value="done">Done</option>

@@ -51,6 +51,10 @@
         Issues
         <span class="tab-badge" id="openIssuesCount" style="display:none;"></span>
       </button>
+      <button class="admin-tab" data-tab="devperf" onclick="switchTab('devperf')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Developers
+      </button>
     </div>
 
     <!-- ── Requests Panel ── -->
@@ -99,7 +103,36 @@
       </div>
     </div>
 
+    <!-- ── Developer Performance Panel ── -->
+    <div id="panel-devperf" class="admin-panel">
+      <div id="devperf-body" class="admin-table-wrap">
+        <div class="admin-loading"><div class="spinner"></div><span>Loading developers…</span></div>
+      </div>
+    </div>
+
   </main>
+
+  <!-- ── Developer Performance Modal ── -->
+  <div id="devPerfModal" class="modal-overlay" onclick="overlayCloseDevPerf(event)">
+    <div class="modal modal-xl dp-modal">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="devPerfModalTitle">Developer Report</h3>
+          <p class="modal-site-name" id="devPerfModalMeta"></p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn-dp-pdf" onclick="downloadDevPerfPdf()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download PDF
+          </button>
+          <button class="modal-close" onclick="closeDevPerfModal()" aria-label="Close">&times;</button>
+        </div>
+      </div>
+      <div id="devPerfModalContent" class="dp-modal-scroll">
+        <!-- populated by JS -->
+      </div>
+    </div>
+  </div>
 
   <!-- ── Edit User Systems Modal ── -->
   <div id="editSystemsModal" class="modal-overlay" onclick="overlayCloseEditSystems(event)">
@@ -291,6 +324,12 @@
           </div>
         </div>
 
+        <!-- Title (editable) -->
+        <div class="form-group form-group-full">
+          <label class="form-label" for="issueTitleInput">Issue Title</label>
+          <input class="form-input" type="text" id="issueTitleInput" placeholder="Brief summary of the issue">
+        </div>
+
         <!-- Description -->
         <div class="form-group form-group-full">
           <label class="form-label">Description</label>
@@ -320,6 +359,19 @@
               <option value="">— Unassigned —</option>
             </select>
           </div>
+        </div>
+
+        <!-- Resolution fields (shown when status = resolved or closed) -->
+        <div class="form-group form-group-full" id="issueResolutionGroup" style="display:none;">
+          <label class="form-label" for="issueResolutionNotes">Resolution Notes
+            <span class="form-label-hint">(sent to reporter by email)</span>
+          </label>
+          <textarea class="form-input form-textarea" id="issueResolutionNotes" rows="3"
+            placeholder="Describe what was fixed, the root cause, or why the issue was closed…"></textarea>
+        </div>
+        <div class="form-group" id="issueResolvedByGroup" style="display:none;">
+          <label class="form-label" for="issueResolvedBy">Resolved By</label>
+          <input class="form-input" type="text" id="issueResolvedBy" placeholder="Developer name">
         </div>
 
         <!-- Dev item link -->
@@ -355,6 +407,9 @@
 
   <!-- Toast -->
   <div id="toast" class="toast"></div>
+
+  <!-- Print area for developer PDF reports -->
+  <div id="devPerfPrintArea"></div>
 
   <script src="/static/admin.js"></script>
 </body>

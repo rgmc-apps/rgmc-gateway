@@ -53,6 +53,8 @@ let _issuesCache        = [];
 let _currentIssueStatus = 'open';
 let _editingIssueId     = null;
 let _developersCache    = [];
+let _devPerfCache       = [];
+let _devPerfSelected    = null;
 
 /* ── Profile dropdown ── */
 function toggleProfileMenu(e) {
@@ -143,6 +145,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape') { closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeIssueModal(); closeProfileMenu(); }
   });
   document.addEventListener('click', () => closeProfileMenu());
+
+  // Show/hide resolution fields when status changes
+  document.getElementById('issueStatusSelect').addEventListener('change', function () {
+    _toggleIssueResolution(this.value);
+    // Auto-fill resolved_by from the selected assignee when switching to a terminal status
+    if (this.value === 'resolved' || this.value === 'closed') {
+      const resolvedByInput = document.getElementById('issueResolvedBy');
+      if (!resolvedByInput.value.trim()) {
+        const sel = document.getElementById('issueAssignedTo');
+        const opt = sel.options[sel.selectedIndex];
+        if (opt && opt.value) {
+          const label = opt.textContent.trim().replace(/\s*\(@[^)]+\)\s*$/, '').trim();
+          resolvedByInput.value = label;
+        }
+      }
+    }
+  });
 });
 
 /* ── Tab switching ── */
@@ -155,6 +174,7 @@ function switchTab(tab) {
   if (tab === 'users')    loadUsers();
   if (tab === 'systems')  loadSystems();
   if (tab === 'issues')   loadIssues(_currentIssueStatus);
+  if (tab === 'devperf')  loadDevPerf();
 }
 
 function switchStatus(status) {
@@ -780,13 +800,13 @@ async function loadIssues(filterStatus) {
 
 function renderIssueRow(issue) {
   const statusBadge = `<span class="label-badge ${ISSUE_STATUS_CLASS[issue.status] || 'label-rgmc'}">${ISSUE_STATUS_LABELS[issue.status] || issue.status}</span>`;
-  const desc = issue.description.length > 60 ? issue.description.slice(0, 58) + '…' : issue.description;
+  const titleText   = issue.title ? issue.title : (issue.description.length > 60 ? issue.description.slice(0, 58) + '…' : issue.description);
   const attachCount = (issue.attachment_urls || []).length;
-  const devBadge = issue.dev_item_id ? '<span class="badge-dev" title="Promoted to dev item">Dev</span> ' : '';
+  const devBadge    = issue.dev_item_id ? '<span class="badge-dev" title="Promoted to dev item">Dev</span> ' : '';
   return `<tr>
     <td><span class="user-name">${escHtml(issue.site_name)}</span></td>
     <td>${escHtml(issue.employee_name)}<br><small class="text-muted">${escHtml(issue.company_name)}</small></td>
-    <td class="issue-desc-cell">${devBadge}${escHtml(desc)}</td>
+    <td class="issue-desc-cell">${devBadge}${escHtml(titleText)}</td>
     <td class="date-cell">${attachCount > 0 ? `<span class="attach-count">${attachCount} file${attachCount > 1 ? 's' : ''}</span>` : '<span class="text-muted">—</span>'}</td>
     <td>${statusBadge}</td>
     <td>${issue.assigned_to ? `<code class="mono-val">${escHtml(issue.assigned_to)}</code>` : '<span class="text-muted">—</span>'}</td>
@@ -813,14 +833,16 @@ async function openIssueModal(id) {
   if (!issue) return;
   _editingIssueId = id;
 
-  document.getElementById('issueModalTitle').textContent = `Issue: ${issue.site_name}`;
-  document.getElementById('issueModalMeta').textContent  = `Submitted ${fmtDateTime(issue.created_at)}`;
-  document.getElementById('issueReporter').textContent   = issue.employee_name;
+  document.getElementById('issueModalTitle').textContent  = `Issue: ${issue.site_name}`;
+  document.getElementById('issueModalMeta').textContent   = `Submitted ${fmtDateTime(issue.created_at)}`;
+  document.getElementById('issueTitleInput').value        = issue.title || '';
+  document.getElementById('issueReporter').textContent    = issue.employee_name;
   document.getElementById('issueEmail').innerHTML        = `<a href="mailto:${escHtml(issue.email)}" class="tbl-link">${escHtml(issue.email)}</a>`;
   document.getElementById('issueCompany').textContent    = issue.company_name;
   document.getElementById('issueDepartment').textContent = issue.department;
   document.getElementById('issueDescription').textContent = issue.description;
   document.getElementById('issueStatusSelect').value     = issue.status;
+  _toggleIssueResolution(issue.status);
 
   // Attachments
   const urls = issue.attachment_urls || [];
@@ -864,6 +886,10 @@ async function openIssueModal(id) {
       return `<option value="${escHtml(u.username)}"${selected}>${escHtml(label)} (@${escHtml(u.username)})</option>`;
     }).join('');
 
+  // Resolution fields
+  document.getElementById('issueResolutionNotes').value = issue.resolution_notes || '';
+  document.getElementById('issueResolvedBy').value      = issue.resolved_by      || '';
+
   resetIssueModal();
   document.getElementById('issueModal').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -877,6 +903,12 @@ function closeIssueModal() {
 
 function overlayCloseIssue(e) {
   if (e.target === document.getElementById('issueModal')) closeIssueModal();
+}
+
+function _toggleIssueResolution(status) {
+  const isTerminal = status === 'resolved' || status === 'closed';
+  document.getElementById('issueResolutionGroup').style.display = isTerminal ? '' : 'none';
+  document.getElementById('issueResolvedByGroup').style.display = isTerminal ? '' : 'none';
 }
 
 function resetIssueModal() {
@@ -895,10 +927,21 @@ async function saveIssuePatch() {
   document.getElementById('issueModalError').style.display   = 'none';
 
   try {
+    const isTerminal = status === 'resolved' || status === 'closed';
+    const body = {
+      status,
+      assigned_to:      assignedTo,
+      title:            document.getElementById('issueTitleInput').value.trim() || null,
+      resolution_notes: isTerminal ? (document.getElementById('issueResolutionNotes').value.trim() || null) : undefined,
+      resolved_by:      isTerminal ? (document.getElementById('issueResolvedBy').value.trim() || null)      : undefined,
+    };
+    // Strip undefined keys so they don't get sent as "undefined"
+    Object.keys(body).forEach(k => body[k] === undefined && delete body[k]);
+
     const res = await fetch(`/api/admin/issues/${encodeURIComponent(_editingIssueId)}`, {
       method:  'PATCH',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ status, assigned_to: assignedTo }),
+      body:    JSON.stringify(body),
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
     closeIssueModal();
@@ -936,4 +979,308 @@ async function promoteIssueToDevItem() {
     document.getElementById('issueModalError').style.display   = '';
     document.getElementById('issueModalErrorMsg').textContent  = err.message;
   }
+}
+
+/* ── Developer Performance Tab ──────────────────────────────────────── */
+
+const DP_STATUSES = ['pending', 'ongoing', 'coding', 'testing', 'done'];
+const DP_STAT_LABEL = { pending: 'Pending', ongoing: 'Ongoing', coding: 'Coding', testing: 'Testing', done: 'Done' };
+const DP_STAT_COLOR = { pending: '#6b7280', ongoing: '#a855f7', coding: '#3b82f6', testing: '#f59e0b', done: '#22c55e' };
+const DP_STAT_BG    = { pending: '#f3f4f6', ongoing: '#f3e8ff', coding: '#eff6ff', testing: '#fffbeb', done: '#f0fdf4' };
+const DP_ITEM_STATUS_CLS = { pending: 'dp-s-pending', ongoing: 'dp-s-ongoing', coding: 'dp-s-coding', testing: 'dp-s-testing', done: 'dp-s-done' };
+
+async function loadDevPerf() {
+  const body = document.getElementById('devperf-body');
+  if (!body) return;
+  body.innerHTML = '<p class="loading-text">Loading developer data…</p>';
+  try {
+    const res  = await fetch('/api/admin/dev-performance', { headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed');
+    _devPerfCache = data;
+    _renderDevPerfTable(data);
+  } catch (err) {
+    body.innerHTML = `<p class="error-text">Error: ${escHtml(err.message)}</p>`;
+  }
+}
+
+function _renderDevPerfTable(devs) {
+  const body = document.getElementById('devperf-body');
+  if (!devs.length) {
+    body.innerHTML = '<p class="empty-text">No developer data found.</p>';
+    return;
+  }
+  const rows = devs.map(d => _renderDevPerfRow(d)).join('');
+  body.innerHTML = `
+    <table class="dp-table">
+      <thead>
+        <tr>
+          <th>Developer</th>
+          <th class="dp-th-stat">Pending</th>
+          <th class="dp-th-stat">Ongoing</th>
+          <th class="dp-th-stat">Coding</th>
+          <th class="dp-th-stat">Testing</th>
+          <th class="dp-th-stat">Done</th>
+          <th class="dp-th-stat dp-total-th">Total</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function _renderDevPerfRow(dev) {
+  const fullName = [dev.first_name, dev.last_name].filter(Boolean).join(' ') || dev.username;
+  const displayName = dev.display_name || fullName;
+  const av = dev.avatar_url;
+  const initial = (dev.first_name || dev.username || '?')[0].toUpperCase();
+
+  const avatarHtml = av
+    ? `<img class="dp-avatar-img" src="${escHtml(av)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+    + `<span class="dp-avatar-initials" style="display:none">${escHtml(initial)}</span>`
+    : `<span class="dp-avatar-initials">${escHtml(initial)}</span>`;
+
+  const badges = [
+    dev.is_admin     ? '<span class="dp-badge dp-badge-admin">Admin</span>'  : '',
+    dev.is_developer ? '<span class="dp-badge dp-badge-dev">Developer</span>' : '',
+  ].join('');
+
+  const orgParts = [dev.company, dev.department, dev.position].filter(Boolean);
+  const orgHtml  = orgParts.length ? `<span class="dp-org">${escHtml(orgParts.join(' · '))}</span>` : '';
+
+  const statCells = DP_STATUSES.map(s => {
+    const n = dev.counts[s] || 0;
+    return `<td class="dp-stat-td"><span class="dp-stat-pill ${n ? '' : 'dp-stat-zero'}" style="color:${DP_STAT_COLOR[s]};background:${DP_STAT_BG[s]}">${n}</span></td>`;
+  }).join('');
+
+  return `<tr class="dp-row" onclick="openDevPerfModal('${escHtml(dev.username)}')" title="View details">
+    <td class="dp-avatar-td">
+      <div class="dp-avatar">${avatarHtml}</div>
+      <div class="dp-dev-info">
+        <span class="dp-dev-name">${escHtml(displayName)}</span>
+        <span class="dp-badge-row">${badges}</span>
+        ${orgHtml}
+      </div>
+    </td>
+    ${statCells}
+    <td class="dp-stat-td"><span class="dp-total">${dev.counts.total}</span></td>
+  </tr>`;
+}
+
+function openDevPerfModal(username) {
+  const dev = _devPerfCache.find(d => d.username === username);
+  if (!dev) return;
+  _devPerfSelected = dev;
+
+  const fullName    = [dev.first_name, dev.last_name].filter(Boolean).join(' ') || dev.username;
+  const displayName = dev.display_name || fullName;
+  const av          = dev.avatar_url;
+  const initial     = (dev.first_name || dev.username || '?')[0].toUpperCase();
+
+  document.getElementById('devPerfModalContent').innerHTML =
+    _buildDevPerfModalHtml(dev, av, initial, displayName);
+
+  const overlay = document.getElementById('devPerfModal');
+  overlay.style.display = 'flex';
+  requestAnimationFrame(() => overlay.classList.add('modal-open'));
+}
+
+function closeDevPerfModal() {
+  const overlay = document.getElementById('devPerfModal');
+  overlay.classList.remove('modal-open');
+  setTimeout(() => { overlay.style.display = 'none'; }, 220);
+}
+
+function overlayCloseDevPerf(e) {
+  if (e.target === document.getElementById('devPerfModal')) closeDevPerfModal();
+}
+
+function _buildDevPerfModalHtml(dev, av, initial, displayName) {
+  const avatarHtml = av
+    ? `<img class="dp-modal-avatar-img" src="${escHtml(av)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+    + `<span class="dp-modal-avatar-initials" style="display:none">${escHtml(initial)}</span>`
+    : `<span class="dp-modal-avatar-initials">${escHtml(initial)}</span>`;
+
+  const badges = [
+    dev.is_admin     ? '<span class="dp-badge dp-badge-admin">Admin</span>'  : '',
+    dev.is_developer ? '<span class="dp-badge dp-badge-dev">Developer</span>' : '',
+  ].join('');
+
+  const infoFields = [
+    { label: 'Email',      value: dev.email      },
+    { label: 'Company',    value: dev.company     },
+    { label: 'Department', value: dev.department  },
+    { label: 'Position',   value: dev.position    },
+  ].filter(f => f.value).map(f =>
+    `<div class="dp-info-field"><span class="dp-info-label">${escHtml(f.label)}</span><span>${escHtml(f.value)}</span></div>`
+  ).join('');
+
+  const metricsHtml = DP_STATUSES.map(s => {
+    const n = dev.counts[s] || 0;
+    return `<div class="dp-metric-card" style="border-color:${DP_STAT_COLOR[s]}20">
+      <span class="dp-metric-n" style="color:${DP_STAT_COLOR[s]}">${n}</span>
+      <span class="dp-metric-lbl">${DP_STAT_LABEL[s]}</span>
+    </div>`;
+  }).join('');
+
+  const systemsHtml = dev.systems.length
+    ? dev.systems.map(s => `<span class="dp-sys-tag">${escHtml(s)}</span>`).join('')
+    : '<span class="dp-no-data">None recorded</span>';
+
+  const itemsHtml = dev.items.length ? `
+    <div class="dp-items-wrap">
+      <table class="dp-items-table">
+        <thead><tr>
+          <th>#</th><th>Title</th><th>Type</th><th>System</th>
+          <th>Status</th><th>Started</th><th>Est. End</th><th>Actual End</th>
+        </tr></thead>
+        <tbody>${dev.items.map((it, i) => {
+          const cls = DP_ITEM_STATUS_CLS[it.status] || '';
+          const fmtDate = d => d ? d.slice(0, 10) : '—';
+          const typeLabel = it.dev_item_type
+            ? (it.dev_item_type.startsWith('Others: ') ? it.dev_item_type : it.dev_item_type)
+            : '—';
+          return `<tr>
+            <td class="dp-item-num">${i + 1}</td>
+            <td class="dp-item-title">${escHtml(it.title || '—')}</td>
+            <td>${escHtml(typeLabel)}</td>
+            <td>${escHtml(it.system_name || '—')}</td>
+            <td><span class="dp-item-status ${cls}">${escHtml(it.status || '—')}</span></td>
+            <td>${fmtDate(it.start_date)}</td>
+            <td>${fmtDate(it.estimated_end_date)}</td>
+            <td>${fmtDate(it.actual_end_date)}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>` : '<span class="dp-no-data">No items assigned.</span>';
+
+  return `
+    <div class="dp-profile-section">
+        <div class="dp-modal-avatar">${avatarHtml}</div>
+        <div class="dp-profile-info">
+          <div class="dp-modal-name">${escHtml(displayName)}</div>
+          <div class="dp-badge-row">${badges}</div>
+          <div class="dp-info-grid">${infoFields}</div>
+        </div>
+      </div>
+
+      <div class="dp-metrics-strip">
+        <div class="dp-metrics-label">Performance Metrics</div>
+        <div class="dp-metrics-grid">${metricsHtml}
+          <div class="dp-metric-card dp-metric-total">
+            <span class="dp-metric-n">${dev.counts.total}</span>
+            <span class="dp-metric-lbl">Total</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="dp-section">
+        <div class="dp-section-title">Systems Handled <span class="dp-section-count">${dev.systems.length}</span></div>
+        <div class="dp-systems">${systemsHtml}</div>
+      </div>
+
+      <div class="dp-section dp-section-last">
+        <div class="dp-section-title">Dev Items <span class="dp-section-count">${dev.items.length}</span></div>
+        ${itemsHtml}
+      </div>`;
+}
+
+function downloadDevPerfPdf() {
+  if (!_devPerfSelected) return;
+  const printArea = document.getElementById('devPerfPrintArea');
+  printArea.innerHTML = _buildPrintHtml(_devPerfSelected);
+  window.print();
+  setTimeout(() => { printArea.innerHTML = ''; }, 1000);
+}
+
+function _buildPrintHtml(dev) {
+  const fullName    = [dev.first_name, dev.last_name].filter(Boolean).join(' ') || dev.username;
+  const displayName = dev.display_name || fullName;
+  const today       = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  const infoRows = [
+    ['Email',      dev.email],
+    ['Company',    dev.company],
+    ['Department', dev.department],
+    ['Position',   dev.position],
+  ].filter(([, v]) => v).map(([l, v]) =>
+    `<tr><td style="padding:4px 12px 4px 0;color:#64748b;font-weight:600;white-space:nowrap">${escHtml(l)}</td><td style="padding:4px 0">${escHtml(v)}</td></tr>`
+  ).join('');
+
+  const metricCells = [...DP_STATUSES.map(s => {
+    const n = dev.counts[s] || 0;
+    return `<td style="text-align:center;padding:8px 12px;border:1px solid #e2e8f0">
+      <div style="font-size:22px;font-weight:700;color:${DP_STAT_COLOR[s]}">${n}</div>
+      <div style="font-size:11px;color:#64748b;margin-top:2px">${DP_STAT_LABEL[s]}</div>
+    </td>`;
+  }), `<td style="text-align:center;padding:8px 12px;border:1px solid #e2e8f0;background:#f8fafc">
+    <div style="font-size:22px;font-weight:700;color:#1e293b">${dev.counts.total}</div>
+    <div style="font-size:11px;color:#64748b;margin-top:2px">Total</div>
+  </td>`].join('');
+
+  const systemsHtml = dev.systems.length
+    ? dev.systems.map(s => `<span style="display:inline-block;background:#eff6ff;color:#2563eb;border-radius:4px;padding:2px 8px;margin:2px;font-size:12px">${escHtml(s)}</span>`).join('')
+    : '<span style="color:#94a3b8">None recorded</span>';
+
+  const itemRows = dev.items.map((it, i) => {
+    const fmtDate = d => d ? d.slice(0, 10) : '—';
+    const typeLabel = it.dev_item_type || '—';
+    const clr = DP_STAT_COLOR[it.status] || '#6b7280';
+    return `<tr style="border-bottom:1px solid #f1f5f9">
+      <td style="padding:5px 8px;color:#94a3b8;font-size:12px">${i + 1}</td>
+      <td style="padding:5px 8px;font-weight:500">${escHtml(it.title || '—')}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${escHtml(typeLabel)}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${escHtml(it.system_name || '—')}</td>
+      <td style="padding:5px 8px"><span style="background:${DP_STAT_BG[it.status]||'#f3f4f6'};color:${clr};padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap">${escHtml(it.status || '—')}</span></td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${fmtDate(it.start_date)}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${fmtDate(it.estimated_end_date)}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${fmtDate(it.actual_end_date)}</td>
+    </tr>`;
+  }).join('');
+
+  const badges = [
+    dev.is_admin     ? '<span style="background:#fef2f2;color:#dc2626;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;margin-right:4px">Admin</span>'  : '',
+    dev.is_developer ? '<span style="background:#eff6ff;color:#2563eb;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">Developer</span>' : '',
+  ].join('');
+
+  return `<div style="font-family:Arial,sans-serif;max-width:900px;margin:0 auto;padding:32px 24px;color:#1e293b">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #e2e8f0">
+      <div>
+        <div style="font-size:22px;font-weight:700;margin-bottom:4px">${escHtml(displayName)}</div>
+        <div style="margin-bottom:6px">${badges}</div>
+        ${infoRows ? `<table style="margin-top:8px">${infoRows}</table>` : ''}
+      </div>
+      <div style="text-align:right;color:#94a3b8;font-size:12px">
+        <div style="font-size:16px;font-weight:700;color:#1e293b;margin-bottom:4px">Performance Report</div>
+        <div>Generated: ${today}</div>
+        <div>RGMC Gateway</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:24px">
+      <div style="font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px">Performance Metrics</div>
+      <table style="border-collapse:collapse;width:auto"><tr>${metricCells}</tr></table>
+    </div>
+
+    <div style="margin-bottom:24px">
+      <div style="font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Systems Handled (${dev.systems.length})</div>
+      <div>${systemsHtml}</div>
+    </div>
+
+    <div>
+      <div style="font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Dev Items (${dev.items.length})</div>
+      ${dev.items.length ? `<table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="border-bottom:2px solid #e2e8f0">
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">#</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Title</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Type</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">System</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Status</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Started</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Est. End</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Actual End</th>
+        </tr></thead>
+        <tbody>${itemRows}</tbody>
+      </table>` : '<span style="color:#94a3b8">No items assigned.</span>'}
+    </div>
+  </div>`;
 }
