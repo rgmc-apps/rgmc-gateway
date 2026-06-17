@@ -1108,15 +1108,17 @@ async function openIssueModal(id) {
   const attList  = document.getElementById('issueAttachmentsList');
   if (urls.length > 0) {
     attGroup.style.display = '';
-    attList.innerHTML = urls.map(u => {
-      const name = decodeURIComponent(u.split('/').pop().replace(/^\d+_/, ''));
+    attList.innerHTML = urls.map((u, i) => {
+      const name  = decodeURIComponent(u.split('/').pop().replace(/^\d+_/, ''));
       const isImg = /\.(jpg|jpeg|png|gif|webp)$/i.test(name);
-      return `<a href="${escHtml(u)}" target="_blank" rel="noopener" class="attach-link">
-        ${isImg
-          ? `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`
-          : `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`}
-        ${escHtml(name)}
-      </a>`;
+      const isPdf = /\.pdf$/i.test(name);
+      if (isImg) {
+        return `<button class="attach-thumb attach-thumb-modal" title="${escHtml(name)}" onclick="openLightbox('${escHtml(issue.id)}',${i})"><img src="${escHtml(u)}" alt="${escHtml(name)}" loading="lazy"></button>`;
+      }
+      if (isPdf) {
+        return `<button class="attach-thumb attach-thumb-pdf attach-thumb-modal" title="${escHtml(name)}" onclick="openLightbox('${escHtml(issue.id)}',${i})"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>${escHtml(name)}</span></button>`;
+      }
+      return `<a href="${escHtml(u)}" target="_blank" rel="noopener" class="attach-link"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${escHtml(name)}</a>`;
     }).join('');
   } else {
     attGroup.style.display = 'none';

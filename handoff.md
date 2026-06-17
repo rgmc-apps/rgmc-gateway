@@ -2,7 +2,7 @@
 
 ## Goal
 
-Maintain and extend the **RGMC Gateway** — a Flask-based internal portal for RGMC Group that handles system access requests, issue reporting, a developer Kanban board, and an admin panel. The app uses Supabase as the database/storage backend and vanilla JS + HTML/CSS on the frontend (no framework). The current sprint has been progressively improving the access request workflow, issue reporting, theming, and the username generation algorithm.
+Maintain and extend the **RGMC Gateway** — a Flask-based internal portal for RGMC Group that handles system access requests, issue reporting, a developer Kanban board, and an admin panel. The app uses Supabase as the database/storage backend and vanilla JS + HTML/CSS on the frontend (no framework).
 
 No deployment pipeline exists — changes are served directly via Flask and committed to the `master` branch.
 
@@ -10,47 +10,47 @@ No deployment pipeline exists — changes are served directly via Flask and comm
 
 ## Current State
 
-**All features are working and complete.** The working directory has uncommitted files from two sessions of changes. Nothing is broken or mid-edit.
+**All features are working and complete.** All changes are uncommitted and sitting in the working tree. Nothing is broken or mid-edit.
 
-### Completed this session — IT Online Helpdesk (large feature):
+### Completed this session — Configurations Tab (final piece):
 
-**Database migration `helpdesk_schema` applied:**
-- Sequence `ticket_number_seq` created; `issues` table gets auto-assigned `RGMC-XXXXX` on each new insert; existing 4 rows were back-filled to `RGMC-00000`.
-- New columns added to `issues`: `ticket_number`, `from_helpdesk`, `ticket_type`, `anydesk_id`, `request_category`, `request_subcategory`, `request_type_name`, `business_impact`, `urgency`, `priority`.
-- `users` table: `anydesk_id TEXT` column added.
-- New lookup tables with seed data:
-  - `request_category` (Hardware, Software/Application, Network)
-  - `non_software_items` (Hardware: Laptop/Desktop/Printer/Accessories/Modem-Router; Network: Internet/VPN)
-  - `request_type` (New Account, System Access, Reset Password, Bug Fix under Software/Application; IT Equipment under Hardware)
+The `panel-config` HTML structure and all 4 config API routes were already in place from the prior session. This session completed the remaining two parts:
 
-**New page — `/helpdesk` (RGMC IT Online Helpdesk):**
-- `templates/helpdesk.html` — full 3-section form: Ticket Info, Requestor Info, Request Details.
-- `static/helpdesk.js` — dynamic category→subcategory→request-type cascades, priority auto-computation, URL param pre-fill (`?system=X` pre-fills Software/Application + Incident/Problem + Bug Fix), form submission.
-- Ticket type is 3 styled radio cards; description text animates in on hover/selection.
-- Priority computed from Business Impact × Urgency: P1 (high+high), P2 (high+medium or vice versa), P3 (medium+medium), P4 (everything else).
+**4 config modals added to `templates/admin.html`** (inserted before the Toast div):
+- `cfgCompanyModal` — company_code (uppercase, disabled on edit) + name
+- `cfgCategoryModal` — category_name, category_group, category_desc (textarea)
+- `cfgTypeModal` — request_category select (populated from categories cache at open time), request_type text, is_visible toggle
+- `cfgNsiModal` — category select (Hardware/Network hardcoded), subcategory text, is_visible toggle
 
-**New backend:**
-- `GET /helpdesk` — serves helpdesk page.
-- `GET /api/helpdesk/categories` — returns `request_category` table.
-- `GET /api/helpdesk/subcategories?category=X` — for Software/Application returns visible systems; for others returns `non_software_items`.
-- `GET /api/helpdesk/request-types?category=X` — returns `request_type` filtered by category.
-- `POST /api/helpdesk` — creates issue row with `from_helpdesk=true`, auto-assigns ticket number, sends `send_helpdesk_email`.
-- `send_helpdesk_email` added to `services/email.py` — HTML email with all helpdesk fields.
+**Full config JS added to `static/admin.js`** (appended before `_buildPrintHtml`):
+- 10 new state vars: `_currentConfigTab`, `_cfgCompaniesCache`, `_cfgCategoriesCache`, `_cfgTypesCache`, `_cfgNsiCache`, `_cfgCompanyEditCode`, `_cfgCategoryEditId`, `_cfgTypeEditId`, `_cfgNsiEditId`
+- `switchConfigTab(ctab)` — toggles `.config-sub-panel` visibility via `style.display`, updates `.status-tab` active class, calls `_loadCurrentConfigSub()`
+- `_loadCurrentConfigSub()` — dispatches to the correct load function based on `_currentConfigTab`
+- `switchTab('config')` now calls `_loadCurrentConfigSub()`
+- Escape key handler updated to close all 4 new modals
+- Shared helpers: `_resetCfgModal(prefix)`, `_setCfgLoading(prefix, loading)`, `_showCfgError(prefix, msg)` — all use `${prefix}FormActions/FormLoading/FormError/ErrorMsg` element IDs
+- Full CRUD for each table:
+  - Companies: `loadCfgCompanies` / `_renderCfgCompanies` / `openCfgCompanyModal` / `closeCfgCompanyModal` / `saveCfgCompany` / `deleteCfgCompany` — also calls `_loadAdminCompanies()` after save/delete to refresh edit-user company dropdown
+  - Request Categories: `loadCfgCategories` / `_renderCfgCategories` / `openCfgCategoryModal` / `closeCfgCategoryModal` / `saveCfgCategory` / `deleteCfgCategory`
+  - Request Types: `loadCfgTypes` / `_renderCfgTypes` / `openCfgTypeModal` / `closeCfgTypeModal` / `saveCfgType` / `deleteCfgType` — `openCfgTypeModal` is async and fetches `_cfgCategoriesCache` if empty
+  - Non-Software Items: `loadCfgNsi` / `_renderCfgNsi` / `openCfgNsiModal` / `closeCfgNsiModal` / `saveCfgNsi` / `deleteCfgNsi`
 
-**AnyDesk ID — added everywhere:**
-- `users.anydesk_id` column (9-digit text).
-- Profile page (`templates/profile.html`, `static/profile.js`) — new "IT Info" section with AnyDesk ID field.
-- Admin user edit modal (`templates/admin.html`, `static/admin.js`) — AnyDesk ID input alongside Viber Number.
-- `controllers/profile.py` and `controllers/admin.py` — anydesk_id included in GET select and PATCH allowed fields.
+### Completed in prior sessions (already in working tree, still uncommitted):
 
-**Admin issues list** — ticket_number shown in the first column and in the modal title (e.g., `[RGMC-00001] Laptop` or `Issue: SomeName` for legacy rows).
+**IT Online Helpdesk (large feature):**
+- DB migration `helpdesk_schema`: `ticket_number_seq` sequence, `RGMC-XXXXX` auto-assigned ticket numbers on `issues`, back-filled existing rows to `RGMC-00000`. New columns on `issues`: `ticket_number`, `from_helpdesk`, `ticket_type`, `anydesk_id`, `request_category`, `request_subcategory`, `request_type_name`, `business_impact`, `urgency`, `priority`. `anydesk_id TEXT` on `users`. New lookup tables: `request_category`, `non_software_items`, `request_type`.
+- New page `/helpdesk` (`templates/helpdesk.html`, `static/helpdesk.js`) — 3-section form with ticket type radio cards (hover-reveal description), priority auto-compute (P1–P4), cascading category→subcategory→request-type dropdowns, `?system=<id>` URL param pre-fill.
+- Backend: `GET /helpdesk`, `GET /api/helpdesk/categories`, `GET /api/helpdesk/subcategories?category=X`, `GET /api/helpdesk/request-types?category=X`, `POST /api/helpdesk` (in `controllers/public.py` and `controllers/issues.py`).
+- `send_helpdesk_email` in `services/email.py`.
+- AnyDesk ID (9-digit) added to `users` table, profile page, admin user edit modal.
+- Report issue: success message and email now include ticket number.
+- Admin issues list: ticket_number shown in row and modal title.
+- Configurations tab panel + sub-tabs + API routes in `controllers/admin.py` (all 4 tables).
+- CSS for helpdesk appended to `static/style.css`.
 
-**CSS** — helpdesk styles appended to `static/style.css`: ticket option cards, hover description reveal, priority badge (P1–P4 color-coded), full dark+light mode support.
-
-### Completed in prior sessions (pre-compaction):
-
-- Light mode as default + full theme adaptation
-- Username generation overhaul + middle initial everywhere
+**Prior sessions (also uncommitted):**
+- Light mode default + full theme adaptation
+- Username generation overhaul + middle initial
 - System/Task type toggle in admin Systems tab
 - Removed auth wall from issue reporting — public form
 - Post-submission account suggestion banner on report_issue
@@ -64,58 +64,76 @@ No deployment pipeline exists — changes are served directly via Flask and comm
 
 All changes are **uncommitted** and sitting in the working tree.
 
-**New files:**
-- `templates/helpdesk.html`
-- `static/helpdesk.js`
+**New files (untracked):**
+- `templates/helpdesk.html` — full helpdesk page (new)
+- `static/helpdesk.js` — helpdesk JS (new)
 
-**Modified files:**
-- `controllers/public.py` — helpdesk route + 4 API endpoints; `request` import added
-- `controllers/issues.py` — `_submit_helpdesk_issue()`, `api_submit_helpdesk()`, `send_helpdesk_email` import
-- `controllers/profile.py` — anydesk_id in select, response dict, and PATCH loop
-- `controllers/admin.py` — anydesk_id in select and allowed set
-- `services/email.py` — `send_helpdesk_email` function + label dicts added
-- `static/admin.js` — anydesk_id in user modal populate/save; ticket_number in issue list row and modal title
-- `static/profile.js` — anydesk_id read from server and sent in PATCH; client-side 9-digit validation
-- `static/style.css` — helpdesk CSS block appended (~120 lines)
-- `templates/admin.html` — anydesk_id field in edit-user modal
-- `templates/profile.html` — "IT Info" section with anydesk_id field
-- (16 files from prior sessions also uncommitted — see previous handoff)
+**Modified files (this session):**
+- `templates/admin.html` — added 4 config modals (cfgCompany, cfgCategory, cfgType, cfgNsi) before the Toast div
+- `static/admin.js` — added 10 state vars, `switchConfigTab`, `_loadCurrentConfigSub`, 3 shared helpers, full CRUD for 4 config tables; updated `switchTab` and Escape handler
+
+**Modified files (prior sessions, still uncommitted):**
+- `controllers/public.py` — helpdesk route + 4 API endpoints
+- `controllers/issues.py` — `_submit_helpdesk_issue()`, `api_submit_helpdesk()`, ticket_number in `_submit_issue()`
+- `controllers/profile.py` — anydesk_id in select, response, PATCH
+- `controllers/admin.py` — anydesk_id in user select/allowed; 8 config CRUD routes for 4 tables
+- `services/email.py` — `send_helpdesk_email`, `send_report_email` updated with ticket_number
+- `static/profile.js` — anydesk_id read/write/validate
+- `static/report_issue.js` — shows ticket number in success message
+- `static/style.css` — helpdesk CSS block appended (~130 lines)
+- `static/theme.js` — theme improvements
+- `templates/profile.html` — IT Info section with anydesk_id field
+- `templates/report_issue.html` — UI changes
+- `templates/access_result.html` — UI changes
+- `templates/developer.html` — UI changes
+- `templates/index.html` — UI changes
+- `models/access.py` — model changes
+
+---
+
+## Failed Attempts
+
+None this session. All edits applied on the first attempt.
 
 ---
 
 ## Next Step
 
-**Commit all changes.** Run via PowerShell:
+**Commit all changes.** Run via PowerShell (Git must use PowerShell, not Bash):
 
 ```powershell
-git add templates/helpdesk.html static/helpdesk.js controllers/public.py controllers/issues.py controllers/profile.py controllers/admin.py services/email.py static/admin.js static/profile.js static/style.css templates/admin.html templates/profile.html
-git commit -m "add IT online helpdesk page, ticket numbering, anydesk_id"
+git add templates/helpdesk.html static/helpdesk.js controllers/public.py controllers/issues.py controllers/profile.py controllers/admin.py services/email.py static/admin.js static/profile.js static/style.css static/theme.js static/report_issue.js templates/admin.html templates/profile.html templates/report_issue.html templates/access_result.html templates/developer.html templates/index.html models/access.py handoff.md
+git commit -m "add IT helpdesk page, ticket numbering, anydesk_id, configurations tab"
 ```
-
-(The 16 files from prior sessions are also still uncommitted and should be added too.)
 
 ---
 
 ## Context & Gotchas
 
-- **Git must use PowerShell, not Bash.** The Git Bash binary (`bash.exe`) crashes with `msys-2.0.dll` fatal error on this machine.
+- **Git must use PowerShell, not Bash.** The Git Bash binary (`bash.exe`) crashes with `msys-2.0.dll` fatal error on this machine. All git commands must go through the PowerShell tool.
 
-- **Edit tool requires prior Read.** Read target files in the current session before editing.
+- **Edit tool requires prior Read.** Read target files in the current session before editing — the tool will error if you haven't read the file first.
 
-- **Supabase via REST, no ORM.** Service key bypasses RLS — new lookup tables (`request_category`, `non_software_items`, `request_type`) are accessible without additional policy setup.
+- **Supabase via REST, no ORM.** Service key bypasses RLS — no additional policy setup needed for new lookup tables. Use `supabase_req(method, path, data=, params=, extra_headers=)`.
 
-- **ticket_number DEFAULT** is a PostgreSQL sequence-backed expression. When inserting via Supabase REST without providing `ticket_number`, the DB generates the next `RGMC-XXXXX` value automatically. Existing rows have `RGMC-00000` (not unique; no UNIQUE constraint on this column).
+- **ticket_number DEFAULT** is a PostgreSQL sequence-backed expression (`RGMC-XXXXX`). Existing rows were back-filled to `RGMC-00000` (no UNIQUE constraint on this column — duplicates allowed).
+
+- **config-sub-panel visibility** is toggled via `style.display` in JS, not CSS classes. The HTML has `style="display:none;"` on all sub-panels except companies (which loads first). `switchConfigTab()` sets them directly.
+
+- **cfgTypeModal category dropdown** is populated async: `openCfgTypeModal` is declared `async` and fetches `_cfgCategoriesCache` on first open if empty. This is the only async open function among the 4 config modals.
+
+- **Company save also refreshes `_loadAdminCompanies()`** to keep the user-edit modal's company dropdown in sync with any newly added/deleted companies.
 
 - **Helpdesk subcategory cascade:**
-  - `Software/Application` → `GET /systems?is_visible=eq.true` → returns `{value: id, label: name}`
-  - `Hardware` / `Network` → `GET /non_software_items?category=eq.X` → returns `{value: subcategory, label: subcategory}`
+  - `Software/Application` → `GET /systems?is_visible=eq.true` → `{value: id, label: name}`
+  - `Hardware` / `Network` → `GET /non_software_items?category=eq.X` → `{value: subcategory, label: subcategory}`
 
-- **URL param shortcut for system issues:** `/helpdesk?system=<system_id>` pre-fills category=Software/Application, ticket_type=incident_problem, request_type=Bug Fix, and attempts to select the system in the subcategory dropdown. This allows the existing report-issue redirect flow to be pointed at the helpdesk page.
+- **Priority matrix:** P1=high+high, P2=high+medium (or reverse), P3=medium+medium, P4=everything else.
 
-- **Priority matrix:** P1=high+high, P2=high+medium (or reverse), P3=medium+medium, P4=everything else (including high+low per the spec).
+- **AnyDesk ID:** 9 digits exactly. Validated client-side (regex) and server-side in `_submit_helpdesk_issue`. Stored as TEXT (not integer — leading zeros possible).
 
-- **AnyDesk ID validation:** 9 digits, validated both client-side (regex) and server-side (regex in `_submit_helpdesk_issue`).
+- **Theme localStorage contract.** Key is `rgmc-theme`. Absence = light. Only `"dark"` is ever written.
 
-- **`var(--surface-2)` was a bug** (documented in prior session). Fixed in `static/style.css`.
+- **`var(--surface-2)` was a bug** previously fixed in `static/style.css`.
 
-- **Theme localStorage contract.** Key is `rgmc-theme`. Absence = light. Only dark is ever written.
+- **URL param shortcut for system issues:** `/helpdesk?system=<system_id>` pre-fills category=Software/Application, ticket_type=incident_problem, request_type=Bug Fix, and selects the system in the subcategory dropdown.
