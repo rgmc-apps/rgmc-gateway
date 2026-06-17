@@ -38,7 +38,7 @@ def admin_get_users():
         return jsonify(err[0]), err[1]
     try:
         rows = supabase_req("GET", "/users", params={
-            "select": "username,first_name,last_name,company,department,position,email,systems,is_admin,is_developer,created_at",
+            "select": "username,first_name,last_name,display_name,avatar_url,company,department,position,email,systems,is_admin,is_developer,created_at",
             "order":  "created_at.asc",
         })
         return jsonify(rows)
@@ -61,7 +61,10 @@ def admin_update_user(uname):
             return jsonify({"error": str(exc)}), 500
 
     data  = request.get_json(silent=True) or {}
-    patch = {k: v for k, v in data.items() if k in {"is_admin", "is_developer", "systems"}}
+    allowed = {"is_admin", "is_developer", "systems",
+               "first_name", "last_name", "display_name",
+               "company", "department", "position", "email"}
+    patch = {k: v for k, v in data.items() if k in allowed}
     if not patch:
         return jsonify({"error": "No valid fields to update"}), 400
     try:

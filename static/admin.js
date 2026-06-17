@@ -49,6 +49,8 @@ let _rejectingId        = null;
 let _usersCache         = [];
 let _systemsCache       = [];
 let _editingUserSystems = null;
+let _editingUsername    = null;
+let _adminCompanies     = [];
 let _issuesCache        = [];
 let _currentIssueStatus = 'open';
 let _editingIssueId     = null;
@@ -140,9 +142,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   loadRequests('pending');
+  _loadAdminCompanies();
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeIssueModal(); closeProfileMenu(); }
+    if (e.key === 'Escape') { closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); }
   });
   document.addEventListener('click', () => closeProfileMenu());
 
@@ -355,13 +358,14 @@ async function loadUsers() {
       <table class="admin-table">
         <thead>
           <tr>
+            <th style="width:44px;"></th>
             <th>Username</th>
             <th>Name</th>
             <th>Company</th>
             <th>Department</th>
             <th>Email</th>
             <th>Systems</th>
-            <th>Admin</th>
+            <th>Role</th>
             <th>Joined</th>
             <th></th>
           </tr>
@@ -378,29 +382,36 @@ async function loadUsers() {
 function renderUserRow(u) {
   const name    = `${escHtml(u.first_name)} ${escHtml(u.last_name)}`.trim();
   const systems = (u.systems || []).length;
+  const initial = escHtml((u.first_name || u.username || '?').charAt(0).toUpperCase());
+  const av      = u.avatar_url && u.avatar_url.startsWith('https://') ? u.avatar_url : '';
+  const avatarHtml = av
+    ? `<div class="tbl-avatar"><img src="${escHtml(av)}" class="tbl-avatar-img" alt="${initial}"></div>`
+    : `<div class="tbl-avatar tbl-avatar-initial">${initial}</div>`;
+
   const adminBadge = u.is_admin
     ? '<span class="badge-admin">Admin</span>'
     : '<span class="badge-user">User</span>';
-  const devBadge = u.is_developer
-    ? '<span class="badge-dev">Dev</span>'
-    : '';
+  const devBadge = u.is_developer ? '<span class="badge-dev">Dev</span>' : '';
   const toggleAdminLabel = u.is_admin ? 'Revoke Admin' : 'Make Admin';
   const toggleDevLabel   = u.is_developer ? 'Revoke Dev' : 'Make Dev';
+  const uname = escHtml(u.username);
 
-  return `<tr id="user-row-${escHtml(u.username)}">
-    <td><code class="mono-val">${escHtml(u.username)}</code></td>
+  return `<tr id="user-row-${uname}">
+    <td style="padding:8px 8px 8px 16px;">${avatarHtml}</td>
+    <td><code class="mono-val">${uname}</code></td>
     <td><span class="user-name">${name || '—'}</span></td>
-    <td>${escHtml(u.company)}</td>
-    <td>${escHtml(u.department)}</td>
+    <td>${escHtml(u.company || '')}</td>
+    <td>${escHtml(u.department || '')}</td>
     <td><a href="mailto:${escHtml(u.email)}" class="tbl-link">${escHtml(u.email)}</a></td>
     <td><span class="systems-count">${systems} system${systems !== 1 ? 's' : ''}</span></td>
     <td>${adminBadge} ${devBadge}</td>
     <td class="date-cell">${fmtDate(u.created_at)}</td>
     <td class="action-cell">
-      <button class="btn-tbl-secondary" onclick="openEditSystemsModal('${escHtml(u.username)}')">Edit Systems</button>
-      <button class="btn-tbl-secondary" onclick="toggleAdmin('${escHtml(u.username)}', ${u.is_admin})">${toggleAdminLabel}</button>
-      <button class="btn-tbl-secondary" onclick="toggleDeveloper('${escHtml(u.username)}', ${u.is_developer})">${toggleDevLabel}</button>
-      <button class="btn-tbl-danger" onclick="deleteUser('${escHtml(u.username)}')">Delete</button>
+      <button class="btn-tbl-secondary" onclick="openEditUserModal('${uname}')">Edit</button>
+      <button class="btn-tbl-secondary" onclick="openEditSystemsModal('${uname}')">Systems</button>
+      <button class="btn-tbl-secondary" onclick="toggleAdmin('${uname}', ${u.is_admin})">${toggleAdminLabel}</button>
+      <button class="btn-tbl-secondary" onclick="toggleDeveloper('${uname}', ${u.is_developer})">${toggleDevLabel}</button>
+      <button class="btn-tbl-danger" onclick="deleteUser('${uname}')">Delete</button>
     </td>
   </tr>`;
 }
@@ -641,6 +652,101 @@ async function deleteSystem(id) {
     loadSystems();
   } catch (err) {
     showToast(`Error: ${err.message}`);
+  }
+}
+
+/* ── Companies helpers ── */
+
+async function _loadAdminCompanies() {
+  try {
+    const res = await fetch('/api/companies');
+    _adminCompanies = await res.json();
+  } catch { _adminCompanies = []; }
+}
+
+function _fillCompanySelect(selId, selectedName) {
+  const sel = document.getElementById(selId);
+  if (!sel) return;
+  const placeholder = sel.options[0];
+  sel.innerHTML = '';
+  sel.appendChild(placeholder);
+  _adminCompanies.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.name;
+    opt.textContent = `${c.company_code} — ${c.name}`;
+    if (c.name === selectedName) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+/* ── Edit User modal ── */
+
+function openEditUserModal(username) {
+  const user = _usersCache.find(u => u.username === username);
+  if (!user) return;
+  _editingUsername = username;
+
+  document.getElementById('editUserSubtitle').textContent = `@${username}`;
+  document.getElementById('euFirstName').value    = user.first_name   || '';
+  document.getElementById('euLastName').value     = user.last_name    || '';
+  document.getElementById('euDisplayName').value  = user.display_name || '';
+  document.getElementById('euDepartment').value   = user.department   || '';
+  document.getElementById('euPosition').value     = user.position     || '';
+  document.getElementById('euEmail').value        = user.email        || '';
+  _fillCompanySelect('euCompany', user.company || '');
+
+  document.getElementById('euFormActions').style.display = '';
+  document.getElementById('euFormLoading').style.display = 'none';
+  document.getElementById('euFormError').style.display   = 'none';
+
+  document.getElementById('editUserModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeEditUserModal() {
+  document.getElementById('editUserModal').classList.remove('open');
+  document.body.style.overflow = '';
+  _editingUsername = null;
+}
+
+function overlayCloseEditUser(e) {
+  if (e.target === document.getElementById('editUserModal')) closeEditUserModal();
+}
+
+async function saveEditUser(e) {
+  e.preventDefault();
+  if (!_editingUsername) return;
+
+  document.getElementById('euFormActions').style.display = 'none';
+  document.getElementById('euFormLoading').style.display = 'flex';
+  document.getElementById('euFormError').style.display   = 'none';
+
+  const patch = {
+    first_name:   document.getElementById('euFirstName').value.trim(),
+    last_name:    document.getElementById('euLastName').value.trim(),
+    display_name: document.getElementById('euDisplayName').value.trim() || null,
+    company:      document.getElementById('euCompany').value || null,
+    department:   document.getElementById('euDepartment').value.trim() || null,
+    position:     document.getElementById('euPosition').value.trim()   || null,
+    email:        document.getElementById('euEmail').value.trim(),
+  };
+
+  try {
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(_editingUsername)}`, {
+      method:  'PATCH',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify(patch),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to save');
+    showToast(`User ${_editingUsername} updated`);
+    closeEditUserModal();
+    loadUsers();
+  } catch (err) {
+    document.getElementById('euFormActions').style.display = '';
+    document.getElementById('euFormLoading').style.display = 'none';
+    document.getElementById('euFormError').style.display   = 'flex';
+    document.getElementById('euErrorMsg').textContent = err.message;
   }
 }
 

@@ -9,10 +9,11 @@ function openReport(siteName) {
 
   const session = loadSession();
   if (session) {
-    document.getElementById('employeeName').value = session.fullName  || '';
-    document.getElementById('companyName').value  = session.company   || '';
+    document.getElementById('employeeName').value = session.fullName   || '';
     document.getElementById('department').value   = session.department || '';
-    document.getElementById('emailAddr').value    = session.email     || '';
+    document.getElementById('emailAddr').value    = session.email      || '';
+    const cSel = document.getElementById('companyName');
+    if (cSel && session.company) _selectCompanyOption(cSel, session.company);
   }
 
   document.getElementById('reportModal').classList.add('open');
@@ -635,10 +636,46 @@ async function submitAdditionalAccess(e) {
   }
 }
 
+/* ── Companies dropdown ── */
+
+async function _loadCompanies() {
+  try {
+    const res = await fetch('/api/companies');
+    return await res.json();
+  } catch { return []; }
+}
+
+function _buildCompanyOptions(companies) {
+  return companies.map(c =>
+    `<option value="${c.name}">${c.company_code} — ${c.name}</option>`
+  ).join('');
+}
+
+function _selectCompanyOption(sel, value) {
+  for (const opt of sel.options) {
+    if (opt.value === value) { sel.value = value; return; }
+  }
+}
+
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', () => {
   // Check for existing session — shows gate or restores portal
   initGate();
+
+  // Populate all company dropdowns
+  _loadCompanies().then(companies => {
+    const opts = _buildCompanyOptions(companies);
+    ['companyName', 'arCompany'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (sel) sel.insertAdjacentHTML('beforeend', opts);
+    });
+    // Auto-select for report modal if session already loaded
+    const session = loadSession();
+    if (session?.company) {
+      const cSel = document.getElementById('companyName');
+      if (cSel) _selectCompanyOption(cSel, session.company);
+    }
+  });
 
   // Enter key in gate username field
   document.getElementById('gateUsername')?.addEventListener('keydown', e => {

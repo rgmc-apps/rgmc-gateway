@@ -136,6 +136,71 @@
     </div>
   </div>
 
+  <!-- ── Edit User Modal ── -->
+  <div id="editUserModal" class="modal-overlay" onclick="overlayCloseEditUser(event)">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Edit User</h3>
+          <p class="modal-site-name" id="editUserSubtitle"></p>
+        </div>
+        <button class="modal-close" onclick="closeEditUserModal()" aria-label="Close">&times;</button>
+      </div>
+      <form id="editUserForm" class="modal-form" onsubmit="saveEditUser(event)">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="euFirstName">First Name</label>
+            <input class="form-input" type="text" id="euFirstName" maxlength="80">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="euLastName">Last Name</label>
+            <input class="form-input" type="text" id="euLastName" maxlength="80">
+          </div>
+        </div>
+        <div class="form-group form-group-full">
+          <label class="form-label" for="euDisplayName">Display Name <span class="form-label-hint">(optional — shown in portal header)</span></label>
+          <input class="form-input" type="text" id="euDisplayName" maxlength="80" placeholder="e.g. Juan D.">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="euCompany">Company</label>
+            <select class="form-input" id="euCompany">
+              <option value="">— Select company —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="euDepartment">Department</label>
+            <input class="form-input" type="text" id="euDepartment" maxlength="120">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="euPosition">Position</label>
+            <input class="form-input" type="text" id="euPosition" maxlength="120">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="euEmail">Email</label>
+            <input class="form-input" type="email" id="euEmail">
+          </div>
+        </div>
+        <div id="euFormActions" class="modal-actions">
+          <button type="button" class="btn-modal-cancel" onclick="closeEditUserModal()">Cancel</button>
+          <button type="submit" class="btn-modal-submit">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Save Changes
+          </button>
+        </div>
+        <div id="euFormLoading" class="form-state" style="display:none;">
+          <div class="spinner"></div><span>Saving…</span>
+        </div>
+        <div id="euFormError" class="form-state form-error" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="euErrorMsg"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ── Edit User Systems Modal ── -->
   <div id="editSystemsModal" class="modal-overlay" onclick="overlayCloseEditSystems(event)">
     <div class="modal modal-lg">

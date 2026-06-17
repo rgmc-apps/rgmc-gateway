@@ -49,18 +49,53 @@
 
       <!-- Fields -->
       <div class="profile-fields">
-        <div class="form-group">
-          <label class="form-label">Username</label>
-          <input class="form-input profile-readonly" id="fieldUsername" type="text" readonly>
+
+        <div class="profile-section-label">Identity</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">First Name</label>
+            <input class="form-input" id="fieldFirstName" type="text" maxlength="80" oninput="markDirty()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Last Name</label>
+            <input class="form-input" id="fieldLastName" type="text" maxlength="80" oninput="markDirty()">
+          </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Full Name</label>
-          <input class="form-input profile-readonly" id="fieldFullName" type="text" readonly>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Username</label>
+            <input class="form-input profile-readonly" id="fieldUsername" type="text" readonly>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Display Name <span class="form-label-hint">(optional — portal header &amp; dev board)</span></label>
+            <input class="form-input" id="fieldDisplayName" type="text" placeholder="e.g. Juan D." maxlength="80" oninput="markDirty()">
+          </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Display Name <span class="form-label-hint">(optional — shown in the portal header and on dev board cards)</span></label>
-          <input class="form-input" id="fieldDisplayName" type="text" placeholder="e.g. Juan D." maxlength="80" oninput="markDirty()">
+
+        <div class="profile-section-label">Contact</div>
+        <div class="form-group form-group-full">
+          <label class="form-label">Email</label>
+          <input class="form-input" id="fieldEmail" type="email" oninput="markDirty()">
         </div>
+
+        <div class="profile-section-label">Organization</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Company</label>
+            <select class="form-input" id="fieldCompany" onchange="markDirty()">
+              <option value="">— Select company —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Department</label>
+            <input class="form-input" id="fieldDepartment" type="text" maxlength="120" oninput="markDirty()">
+          </div>
+        </div>
+        <div class="form-group form-group-full">
+          <label class="form-label">Position</label>
+          <input class="form-input" id="fieldPosition" type="text" maxlength="120" oninput="markDirty()">
+        </div>
+
       </div>
 
       <!-- Actions -->

@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, jsonify
 
 from config import HEALTH_CHECKS
 from services.sites import get_sites
+from services.supabase import supabase_req
 
 public_bp = Blueprint("public", __name__)
 
@@ -15,6 +16,12 @@ def index():
 @public_bp.get("/report-issue")
 def report_issue_page():
     return render_template("report_issue.html")
+
+
+@public_bp.get("/api/companies")
+def get_companies():
+    rows = supabase_req("GET", "/companies", params={"order": "name.asc", "select": "company_code,name"})
+    return jsonify(rows or [])
 
 
 @public_bp.get("/api/health")

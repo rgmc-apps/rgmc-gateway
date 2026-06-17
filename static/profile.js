@@ -101,6 +101,31 @@ function buildHeaderDropdown(session) {
     </div>`;
 }
 
+/* ── Companies dropdown ── */
+let _profileCompanies = [];
+
+async function _loadProfileCompanies() {
+  try {
+    const res = await fetch('/api/companies');
+    _profileCompanies = await res.json();
+  } catch { _profileCompanies = []; }
+}
+
+function _populateProfileCompany(selectedName) {
+  const sel = document.getElementById('fieldCompany');
+  if (!sel) return;
+  const placeholder = sel.options[0];
+  sel.innerHTML = '';
+  sel.appendChild(placeholder);
+  _profileCompanies.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.name;
+    opt.textContent = `${c.company_code} — ${c.name}`;
+    if (c.name === selectedName) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
 /* ── Avatar state ── */
 let _pendingAvatarUrl = null; // null = no change, '' = remove, 'data:...' = new image
 let _dirty = false;
@@ -169,7 +194,6 @@ function removeAvatar() {
 async function saveProfile() {
   if (!_dirty) { showToast('No changes to save.'); return; }
 
-  const displayName = document.getElementById('fieldDisplayName').value.trim();
   const btn    = document.getElementById('saveBtn');
   const status = document.getElementById('profileSaveStatus');
   btn.disabled = true;
@@ -200,11 +224,21 @@ async function saveProfile() {
       }
     }
 
-    // ── Display name ──
+    // ── Profile fields ──
+    const firstName   = document.getElementById('fieldFirstName').value.trim();
+    const lastName    = document.getElementById('fieldLastName').value.trim();
+    const displayName = document.getElementById('fieldDisplayName').value.trim();
+    const email       = document.getElementById('fieldEmail').value.trim();
+    const company     = document.getElementById('fieldCompany').value;
+    const department  = document.getElementById('fieldDepartment').value.trim();
+    const position    = document.getElementById('fieldPosition').value.trim();
+
     const res  = await fetch('/api/profile', {
       method:  'PATCH',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ display_name: displayName }),
+      body:    JSON.stringify({ first_name: firstName, last_name: lastName,
+                                display_name: displayName, email,
+                                company, department, position }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Unknown error');
@@ -212,12 +246,17 @@ async function saveProfile() {
     // ── Update local session ──
     const session = loadSession();
     if (session) {
+      session.firstName   = firstName;
+      session.fullName    = `${firstName} ${lastName}`.trim();
       session.displayName = displayName || '';
+      session.company     = company     || '';
+      session.department  = department  || '';
+      session.email       = email       || '';
       if (newAvatarUrl !== undefined) {
-        // Append cache-buster so the browser reloads the new image
         session.avatarUrl = newAvatarUrl ? `${newAvatarUrl}?v=${Date.now()}` : '';
       }
       saveSession(session);
+      buildHeaderDropdown(session);
     }
 
     _dirty = false;
@@ -246,22 +285,39 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Pre-fill from session
   document.getElementById('fieldUsername').value    = session.username;
-  document.getElementById('fieldFullName').value    = session.fullName || '';
+  document.getElementById('fieldFirstName').value   = session.firstName  || '';
+  document.getElementById('fieldLastName').value    = (session.fullName || '').replace(session.firstName || '', '').trim();
   document.getElementById('fieldDisplayName').value = session.displayName || '';
+  document.getElementById('fieldEmail').value       = session.email      || '';
+  document.getElementById('fieldDepartment').value  = session.department || '';
 
   const initial = (session.firstName || session.username).charAt(0).toUpperCase();
   renderAvatarPreview(session.avatarUrl || '', initial);
 
-  // Fetch fresh data from server (avatar_url may be large, re-confirm)
+  // Load companies then fetch fresh profile data from server
+  await _loadProfileCompanies();
+  _populateProfileCompany(session.company || '');
+
   try {
     const res  = await fetch('/api/profile', { headers: authHeaders() });
     const data = await res.json();
     if (res.ok) {
+      document.getElementById('fieldFirstName').value   = data.first_name   || '';
+      document.getElementById('fieldLastName').value    = data.last_name    || '';
       document.getElementById('fieldDisplayName').value = data.display_name || '';
+      document.getElementById('fieldEmail').value       = data.email        || '';
+      document.getElementById('fieldDepartment').value  = data.department   || '';
+      document.getElementById('fieldPosition').value    = data.position     || '';
+      _populateProfileCompany(data.company || '');
       if (data.avatar_url) renderAvatarPreview(data.avatar_url, initial);
       // Sync session
+      session.firstName   = data.first_name   || '';
+      session.fullName    = `${data.first_name || ''} ${data.last_name || ''}`.trim();
       session.displayName = data.display_name || '';
       session.avatarUrl   = data.avatar_url   || '';
+      session.company     = data.company      || '';
+      session.department  = data.department   || '';
+      session.email       = data.email        || '';
       saveSession(session);
     }
   } catch { /* use session data as fallback */ }

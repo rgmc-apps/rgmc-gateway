@@ -16,6 +16,30 @@ function _esc(s) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+/* ── Companies dropdown ───────────────────────────────────── */
+
+let _companies = [];
+
+async function _fetchCompanies() {
+  try {
+    const res = await fetch('/api/companies');
+    _companies = await res.json();
+  } catch { _companies = []; }
+}
+
+function _populateCompanySelect(sel, selectedName) {
+  const placeholder = sel.querySelector('option[disabled]');
+  sel.innerHTML = '';
+  if (placeholder) sel.appendChild(placeholder);
+  _companies.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.name;
+    opt.textContent = `${c.company_code} — ${c.name}`;
+    sel.appendChild(opt);
+  });
+  if (selectedName) sel.value = selectedName;
+}
+
 /* ── Wall (auth) ──────────────────────────────────────────── */
 
 function wallSignIn() {
@@ -76,9 +100,10 @@ function _showPage(session) {
 
   // Pre-fill form fields from session
   document.getElementById('riEmployeeName').value = session.fullName    || '';
-  document.getElementById('riCompanyName').value  = session.company     || '';
   document.getElementById('riDepartment').value   = session.department  || '';
   document.getElementById('riEmail').value        = session.email       || '';
+  const cSel = document.getElementById('riCompanyName');
+  if (cSel && session.company) _populateCompanySelect(cSel, session.company);
 
   // Header user chip
   const displayName = session.displayName || session.firstName || session.username;
@@ -155,9 +180,14 @@ async function riSubmit(e) {
       // Re-fill name/email from session
       if (session) {
         document.getElementById('riEmployeeName').value = session.fullName   || '';
-        document.getElementById('riCompanyName').value  = session.company    || '';
         document.getElementById('riDepartment').value   = session.department || '';
         document.getElementById('riEmail').value        = session.email      || '';
+        const cSel = document.getElementById('riCompanyName');
+        if (cSel && session.company) {
+          for (const opt of cSel.options) {
+            if (opt.value === session.company) { cSel.value = session.company; break; }
+          }
+        }
       }
     } else {
       document.getElementById('riFormActions').style.display = 'flex';
@@ -198,9 +228,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (hint) { hint.textContent = `You're reporting a problem with: ${system}`; hint.style.display = 'block'; }
   }
 
-  if (session && session.username) {
-    _showPage(session);
-  }
+  // Load companies first so dropdowns are ready when _showPage runs
+  _fetchCompanies().then(() => {
+    if (session && session.username) {
+      _showPage(session);
+    } else {
+      // Pre-populate the dropdown for when the user signs in
+      const cSel = document.getElementById('riCompanyName');
+      if (cSel) _populateCompanySelect(cSel, '');
+    }
+  });
   // else wall stays visible by default
 
   // Enter key on wall username field

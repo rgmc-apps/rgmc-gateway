@@ -3783,6 +3783,47 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
   .kanban-skel { animation: none; opacity: 1; }
 }
 
+/* ── User table avatar ── */
+.tbl-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--gold-dim);
+  border: 1.5px solid var(--gold-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.tbl-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.tbl-avatar-initial {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+/* ── Profile section labels ── */
+.profile-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  padding-top: 20px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border-subtle);
+}
+.profile-section-label:first-child {
+  padding-top: 0;
+  margin-top: 0;
+  border-top: none;
+}
+
 /* ── Dev item code chip ── */
 .kcard-code {
   display: inline-block;
