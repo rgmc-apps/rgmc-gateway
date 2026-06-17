@@ -280,10 +280,50 @@ function systemName(id) {
   return s ? s.name : id;
 }
 
+/* ── Skeleton loader ── */
+function _showSkeletons() {
+  const statusClr = {
+    pending: 'rgba(107,114,128,0.18)',
+    ongoing: 'rgba(168,85,247,0.18)',
+    coding:  'rgba(59,130,246,0.20)',
+    testing: 'rgba(245,158,11,0.18)',
+    done:    'rgba(34,197,94,0.16)',
+  };
+  /* shape variants: [title-width-1, title-width-2|null, hasTag] */
+  const shapes = [
+    ['82%', '54%', true ],
+    ['70%', null,  false],
+    ['88%', '60%', true ],
+    ['65%', '43%', false],
+    ['75%', '50%', true ],
+    ['78%', null,  false],
+  ];
+  STATUSES.forEach((status, colIdx) => {
+    const col = document.getElementById(`cards-${status}`);
+    if (!col) return;
+    const clr = statusClr[status];
+    const n   = colIdx === 0 ? 3 : 2;
+    col.innerHTML = Array.from({ length: n }, (_, i) => {
+      const [w1, w2, hasTag] = shapes[(colIdx * 2 + i) % shapes.length];
+      const delay = colIdx * 50 + i * 85;
+      return `<div class="kanban-skel" style="animation-delay:${delay}ms;border-left-color:${clr}">
+        ${hasTag ? '<div class="skel-bar skel-tag"></div>' : ''}
+        <div class="skel-bar skel-title" style="--sw:${w1}"></div>
+        ${w2 ? `<div class="skel-bar skel-title" style="--sw:${w2}"></div>` : ''}
+        <div class="skel-footer">
+          <div class="skel-date"></div>
+          <div class="skel-avatar-dot"></div>
+        </div>
+      </div>`;
+    }).join('');
+  });
+}
+
 /* ── Load & render board ── */
 async function loadItems() {
   const board = document.getElementById('kanbanBoard');
   board.classList.add('loading');
+  _showSkeletons();
 
   try {
     const res = await fetch('/api/dev/items', { headers: authHeaders() });

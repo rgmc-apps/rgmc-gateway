@@ -3105,6 +3105,217 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
   .form-row { grid-template-columns: 1fr; }
 }
 
+/* ══════════════════════════════════════════════════════════════════════════════
+   Design Refresh — Developer Board & Admin Panel
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Page titles & subtitles ── */
+.admin-page-title {
+  font-size: 32px;
+  letter-spacing: -0.015em;
+}
+.admin-page-sub {
+  margin: 5px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.admin-page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 28px;
+}
+.admin-page-header::after {
+  display: none; /* remove if previously added */
+}
+
+/* ── 2. Developer stats bar → vertical metric cards ── */
+.dev-stats-bar {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 28px;
+}
+.dev-stat-pill {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  padding: 16px 18px 14px;
+  min-width: 0;
+  border-left-width: 3px;
+  border-left-style: solid;
+  border-top: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+.dev-stat-dot { display: none; }
+
+.dev-stat-count {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  min-width: unset;
+  line-height: 1;
+}
+.dev-stat-label {
+  margin-top: 6px;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+}
+
+/* Status left-border accent colors */
+.dev-stat-pill.stat-pending { border-left-color: #6b7280; }
+.dev-stat-pill.stat-ongoing { border-left-color: #a855f7; }
+.dev-stat-pill.stat-coding  { border-left-color: #3b82f6; }
+.dev-stat-pill.stat-testing { border-left-color: #f59e0b; }
+.dev-stat-pill.stat-done    { border-left-color: #22c55e; }
+
+/* Status-specific count colors */
+.dev-stat-pill.stat-pending .dev-stat-count { color: #9ca3af; }
+.dev-stat-pill.stat-ongoing .dev-stat-count { color: #c084fc; }
+.dev-stat-pill.stat-coding  .dev-stat-count { color: #60a5fa; }
+.dev-stat-pill.stat-testing .dev-stat-count { color: #fbbf24; }
+.dev-stat-pill.stat-done    .dev-stat-count { color: #4ade80; }
+
+@media (max-width: 960px) {
+  .dev-stats-bar { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 600px) {
+  .dev-stats-bar { grid-template-columns: repeat(2, 1fr); }
+  .dev-stat-pill { padding: 12px 14px 10px; }
+  .dev-stat-count { font-size: 22px; }
+}
+
+/* ── 3. Kanban cards — left-border accent + refined hover ── */
+.kanban-card {
+  border: 1px solid rgba(255,255,255,0.05);
+  border-left: 3px solid var(--dev-clr, rgba(196,151,42,0.35));
+}
+.kanban-card:hover {
+  box-shadow: 0 8px 32px rgba(0,0,0,0.48), 0 0 0 1px var(--dev-clr, var(--border));
+}
+.kcard-title { font-size: 14px; font-weight: 600; }
+
+/* Per-developer color ring on avatar */
+.kcard-avatar,
+.kcard-avatar-initial {
+  width: 24px;
+  height: 24px;
+  border: 1.5px solid var(--dev-clr, var(--gold-border));
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.4);
+}
+
+/* ── 4. Kanban column — status-colored header text + inner glow ── */
+#col-pending .kanban-col-header { color: #9ca3af; }
+#col-ongoing .kanban-col-header { color: #c084fc; }
+#col-coding  .kanban-col-header { color: #60a5fa; }
+#col-testing .kanban-col-header { color: #fbbf24; }
+#col-done    .kanban-col-header { color: #4ade80; }
+
+#col-pending { box-shadow: inset 0 0 50px rgba(107,114,128,0.04); }
+#col-ongoing { box-shadow: inset 0 0 50px rgba(168,85,247,0.06); }
+#col-coding  { box-shadow: inset 0 0 50px rgba(59,130,246,0.06); }
+#col-testing { box-shadow: inset 0 0 50px rgba(245,158,11,0.05); }
+#col-done    { box-shadow: inset 0 0 50px rgba(34,197,94,0.05); }
+
+/* preserve drag-over box-shadow (higher specificity wins naturally) */
+
+/* ── 5. Admin tabs — underline indicator style ── */
+.admin-tabs {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 0;
+  padding: 0;
+  gap: 0;
+  margin-bottom: 32px;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.admin-tabs::-webkit-scrollbar { display: none; }
+
+.admin-tab {
+  border-radius: 0;
+  padding: 10px 20px 13px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.18s var(--ease), border-color 0.18s var(--ease);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.admin-tab:hover {
+  background: transparent;
+  color: var(--text-primary);
+  border-bottom-color: var(--border);
+}
+.admin-tab.active {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--gold);
+  color: var(--gold);
+  margin-bottom: -1px;
+}
+
+/* ── 6. Admin table — gold accent top, alternating rows, sticky header ── */
+.admin-table-wrap {
+  border: 1px solid var(--border-subtle);
+  border-top: 2px solid rgba(196,151,42,0.55);
+  border-radius: var(--radius);
+}
+.admin-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.admin-table thead tr {
+  background: rgba(10,8,4,0.97);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.admin-table th {
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding: 12px 16px;
+}
+.admin-table tbody tr:nth-child(even) {
+  background: rgba(255,255,255,0.01);
+}
+.admin-table tbody tr:hover {
+  background: rgba(196,151,42,0.045);
+}
+.admin-table tbody tr:hover td { background: transparent; }
+
+/* ── 7. Status sub-tabs improved hit area ── */
+.admin-status-tabs { gap: 6px; }
+.status-tab { padding: 6px 16px; font-size: 12px; border-radius: var(--radius-pill); }
+
+/* ── 8. Dev page header layout fix after adding subtitle wrapper ── */
+.dev-page-header > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.dev-page-header > div:first-child .admin-page-title {
+  margin: 0;
+}
+
+/* ── 9. Kanban count badge slightly larger ── */
+.kanban-count {
+  font-size: 11px;
+  padding: 2px 8px;
+}
+
+/* ── 10. Admin page subtitle style ── */
+.admin-page-header .admin-page-sub {
+  margin: 6px 0 0;
+}
+
 /* ── Developer Performance Tab ──────────────────────────────────────── */
 
 /* Table */
@@ -3449,4 +3660,125 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
     background: #fff;
     z-index: 99999;
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Kanban Board — Skeleton Loading
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+@keyframes skel-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes skel-sweep {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(200%); }
+}
+
+/* Card shell */
+.kanban-skel {
+  background: var(--bg-card);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-left: 3px solid rgba(196,151,42,0.10); /* overridden per-status via inline style */
+  border-radius: var(--radius-sm);
+  padding: 13px 13px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  opacity: 0;
+  animation: skel-in 0.30s var(--ease) forwards;
+  flex-shrink: 0;
+}
+
+/* Shimmer bar base */
+.skel-bar {
+  border-radius: 4px;
+  background: rgba(196,151,42,0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Sweeping gold highlight */
+.skel-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(196,151,42,0.22) 50%,
+    transparent 100%
+  );
+  animation: skel-sweep 1.9s ease-in-out infinite;
+}
+
+/* Bar sizes */
+.skel-tag   { height: 17px; width: 60px; }
+.skel-title { height: 13px; width: var(--sw, 80%); }
+
+/* Footer: date + avatar */
+.skel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.skel-date {
+  height: 11px;
+  width: 90px;
+  border-radius: 4px;
+  background: rgba(196,151,42,0.05);
+  position: relative;
+  overflow: hidden;
+}
+.skel-date::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(196,151,42,0.18) 50%,
+    transparent 100%
+  );
+  animation: skel-sweep 1.9s ease-in-out infinite;
+  animation-delay: -0.85s;
+}
+
+.skel-avatar-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(196,151,42,0.06);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.skel-avatar-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(196,151,42,0.20) 50%,
+    transparent 100%
+  );
+  animation: skel-sweep 1.9s ease-in-out infinite;
+  animation-delay: -1.35s;
+}
+
+/* Stagger shimmer phase across bars within a card */
+.kanban-skel .skel-bar:nth-child(2)::after { animation-delay: -0.40s; }
+.kanban-skel .skel-bar:nth-child(3)::after { animation-delay: -0.80s; }
+.kanban-skel .skel-bar:nth-child(4)::after { animation-delay: -1.20s; }
+
+/* Reduced motion: static placeholder, no sweep */
+@media (prefers-reduced-motion: reduce) {
+  .skel-bar::after,
+  .skel-date::after,
+  .skel-avatar-dot::after { animation: none; }
+  .kanban-skel { animation: none; opacity: 1; }
 }
