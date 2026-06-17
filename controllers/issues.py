@@ -5,7 +5,7 @@ from flask import Blueprint, request, jsonify, current_app
 from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
 from services.supabase import supabase_req
 from services.guards import _require_admin
-from services.email import send_report_email, send_issue_resolved_email
+from services.email import send_report_email, send_issue_resolved_email, send_issue_assigned_email
 
 issues_bp = Blueprint("issues", __name__)
 
@@ -131,7 +131,7 @@ def admin_get_issues():
 
 @issues_bp.route("/api/admin/issues/<issue_id>", methods=["PATCH"])
 def admin_patch_issue(issue_id):
-    _, err = _require_admin()
+    admin_username, err = _require_admin()
     if err:
         return jsonify(err[0]), err[1]
     body    = request.get_json(silent=True) or {}
@@ -141,24 +141,34 @@ def admin_patch_issue(issue_id):
         return jsonify({"error": "Nothing to update"}), 400
 
     # Fetch current issue to detect status transition and get reporter email
-    old_status = None
-    issue      = None
+    old_status      = None
+    old_assigned_to = None
+    issue           = None
     try:
         rows = supabase_req("GET", "/issues", params={"id": f"eq.{issue_id}", "select": "*"})
         if rows:
-            issue      = rows[0]
-            old_status = issue.get("status")
+            issue           = rows[0]
+            old_status      = issue.get("status")
+            old_assigned_to = issue.get("assigned_to")
     except Exception as exc:
         current_app.logger.warning("admin_patch_issue: could not fetch current issue: %s", exc)
 
     new_status = patch.get("status")
-    notify     = (
+    notify_resolved = (
         new_status in ("resolved", "closed")
         and old_status not in ("resolved", "closed")
         and issue is not None
     )
 
-    if notify:
+    new_assigned_to  = patch.get("assigned_to")
+    notify_assigned  = (
+        "assigned_to" in patch
+        and new_assigned_to
+        and new_assigned_to != old_assigned_to
+        and issue is not None
+    )
+
+    if notify_resolved:
         from datetime import datetime, timezone
         patch["resolved_at"] = datetime.now(timezone.utc).isoformat()
 
@@ -168,13 +178,30 @@ def admin_patch_issue(issue_id):
         current_app.logger.error("admin_patch_issue failed: %s", exc)
         return jsonify({"error": "Update failed"}), 500
 
-    if notify:
+    if notify_resolved:
         resolution_notes = (patch.get("resolution_notes") or "").strip()
         resolver_name    = (patch.get("resolved_by") or "").strip()
         try:
             send_issue_resolved_email(issue, resolution_notes, resolver_name, new_status)
         except Exception as exc:
             current_app.logger.error("send_issue_resolved_email failed: %s", exc)
+
+    if notify_assigned:
+        try:
+            dev_users = supabase_req("GET", "/users", params={
+                "username": f"in.({new_assigned_to},{admin_username})",
+                "select":   "username,first_name,last_name,email",
+            })
+            dev_user   = next((u for u in (dev_users or []) if u["username"] == new_assigned_to), None)
+            admin_user = next((u for u in (dev_users or []) if u["username"] == admin_username), None)
+            assigned_by = (
+                f"{admin_user.get('first_name','')} {admin_user.get('last_name','')}".strip()
+                or admin_username
+            ) if admin_user else admin_username
+            if dev_user:
+                send_issue_assigned_email(issue, dev_user, assigned_by)
+        except Exception as exc:
+            current_app.logger.error("send_issue_assigned_email failed: %s", exc)
 
     return jsonify({"success": True})
 

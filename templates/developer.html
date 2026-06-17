@@ -339,6 +339,35 @@
     </div>
   </div>
 
+  <!-- ── Mark Done Remarks Modal ── -->
+  <div id="doneRemarksModal" class="modal-overlay" onclick="overlayCloseDoneRemarks(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Mark as Done</h3>
+          <p class="modal-site-name">Optionally add resolution remarks</p>
+        </div>
+        <button class="modal-close" onclick="closeDoneRemarksModal()" aria-label="Close">&times;</button>
+      </div>
+      <div style="padding:0 24px 24px;">
+        <div class="form-group form-group-full">
+          <label class="form-label" for="doneRemarksText">Resolution Remarks
+            <span class="form-label-hint">(optional — sent to the reporter if this item is linked to a support ticket)</span>
+          </label>
+          <textarea class="form-input form-textarea" id="doneRemarksText" rows="4"
+            placeholder="Describe what was done, changes made, or any notes for the reporter…"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-modal-cancel" onclick="closeDoneRemarksModal()">Cancel</button>
+          <button type="button" class="btn-modal-submit" onclick="confirmMarkDone()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Mark Done
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast -->
   <div id="toast" class="toast"></div>
 

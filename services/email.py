@@ -431,6 +431,87 @@ def send_issue_resolved_email(issue: dict, resolution_notes: str, resolver_name:
     return _smtp_send(msg, [user_email])
 
 
+def send_issue_assigned_email(issue: dict, developer: dict, assigned_by_name: str) -> bool:
+    dev_email = developer.get("email", "")
+    if not dev_email:
+        logger.warning("Developer has no email — skipping assignment notification")
+        return False
+
+    from_addr     = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    it_email      = EMAIL_CONFIG["developer_email"] or from_addr
+    first_name    = developer.get("first_name") or developer.get("username", "")
+    site_name     = issue.get("site_name", "Unknown System")
+    raw_desc      = issue.get("description", "")
+    title         = issue.get("title") or raw_desc[:80] + ("…" if len(raw_desc) > 80 else "")
+    error_code    = issue.get("error_code") or ""
+    description_html = raw_desc.replace("\n", "<br>")
+
+    def _he(s): return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    error_code_row = f"""
+        <tr>
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#dc2626;border-bottom:1px solid #e2e8f0;">ERROR CODE</td>
+          <td style="padding:10px 14px;font-weight:600;color:#dc2626;border-bottom:1px solid #e2e8f0;">{_he(error_code)}</td>
+        </tr>""" if error_code else ""
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:620px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid #C4972A;">
+      <h2 style="margin:0;font-size:22px;color:#C4972A;">Issue Assigned to You</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">{_he(site_name)}</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 16px;font-size:15px;">Hello <strong>{_he(first_name)}</strong>,</p>
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#374151;">
+        An issue has been assigned to you by <strong>{_he(assigned_by_name)}</strong>. Please review the details below.
+      </p>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;border-radius:8px;overflow:hidden;">
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;width:140px;border-bottom:1px solid #e2e8f0;">SYSTEM</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:600;">{_he(site_name)}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">REPORTER</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">{_he(issue.get('employee_name',''))}</td>
+        </tr>
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">COMPANY</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">{_he(issue.get('company_name',''))}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">DEPARTMENT</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">{_he(issue.get('department',''))}</td>
+        </tr>{error_code_row}
+      </table>
+
+      <div style="margin-bottom:24px;">
+        <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Issue</p>
+        <p style="margin:0 0 10px;font-size:16px;font-weight:600;color:#1e293b;">{_he(title)}</p>
+        <div style="background:#f8fafc;border-left:4px solid #C4972A;padding:14px 16px;border-radius:0 6px 6px 0;font-size:14px;line-height:1.6;color:#374151;">{description_html}</div>
+      </div>
+
+      <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">
+        For questions, contact the IT department at
+        <a href="mailto:{_he(it_email)}" style="color:#C4972A;text-decoration:none;font-weight:600;">{_he(it_email)}</a>.
+      </p>
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    msg            = MIMEMultipart("alternative")
+    msg["Subject"] = f"[Issue Assigned] {title} — {site_name}"
+    msg["From"]    = from_addr
+    msg["To"]      = dev_email
+    msg["Reply-To"] = issue.get("email", from_addr)
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [dev_email])
+
+
 def _full_name(record: dict) -> str:
     mi    = record.get("middle_initial", "").strip()
     parts = [record.get("first_name", ""), mi + "." if mi else "", record.get("last_name", "")]

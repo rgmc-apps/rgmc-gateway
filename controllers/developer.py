@@ -4,6 +4,7 @@ from flask import Blueprint, request, jsonify, render_template, current_app
 from services.supabase import supabase_req
 from services.guards import _require_developer
 from services.sites import _invalidate_sites_cache
+from services.email import send_issue_resolved_email
 
 developer_bp = Blueprint("developer", __name__)
 
@@ -58,23 +59,64 @@ def dev_create_item():
 
 @developer_bp.route("/api/dev/items/<string:item_id>", methods=["PATCH"])
 def dev_update_item(item_id):
-    _, err = _require_developer()
+    dev_username, err = _require_developer()
     if err:
         return jsonify(err[0]), err[1]
     data    = request.get_json(silent=True) or {}
+    remarks = (data.get("remarks") or "").strip()
     allowed = {"title", "description", "status", "system_id", "start_date", "estimated_end_date", "actual_end_date", "dev_item_type"}
     patch   = {k: v for k, v in data.items() if k in allowed}
     if "status" in patch and patch["status"] not in ("pending", "ongoing", "coding", "testing", "done"):
         return jsonify({"error": "Invalid status"}), 400
     if not patch:
         return jsonify({"error": "No valid fields to update"}), 400
+
+    becoming_done = patch.get("status") == "done"
+    old_status    = None
+    if becoming_done:
+        try:
+            existing = supabase_req("GET", "/dev_items", params={"id": f"eq.{item_id}", "select": "status"})
+            if existing:
+                old_status = existing[0].get("status")
+        except Exception:
+            pass
+
     patch["updated_at"] = datetime.now(timezone.utc).isoformat()
     try:
         rows = supabase_req("PATCH", "/dev_items", data=patch, params={"id": f"eq.{item_id}"})
-        return jsonify(rows[0] if rows else {})
     except Exception as exc:
         current_app.logger.error("dev_update_item failed: %s", exc)
         return jsonify({"error": "Failed to update item"}), 500
+
+    if becoming_done and old_status != "done":
+        try:
+            linked = supabase_req("GET", "/issues", params={
+                "dev_item_id": f"eq.{item_id}",
+                "select":      "*",
+            })
+            if linked:
+                issue = linked[0]
+                if issue.get("status") not in ("resolved", "closed"):
+                    dev_row = supabase_req("GET", "/users", params={
+                        "username": f"eq.{dev_username}",
+                        "select":   "first_name,last_name",
+                    })
+                    resolver_name = ""
+                    if dev_row:
+                        u = dev_row[0]
+                        resolver_name = f"{u.get('first_name') or ''} {u.get('last_name') or ''}".strip() or dev_username
+                    issue_patch = {
+                        "status":           "resolved",
+                        "resolution_notes": remarks or None,
+                        "resolved_by":      resolver_name or None,
+                        "resolved_at":      datetime.now(timezone.utc).isoformat(),
+                    }
+                    supabase_req("PATCH", "/issues", data=issue_patch, params={"id": f"eq.{issue['id']}"})
+                    send_issue_resolved_email(issue, remarks, resolver_name, "resolved")
+        except Exception as exc:
+            current_app.logger.error("dev_update_item issue cascade failed: %s", exc)
+
+    return jsonify(rows[0] if rows else {})
 
 
 @developer_bp.delete("/api/dev/items/<string:item_id>")

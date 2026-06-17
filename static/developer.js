@@ -57,11 +57,12 @@ function rollNumber(el, from, to, ms = 480) {
 }
 
 /* ── State ── */
-let _items       = [];
-let _systems     = [];
-let _members     = {};   // username → { displayName, avatarUrl }
-let _editingId   = null;
-let _filter      = 'all'; // 'all' | 'mine'
+let _items               = [];
+let _systems             = [];
+let _members             = {};   // username → { displayName, avatarUrl }
+let _editingId           = null;
+let _filter              = 'all'; // 'all' | 'mine'
+let _doneRemarksCallback = null;
 
 function setFilter(f) {
   _filter = f;
@@ -162,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadMembers().then(() => loadSystems()).then(() => loadItems());
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeDetailModal(); closeAddSystemModal(); closeProfileMenu(); }
+    if (e.key === 'Escape') { closeDoneRemarksModal(); closeDetailModal(); closeAddSystemModal(); closeProfileMenu(); }
   });
   document.addEventListener('click', () => closeProfileMenu());
 
@@ -452,6 +453,16 @@ function renderCard(item, idx = 0) {
 async function moveItem(id, newStatus) {
   const item = _items.find(i => i.id === id);
   if (!item) return;
+  if (newStatus === 'done' && item.status !== 'done') {
+    openDoneRemarksModal(remarks => _execMoveItem(id, newStatus, remarks));
+    return;
+  }
+  await _execMoveItem(id, newStatus, null);
+}
+
+async function _execMoveItem(id, newStatus, remarks) {
+  const item = _items.find(i => i.id === id);
+  if (!item) return;
   const patch = { status: newStatus };
   if (newStatus === 'done' && !item.actual_end_date) {
     patch.actual_end_date = new Date().toISOString().slice(0, 10);
@@ -459,6 +470,7 @@ async function moveItem(id, newStatus) {
   if (newStatus !== 'done') {
     patch.actual_end_date = null;
   }
+  if (remarks) patch.remarks = remarks;
   try {
     await fetch(`/api/dev/items/${encodeURIComponent(id)}`, {
       method:  'PATCH',
@@ -678,6 +690,33 @@ function overlayCloseDetail(e) {
   if (e.target === document.getElementById('itemDetailModal')) closeDetailModal();
 }
 
+/* ── Mark-Done remarks modal ── */
+function openDoneRemarksModal(onConfirm) {
+  _doneRemarksCallback = onConfirm;
+  document.getElementById('doneRemarksText').value = '';
+  document.getElementById('doneRemarksModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('doneRemarksText').focus(), 60);
+}
+
+function closeDoneRemarksModal() {
+  document.getElementById('doneRemarksModal').classList.remove('open');
+  const detailOpen = document.getElementById('itemDetailModal').classList.contains('open');
+  if (!detailOpen) document.body.style.overflow = '';
+  _doneRemarksCallback = null;
+}
+
+function overlayCloseDoneRemarks(e) {
+  if (e.target === document.getElementById('doneRemarksModal')) closeDoneRemarksModal();
+}
+
+function confirmMarkDone() {
+  const remarks = document.getElementById('doneRemarksText').value.trim();
+  const cb = _doneRemarksCallback;
+  closeDoneRemarksModal();
+  if (cb) cb(remarks);
+}
+
 async function deleteItemFromDetail() {
   if (!_editingId) return;
   const id = _editingId;
@@ -704,7 +743,20 @@ async function saveItem(e) {
   const newStatus = document.getElementById('itemStatus').value;
   const prevItem  = _editingId ? _items.find(i => i.id === _editingId) : null;
 
-  // Auto-set actual_end_date: today when done, null when moving away from done
+  if (newStatus === 'done' && prevItem?.status !== 'done') {
+    openDoneRemarksModal(remarks => _execSaveItem(remarks));
+    return;
+  }
+  await _execSaveItem(null);
+}
+
+async function _execSaveItem(remarks) {
+  const title = document.getElementById('itemTitle').value.trim();
+  if (!title) return;
+
+  const newStatus = document.getElementById('itemStatus').value;
+  const prevItem  = _editingId ? _items.find(i => i.id === _editingId) : null;
+
   let actual_end_date = prevItem?.actual_end_date ?? null;
   if (newStatus === 'done' && !actual_end_date) {
     actual_end_date = new Date().toISOString().slice(0, 10);
@@ -728,6 +780,7 @@ async function saveItem(e) {
     actual_end_date,
     dev_item_type:      devItemType,
   };
+  if (remarks) payload.remarks = remarks;
 
   document.getElementById('itemFormActions').style.display = 'none';
   document.getElementById('itemFormLoading').style.display = '';
