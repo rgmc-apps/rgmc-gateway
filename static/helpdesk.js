@@ -28,11 +28,14 @@ function hdComputePriority() {
   const subEl    = document.getElementById('hdPrioritySub');
   const hiddenEl = document.getElementById('hdPriorityValue');
 
+  const warnEl = document.getElementById('hdP1Warning');
+
   if (!p) {
     emptyEl.style.display  = '';
     badgeEl.style.display  = 'none';
     subEl.style.display    = 'none';
     hiddenEl.value         = '';
+    warnEl.style.display   = 'none';
     return;
   }
 
@@ -44,6 +47,7 @@ function hdComputePriority() {
   subEl.textContent       = meta.label.split('—')[1]?.trim() || meta.label;
   subEl.style.display     = '';
   hiddenEl.value          = p;
+  warnEl.style.display    = p === 'P1' ? '' : 'none';
 }
 
 /* ── Ticket type radio styling ────────────────────────────────────────────── */
