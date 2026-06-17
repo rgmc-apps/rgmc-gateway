@@ -138,6 +138,16 @@ def _submit_helpdesk_issue():
     if form_data["anydesk_id"] and not re.match(r'^\d{9}$', form_data["anydesk_id"]):
         return jsonify({"success": False, "error": "AnyDesk ID must be exactly 9 digits"}), 400
 
+    raw_files = []
+    for f in request.files.getlist("attachments"):
+        if f and f.filename:
+            raw_files.append({
+                "filename":     f.filename,
+                "content_type": f.content_type or "application/octet-stream",
+                "data":         f.read(),
+            })
+    raw_files = raw_files[:5]
+
     site_name = form_data["request_subcategory"] or form_data["request_category"]
 
     issue_row = {
@@ -163,6 +173,8 @@ def _submit_helpdesk_issue():
         issue_row["title"] = form_data["title"]
 
     ticket_number = None
+    issue_id = None
+    attachment_urls: list[str] = []
 
     if SUPABASE_URL and SUPABASE_SERVICE_KEY:
         try:
@@ -170,8 +182,22 @@ def _submit_helpdesk_issue():
                                 extra_headers={"Prefer": "return=representation"})
             if rows:
                 ticket_number = rows[0].get("ticket_number")
+                issue_id      = rows[0].get("id")
         except Exception as exc:
             current_app.logger.error("Helpdesk issue save failed: %s", exc)
+
+        if issue_id and raw_files:
+            for i, f in enumerate(raw_files):
+                url = _upload_issue_attachment(issue_id, i, f["filename"], f["data"], f["content_type"])
+                if url:
+                    attachment_urls.append(url)
+            if attachment_urls:
+                try:
+                    supabase_req("PATCH", "/issues",
+                                 data={"attachment_urls": attachment_urls},
+                                 params={"id": f"eq.{issue_id}"})
+                except Exception as exc:
+                    current_app.logger.error("Helpdesk attachment URL save failed: %s", exc)
 
     try:
         send_helpdesk_email(form_data, ticket_number)

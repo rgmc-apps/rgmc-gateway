@@ -105,13 +105,7 @@
               <span class="hd-priority-sub" id="hdPrioritySub" style="display:none;"></span>
             </div>
             <input type="hidden" id="hdPriorityValue" name="priority">
-            <div class="hd-p1-warning" id="hdP1Warning" style="display:none;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              <div>
-                <strong>P1 — Critical Priority</strong>
-                <p>This level is reserved for company-wide outages where operations are fully halted. Please confirm the issue truly affects the entire company and cannot wait before submitting.</p>
-              </div>
-            </div>
+            <div class="hd-priority-note" id="hdPriorityNote" style="display:none;"></div>
           </div>
 
           <hr class="hd-divider">
@@ -209,6 +203,23 @@
             <textarea class="form-input form-textarea ri-textarea" id="hdDescription" name="description" rows="5"
               placeholder="Describe the issue in detail — when it started, what you were doing, any error messages…"
               required></textarea>
+          </div>
+
+          <!-- Attachments -->
+          <div class="form-group form-group-full">
+            <label class="form-label" for="hdAttachments">Attachments
+              <span class="form-label-hint">(optional — images, PDF, Word — max 5 files, 10 MB each)</span>
+            </label>
+            <div class="file-drop-zone" id="hdDropZone">
+              <input class="file-input" type="file" id="hdAttachments" multiple
+                accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                onchange="hdUpdateFiles(this)">
+              <div class="file-drop-content">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                <span id="hdFileLabel">Click to attach files or drag &amp; drop</span>
+              </div>
+            </div>
+            <div class="hd-file-previews" id="hdFilePreviews" style="display:none;"></div>
           </div>
 
           <!-- Actions -->

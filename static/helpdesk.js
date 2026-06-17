@@ -1,5 +1,9 @@
 'use strict';
 
+function _esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 /* ── Priority computation ─────────────────────────────────────────────────── */
 
 const PRIORITY_META = {
@@ -7,6 +11,33 @@ const PRIORITY_META = {
   P2: { label: 'P2 — High Risk',               cls: 'p2' },
   P3: { label: 'P3 — Medium Risk',             cls: 'p3' },
   P4: { label: 'P4 — Low Risk',                cls: 'p4' },
+};
+
+const PRIORITY_NOTES = {
+  P1: {
+    mod:   'hd-priority-note--p1',
+    icon:  `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+    title: 'P1 — Critical Priority',
+    body:  'Reserved for company-wide outages where all operations are halted. Confirm this truly affects the entire company and cannot wait before submitting.',
+  },
+  P2: {
+    mod:   'hd-priority-note--p2',
+    icon:  `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+    title: 'P2 — High Risk',
+    body:  'Major disruption affecting multiple teams or departments. The IT team will prioritize this promptly.',
+  },
+  P3: {
+    mod:   'hd-priority-note--p3',
+    icon:  `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+    title: 'P3 — Medium Risk',
+    body:  'Moderate impact on a small group or individual. Will be addressed within 1 business day.',
+  },
+  P4: {
+    mod:   'hd-priority-note--p4',
+    icon:  `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+    title: 'P4 — Low Risk',
+    body:  'Minor issue with minimal business impact. Will be resolved in the normal queue.',
+  },
 };
 
 function _computePriority(impact, urgency) {
@@ -28,26 +59,30 @@ function hdComputePriority() {
   const subEl    = document.getElementById('hdPrioritySub');
   const hiddenEl = document.getElementById('hdPriorityValue');
 
-  const warnEl = document.getElementById('hdP1Warning');
+  const noteEl = document.getElementById('hdPriorityNote');
 
   if (!p) {
-    emptyEl.style.display  = '';
-    badgeEl.style.display  = 'none';
-    subEl.style.display    = 'none';
-    hiddenEl.value         = '';
-    warnEl.style.display   = 'none';
+    emptyEl.style.display = '';
+    badgeEl.style.display = 'none';
+    subEl.style.display   = 'none';
+    hiddenEl.value        = '';
+    noteEl.style.display  = 'none';
     return;
   }
 
   const meta = PRIORITY_META[p];
-  emptyEl.style.display   = 'none';
-  badgeEl.className       = `hd-priority-badge ${meta.cls}`;
-  badgeEl.textContent     = p;
-  badgeEl.style.display   = '';
-  subEl.textContent       = meta.label.split('—')[1]?.trim() || meta.label;
-  subEl.style.display     = '';
-  hiddenEl.value          = p;
-  warnEl.style.display    = p === 'P1' ? '' : 'none';
+  emptyEl.style.display  = 'none';
+  badgeEl.className      = `hd-priority-badge ${meta.cls}`;
+  badgeEl.textContent    = p;
+  badgeEl.style.display  = '';
+  subEl.textContent      = meta.label.split('—')[1]?.trim() || meta.label;
+  subEl.style.display    = '';
+  hiddenEl.value         = p;
+
+  const note = PRIORITY_NOTES[p];
+  noteEl.className   = `hd-priority-note ${note.mod}`;
+  noteEl.innerHTML   = `${note.icon}<div><strong>${_esc(note.title)}</strong><p>${_esc(note.body)}</p></div>`;
+  noteEl.style.display = '';
 }
 
 /* ── Ticket type radio styling ────────────────────────────────────────────── */
@@ -56,6 +91,83 @@ function hdOnTicketType(input) {
   document.querySelectorAll('.hd-ticket-option').forEach(el => el.classList.remove('selected'));
   const parent = input.closest('.hd-ticket-option');
   if (parent) parent.classList.add('selected');
+}
+
+/* ── File attachments ─────────────────────────────────────────────────────── */
+
+let _hdFiles = [];
+let _hdObjectUrls = [];
+
+const _FILE_ICONS = {
+  pdf:  { color: '#f87171', svg: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>` },
+  word: { color: '#60a5fa', svg: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>` },
+  txt:  { color: '#a3a3a3', svg: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>` },
+};
+
+function _fileIcon(name) {
+  if (/\.pdf$/i.test(name))                return _FILE_ICONS.pdf;
+  if (/\.(doc|docx)$/i.test(name))         return _FILE_ICONS.word;
+  return _FILE_ICONS.txt;
+}
+
+function hdUpdateFiles(input) {
+  const incoming = Array.from(input.files);
+  const slots    = 5 - _hdFiles.length;
+  incoming.slice(0, slots).forEach(f => {
+    _hdFiles.push(f);
+    _hdObjectUrls.push(f.type.startsWith('image/') ? URL.createObjectURL(f) : null);
+  });
+  input.value = '';
+  _renderHdPreviews();
+}
+
+function hdRemoveFile(idx) {
+  if (_hdObjectUrls[idx]) URL.revokeObjectURL(_hdObjectUrls[idx]);
+  _hdFiles.splice(idx, 1);
+  _hdObjectUrls.splice(idx, 1);
+  _renderHdPreviews();
+}
+
+function _hdClearFiles() {
+  _hdObjectUrls.forEach(u => u && URL.revokeObjectURL(u));
+  _hdFiles = [];
+  _hdObjectUrls = [];
+  _renderHdPreviews();
+}
+
+function _renderHdPreviews() {
+  const container = document.getElementById('hdFilePreviews');
+  const label     = document.getElementById('hdFileLabel');
+  if (!_hdFiles.length) {
+    container.innerHTML    = '';
+    container.style.display = 'none';
+    label.textContent = 'Click to attach files or drag & drop';
+    return;
+  }
+  const remaining = 5 - _hdFiles.length;
+  label.textContent = remaining > 0
+    ? `${_hdFiles.length} file${_hdFiles.length > 1 ? 's' : ''} selected — ${remaining} slot${remaining > 1 ? 's' : ''} remaining`
+    : '5 files selected (maximum reached)';
+
+  container.innerHTML = _hdFiles.map((f, i) => {
+    const isImg = f.type.startsWith('image/');
+    const objUrl = _hdObjectUrls[i];
+    const shortName = f.name.length > 18 ? f.name.slice(0, 15) + '…' : f.name;
+    if (isImg && objUrl) {
+      return `<div class="hd-file-preview hd-file-preview--img">
+        <button type="button" class="hd-file-remove" onclick="hdRemoveFile(${i})" title="Remove">&times;</button>
+        <img class="hd-file-thumb" src="${_esc(objUrl)}" alt="${_esc(f.name)}">
+        <div class="hd-file-name">${_esc(shortName)}</div>
+      </div>`;
+    }
+    const icon = _fileIcon(f.name);
+    return `<div class="hd-file-preview hd-file-preview--doc">
+      <button type="button" class="hd-file-remove" onclick="hdRemoveFile(${i})" title="Remove">&times;</button>
+      <div class="hd-file-icon" style="color:${icon.color};">${icon.svg}</div>
+      <div class="hd-file-name">${_esc(shortName)}</div>
+    </div>`;
+  }).join('');
+  container.style.display = '';
 }
 
 /* ── Companies dropdown ───────────────────────────────────────────────────── */
@@ -221,6 +333,7 @@ async function hdSubmit(e) {
   document.getElementById('hdError').style.display       = 'none';
 
   const fd = new FormData(document.getElementById('hdForm'));
+  _hdFiles.forEach(f => fd.append('attachments', f));
 
   try {
     const res  = await fetch('/api/helpdesk', { method: 'POST', body: fd });
@@ -239,6 +352,7 @@ async function hdSubmit(e) {
       document.getElementById('hdRequestType').innerHTML = '<option value="">— Select category first —</option>';
       document.getElementById('hdRequestType').disabled  = true;
       hdComputePriority();
+      _hdClearFiles();
     } else {
       document.getElementById('hdFormActions').style.display = 'flex';
       document.getElementById('hdError').style.display       = 'flex';
@@ -257,4 +371,23 @@ async function hdSubmit(e) {
 document.addEventListener('DOMContentLoaded', async () => {
   await Promise.all([_loadCompanies(), _loadCategories()]);
   await _applyUrlParams();
+
+  const zone = document.getElementById('hdDropZone');
+  if (zone) {
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('dragover');
+      const dt = e.dataTransfer;
+      if (dt?.files?.length) {
+        const slots = 5 - _hdFiles.length;
+        Array.from(dt.files).slice(0, slots).forEach(f => {
+          _hdFiles.push(f);
+          _hdObjectUrls.push(f.type.startsWith('image/') ? URL.createObjectURL(f) : null);
+        });
+        _renderHdPreviews();
+      }
+    });
+  }
 });
