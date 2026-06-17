@@ -403,6 +403,7 @@ function renderCard(item, idx = 0) {
     </div>` : '';
   return `<div class="kanban-card" id="card-${escHtml(item.id)}"
                style="animation-delay:${idx * 55}ms;--dev-clr:${devClr}">
+    ${item.dev_item_code ? `<div class="kcard-code">${escHtml(item.dev_item_code)}</div>` : ''}
     ${topRow}
     <div class="kcard-title">${escHtml(item.title)}</div>
     ${item.description ? `<div class="kcard-desc">${escHtml(item.description)}</div>` : ''}
@@ -620,7 +621,7 @@ function openDetailModal(idOrNull) {
 
   document.getElementById('detailModalTitle').textContent = item ? 'Edit Item' : 'New Item';
   document.getElementById('detailModalMeta').textContent  = item
-    ? `Created by ${item.created_by}`
+    ? `${item.dev_item_code ? item.dev_item_code + ' · ' : ''}Created by ${item.created_by}`
     : 'Fill in the details below';
   document.getElementById('itemEditId').value   = item?.id ?? '';
   document.getElementById('itemTitle').value    = item?.title ?? '';
