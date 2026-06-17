@@ -116,9 +116,11 @@ function _showPage(session) {
     `<div class="ri-header-avatar">${avatarHtml}</div>
      <span class="ri-header-username">${_esc(displayName)}</span>`;
 
-  // Parse ?system= query param
+  // Parse query params
   const params = new URLSearchParams(window.location.search);
-  const system = (params.get('system') || '').trim();
+  const system    = (params.get('system') || '').trim();
+  const errorCode = (params.get('error')  || '').trim();
+
   if (system) {
     document.getElementById('riSiteName').value          = system;
     document.getElementById('riSystemName').textContent  = system;
@@ -130,6 +132,10 @@ function _showPage(session) {
     document.getElementById('riSystemInput').addEventListener('input', e => {
       document.getElementById('riSiteName').value = e.target.value;
     });
+  }
+
+  if (errorCode) {
+    document.getElementById('riErrorCode').value = errorCode;
   }
 }
 

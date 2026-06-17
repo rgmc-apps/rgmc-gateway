@@ -947,6 +947,16 @@ async function openIssueModal(id) {
   document.getElementById('issueCompany').textContent    = issue.company_name;
   document.getElementById('issueDepartment').textContent = issue.department;
   document.getElementById('issueDescription').textContent = issue.description;
+
+  const ecGroup = document.getElementById('issueErrorCodeGroup');
+  const ecEl    = document.getElementById('issueErrorCode');
+  if (issue.error_code) {
+    ecEl.textContent        = issue.error_code;
+    ecGroup.style.display   = '';
+  } else {
+    ecGroup.style.display   = 'none';
+    ecEl.textContent        = '';
+  }
   document.getElementById('issueStatusSelect').value     = issue.status;
   _toggleIssueResolution(issue.status);
 

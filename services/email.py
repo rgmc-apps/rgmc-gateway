@@ -67,9 +67,13 @@ def send_report_email(form_data: dict, screenshots: list) -> bool:
           <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">{form_data.get('email','')}</td>
         </tr>
         <tr style="background:#f1f5f9;">
-          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;">SYSTEM</td>
-          <td style="padding:10px 14px;">{form_data.get('site_name','')}</td>
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">SYSTEM</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">{form_data.get('site_name','')}</td>
         </tr>
+        {f'''<tr>
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#dc2626;">ERROR CODE</td>
+          <td style="padding:10px 14px;font-weight:600;color:#dc2626;">{form_data.get("error_code","")}</td>
+        </tr>''' if form_data.get('error_code') else ''}
       </table>
       <h3 style="margin:0 0 10px;font-size:15px;color:#1e293b;">Problem Description</h3>
       <div style="background:#f8fafc;border-left:4px solid #2563eb;padding:14px 16px;border-radius:0 6px 6px 0;font-size:14px;line-height:1.6;">{description_html}</div>

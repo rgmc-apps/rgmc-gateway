@@ -42,6 +42,7 @@ def _submit_issue():
         "site_name":     request.form.get("site_name", "").strip(),
         "description":   request.form.get("description", "").strip(),
         "title":         request.form.get("title", "").strip() or None,
+        "error_code":    request.form.get("error_code", "").strip() or None,
     }
 
     missing = [k.replace("_", " ").title() for k, v in form_data.items() if k != "title" and not v]
@@ -73,6 +74,8 @@ def _submit_issue():
             }
             if form_data["title"]:
                 issue_row["title"] = form_data["title"]
+            if form_data["error_code"]:
+                issue_row["error_code"] = form_data["error_code"]
             rows = supabase_req("POST", "/issues", data=issue_row,
                                 extra_headers={"Prefer": "return=representation"})
             if rows:

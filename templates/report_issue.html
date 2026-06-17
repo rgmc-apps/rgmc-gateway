@@ -134,6 +134,14 @@
           </div>
 
           <div class="form-group form-group-full">
+            <label class="form-label" for="riErrorCode">Actual Error Code
+              <span class="form-label-hint">(optional — enter the exact error message displayed in the system, e.g. <em>Unknown Error</em>, <em>Bad Request</em>, <em>403 Forbidden</em>)</span>
+            </label>
+            <input class="form-input" type="text" id="riErrorCode" name="error_code"
+              placeholder="e.g. Unknown Error, Bad Request, Access Denied…">
+          </div>
+
+          <div class="form-group form-group-full">
             <label class="form-label" for="riDescription">Problem Description <span class="required">*</span></label>
             <textarea class="form-input form-textarea ri-textarea" id="riDescription" name="description" rows="5"
               placeholder="Describe the problem in detail — when it started, what you were doing, any error messages…"
