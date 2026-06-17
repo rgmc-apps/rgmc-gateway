@@ -8,20 +8,20 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('rgmc-theme')||'dark');</script>
+  <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('rgmc-theme')||'light');</script>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
   <header class="site-header">
     <div class="header-inner">
-      <div class="header-brand">
+      <a href="/" class="header-brand">
         <div class="header-logo-wrap">
           <img src="/static/logo.png" alt="RGMC Gateway" class="header-logo-img">
         </div>
         <div class="header-divider"></div>
         <div class="header-tagline">Admin Panel</div>
-      </div>
+      </a>
       <div id="adminHeaderUser" class="header-user"></div>
     </div>
   </header>
@@ -83,7 +83,7 @@
       <div class="admin-toolbar">
         <button class="btn-admin-add" onclick="openSystemModal(null)">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Add System
+          Add System / Task
         </button>
       </div>
       <div id="systems-body" class="admin-table-wrap">
@@ -152,6 +152,10 @@
             <label class="form-label" for="euFirstName">First Name</label>
             <input class="form-input" type="text" id="euFirstName" maxlength="80">
           </div>
+          <div class="form-group" style="max-width:90px;">
+            <label class="form-label" for="euMiddleInitial">M.I. <span class="form-label-hint">(optional)</span></label>
+            <input class="form-input" type="text" id="euMiddleInitial" maxlength="3" placeholder="B">
+          </div>
           <div class="form-group">
             <label class="form-label" for="euLastName">Last Name</label>
             <input class="form-input" type="text" id="euLastName" maxlength="80">
@@ -181,6 +185,16 @@
           <div class="form-group">
             <label class="form-label" for="euEmail">Email</label>
             <input class="form-input" type="email" id="euEmail">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="euViberNumber">Viber Number <span class="form-label-hint">(optional)</span></label>
+            <input class="form-input" type="tel" id="euViberNumber" maxlength="50" placeholder="+63 9XX XXX XXXX">
+          </div>
+          <div class="form-group" style="max-width:200px;">
+            <label class="form-label" for="euAnydeskId">AnyDesk ID <span class="form-label-hint">(9 digits)</span></label>
+            <input class="form-input" type="text" id="euAnydeskId" maxlength="9" pattern="\d{9}" placeholder="123456789">
           </div>
         </div>
         <div id="euFormActions" class="modal-actions">
@@ -276,12 +290,28 @@
       <div class="modal-header">
         <div>
           <h3 class="modal-title" id="systemModalTitle">Add System</h3>
-          <p class="modal-site-name">Fill in the system details below</p>
+          <p class="modal-site-name" id="systemModalSub">Fill in the details below</p>
         </div>
         <button class="modal-close" onclick="closeSystemModal()" aria-label="Close">&times;</button>
       </div>
       <form id="systemForm" class="modal-form" onsubmit="saveSystem(event)">
         <input type="hidden" id="systemEditId">
+
+        <div class="form-group form-group-full">
+          <label class="form-label">Item Type <span class="required">*</span></label>
+          <div class="sys-type-toggle">
+            <label class="sys-type-opt" id="sysTypeSystemOpt">
+              <input type="radio" name="sysItemType" id="sysTypeSystem" value="system" checked onchange="onSysTypeChange()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              System
+            </label>
+            <label class="sys-type-opt" id="sysTypeTaskOpt">
+              <input type="radio" name="sysItemType" id="sysTypeTask" value="task" onchange="onSysTypeChange()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              Task
+            </label>
+          </div>
+        </div>
 
         <div class="form-row">
           <div class="form-group">
@@ -299,29 +329,31 @@
         </div>
 
         <div class="form-group form-group-full">
-          <label class="form-label" for="sysName">System/Task Name <span class="required">*</span></label>
+          <label class="form-label" for="sysName">Name <span class="required">*</span></label>
           <input class="form-input" type="text" id="sysName" placeholder="RGMC My System">
         </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label" for="sysPrimaryUrl">Primary URL <span class="required">*</span></label>
-            <input class="form-input" type="url" id="sysPrimaryUrl" placeholder="https://…">
+        <div id="sysUrlSection">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="sysPrimaryUrl">Primary URL <span class="required">*</span></label>
+              <input class="form-input" type="url" id="sysPrimaryUrl" placeholder="https://…">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="sysPrimaryLabel">Primary Button Label <span class="required">*</span></label>
+              <input class="form-input" type="text" id="sysPrimaryLabel" placeholder="Open" value="Open">
+            </div>
           </div>
-          <div class="form-group">
-            <label class="form-label" for="sysPrimaryLabel">Primary Button Label <span class="required">*</span></label>
-            <input class="form-input" type="text" id="sysPrimaryLabel" placeholder="Open" value="Open">
-          </div>
-        </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label" for="sysBackupUrl">Backup URL <span class="form-label-hint">(optional)</span></label>
-            <input class="form-input" type="url" id="sysBackupUrl" placeholder="http://…">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="sysBackupLabel">Backup Button Label</label>
-            <input class="form-input" type="text" id="sysBackupLabel" placeholder="Backup">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="sysBackupUrl">Backup URL <span class="form-label-hint">(optional)</span></label>
+              <input class="form-input" type="url" id="sysBackupUrl" placeholder="http://…">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="sysBackupLabel">Backup Button Label</label>
+              <input class="form-input" type="text" id="sysBackupLabel" placeholder="Backup">
+            </div>
           </div>
         </div>
 
@@ -376,15 +408,21 @@
             <p class="modal-detail-val" id="issueReporter"></p>
           </div>
           <div class="form-group">
-            <label class="form-label">Email</label>
-            <p class="modal-detail-val" id="issueEmail"></p>
+            <label class="form-label">Company</label>
+            <p class="modal-detail-val" id="issueCompany"></p>
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Company</label>
-            <p class="modal-detail-val" id="issueCompany"></p>
+            <label class="form-label">Viber Number</label>
+            <p class="modal-detail-val" id="issueViberNumber"></p>
           </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <p class="modal-detail-val" id="issueEmail"></p>
+          </div>
+        </div>
+        <div class="form-row" id="issueDepartmentRow" style="display:none;">
           <div class="form-group">
             <label class="form-label">Department</label>
             <p class="modal-detail-val" id="issueDepartment"></p>
@@ -483,6 +521,21 @@
 
   <!-- Print area for developer PDF reports -->
   <div id="devPerfPrintArea"></div>
+
+  <!-- ── Attachment Lightbox ── -->
+  <div id="lightboxOverlay" class="lightbox-overlay" onclick="lightboxOverlayClick(event)">
+    <button class="lightbox-close" onclick="closeLightbox()" aria-label="Close">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <button class="lightbox-nav lightbox-prev" id="lightboxPrev" onclick="lightboxNav(-1)" aria-label="Previous">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="lightbox-content" id="lightboxContent" onclick="event.stopPropagation()"></div>
+    <button class="lightbox-nav lightbox-next" id="lightboxNext" onclick="lightboxNav(1)" aria-label="Next">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+    <div class="lightbox-counter" id="lightboxCounter"></div>
+  </div>
 
   <script src="/static/theme.js"></script>
   <script src="/static/admin.js"></script>

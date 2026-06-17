@@ -5,7 +5,7 @@ from flask import Blueprint, request, jsonify, current_app
 from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
 from services.supabase import supabase_req
 from services.guards import _require_admin
-from services.email import send_report_email, send_issue_resolved_email, send_issue_assigned_email
+from services.email import send_report_email, send_issue_resolved_email, send_issue_assigned_email, send_helpdesk_email
 
 issues_bp = Blueprint("issues", __name__)
 
@@ -37,15 +37,17 @@ def _submit_issue():
     form_data = {
         "employee_name": request.form.get("employee_name", "").strip(),
         "company_name":  request.form.get("company_name", "").strip(),
-        "department":    request.form.get("department", "").strip(),
+        "viber_number":  request.form.get("viber_number", "").strip(),
         "email":         request.form.get("email", "").strip(),
+        "department":    request.form.get("department", "").strip(),
         "site_name":     request.form.get("site_name", "").strip(),
         "description":   request.form.get("description", "").strip(),
         "title":         request.form.get("title", "").strip() or None,
         "error_code":    request.form.get("error_code", "").strip() or None,
     }
 
-    missing = [k.replace("_", " ").title() for k, v in form_data.items() if k != "title" and not v]
+    required = ["employee_name", "company_name", "viber_number", "email", "site_name", "description"]
+    missing  = [k.replace("_", " ").title() for k in required if not form_data[k]]
     if missing:
         return jsonify({"success": False, "error": f"Missing: {', '.join(missing)}"}), 400
 
@@ -60,6 +62,7 @@ def _submit_issue():
     raw_files = raw_files[:5]
 
     issue_id: str | None = None
+    ticket_number: str | None = None
     attachment_urls: list[str] = []
 
     if SUPABASE_URL and SUPABASE_SERVICE_KEY:
@@ -68,8 +71,9 @@ def _submit_issue():
                 "site_name":     form_data["site_name"],
                 "employee_name": form_data["employee_name"],
                 "company_name":  form_data["company_name"],
-                "department":    form_data["department"],
+                "viber_number":  form_data["viber_number"],
                 "email":         form_data["email"],
+                "department":    form_data["department"] or "",
                 "description":   form_data["description"],
             }
             if form_data["title"]:
@@ -79,7 +83,8 @@ def _submit_issue():
             rows = supabase_req("POST", "/issues", data=issue_row,
                                 extra_headers={"Prefer": "return=representation"})
             if rows:
-                issue_id = rows[0]["id"]
+                issue_id      = rows[0]["id"]
+                ticket_number = rows[0].get("ticket_number")
         except Exception as exc:
             current_app.logger.error("Issue save failed: %s", exc)
 
@@ -97,9 +102,91 @@ def _submit_issue():
                     current_app.logger.error("Attachment URL save failed: %s", exc)
 
     email_attachments = [{"filename": f["filename"], "data": f["data"]} for f in raw_files]
-    send_report_email(form_data, email_attachments)
+    send_report_email(form_data, email_attachments, ticket_number=ticket_number)
 
-    return jsonify({"success": True, "message": "Your report has been submitted. The IT team will be in touch shortly."})
+    msg = (f"Your report {ticket_number} has been submitted. The IT team will be in touch shortly."
+           if ticket_number else
+           "Your report has been submitted. The IT team will be in touch shortly.")
+    return jsonify({"success": True, "message": msg, "ticket_number": ticket_number})
+
+
+def _submit_helpdesk_issue():
+    form_data = {
+        "employee_name":      request.form.get("employee_name", "").strip(),
+        "email":              request.form.get("email", "").strip(),
+        "viber_number":       request.form.get("viber_number", "").strip(),
+        "company_name":       request.form.get("company_name", "").strip(),
+        "department":         request.form.get("department", "").strip(),
+        "anydesk_id":         request.form.get("anydesk_id", "").strip() or None,
+        "ticket_type":        request.form.get("ticket_type", "").strip(),
+        "request_category":   request.form.get("request_category", "").strip(),
+        "request_subcategory": request.form.get("request_subcategory", "").strip() or None,
+        "request_type_name":  request.form.get("request_type_name", "").strip() or None,
+        "business_impact":    request.form.get("business_impact", "").strip() or None,
+        "urgency":            request.form.get("urgency", "").strip() or None,
+        "priority":           request.form.get("priority", "").strip() or None,
+        "title":              request.form.get("title", "").strip() or None,
+        "description":        request.form.get("description", "").strip(),
+    }
+
+    required = ["employee_name", "email", "viber_number", "company_name",
+                "ticket_type", "request_category", "description"]
+    missing = [k.replace("_", " ").title() for k in required if not form_data[k]]
+    if missing:
+        return jsonify({"success": False, "error": f"Missing: {', '.join(missing)}"}), 400
+
+    if form_data["anydesk_id"] and not re.match(r'^\d{9}$', form_data["anydesk_id"]):
+        return jsonify({"success": False, "error": "AnyDesk ID must be exactly 9 digits"}), 400
+
+    site_name = form_data["request_subcategory"] or form_data["request_category"]
+
+    issue_row = {
+        "site_name":           site_name,
+        "employee_name":       form_data["employee_name"],
+        "company_name":        form_data["company_name"],
+        "viber_number":        form_data["viber_number"],
+        "email":               form_data["email"],
+        "department":          form_data["department"],
+        "description":         form_data["description"],
+        "from_helpdesk":       True,
+        "ticket_type":         form_data["ticket_type"],
+        "request_category":    form_data["request_category"],
+        "request_subcategory": form_data["request_subcategory"],
+        "request_type_name":   form_data["request_type_name"],
+        "business_impact":     form_data["business_impact"],
+        "urgency":             form_data["urgency"],
+        "priority":            form_data["priority"],
+    }
+    if form_data["anydesk_id"]:
+        issue_row["anydesk_id"] = form_data["anydesk_id"]
+    if form_data["title"]:
+        issue_row["title"] = form_data["title"]
+
+    ticket_number = None
+
+    if SUPABASE_URL and SUPABASE_SERVICE_KEY:
+        try:
+            rows = supabase_req("POST", "/issues", data=issue_row,
+                                extra_headers={"Prefer": "return=representation"})
+            if rows:
+                ticket_number = rows[0].get("ticket_number")
+        except Exception as exc:
+            current_app.logger.error("Helpdesk issue save failed: %s", exc)
+
+    try:
+        send_helpdesk_email(form_data, ticket_number)
+    except Exception as exc:
+        current_app.logger.error("send_helpdesk_email failed: %s", exc)
+
+    msg = (f"Your ticket {ticket_number} has been submitted. The IT team will be in touch shortly."
+           if ticket_number else
+           "Your ticket has been submitted. The IT team will be in touch shortly.")
+    return jsonify({"success": True, "message": msg, "ticket_number": ticket_number})
+
+
+@issues_bp.post("/api/helpdesk")
+def api_submit_helpdesk():
+    return _submit_helpdesk_issue()
 
 
 @issues_bp.post("/report")

@@ -145,7 +145,9 @@ document.addEventListener('DOMContentLoaded', () => {
   _loadAdminCompanies();
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); }
+    if (e.key === 'Escape')      { closeLightbox(); closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); }
+    if (e.key === 'ArrowLeft')   lightboxNav(-1);
+    if (e.key === 'ArrowRight')  lightboxNav(1);
   });
   document.addEventListener('click', () => closeProfileMenu());
 
@@ -492,12 +494,12 @@ async function loadSystems() {
         <thead>
           <tr>
             <th>Name</th>
+            <th>Type</th>
             <th>Category</th>
             <th>Visible</th>
             <th>Primary URL</th>
             <th>Label</th>
             <th>Backup URL</th>
-            <th>Backup Label</th>
             <th>Order</th>
             <th></th>
           </tr>
@@ -516,14 +518,20 @@ function renderSystemRow(s) {
   const visibleBadge = s.is_visible !== false
     ? '<span class="badge-visible">Visible</span>'
     : '<span class="badge-hidden">Hidden</span>';
+  const typeBadge = s.is_task
+    ? '<span class="badge-item-task">Task</span>'
+    : '<span class="badge-item-system">System</span>';
+  const primaryUrlCell = s.primary_url
+    ? `<a href="${escHtml(s.primary_url)}" target="_blank" rel="noopener" class="tbl-link url-cell" title="${escHtml(s.primary_url)}">${escHtml(truncUrl(s.primary_url))}</a>`
+    : '<span class="text-muted">—</span>';
   return `<tr>
     <td><span class="user-name">${escHtml(s.name)}</span></td>
+    <td>${typeBadge}</td>
     <td><span class="label-badge ${catClass}">${escHtml(s.category)}</span></td>
     <td>${visibleBadge}</td>
-    <td><a href="${escHtml(s.primary_url)}" target="_blank" rel="noopener" class="tbl-link url-cell" title="${escHtml(s.primary_url)}">${escHtml(truncUrl(s.primary_url))}</a></td>
-    <td>${escHtml(s.primary_label)}</td>
+    <td>${primaryUrlCell}</td>
+    <td>${escHtml(s.primary_label || '—')}</td>
     <td>${s.backup_url ? `<a href="${escHtml(s.backup_url)}" target="_blank" rel="noopener" class="tbl-link url-cell" title="${escHtml(s.backup_url)}">${escHtml(truncUrl(s.backup_url))}</a>` : '<span class="text-muted">—</span>'}</td>
-    <td>${escHtml(s.backup_label || '—')}</td>
     <td class="date-cell">${s.sort_order}</td>
     <td class="action-cell">
       <button class="btn-tbl-secondary" onclick='openSystemModal(${JSON.stringify(s)})'>Edit</button>
@@ -544,12 +552,16 @@ function truncUrl(url) {
 
 function openSystemModal(system) {
   _editingSystemId = system ? system.id : null;
-  document.getElementById('systemModalTitle').textContent = system ? 'Edit System' : 'Add System';
+  const isTask = system ? !!system.is_task : false;
+
+  document.getElementById('systemModalTitle').textContent = system ? `Edit ${isTask ? 'Task' : 'System'}` : 'Add System / Task';
 
   const idField = document.getElementById('sysId');
-  idField.value    = system?.id            ?? '';
-  idField.disabled = !!system;             // ID is immutable after creation
+  idField.value    = system?.id ?? '';
+  idField.disabled = !!system;
 
+  document.getElementById('sysTypeSystem').checked = !isTask;
+  document.getElementById('sysTypeTask').checked   = isTask;
   document.getElementById('sysName').value         = system?.name          ?? '';
   document.getElementById('sysCategory').value     = system?.category      ?? 'RGMC';
   document.getElementById('sysPrimaryUrl').value   = system?.primary_url   ?? '';
@@ -559,9 +571,26 @@ function openSystemModal(system) {
   document.getElementById('sysSortOrder').value    = system?.sort_order    ?? 0;
   document.getElementById('sysIsVisible').checked  = system ? (system.is_visible !== false) : true;
 
+  _applySysTypeUi(isTask);
   resetSysForm();
   document.getElementById('systemModal').classList.add('open');
   document.body.style.overflow = 'hidden';
+}
+
+function onSysTypeChange() {
+  _applySysTypeUi(document.getElementById('sysTypeTask').checked);
+}
+
+function _applySysTypeUi(isTask) {
+  document.getElementById('sysUrlSection').style.display = isTask ? 'none' : '';
+  document.getElementById('sysTypeSystemOpt').classList.toggle('active', !isTask);
+  document.getElementById('sysTypeTaskOpt').classList.toggle('active', isTask);
+  if (isTask) {
+    document.getElementById('sysPrimaryUrl').value   = '';
+    document.getElementById('sysPrimaryLabel').value = '';
+    document.getElementById('sysBackupUrl').value    = '';
+    document.getElementById('sysBackupLabel').value  = '';
+  }
 }
 
 function closeSystemModal() {
@@ -584,27 +613,34 @@ function resetSysForm() {
 async function saveSystem(e) {
   e.preventDefault();
 
+  const isTask      = document.getElementById('sysTypeTask').checked;
   const id          = document.getElementById('sysId').value.trim();
   const name        = document.getElementById('sysName').value.trim();
   const category    = document.getElementById('sysCategory').value;
-  const primaryUrl  = document.getElementById('sysPrimaryUrl').value.trim();
-  const primaryLabel= document.getElementById('sysPrimaryLabel').value.trim();
+  const primaryUrl  = document.getElementById('sysPrimaryUrl').value.trim() || null;
+  const primaryLabel= document.getElementById('sysPrimaryLabel').value.trim() || null;
   const backupUrl   = document.getElementById('sysBackupUrl').value.trim() || null;
   const backupLabel = document.getElementById('sysBackupLabel').value.trim() || null;
   const sortOrder   = parseInt(document.getElementById('sysSortOrder').value, 10) || 0;
   const isVisible   = document.getElementById('sysIsVisible').checked;
 
   if (!_editingSystemId && !id) {
-    showSysError('System ID is required.');
+    showSysError('ID is required.');
     return;
   }
-  if (!name || !primaryUrl || !primaryLabel) {
-    showSysError('Name, Primary URL, and Primary Label are required.');
+  if (!name) {
+    showSysError('Name is required.');
+    return;
+  }
+  if (!isTask && (!primaryUrl || !primaryLabel)) {
+    showSysError('Primary URL and Primary Label are required for systems.');
     return;
   }
 
   document.getElementById('sysFormActions').style.display = 'none';
   document.getElementById('sysFormLoading').style.display = '';
+
+  const payload = { name, category, is_task: isTask, primary_url: primaryUrl, primary_label: primaryLabel, backup_url: backupUrl, backup_label: backupLabel, sort_order: sortOrder, is_visible: isVisible };
 
   try {
     let res;
@@ -612,21 +648,22 @@ async function saveSystem(e) {
       res = await fetch(`/api/admin/systems/${encodeURIComponent(_editingSystemId)}`, {
         method:  'PATCH',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ name, category, primary_url: primaryUrl, primary_label: primaryLabel, backup_url: backupUrl, backup_label: backupLabel, sort_order: sortOrder, is_visible: isVisible }),
+        body:    JSON.stringify(payload),
       });
     } else {
       res = await fetch('/api/admin/systems', {
         method:  'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ id, name, category, primary_url: primaryUrl, primary_label: primaryLabel, backup_url: backupUrl, backup_label: backupLabel, sort_order: sortOrder, is_visible: isVisible }),
+        body:    JSON.stringify({ id, ...payload }),
       });
     }
     if (!res.ok) {
       const err = await res.json();
       throw new Error(err.error || 'Save failed');
     }
+    const kind = isTask ? 'Task' : 'System';
     closeSystemModal();
-    showToast(`System ${_editingSystemId ? 'updated' : 'added'} successfully.`);
+    showToast(`${kind} ${_editingSystemId ? 'updated' : 'added'} successfully.`);
     loadSystems();
   } catch (err) {
     document.getElementById('sysFormLoading').style.display = 'none';
@@ -687,12 +724,15 @@ function openEditUserModal(username) {
   _editingUsername = username;
 
   document.getElementById('editUserSubtitle').textContent = `@${username}`;
-  document.getElementById('euFirstName').value    = user.first_name   || '';
-  document.getElementById('euLastName').value     = user.last_name    || '';
-  document.getElementById('euDisplayName').value  = user.display_name || '';
-  document.getElementById('euDepartment').value   = user.department   || '';
-  document.getElementById('euPosition').value     = user.position     || '';
-  document.getElementById('euEmail').value        = user.email        || '';
+  document.getElementById('euFirstName').value      = user.first_name      || '';
+  document.getElementById('euMiddleInitial').value  = user.middle_initial  || '';
+  document.getElementById('euLastName').value       = user.last_name       || '';
+  document.getElementById('euDisplayName').value    = user.display_name    || '';
+  document.getElementById('euDepartment').value   = user.department    || '';
+  document.getElementById('euPosition').value     = user.position      || '';
+  document.getElementById('euEmail').value        = user.email         || '';
+  document.getElementById('euViberNumber').value  = user.viber_number  || '';
+  document.getElementById('euAnydeskId').value    = user.anydesk_id   || '';
   _fillCompanySelect('euCompany', user.company || '');
 
   document.getElementById('euFormActions').style.display = '';
@@ -722,13 +762,16 @@ async function saveEditUser(e) {
   document.getElementById('euFormError').style.display   = 'none';
 
   const patch = {
-    first_name:   document.getElementById('euFirstName').value.trim(),
-    last_name:    document.getElementById('euLastName').value.trim(),
-    display_name: document.getElementById('euDisplayName').value.trim() || null,
-    company:      document.getElementById('euCompany').value || null,
-    department:   document.getElementById('euDepartment').value.trim() || null,
-    position:     document.getElementById('euPosition').value.trim()   || null,
+    first_name:      document.getElementById('euFirstName').value.trim(),
+    middle_initial:  document.getElementById('euMiddleInitial').value.trim() || null,
+    last_name:       document.getElementById('euLastName').value.trim(),
+    display_name: document.getElementById('euDisplayName').value.trim()   || null,
+    company:      document.getElementById('euCompany').value              || null,
+    department:   document.getElementById('euDepartment').value.trim()    || null,
+    position:     document.getElementById('euPosition').value.trim()      || null,
     email:        document.getElementById('euEmail').value.trim(),
+    viber_number: document.getElementById('euViberNumber').value.trim()   || null,
+    anydesk_id:   document.getElementById('euAnydeskId').value.trim()     || null,
   };
 
   try {
@@ -904,16 +947,94 @@ async function loadIssues(filterStatus) {
   }
 }
 
+/* ── Lightbox ── */
+let _lbUrls = [];
+let _lbIdx  = 0;
+
+function openLightbox(issueId, idx) {
+  const issue = _issuesCache.find(i => i.id === issueId);
+  _lbUrls = issue ? (issue.attachment_urls || []) : [];
+  _lbIdx  = idx;
+  _renderLightbox();
+  document.getElementById('lightboxOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function _renderLightbox() {
+  const url   = _lbUrls[_lbIdx];
+  const name  = decodeURIComponent(url.split('/').pop().replace(/^\d+_/, ''));
+  const isImg = /\.(jpg|jpeg|png|gif|webp)$/i.test(name);
+  const isPdf = /\.pdf$/i.test(name);
+  const multi = _lbUrls.length > 1;
+
+  const content = document.getElementById('lightboxContent');
+  if (isImg) {
+    content.innerHTML = `<img src="${escHtml(url)}" class="lightbox-img" alt="${escHtml(name)}">`;
+  } else if (isPdf) {
+    content.innerHTML = `<iframe src="${escHtml(url)}" class="lightbox-pdf" title="${escHtml(name)}"></iframe>`;
+  } else {
+    content.innerHTML = `<div class="lightbox-other">
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <p>${escHtml(name)}</p>
+      <a href="${escHtml(url)}" target="_blank" rel="noopener" class="lightbox-download-btn">Download file</a>
+    </div>`;
+  }
+
+  document.getElementById('lightboxPrev').style.display    = multi ? '' : 'none';
+  document.getElementById('lightboxNext').style.display    = multi ? '' : 'none';
+  document.getElementById('lightboxCounter').textContent   = multi ? `${_lbIdx + 1} / ${_lbUrls.length}` : '';
+  document.getElementById('lightboxCounter').style.display = multi ? '' : 'none';
+}
+
+function closeLightbox() {
+  const overlay = document.getElementById('lightboxOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function lightboxOverlayClick(e) {
+  if (e.target === document.getElementById('lightboxOverlay')) closeLightbox();
+}
+
+function lightboxNav(dir) {
+  if (!_lbUrls.length) return;
+  _lbIdx = (_lbIdx + dir + _lbUrls.length) % _lbUrls.length;
+  _renderLightbox();
+}
+
+function _renderAttachPreviews(issueId, urls) {
+  if (!urls || !urls.length) return '<span class="text-muted">—</span>';
+  const shown = urls.slice(0, 3);
+  const extra = urls.length - shown.length;
+  const items = shown.map((u, i) => {
+    const name  = decodeURIComponent(u.split('/').pop().replace(/^\d+_/, ''));
+    const isImg = /\.(jpg|jpeg|png|gif|webp)$/i.test(name);
+    const isPdf = /\.pdf$/i.test(name);
+    if (isImg) {
+      return `<button class="attach-thumb" title="${escHtml(name)}" onclick="openLightbox('${escHtml(issueId)}',${i})"><img src="${escHtml(u)}" alt="${escHtml(name)}" loading="lazy"></button>`;
+    }
+    if (isPdf) {
+      return `<button class="attach-thumb attach-thumb-pdf" title="${escHtml(name)}" onclick="openLightbox('${escHtml(issueId)}',${i})"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>PDF</span></button>`;
+    }
+    return `<a href="${escHtml(u)}" target="_blank" rel="noopener" class="attach-thumb attach-thumb-file" title="${escHtml(name)}"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></a>`;
+  });
+  if (extra > 0) items.push(`<span class="attach-thumb-more">+${extra}</span>`);
+  return `<div class="attach-thumb-row">${items.join('')}</div>`;
+}
+
 function renderIssueRow(issue) {
   const statusBadge = `<span class="label-badge ${ISSUE_STATUS_CLASS[issue.status] || 'label-rgmc'}">${ISSUE_STATUS_LABELS[issue.status] || issue.status}</span>`;
   const titleText   = issue.title ? issue.title : (issue.description.length > 60 ? issue.description.slice(0, 58) + '…' : issue.description);
-  const attachCount = (issue.attachment_urls || []).length;
   const devBadge    = issue.dev_item_id ? '<span class="badge-dev" title="Promoted to dev item">Dev</span> ' : '';
+  const ticketRef = issue.ticket_number
+    ? `<code class="mono-val" style="font-size:11px;">${escHtml(issue.ticket_number)}</code><br>`
+    : '';
   return `<tr>
-    <td><span class="user-name">${escHtml(issue.site_name)}</span></td>
+    <td>${ticketRef}<span class="user-name">${escHtml(issue.site_name)}</span></td>
     <td>${escHtml(issue.employee_name)}<br><small class="text-muted">${escHtml(issue.company_name)}</small></td>
     <td class="issue-desc-cell">${devBadge}${escHtml(titleText)}</td>
-    <td class="date-cell">${attachCount > 0 ? `<span class="attach-count">${attachCount} file${attachCount > 1 ? 's' : ''}</span>` : '<span class="text-muted">—</span>'}</td>
+    <td class="attach-preview-cell">${_renderAttachPreviews(issue.id, issue.attachment_urls)}</td>
     <td>${statusBadge}</td>
     <td>${issue.assigned_to ? `<code class="mono-val">${escHtml(issue.assigned_to)}</code>` : '<span class="text-muted">—</span>'}</td>
     <td class="date-cell">${fmtDateTime(issue.created_at)}</td>
@@ -939,13 +1060,23 @@ async function openIssueModal(id) {
   if (!issue) return;
   _editingIssueId = id;
 
-  document.getElementById('issueModalTitle').textContent  = `Issue: ${issue.site_name}`;
+  const titleRef = issue.ticket_number
+    ? `[${issue.ticket_number}] ${issue.site_name}`
+    : `Issue: ${issue.site_name}`;
+  document.getElementById('issueModalTitle').textContent  = titleRef;
   document.getElementById('issueModalMeta').textContent   = `Submitted ${fmtDateTime(issue.created_at)}`;
   document.getElementById('issueTitleInput').value        = issue.title || '';
-  document.getElementById('issueReporter').textContent    = issue.employee_name;
-  document.getElementById('issueEmail').innerHTML        = `<a href="mailto:${escHtml(issue.email)}" class="tbl-link">${escHtml(issue.email)}</a>`;
-  document.getElementById('issueCompany').textContent    = issue.company_name;
-  document.getElementById('issueDepartment').textContent = issue.department;
+  document.getElementById('issueReporter').textContent     = issue.employee_name;
+  document.getElementById('issueCompany').textContent     = issue.company_name;
+  document.getElementById('issueViberNumber').textContent = issue.viber_number || '—';
+  document.getElementById('issueEmail').innerHTML         = `<a href="mailto:${escHtml(issue.email)}" class="tbl-link">${escHtml(issue.email)}</a>`;
+  const deptRow = document.getElementById('issueDepartmentRow');
+  if (issue.department) {
+    document.getElementById('issueDepartment').textContent = issue.department;
+    deptRow.style.display = '';
+  } else {
+    deptRow.style.display = 'none';
+  }
   document.getElementById('issueDescription').textContent = issue.description;
 
   const ecGroup = document.getElementById('issueErrorCodeGroup');

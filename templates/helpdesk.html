@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RGMC IT Online Helpdesk</title>
+  <link rel="icon" type="image/png" href="/static/badge.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('rgmc-theme')||'light');</script>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="ri-body-root">
+
+  <div id="hdPage" class="ri-page">
+
+    <!-- Header -->
+    <header class="ri-header">
+      <div class="ri-header-inner">
+        <a href="/" class="ri-header-brand">
+          <img src="/static/logo.png" alt="RGMC" class="ri-header-logo">
+          <div class="ri-header-divider"></div>
+          <span class="ri-header-title">IT Online Helpdesk</span>
+        </a>
+      </div>
+    </header>
+
+    <!-- Form area -->
+    <main class="ri-main">
+      <div class="ri-card">
+
+        <!-- Card heading -->
+        <div class="ri-card-head">
+          <h2 class="ri-card-title">RGMC IT Online Helpdesk</h2>
+          <p class="ri-card-sub">All fields marked <span class="required">*</span> are required.</p>
+        </div>
+
+        <form id="hdForm" onsubmit="hdSubmit(event)">
+
+          <!-- ── SECTION 1: Ticket Information ─────────────────── -->
+          <div class="hd-section-label">Ticket Information</div>
+
+          <!-- Ticket Type -->
+          <div class="form-group form-group-full">
+            <label class="form-label">Ticket Type <span class="required">*</span></label>
+            <div class="hd-ticket-types" id="hdTicketTypes">
+
+              <label class="hd-ticket-option" id="hdOpt_service_request">
+                <input type="radio" name="ticket_type" value="service_request" onchange="hdOnTicketType(this)">
+                <div>
+                  <div class="hd-ticket-option-title">Service Request</div>
+                  <div class="hd-ticket-option-desc">An immediate act is requested (e.g., "I need access to the shared folder"). Nothing is broken, and no service is down.</div>
+                </div>
+              </label>
+
+              <label class="hd-ticket-option" id="hdOpt_incident_problem">
+                <input type="radio" name="ticket_type" value="incident_problem" onchange="hdOnTicketType(this)">
+                <div>
+                  <div class="hd-ticket-option-title">Incident / Problem</div>
+                  <div class="hd-ticket-option-desc">Something is broken or disrupted (e.g., "I can't connect to the internet", "hardware is not working", "System returned an Error"). The goal is to restore normal service.</div>
+                </div>
+              </label>
+
+              <label class="hd-ticket-option" id="hdOpt_change_request">
+                <input type="radio" name="ticket_type" value="change_request" onchange="hdOnTicketType(this)">
+                <div>
+                  <div class="hd-ticket-option-title">Change Request</div>
+                  <div class="hd-ticket-option-desc">Something is requested to be modified (e.g., "I need the system to have these features", "I need to change password").</div>
+                </div>
+              </label>
+
+            </div>
+          </div>
+
+          <div class="form-row">
+            <!-- Business Impact -->
+            <div class="form-group">
+              <label class="form-label" for="hdBusinessImpact">Business Impact</label>
+              <select class="form-input" id="hdBusinessImpact" name="business_impact" onchange="hdComputePriority()">
+                <option value="">— Select impact —</option>
+                <option value="high">High — Company Wide</option>
+                <option value="medium">Medium — Department to Team Wide</option>
+                <option value="low">Low — Single Person / User</option>
+              </select>
+            </div>
+            <!-- Urgency -->
+            <div class="form-group">
+              <label class="form-label" for="hdUrgency">Urgency</label>
+              <select class="form-input" id="hdUrgency" name="urgency" onchange="hdComputePriority()">
+                <option value="">— Select urgency —</option>
+                <option value="high">High — Immediate</option>
+                <option value="medium">Medium — Needs Prompt Action</option>
+                <option value="low">Low — Can Wait</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Priority (computed read-only) -->
+          <div class="form-group form-group-full">
+            <label class="form-label">Priority <span class="form-label-hint">(auto-computed from Business Impact &amp; Urgency)</span></label>
+            <div class="hd-priority-display" id="hdPriorityDisplay">
+              <span class="hd-priority-empty" id="hdPriorityEmpty">Select Business Impact and Urgency to compute priority</span>
+              <span class="hd-priority-badge" id="hdPriorityBadge" style="display:none;"></span>
+              <span class="hd-priority-sub" id="hdPrioritySub" style="display:none;"></span>
+            </div>
+            <input type="hidden" id="hdPriorityValue" name="priority">
+          </div>
+
+          <hr class="hd-divider">
+
+          <!-- ── SECTION 2: Requestor Information ──────────────── -->
+          <div class="hd-section-label">Requestor Information</div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="hdName">Name <span class="required">*</span></label>
+              <input class="form-input" type="text" id="hdName" name="employee_name"
+                placeholder="Juan dela Cruz" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="hdEmail">Email <span class="required">*</span></label>
+              <input class="form-input" type="email" id="hdEmail" name="email"
+                placeholder="you@rgmcgroup.com" required>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="hdPhone">Viber / Phone <span class="required">*</span></label>
+              <input class="form-input" type="tel" id="hdPhone" name="viber_number"
+                placeholder="+63 9XX XXX XXXX" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="hdCompany">Company <span class="required">*</span></label>
+              <select class="form-input" id="hdCompany" name="company_name" required>
+                <option value="" disabled selected>Select company…</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="hdDepartment">Department
+                <span class="form-label-hint">(optional)</span>
+              </label>
+              <input class="form-input" type="text" id="hdDepartment" name="department"
+                placeholder="IT / Finance / Operations">
+            </div>
+            <div class="form-group" style="max-width:200px;">
+              <label class="form-label" for="hdAnydeskId">AnyDesk ID
+                <span class="form-label-hint">(optional — 9 digits)</span>
+              </label>
+              <input class="form-input" type="text" id="hdAnydeskId" name="anydesk_id"
+                maxlength="9" pattern="\d{9}" placeholder="e.g. 123456789">
+            </div>
+          </div>
+
+          <hr class="hd-divider">
+
+          <!-- ── SECTION 3: Request Details ────────────────────── -->
+          <div class="hd-section-label">Request Details</div>
+
+          <div class="form-row">
+            <!-- Request Category -->
+            <div class="form-group">
+              <label class="form-label" for="hdCategory">Request Category <span class="required">*</span></label>
+              <select class="form-input" id="hdCategory" name="request_category"
+                onchange="hdOnCategoryChange()" required>
+                <option value="" disabled selected>Select category…</option>
+              </select>
+            </div>
+            <!-- Request Sub-category -->
+            <div class="form-group">
+              <label class="form-label" for="hdSubcategory">Sub-category</label>
+              <select class="form-input" id="hdSubcategory" name="request_subcategory" disabled>
+                <option value="">— Select category first —</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Request Type -->
+          <div class="form-group form-group-full">
+            <label class="form-label" for="hdRequestType">Request Type</label>
+            <select class="form-input" id="hdRequestType" name="request_type_name" disabled>
+              <option value="">— Select category first —</option>
+            </select>
+          </div>
+
+          <!-- Short Description -->
+          <div class="form-group form-group-full">
+            <label class="form-label" for="hdTitle">Short Description of the Issue
+              <span class="form-label-hint">(optional)</span>
+            </label>
+            <input class="form-input" type="text" id="hdTitle" name="title"
+              placeholder="e.g. Cannot log in to the system">
+          </div>
+
+          <!-- Full Description -->
+          <div class="form-group form-group-full">
+            <label class="form-label" for="hdDescription">Specific Issues / Concerns <span class="required">*</span></label>
+            <textarea class="form-input form-textarea ri-textarea" id="hdDescription" name="description" rows="5"
+              placeholder="Describe the issue in detail — when it started, what you were doing, any error messages…"
+              required></textarea>
+          </div>
+
+          <!-- Actions -->
+          <div id="hdFormActions" class="ri-form-actions">
+            <button type="submit" class="ri-submit-btn" id="hdSubmitBtn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              Submit Ticket
+            </button>
+          </div>
+          <div id="hdLoading" class="form-state" style="display:none;">
+            <div class="spinner"></div><span>Submitting ticket…</span>
+          </div>
+          <div id="hdSuccess" class="form-state form-success ri-success" style="display:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <div>
+              <div id="hdSuccessMsg" style="font-weight:600;"></div>
+              <div class="ri-success-sub">The IT team will be in touch shortly.</div>
+            </div>
+          </div>
+          <div id="hdError" class="form-state form-error" style="display:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="hdErrorMsg"></span>
+          </div>
+
+        </form>
+
+      </div>
+    </main>
+
+    <footer class="ri-footer">
+      <div>RGMC Group &mdash; Internal Systems Portal</div>
+    </footer>
+
+  </div><!-- /hdPage -->
+
+  <script src="/static/theme.js"></script>
+  <script src="/static/helpdesk.js"></script>
+</body>
+</html>

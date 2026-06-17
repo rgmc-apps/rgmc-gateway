@@ -7,12 +7,15 @@ from services.supabase import supabase_req
 logger = logging.getLogger(__name__)
 
 
-def generate_username(first_name: str, last_name: str) -> str:
+def generate_username(first_name: str, last_name: str, middle_initial: str = "") -> str:
     def clean(s):
         return re.sub(r"[^a-z0-9]", "", s.lower())
 
-    base = clean(first_name[:1]) + clean(last_name.replace(" ", ""))
-    base = base or "user"
+    words          = [w for w in first_name.split() if w]
+    first_word     = clean(words[0]) if words else ""
+    other_initials = "".join(clean(w)[0] for w in words[1:] if clean(w))
+    mi             = clean(middle_initial[:1]) if middle_initial else ""
+    clean_last     = clean(last_name.replace(" ", ""))
 
     try:
         rows = supabase_req("GET", "/access_requests", params={
@@ -23,8 +26,15 @@ def generate_username(first_name: str, last_name: str) -> str:
     except Exception:
         used = set()
 
-    if base not in used:
-        return base
+    # Try: first N chars of first word + initials of remaining words + last name.
+    # N starts at 1 (initials-only) and grows until a unique name is found.
+    for n in range(1, len(first_word) + 1):
+        candidate = first_word[:n] + other_initials + mi + clean_last
+        if candidate and candidate not in used:
+            return candidate
+
+    # All letter-extension variants taken → numeric suffix on the longest form
+    base = (first_word + other_initials + mi + clean_last) or "user"
     i = 1
     while f"{base}{i}" in used:
         i += 1
@@ -59,7 +69,11 @@ def _approve_record(record: dict):
         except Exception as exc:
             logger.error("System merge failed: %s", exc)
     else:
-        username = generate_username(record["first_name"], record["last_name"])
+        username = generate_username(
+            record["first_name"],
+            record["last_name"],
+            record.get("middle_initial", ""),
+        )
 
     try:
         supabase_req("PATCH", "/access_requests", data={

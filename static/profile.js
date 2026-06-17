@@ -225,19 +225,30 @@ async function saveProfile() {
     }
 
     // ── Profile fields ──
-    const firstName   = document.getElementById('fieldFirstName').value.trim();
-    const lastName    = document.getElementById('fieldLastName').value.trim();
-    const displayName = document.getElementById('fieldDisplayName').value.trim();
-    const email       = document.getElementById('fieldEmail').value.trim();
-    const company     = document.getElementById('fieldCompany').value;
-    const department  = document.getElementById('fieldDepartment').value.trim();
-    const position    = document.getElementById('fieldPosition').value.trim();
+    const firstName     = document.getElementById('fieldFirstName').value.trim();
+    const middleInitial = document.getElementById('fieldMiddleInitial').value.trim();
+    const lastName      = document.getElementById('fieldLastName').value.trim();
+    const displayName   = document.getElementById('fieldDisplayName').value.trim();
+    const email         = document.getElementById('fieldEmail').value.trim();
+    const viberNumber   = document.getElementById('fieldViberNumber').value.trim();
+    const anydeskId     = document.getElementById('fieldAnydeskId').value.trim();
+    const company       = document.getElementById('fieldCompany').value;
+    const department    = document.getElementById('fieldDepartment').value.trim();
+    const position      = document.getElementById('fieldPosition').value.trim();
+
+    if (anydeskId && !/^\d{9}$/.test(anydeskId)) {
+      status.textContent = 'AnyDesk ID must be exactly 9 digits.';
+      status.className = 'profile-save-status error';
+      btn.disabled = false;
+      return;
+    }
 
     const res  = await fetch('/api/profile', {
       method:  'PATCH',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ first_name: firstName, last_name: lastName,
-                                display_name: displayName, email,
+      body:    JSON.stringify({ first_name: firstName, middle_initial: middleInitial || null,
+                                last_name: lastName, display_name: displayName, email,
+                                viber_number: viberNumber, anydesk_id: anydeskId || null,
                                 company, department, position }),
     });
     const data = await res.json();
@@ -302,12 +313,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const res  = await fetch('/api/profile', { headers: authHeaders() });
     const data = await res.json();
     if (res.ok) {
-      document.getElementById('fieldFirstName').value   = data.first_name   || '';
-      document.getElementById('fieldLastName').value    = data.last_name    || '';
-      document.getElementById('fieldDisplayName').value = data.display_name || '';
-      document.getElementById('fieldEmail').value       = data.email        || '';
-      document.getElementById('fieldDepartment').value  = data.department   || '';
-      document.getElementById('fieldPosition').value    = data.position     || '';
+      document.getElementById('fieldFirstName').value     = data.first_name     || '';
+      document.getElementById('fieldMiddleInitial').value = data.middle_initial || '';
+      document.getElementById('fieldLastName').value      = data.last_name      || '';
+      document.getElementById('fieldDisplayName').value   = data.display_name   || '';
+      document.getElementById('fieldEmail').value       = data.email         || '';
+      document.getElementById('fieldViberNumber').value = data.viber_number  || '';
+      document.getElementById('fieldAnydeskId').value   = data.anydesk_id   || '';
+      document.getElementById('fieldDepartment').value  = data.department    || '';
+      document.getElementById('fieldPosition').value    = data.position      || '';
       _populateProfileCompany(data.company || '');
       if (data.avatar_url) renderAvatarPreview(data.avatar_url, initial);
       // Sync session

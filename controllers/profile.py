@@ -21,7 +21,7 @@ def api_profile_get():
     try:
         rows = supabase_req("GET", "/users", params={
             "username": f"eq.{username}",
-            "select":   "username,first_name,last_name,display_name,avatar_url,company,department,position,email",
+            "select":   "username,first_name,middle_initial,last_name,display_name,avatar_url,company,department,position,email,viber_number,anydesk_id",
         })
     except Exception as exc:
         current_app.logger.error("Profile GET failed: %s", exc)
@@ -30,15 +30,18 @@ def api_profile_get():
         return jsonify({"error": "User not found"}), 404
     u = rows[0]
     return jsonify({
-        "username":     u["username"],
-        "first_name":   u.get("first_name") or "",
-        "last_name":    u.get("last_name") or "",
-        "display_name": u.get("display_name") or "",
-        "avatar_url":   u.get("avatar_url") or "",
-        "company":      u.get("company") or "",
-        "department":   u.get("department") or "",
-        "position":     u.get("position") or "",
-        "email":        u.get("email") or "",
+        "username":        u["username"],
+        "first_name":      u.get("first_name") or "",
+        "middle_initial":  u.get("middle_initial") or "",
+        "last_name":       u.get("last_name") or "",
+        "display_name":    u.get("display_name") or "",
+        "avatar_url":      u.get("avatar_url") or "",
+        "company":         u.get("company") or "",
+        "department":      u.get("department") or "",
+        "position":        u.get("position") or "",
+        "email":           u.get("email") or "",
+        "viber_number":    u.get("viber_number") or "",
+        "anydesk_id":      u.get("anydesk_id") or "",
     })
 
 
@@ -52,7 +55,7 @@ def api_profile_patch():
     if "display_name" in data:
         dn = str(data["display_name"]).strip()[:80]
         patch["display_name"] = dn or None
-    for field in ("first_name", "last_name", "company", "department", "position", "email"):
+    for field in ("first_name", "middle_initial", "last_name", "company", "department", "position", "email", "viber_number", "anydesk_id"):
         if field in data:
             patch[field] = str(data[field]).strip()[:120] or None
     if not patch:

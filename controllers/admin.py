@@ -38,7 +38,7 @@ def admin_get_users():
         return jsonify(err[0]), err[1]
     try:
         rows = supabase_req("GET", "/users", params={
-            "select": "username,first_name,last_name,display_name,avatar_url,company,department,position,email,systems,is_admin,is_developer,created_at",
+            "select": "username,first_name,middle_initial,last_name,display_name,avatar_url,company,department,position,email,viber_number,anydesk_id,systems,is_admin,is_developer,created_at",
             "order":  "created_at.asc",
         })
         return jsonify(rows)
@@ -62,8 +62,8 @@ def admin_update_user(uname):
 
     data  = request.get_json(silent=True) or {}
     allowed = {"is_admin", "is_developer", "systems",
-               "first_name", "last_name", "display_name",
-               "company", "department", "position", "email"}
+               "first_name", "middle_initial", "last_name", "display_name",
+               "company", "department", "position", "email", "viber_number", "anydesk_id"}
     patch = {k: v for k, v in data.items() if k in allowed}
     if not patch:
         return jsonify({"error": "No valid fields to update"}), 400
@@ -179,8 +179,9 @@ def admin_create_system():
     _, err = _require_admin()
     if err:
         return jsonify(err[0]), err[1]
-    data     = request.get_json(silent=True) or {}
-    required = ["id", "name", "category", "primary_url", "primary_label"]
+    data    = request.get_json(silent=True) or {}
+    is_task = bool(data.get("is_task", False))
+    required = ["id", "name", "category"] if is_task else ["id", "name", "category", "primary_url", "primary_label"]
     missing  = [f for f in required if not str(data.get(f, "")).strip()]
     if missing:
         return jsonify({"error": f"Missing: {', '.join(missing)}"}), 400
@@ -209,7 +210,7 @@ def admin_update_system(system_id):
             return jsonify({"error": str(exc)}), 500
 
     data    = request.get_json(silent=True) or {}
-    allowed = {"name", "category", "primary_url", "primary_label", "backup_url", "backup_label", "sort_order", "is_visible"}
+    allowed = {"name", "category", "primary_url", "primary_label", "backup_url", "backup_label", "sort_order", "is_visible", "is_task"}
     patch   = {k: v for k, v in data.items() if k in allowed}
     if not patch:
         return jsonify({"error": "No valid fields"}), 400

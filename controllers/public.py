@@ -1,5 +1,5 @@
 import requests
-from flask import Blueprint, render_template, jsonify
+from flask import Blueprint, render_template, jsonify, request
 
 from config import HEALTH_CHECKS
 from services.sites import get_sites
@@ -16,6 +16,57 @@ def index():
 @public_bp.get("/report-issue")
 def report_issue_page():
     return render_template("report_issue.html")
+
+
+@public_bp.get("/helpdesk")
+def helpdesk_page():
+    return render_template("helpdesk.html")
+
+
+@public_bp.get("/api/helpdesk/categories")
+def get_helpdesk_categories():
+    rows = supabase_req("GET", "/request_category", params={
+        "order":  "category_id.asc",
+        "select": "category_id,category_name,category_desc,category_group",
+    })
+    return jsonify(rows or [])
+
+
+@public_bp.get("/api/helpdesk/subcategories")
+def get_helpdesk_subcategories():
+    category = request.args.get("category", "").strip()
+    if not category:
+        return jsonify([])
+    if category == "Software/Application":
+        rows = supabase_req("GET", "/systems", params={
+            "is_visible": "eq.true",
+            "order":      "sort_order.asc,name.asc",
+            "select":     "id,name",
+        })
+        items = [{"value": r["id"], "label": r["name"]} for r in (rows or [])]
+    else:
+        rows = supabase_req("GET", "/non_software_items", params={
+            "category":   f"eq.{category}",
+            "is_visible": "eq.true",
+            "order":      "id.asc",
+            "select":     "subcategory",
+        })
+        items = [{"value": r["subcategory"], "label": r["subcategory"]} for r in (rows or [])]
+    return jsonify(items)
+
+
+@public_bp.get("/api/helpdesk/request-types")
+def get_helpdesk_request_types():
+    category = request.args.get("category", "").strip()
+    if not category:
+        return jsonify([])
+    rows = supabase_req("GET", "/request_type", params={
+        "request_category": f"eq.{category}",
+        "is_visible":       "eq.true",
+        "order":            "id.asc",
+        "select":           "id,request_type",
+    })
+    return jsonify(rows or [])
 
 
 @public_bp.get("/api/companies")

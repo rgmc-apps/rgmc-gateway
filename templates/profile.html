@@ -8,20 +8,20 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('rgmc-theme')||'dark');</script>
+  <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('rgmc-theme')||'light');</script>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
   <header class="site-header">
     <div class="header-inner">
-      <div class="header-brand">
+      <a href="/" class="header-brand">
         <div class="header-logo-wrap">
           <img src="/static/logo.png" alt="RGMC Gateway" class="header-logo-img">
         </div>
         <div class="header-divider"></div>
         <div class="header-tagline">My Profile</div>
-      </div>
+      </a>
       <div id="profileHeaderUser" class="header-user"></div>
     </div>
   </header>
@@ -56,6 +56,10 @@
             <label class="form-label">First Name</label>
             <input class="form-input" id="fieldFirstName" type="text" maxlength="80" oninput="markDirty()">
           </div>
+          <div class="form-group" style="max-width:90px;">
+            <label class="form-label">M.I. <span class="form-label-hint">(optional)</span></label>
+            <input class="form-input" id="fieldMiddleInitial" type="text" maxlength="3" placeholder="B" oninput="markDirty()">
+          </div>
           <div class="form-group">
             <label class="form-label">Last Name</label>
             <input class="form-input" id="fieldLastName" type="text" maxlength="80" oninput="markDirty()">
@@ -73,9 +77,24 @@
         </div>
 
         <div class="profile-section-label">Contact</div>
-        <div class="form-group form-group-full">
-          <label class="form-label">Email</label>
-          <input class="form-input" id="fieldEmail" type="email" oninput="markDirty()">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input class="form-input" id="fieldEmail" type="email" oninput="markDirty()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Viber Number <span class="form-label-hint">(optional)</span></label>
+            <input class="form-input" id="fieldViberNumber" type="tel" maxlength="50" placeholder="+63 9XX XXX XXXX" oninput="markDirty()">
+          </div>
+        </div>
+
+        <div class="profile-section-label">IT Info</div>
+        <div class="form-row">
+          <div class="form-group" style="max-width:220px;">
+            <label class="form-label">AnyDesk ID <span class="form-label-hint">(optional — 9 digits)</span></label>
+            <input class="form-input" id="fieldAnydeskId" type="text" maxlength="9"
+              pattern="\d{9}" placeholder="e.g. 123456789" oninput="markDirty()">
+          </div>
         </div>
 
         <div class="profile-section-label">Organization</div>
