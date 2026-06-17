@@ -3794,3 +3794,145 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
   font-variant-numeric: tabular-nums;
   text-transform: uppercase;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Light / Dark Mode — Theme Toggle & Light Mode Overrides
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Theme toggle button (injected by theme.js into .header-inner) ── */
+.btn-theme-toggle {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  transition: color 0.2s var(--ease), border-color 0.2s var(--ease), background 0.2s var(--ease);
+}
+.btn-theme-toggle:hover {
+  color: var(--gold);
+  border-color: var(--gold-border);
+  background: var(--gold-dim);
+}
+
+/* ── Smooth cross-theme transition (added briefly by _applyTheme) ── */
+.theme-transitioning,
+.theme-transitioning *,
+.theme-transitioning *::before,
+.theme-transitioning *::after {
+  transition:
+    background-color 0.35s ease,
+    background      0.35s ease,
+    border-color    0.35s ease,
+    color           0.35s ease,
+    box-shadow      0.35s ease !important;
+}
+
+/* ══ Light mode — CSS variable overrides ══ */
+[data-theme="light"] {
+  --bg:            #F5F0E8;
+  --bg-surface:    #EDE7D9;
+  --bg-card:       #F9F6F1;
+  --bg-card-h:     #F0EBE3;
+  --bg-card-inner: #FFFFFF;
+  --bg-modal:      #FDFAF6;
+
+  --border:        rgba(196,151,42,0.28);
+  --border-subtle: rgba(0,0,0,0.07);
+
+  --text-primary:  #1A1408;
+  --text-secondary:#7A5E35;
+  --text-muted:    #B09070;
+
+  --shadow-card:   0 2px 16px rgba(0,0,0,0.09), 0 1px 3px rgba(0,0,0,0.07);
+  --shadow-card-h: 0 8px 32px rgba(0,0,0,0.14), 0 0 0 1px var(--gold-border-h);
+  --shadow-modal:  0 24px 80px rgba(0,0,0,0.20);
+  --shadow-btn:    0 4px 18px rgba(196,151,42,0.32);
+  --shadow-nav:    0 4px 24px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.7);
+}
+
+/* Gradient blobs — subtler tones on warm light bg */
+[data-theme="light"] body {
+  background-image:
+    radial-gradient(ellipse 900px 700px at 12%  8%,  rgba(196,151,42,0.05) 0%, transparent 65%),
+    radial-gradient(ellipse 700px 900px at 88% 92%, rgba(196,151,42,0.03) 0%, transparent 65%);
+}
+
+/* Grain texture — less prominent on light bg */
+[data-theme="light"] body::before { opacity: 0.22; }
+
+/* Nav pill */
+[data-theme="light"] .header-inner { background: rgba(245,240,232,0.82); }
+
+/* Report-issue header bar */
+[data-theme="light"] .ri-header { background: rgba(245,240,232,0.88); }
+
+/* Select dropdowns */
+[data-theme="light"] select.form-input              { background-color: #F9F6F1; }
+[data-theme="light"] select.form-input:focus         { background-color: #F0EBE3; }
+[data-theme="light"] select.form-input option        { background-color: #F9F6F1; color: #1A1408; }
+[data-theme="light"] select.form-input option:checked{ background-color: #EDE7D9; }
+
+/* Admin table sticky header */
+[data-theme="light"] .admin-table thead tr {
+  background: rgba(249,246,241,0.97);
+}
+
+/* Modal overlay */
+[data-theme="light"] .modal-overlay { background: rgba(160,140,110,0.55); }
+
+/* Modal close button */
+[data-theme="light"] .modal-close       { background: rgba(0,0,0,0.05); }
+[data-theme="light"] .modal-close:hover { background: rgba(0,0,0,0.10); color: var(--text-primary); }
+
+/* Gate card (login screen) */
+[data-theme="light"] .gate-card {
+  background: rgba(196,151,42,0.07);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.8);
+}
+[data-theme="light"] .gate-card-inner { box-shadow: inset 0 1px 0 rgba(255,255,255,0.9); }
+
+/* Site cards */
+[data-theme="light"] .site-card { background: rgba(196,151,42,0.04); }
+
+/* System pills on access requests table */
+[data-theme="light"] .sys-pill {
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.09);
+  color: var(--text-secondary);
+}
+
+/* Skeleton cards */
+[data-theme="light"] .kanban-skel {
+  background: #F9F6F1;
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+/* Dev stats count — status-specific colors too light on light bg */
+[data-theme="light"] .dev-stat-pill.stat-pending .dev-stat-count { color: #374151; }
+[data-theme="light"] .dev-stat-pill.stat-ongoing .dev-stat-count { color: #6d28d9; }
+[data-theme="light"] .dev-stat-pill.stat-coding  .dev-stat-count { color: #1d4ed8; }
+[data-theme="light"] .dev-stat-pill.stat-testing .dev-stat-count { color: #b45309; }
+[data-theme="light"] .dev-stat-pill.stat-done    .dev-stat-count { color: #15803d; }
+
+/* Kanban column headers — status colors too light on light bg */
+[data-theme="light"] #col-pending .kanban-col-header { color: #374151; }
+[data-theme="light"] #col-ongoing .kanban-col-header { color: #6d28d9; }
+[data-theme="light"] #col-coding  .kanban-col-header { color: #1d4ed8; }
+[data-theme="light"] #col-testing .kanban-col-header { color: #b45309; }
+[data-theme="light"] #col-done    .kanban-col-header { color: #15803d; }
+
+/* Dev performance status pill chips */
+[data-theme="light"] .dp-s-pending { background: #e5e7eb; color: #374151; }
+[data-theme="light"] .dp-s-ongoing  { background: #ede9fe; color: #5b21b6; }
+[data-theme="light"] .dp-s-coding   { background: #dbeafe; color: #1d4ed8; }
+[data-theme="light"] .dp-s-testing  { background: #fef3c7; color: #b45309; }
+[data-theme="light"] .dp-s-done     { background: #dcfce7; color: #15803d; }
+
+/* kcard-code chip — slightly richer on light bg */
+[data-theme="light"] .kcard-code { color: rgba(140,95,10,0.75); }

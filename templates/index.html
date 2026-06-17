@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('rgmc-theme')||'dark');</script>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -425,6 +426,7 @@
     // Site list for JS filtering — populated server-side
     const ALL_SITES = {{ sites | tojson }};
   </script>
+  <script src="/static/theme.js"></script>
   <script src="/static/script.js"></script>
 </body>
 </html>
