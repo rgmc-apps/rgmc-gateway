@@ -57,6 +57,10 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
         Developers
       </button>
+      <button class="admin-tab" data-tab="config" onclick="switchTab('config')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Configurations
+      </button>
     </div>
 
     <!-- ── Requests Panel ── -->
@@ -109,6 +113,68 @@
     <div id="panel-devperf" class="admin-panel">
       <div id="devperf-body" class="admin-table-wrap">
         <div class="admin-loading"><div class="spinner"></div><span>Loading developers…</span></div>
+      </div>
+    </div>
+
+    <!-- ── Configurations Panel ── -->
+    <div id="panel-config" class="admin-panel">
+      <div class="admin-status-tabs" id="configSubTabs">
+        <button class="status-tab active" data-ctab="companies"          onclick="switchConfigTab('companies')">Companies</button>
+        <button class="status-tab"        data-ctab="request-categories" onclick="switchConfigTab('request-categories')">Request Categories</button>
+        <button class="status-tab"        data-ctab="request-types"      onclick="switchConfigTab('request-types')">Request Types</button>
+        <button class="status-tab"        data-ctab="non-software-items" onclick="switchConfigTab('non-software-items')">Non-Software Items</button>
+      </div>
+
+      <!-- Companies -->
+      <div id="config-panel-companies" class="config-sub-panel">
+        <div class="admin-toolbar">
+          <button class="btn-admin-add" onclick="openCfgCompanyModal(null)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Company
+          </button>
+        </div>
+        <div id="config-companies-body" class="admin-table-wrap">
+          <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
+        </div>
+      </div>
+
+      <!-- Request Categories -->
+      <div id="config-panel-request-categories" class="config-sub-panel" style="display:none;">
+        <div class="admin-toolbar">
+          <button class="btn-admin-add" onclick="openCfgCategoryModal(null)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Category
+          </button>
+        </div>
+        <div id="config-categories-body" class="admin-table-wrap">
+          <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
+        </div>
+      </div>
+
+      <!-- Request Types -->
+      <div id="config-panel-request-types" class="config-sub-panel" style="display:none;">
+        <div class="admin-toolbar">
+          <button class="btn-admin-add" onclick="openCfgTypeModal(null)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Request Type
+          </button>
+        </div>
+        <div id="config-types-body" class="admin-table-wrap">
+          <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
+        </div>
+      </div>
+
+      <!-- Non-Software Items -->
+      <div id="config-panel-non-software-items" class="config-sub-panel" style="display:none;">
+        <div class="admin-toolbar">
+          <button class="btn-admin-add" onclick="openCfgNsiModal(null)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Item
+          </button>
+        </div>
+        <div id="config-nsi-body" class="admin-table-wrap">
+          <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
+        </div>
       </div>
     </div>
 
@@ -513,6 +579,163 @@
           <span id="issueModalErrorMsg"></span>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ── Config: Company Modal ── -->
+  <div id="cfgCompanyModal" class="modal-overlay" onclick="overlayCfgCompany(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <div><h3 class="modal-title" id="cfgCompanyModalTitle">Add Company</h3></div>
+        <button class="modal-close" onclick="closeCfgCompanyModal()" aria-label="Close">&times;</button>
+      </div>
+      <form id="cfgCompanyForm" class="modal-form" onsubmit="saveCfgCompany(event)">
+        <div class="form-row">
+          <div class="form-group" style="max-width:160px;">
+            <label class="form-label" for="cfgCompanyCode">Code <span class="required">*</span></label>
+            <input class="form-input" type="text" id="cfgCompanyCode" maxlength="20" placeholder="RGMC" style="text-transform:uppercase;">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cfgCompanyName">Company Name <span class="required">*</span></label>
+            <input class="form-input" type="text" id="cfgCompanyName" maxlength="200" placeholder="RGMC Group Inc.">
+          </div>
+        </div>
+        <div id="cfgCompanyFormActions" class="modal-actions">
+          <button type="button" class="btn-modal-cancel" onclick="closeCfgCompanyModal()">Cancel</button>
+          <button type="submit" class="btn-modal-submit">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Save
+          </button>
+        </div>
+        <div id="cfgCompanyFormLoading" class="form-state" style="display:none;"><div class="spinner"></div><span>Saving…</span></div>
+        <div id="cfgCompanyFormError" class="form-state form-error" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="cfgCompanyErrorMsg"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Config: Request Category Modal ── -->
+  <div id="cfgCategoryModal" class="modal-overlay" onclick="overlayCfgCategory(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <div><h3 class="modal-title" id="cfgCategoryModalTitle">Add Category</h3></div>
+        <button class="modal-close" onclick="closeCfgCategoryModal()" aria-label="Close">&times;</button>
+      </div>
+      <form id="cfgCategoryForm" class="modal-form" onsubmit="saveCfgCategory(event)">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="cfgCategoryName">Category Name <span class="required">*</span></label>
+            <input class="form-input" type="text" id="cfgCategoryName" maxlength="100" placeholder="e.g. Hardware">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cfgCategoryGroup">Group <span class="form-label-hint">(optional)</span></label>
+            <input class="form-input" type="text" id="cfgCategoryGroup" maxlength="100" placeholder="e.g. Infrastructure">
+          </div>
+        </div>
+        <div class="form-group form-group-full">
+          <label class="form-label" for="cfgCategoryDesc">Description <span class="form-label-hint">(optional)</span></label>
+          <textarea class="form-input form-textarea" id="cfgCategoryDesc" rows="2" placeholder="Brief description…"></textarea>
+        </div>
+        <div id="cfgCategoryFormActions" class="modal-actions">
+          <button type="button" class="btn-modal-cancel" onclick="closeCfgCategoryModal()">Cancel</button>
+          <button type="submit" class="btn-modal-submit">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Save
+          </button>
+        </div>
+        <div id="cfgCategoryFormLoading" class="form-state" style="display:none;"><div class="spinner"></div><span>Saving…</span></div>
+        <div id="cfgCategoryFormError" class="form-state form-error" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="cfgCategoryErrorMsg"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Config: Request Type Modal ── -->
+  <div id="cfgTypeModal" class="modal-overlay" onclick="overlayCfgType(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <div><h3 class="modal-title" id="cfgTypeModalTitle">Add Request Type</h3></div>
+        <button class="modal-close" onclick="closeCfgTypeModal()" aria-label="Close">&times;</button>
+      </div>
+      <form id="cfgTypeForm" class="modal-form" onsubmit="saveCfgType(event)">
+        <div class="form-group form-group-full">
+          <label class="form-label" for="cfgTypeCategory">Request Category <span class="required">*</span></label>
+          <select class="form-input" id="cfgTypeCategory">
+            <option value="">— Select category —</option>
+          </select>
+        </div>
+        <div class="form-group form-group-full">
+          <label class="form-label" for="cfgTypeRequestType">Request Type Name <span class="required">*</span></label>
+          <input class="form-input" type="text" id="cfgTypeRequestType" maxlength="200" placeholder="e.g. New Account">
+        </div>
+        <div class="form-group" style="max-width:260px;">
+          <label class="form-label">Visibility</label>
+          <label class="toggle-label">
+            <input type="checkbox" id="cfgTypeVisible" checked>
+            <span class="toggle-text">Visible in helpdesk form</span>
+          </label>
+        </div>
+        <div id="cfgTypeFormActions" class="modal-actions">
+          <button type="button" class="btn-modal-cancel" onclick="closeCfgTypeModal()">Cancel</button>
+          <button type="submit" class="btn-modal-submit">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Save
+          </button>
+        </div>
+        <div id="cfgTypeFormLoading" class="form-state" style="display:none;"><div class="spinner"></div><span>Saving…</span></div>
+        <div id="cfgTypeFormError" class="form-state form-error" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="cfgTypeErrorMsg"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Config: Non-Software Item Modal ── -->
+  <div id="cfgNsiModal" class="modal-overlay" onclick="overlayCfgNsi(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <div><h3 class="modal-title" id="cfgNsiModalTitle">Add Item</h3></div>
+        <button class="modal-close" onclick="closeCfgNsiModal()" aria-label="Close">&times;</button>
+      </div>
+      <form id="cfgNsiForm" class="modal-form" onsubmit="saveCfgNsi(event)">
+        <div class="form-row">
+          <div class="form-group" style="max-width:180px;">
+            <label class="form-label" for="cfgNsiCategory">Category <span class="required">*</span></label>
+            <select class="form-input" id="cfgNsiCategory">
+              <option value="Hardware">Hardware</option>
+              <option value="Network">Network</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cfgNsiSubcategory">Subcategory <span class="required">*</span></label>
+            <input class="form-input" type="text" id="cfgNsiSubcategory" maxlength="200" placeholder="e.g. Laptop/Desktop">
+          </div>
+        </div>
+        <div class="form-group" style="max-width:260px;">
+          <label class="form-label">Visibility</label>
+          <label class="toggle-label">
+            <input type="checkbox" id="cfgNsiVisible" checked>
+            <span class="toggle-text">Visible in helpdesk form</span>
+          </label>
+        </div>
+        <div id="cfgNsiFormActions" class="modal-actions">
+          <button type="button" class="btn-modal-cancel" onclick="closeCfgNsiModal()">Cancel</button>
+          <button type="submit" class="btn-modal-submit">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Save
+          </button>
+        </div>
+        <div id="cfgNsiFormLoading" class="form-state" style="display:none;"><div class="spinner"></div><span>Saving…</span></div>
+        <div id="cfgNsiFormError" class="form-state form-error" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="cfgNsiErrorMsg"></span>
+        </div>
+      </form>
     </div>
   </div>
 

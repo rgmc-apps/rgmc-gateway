@@ -249,6 +249,233 @@ def admin_approve_request(request_id):
     return jsonify({"success": True, "username": username})
 
 
+# ── Config: Companies ────────────────────────────────────────────────────────
+
+@admin_bp.get("/api/admin/config/companies")
+def config_list_companies():
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/companies", params={"select": "*", "order": "name.asc"})
+        return jsonify(rows or [])
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.post("/api/admin/config/companies")
+def config_create_company():
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    data = request.get_json(silent=True) or {}
+    code = str(data.get("company_code", "")).strip().upper()
+    name = str(data.get("name", "")).strip()
+    if not code or not name:
+        return jsonify({"error": "company_code and name are required"}), 400
+    try:
+        rows = supabase_req("POST", "/companies", data={"company_code": code, "name": name},
+                            extra_headers={"Prefer": "return=representation"})
+        return jsonify(rows[0] if rows else {}), 201
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.route("/api/admin/config/companies/<string:code>", methods=["PATCH", "DELETE"])
+def config_update_company(code):
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    if request.method == "DELETE":
+        try:
+            supabase_req("DELETE", "/companies", params={"company_code": f"eq.{code}"})
+            return jsonify({"success": True})
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
+    data  = request.get_json(silent=True) or {}
+    patch = {k: str(data[k]).strip() for k in ("name",) if k in data and str(data[k]).strip()}
+    if not patch:
+        return jsonify({"error": "Nothing to update"}), 400
+    try:
+        supabase_req("PATCH", "/companies", data=patch, params={"company_code": f"eq.{code}"})
+        return jsonify({"success": True})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+# ── Config: Request Categories ────────────────────────────────────────────────
+
+@admin_bp.get("/api/admin/config/request-categories")
+def config_list_request_categories():
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/request_category", params={"select": "*", "order": "category_id.asc"})
+        return jsonify(rows or [])
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.post("/api/admin/config/request-categories")
+def config_create_request_category():
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("category_name", "")).strip()
+    if not name:
+        return jsonify({"error": "category_name is required"}), 400
+    payload = {
+        "category_name":  name,
+        "category_desc":  str(data.get("category_desc", "")).strip() or None,
+        "category_group": str(data.get("category_group", "")).strip() or None,
+    }
+    try:
+        rows = supabase_req("POST", "/request_category", data=payload,
+                            extra_headers={"Prefer": "return=representation"})
+        return jsonify(rows[0] if rows else {}), 201
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.route("/api/admin/config/request-categories/<int:cat_id>", methods=["PATCH", "DELETE"])
+def config_update_request_category(cat_id):
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    if request.method == "DELETE":
+        try:
+            supabase_req("DELETE", "/request_category", params={"category_id": f"eq.{cat_id}"})
+            return jsonify({"success": True})
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
+    data = request.get_json(silent=True) or {}
+    patch = {}
+    if "category_name"  in data: patch["category_name"]  = str(data["category_name"]).strip()
+    if "category_desc"  in data: patch["category_desc"]  = str(data["category_desc"]).strip() or None
+    if "category_group" in data: patch["category_group"] = str(data["category_group"]).strip() or None
+    if not patch:
+        return jsonify({"error": "Nothing to update"}), 400
+    try:
+        supabase_req("PATCH", "/request_category", data=patch, params={"category_id": f"eq.{cat_id}"})
+        return jsonify({"success": True})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+# ── Config: Request Types ─────────────────────────────────────────────────────
+
+@admin_bp.get("/api/admin/config/request-types")
+def config_list_request_types():
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/request_type", params={"select": "*", "order": "request_category.asc,id.asc"})
+        return jsonify(rows or [])
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.post("/api/admin/config/request-types")
+def config_create_request_type():
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    data = request.get_json(silent=True) or {}
+    cat  = str(data.get("request_category", "")).strip()
+    typ  = str(data.get("request_type", "")).strip()
+    if not cat or not typ:
+        return jsonify({"error": "request_category and request_type are required"}), 400
+    payload = {
+        "request_category": cat,
+        "request_type":     typ,
+        "is_visible":       bool(data.get("is_visible", True)),
+    }
+    try:
+        rows = supabase_req("POST", "/request_type", data=payload,
+                            extra_headers={"Prefer": "return=representation"})
+        return jsonify(rows[0] if rows else {}), 201
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.route("/api/admin/config/request-types/<int:type_id>", methods=["PATCH", "DELETE"])
+def config_update_request_type(type_id):
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    if request.method == "DELETE":
+        try:
+            supabase_req("DELETE", "/request_type", params={"id": f"eq.{type_id}"})
+            return jsonify({"success": True})
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
+    data = request.get_json(silent=True) or {}
+    patch = {}
+    if "request_category" in data: patch["request_category"] = str(data["request_category"]).strip()
+    if "request_type"     in data: patch["request_type"]     = str(data["request_type"]).strip()
+    if "is_visible"       in data: patch["is_visible"]       = bool(data["is_visible"])
+    if not patch:
+        return jsonify({"error": "Nothing to update"}), 400
+    try:
+        supabase_req("PATCH", "/request_type", data=patch, params={"id": f"eq.{type_id}"})
+        return jsonify({"success": True})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+# ── Config: Non-Software Items ────────────────────────────────────────────────
+
+@admin_bp.get("/api/admin/config/non-software-items")
+def config_list_non_software_items():
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/non_software_items", params={"select": "*", "order": "category.asc,id.asc"})
+        return jsonify(rows or [])
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.post("/api/admin/config/non-software-items")
+def config_create_non_software_item():
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    data   = request.get_json(silent=True) or {}
+    cat    = str(data.get("category", "")).strip()
+    subcat = str(data.get("subcategory", "")).strip()
+    if not cat or not subcat:
+        return jsonify({"error": "category and subcategory are required"}), 400
+    payload = {
+        "category":   cat,
+        "subcategory": subcat,
+        "is_visible": bool(data.get("is_visible", True)),
+    }
+    try:
+        rows = supabase_req("POST", "/non_software_items", data=payload,
+                            extra_headers={"Prefer": "return=representation"})
+        return jsonify(rows[0] if rows else {}), 201
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.route("/api/admin/config/non-software-items/<int:item_id>", methods=["PATCH", "DELETE"])
+def config_update_non_software_item(item_id):
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    if request.method == "DELETE":
+        try:
+            supabase_req("DELETE", "/non_software_items", params={"id": f"eq.{item_id}"})
+            return jsonify({"success": True})
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
+    data = request.get_json(silent=True) or {}
+    patch = {}
+    if "category"    in data: patch["category"]    = str(data["category"]).strip()
+    if "subcategory" in data: patch["subcategory"] = str(data["subcategory"]).strip()
+    if "is_visible"  in data: patch["is_visible"]  = bool(data["is_visible"])
+    if not patch:
+        return jsonify({"error": "Nothing to update"}), 400
+    try:
+        supabase_req("PATCH", "/non_software_items", data=patch, params={"id": f"eq.{item_id}"})
+        return jsonify({"success": True})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
 @admin_bp.post("/api/admin/requests/<string:request_id>/reject")
 def admin_reject_request(request_id):
     _, err = _require_admin()

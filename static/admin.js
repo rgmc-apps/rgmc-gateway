@@ -58,6 +58,16 @@ let _developersCache    = [];
 let _devPerfCache       = [];
 let _devPerfSelected    = null;
 
+let _currentConfigTab   = 'companies';
+let _cfgCompaniesCache  = [];
+let _cfgCategoriesCache = [];
+let _cfgTypesCache      = [];
+let _cfgNsiCache        = [];
+let _cfgCompanyEditCode = null;
+let _cfgCategoryEditId  = null;
+let _cfgTypeEditId      = null;
+let _cfgNsiEditId       = null;
+
 /* ── Profile dropdown ── */
 function toggleProfileMenu(e) {
   if (e) e.stopPropagation();
@@ -145,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
   _loadAdminCompanies();
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape')      { closeLightbox(); closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); }
+    if (e.key === 'Escape')      { closeLightbox(); closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); closeCfgCompanyModal(); closeCfgCategoryModal(); closeCfgTypeModal(); closeCfgNsiModal(); }
     if (e.key === 'ArrowLeft')   lightboxNav(-1);
     if (e.key === 'ArrowRight')  lightboxNav(1);
   });
@@ -180,6 +190,7 @@ function switchTab(tab) {
   if (tab === 'systems')  loadSystems();
   if (tab === 'issues')   loadIssues(_currentIssueStatus);
   if (tab === 'devperf')  loadDevPerf();
+  if (tab === 'config')   _loadCurrentConfigSub();
 }
 
 function switchStatus(status) {
@@ -1437,6 +1448,475 @@ function downloadDevPerfPdf() {
   printArea.innerHTML = _buildPrintHtml(_devPerfSelected);
   window.print();
   setTimeout(() => { printArea.innerHTML = ''; }, 1000);
+}
+
+/* ── Configurations Tab ─────────────────────────────────────────────────── */
+
+function switchConfigTab(ctab) {
+  _currentConfigTab = ctab;
+  document.querySelectorAll('#configSubTabs .status-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.ctab === ctab)
+  );
+  document.querySelectorAll('.config-sub-panel').forEach(p => {
+    p.style.display = (p.id === `config-panel-${ctab}`) ? '' : 'none';
+  });
+  _loadCurrentConfigSub();
+}
+
+function _loadCurrentConfigSub() {
+  if (_currentConfigTab === 'companies')          loadCfgCompanies();
+  if (_currentConfigTab === 'request-categories') loadCfgCategories();
+  if (_currentConfigTab === 'request-types')      loadCfgTypes();
+  if (_currentConfigTab === 'non-software-items') loadCfgNsi();
+}
+
+/* shared modal helpers */
+function _resetCfgModal(prefix) {
+  document.getElementById(`${prefix}FormActions`).style.display = '';
+  document.getElementById(`${prefix}FormLoading`).style.display = 'none';
+  document.getElementById(`${prefix}FormError`).style.display   = 'none';
+}
+function _setCfgLoading(prefix, loading) {
+  document.getElementById(`${prefix}FormActions`).style.display = loading ? 'none' : '';
+  document.getElementById(`${prefix}FormLoading`).style.display = loading ? ''     : 'none';
+}
+function _showCfgError(prefix, msg) {
+  document.getElementById(`${prefix}FormError`).style.display = '';
+  document.getElementById(`${prefix}ErrorMsg`).textContent = msg;
+}
+
+/* ── Companies ── */
+
+async function loadCfgCompanies() {
+  const wrap = document.getElementById('config-companies-body');
+  wrap.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  try {
+    const res = await fetch('/api/admin/config/companies', { headers: authHeaders() });
+    if (!res.ok) throw new Error(await res.text());
+    _cfgCompaniesCache = await res.json();
+    _renderCfgCompanies();
+  } catch (err) {
+    wrap.innerHTML = `<div class="admin-error">Failed: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function _renderCfgCompanies() {
+  const wrap = document.getElementById('config-companies-body');
+  if (!_cfgCompaniesCache.length) {
+    wrap.innerHTML = '<div class="admin-empty">No companies. Add one above.</div>';
+    return;
+  }
+  wrap.innerHTML = `
+    <table class="admin-table">
+      <thead><tr><th>Code</th><th>Name</th><th></th></tr></thead>
+      <tbody>${_cfgCompaniesCache.map(c => `
+        <tr>
+          <td><code class="mono-val">${escHtml(c.company_code)}</code></td>
+          <td>${escHtml(c.name)}</td>
+          <td class="action-cell">
+            <button class="btn-tbl-secondary" onclick='openCfgCompanyModal(${JSON.stringify(c)})'>Edit</button>
+            <button class="btn-tbl-danger" onclick="deleteCfgCompany('${escHtml(c.company_code)}')">Delete</button>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function openCfgCompanyModal(company) {
+  _cfgCompanyEditCode = company ? company.company_code : null;
+  document.getElementById('cfgCompanyModalTitle').textContent = _cfgCompanyEditCode ? 'Edit Company' : 'Add Company';
+  const codeField = document.getElementById('cfgCompanyCode');
+  codeField.value    = company?.company_code ?? '';
+  codeField.disabled = !!_cfgCompanyEditCode;
+  document.getElementById('cfgCompanyName').value = company?.name ?? '';
+  _resetCfgModal('cfgCompany');
+  document.getElementById('cfgCompanyModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCfgCompanyModal() {
+  document.getElementById('cfgCompanyModal').classList.remove('open');
+  document.body.style.overflow = '';
+  _cfgCompanyEditCode = null;
+}
+
+function overlayCfgCompany(e) {
+  if (e.target === document.getElementById('cfgCompanyModal')) closeCfgCompanyModal();
+}
+
+async function saveCfgCompany(e) {
+  e.preventDefault();
+  const code = document.getElementById('cfgCompanyCode').value.trim().toUpperCase();
+  const name = document.getElementById('cfgCompanyName').value.trim();
+  if (!name) { _showCfgError('cfgCompany', 'Name is required.'); return; }
+  if (!_cfgCompanyEditCode && !code) { _showCfgError('cfgCompany', 'Code is required.'); return; }
+  _setCfgLoading('cfgCompany', true);
+  try {
+    let res;
+    if (_cfgCompanyEditCode) {
+      res = await fetch(`/api/admin/config/companies/${encodeURIComponent(_cfgCompanyEditCode)}`, {
+        method: 'PATCH', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+    } else {
+      res = await fetch('/api/admin/config/companies', {
+        method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ company_code: code, name }),
+      });
+    }
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    const wasEdit = _cfgCompanyEditCode;
+    closeCfgCompanyModal();
+    showToast(`Company ${wasEdit ? 'updated' : 'added'}.`);
+    loadCfgCompanies();
+    _loadAdminCompanies();
+  } catch (err) {
+    _setCfgLoading('cfgCompany', false);
+    _showCfgError('cfgCompany', err.message);
+  }
+}
+
+async function deleteCfgCompany(code) {
+  if (!confirm(`Delete company "${code}"? This cannot be undone.`)) return;
+  try {
+    const res = await fetch(`/api/admin/config/companies/${encodeURIComponent(code)}`, {
+      method: 'DELETE', headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Delete failed');
+    showToast('Company deleted.');
+    loadCfgCompanies();
+    _loadAdminCompanies();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+/* ── Request Categories ── */
+
+async function loadCfgCategories() {
+  const wrap = document.getElementById('config-categories-body');
+  wrap.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  try {
+    const res = await fetch('/api/admin/config/request-categories', { headers: authHeaders() });
+    if (!res.ok) throw new Error(await res.text());
+    _cfgCategoriesCache = await res.json();
+    _renderCfgCategories();
+  } catch (err) {
+    wrap.innerHTML = `<div class="admin-error">Failed: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function _renderCfgCategories() {
+  const wrap = document.getElementById('config-categories-body');
+  if (!_cfgCategoriesCache.length) {
+    wrap.innerHTML = '<div class="admin-empty">No request categories. Add one above.</div>';
+    return;
+  }
+  wrap.innerHTML = `
+    <table class="admin-table">
+      <thead><tr><th>ID</th><th>Name</th><th>Group</th><th>Description</th><th></th></tr></thead>
+      <tbody>${_cfgCategoriesCache.map(c => `
+        <tr>
+          <td><code class="mono-val">${c.category_id}</code></td>
+          <td>${escHtml(c.category_name)}</td>
+          <td>${escHtml(c.category_group || '—')}</td>
+          <td class="issue-desc-cell">${escHtml(c.category_desc || '—')}</td>
+          <td class="action-cell">
+            <button class="btn-tbl-secondary" onclick='openCfgCategoryModal(${JSON.stringify(c)})'>Edit</button>
+            <button class="btn-tbl-danger" onclick="deleteCfgCategory(${c.category_id})">Delete</button>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function openCfgCategoryModal(cat) {
+  _cfgCategoryEditId = cat ? cat.category_id : null;
+  document.getElementById('cfgCategoryModalTitle').textContent = _cfgCategoryEditId ? 'Edit Category' : 'Add Category';
+  document.getElementById('cfgCategoryName').value  = cat?.category_name  ?? '';
+  document.getElementById('cfgCategoryGroup').value = cat?.category_group ?? '';
+  document.getElementById('cfgCategoryDesc').value  = cat?.category_desc  ?? '';
+  _resetCfgModal('cfgCategory');
+  document.getElementById('cfgCategoryModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCfgCategoryModal() {
+  document.getElementById('cfgCategoryModal').classList.remove('open');
+  document.body.style.overflow = '';
+  _cfgCategoryEditId = null;
+}
+
+function overlayCfgCategory(e) {
+  if (e.target === document.getElementById('cfgCategoryModal')) closeCfgCategoryModal();
+}
+
+async function saveCfgCategory(e) {
+  e.preventDefault();
+  const name  = document.getElementById('cfgCategoryName').value.trim();
+  const group = document.getElementById('cfgCategoryGroup').value.trim() || null;
+  const desc  = document.getElementById('cfgCategoryDesc').value.trim()  || null;
+  if (!name) { _showCfgError('cfgCategory', 'Name is required.'); return; }
+  _setCfgLoading('cfgCategory', true);
+  try {
+    let res;
+    if (_cfgCategoryEditId) {
+      res = await fetch(`/api/admin/config/request-categories/${_cfgCategoryEditId}`, {
+        method: 'PATCH', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category_name: name, category_group: group, category_desc: desc }),
+      });
+    } else {
+      res = await fetch('/api/admin/config/request-categories', {
+        method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category_name: name, category_group: group, category_desc: desc }),
+      });
+    }
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    const wasEdit = _cfgCategoryEditId;
+    closeCfgCategoryModal();
+    showToast(`Category ${wasEdit ? 'updated' : 'added'}.`);
+    loadCfgCategories();
+  } catch (err) {
+    _setCfgLoading('cfgCategory', false);
+    _showCfgError('cfgCategory', err.message);
+  }
+}
+
+async function deleteCfgCategory(id) {
+  if (!confirm('Delete this category? Request types that reference it may be affected.')) return;
+  try {
+    const res = await fetch(`/api/admin/config/request-categories/${id}`, {
+      method: 'DELETE', headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Delete failed');
+    showToast('Category deleted.');
+    loadCfgCategories();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+/* ── Request Types ── */
+
+async function loadCfgTypes() {
+  const wrap = document.getElementById('config-types-body');
+  wrap.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  try {
+    const res = await fetch('/api/admin/config/request-types', { headers: authHeaders() });
+    if (!res.ok) throw new Error(await res.text());
+    _cfgTypesCache = await res.json();
+    _renderCfgTypes();
+  } catch (err) {
+    wrap.innerHTML = `<div class="admin-error">Failed: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function _renderCfgTypes() {
+  const wrap = document.getElementById('config-types-body');
+  if (!_cfgTypesCache.length) {
+    wrap.innerHTML = '<div class="admin-empty">No request types. Add one above.</div>';
+    return;
+  }
+  wrap.innerHTML = `
+    <table class="admin-table">
+      <thead><tr><th>ID</th><th>Category</th><th>Request Type</th><th>Visible</th><th></th></tr></thead>
+      <tbody>${_cfgTypesCache.map(t => `
+        <tr>
+          <td><code class="mono-val">${t.id}</code></td>
+          <td>${escHtml(t.request_category)}</td>
+          <td>${escHtml(t.request_type)}</td>
+          <td>${t.is_visible !== false ? '<span class="badge-visible">Visible</span>' : '<span class="badge-hidden">Hidden</span>'}</td>
+          <td class="action-cell">
+            <button class="btn-tbl-secondary" onclick='openCfgTypeModal(${JSON.stringify(t)})'>Edit</button>
+            <button class="btn-tbl-danger" onclick="deleteCfgType(${t.id})">Delete</button>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+async function openCfgTypeModal(type) {
+  _cfgTypeEditId = type ? type.id : null;
+  document.getElementById('cfgTypeModalTitle').textContent = _cfgTypeEditId ? 'Edit Request Type' : 'Add Request Type';
+
+  if (_cfgCategoriesCache.length === 0) {
+    try {
+      const res = await fetch('/api/admin/config/request-categories', { headers: authHeaders() });
+      if (res.ok) _cfgCategoriesCache = await res.json();
+    } catch { /* non-fatal */ }
+  }
+  const catSel = document.getElementById('cfgTypeCategory');
+  catSel.innerHTML = '<option value="">— Select category —</option>' +
+    _cfgCategoriesCache.map(c =>
+      `<option value="${escHtml(c.category_name)}"${type?.request_category === c.category_name ? ' selected' : ''}>${escHtml(c.category_name)}</option>`
+    ).join('');
+
+  document.getElementById('cfgTypeRequestType').value = type?.request_type ?? '';
+  document.getElementById('cfgTypeVisible').checked   = type ? (type.is_visible !== false) : true;
+  _resetCfgModal('cfgType');
+  document.getElementById('cfgTypeModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCfgTypeModal() {
+  document.getElementById('cfgTypeModal').classList.remove('open');
+  document.body.style.overflow = '';
+  _cfgTypeEditId = null;
+}
+
+function overlayCfgType(e) {
+  if (e.target === document.getElementById('cfgTypeModal')) closeCfgTypeModal();
+}
+
+async function saveCfgType(e) {
+  e.preventDefault();
+  const category    = document.getElementById('cfgTypeCategory').value;
+  const requestType = document.getElementById('cfgTypeRequestType').value.trim();
+  const isVisible   = document.getElementById('cfgTypeVisible').checked;
+  if (!category)    { _showCfgError('cfgType', 'Category is required.'); return; }
+  if (!requestType) { _showCfgError('cfgType', 'Request Type name is required.'); return; }
+  _setCfgLoading('cfgType', true);
+  try {
+    let res;
+    if (_cfgTypeEditId) {
+      res = await fetch(`/api/admin/config/request-types/${_cfgTypeEditId}`, {
+        method: 'PATCH', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request_category: category, request_type: requestType, is_visible: isVisible }),
+      });
+    } else {
+      res = await fetch('/api/admin/config/request-types', {
+        method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request_category: category, request_type: requestType, is_visible: isVisible }),
+      });
+    }
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    const wasEdit = _cfgTypeEditId;
+    closeCfgTypeModal();
+    showToast(`Request type ${wasEdit ? 'updated' : 'added'}.`);
+    loadCfgTypes();
+  } catch (err) {
+    _setCfgLoading('cfgType', false);
+    _showCfgError('cfgType', err.message);
+  }
+}
+
+async function deleteCfgType(id) {
+  if (!confirm('Delete this request type?')) return;
+  try {
+    const res = await fetch(`/api/admin/config/request-types/${id}`, {
+      method: 'DELETE', headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Delete failed');
+    showToast('Request type deleted.');
+    loadCfgTypes();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+/* ── Non-Software Items ── */
+
+async function loadCfgNsi() {
+  const wrap = document.getElementById('config-nsi-body');
+  wrap.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  try {
+    const res = await fetch('/api/admin/config/non-software-items', { headers: authHeaders() });
+    if (!res.ok) throw new Error(await res.text());
+    _cfgNsiCache = await res.json();
+    _renderCfgNsi();
+  } catch (err) {
+    wrap.innerHTML = `<div class="admin-error">Failed: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function _renderCfgNsi() {
+  const wrap = document.getElementById('config-nsi-body');
+  if (!_cfgNsiCache.length) {
+    wrap.innerHTML = '<div class="admin-empty">No non-software items. Add one above.</div>';
+    return;
+  }
+  wrap.innerHTML = `
+    <table class="admin-table">
+      <thead><tr><th>ID</th><th>Category</th><th>Subcategory</th><th>Visible</th><th></th></tr></thead>
+      <tbody>${_cfgNsiCache.map(n => `
+        <tr>
+          <td><code class="mono-val">${n.id}</code></td>
+          <td>${escHtml(n.category)}</td>
+          <td>${escHtml(n.subcategory)}</td>
+          <td>${n.is_visible !== false ? '<span class="badge-visible">Visible</span>' : '<span class="badge-hidden">Hidden</span>'}</td>
+          <td class="action-cell">
+            <button class="btn-tbl-secondary" onclick='openCfgNsiModal(${JSON.stringify(n)})'>Edit</button>
+            <button class="btn-tbl-danger" onclick="deleteCfgNsi(${n.id})">Delete</button>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function openCfgNsiModal(item) {
+  _cfgNsiEditId = item ? item.id : null;
+  document.getElementById('cfgNsiModalTitle').textContent = _cfgNsiEditId ? 'Edit Item' : 'Add Item';
+  document.getElementById('cfgNsiCategory').value    = item?.category    ?? 'Hardware';
+  document.getElementById('cfgNsiSubcategory').value = item?.subcategory ?? '';
+  document.getElementById('cfgNsiVisible').checked   = item ? (item.is_visible !== false) : true;
+  _resetCfgModal('cfgNsi');
+  document.getElementById('cfgNsiModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCfgNsiModal() {
+  document.getElementById('cfgNsiModal').classList.remove('open');
+  document.body.style.overflow = '';
+  _cfgNsiEditId = null;
+}
+
+function overlayCfgNsi(e) {
+  if (e.target === document.getElementById('cfgNsiModal')) closeCfgNsiModal();
+}
+
+async function saveCfgNsi(e) {
+  e.preventDefault();
+  const category    = document.getElementById('cfgNsiCategory').value;
+  const subcategory = document.getElementById('cfgNsiSubcategory').value.trim();
+  const isVisible   = document.getElementById('cfgNsiVisible').checked;
+  if (!subcategory) { _showCfgError('cfgNsi', 'Subcategory is required.'); return; }
+  _setCfgLoading('cfgNsi', true);
+  try {
+    let res;
+    if (_cfgNsiEditId) {
+      res = await fetch(`/api/admin/config/non-software-items/${_cfgNsiEditId}`, {
+        method: 'PATCH', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category, subcategory, is_visible: isVisible }),
+      });
+    } else {
+      res = await fetch('/api/admin/config/non-software-items', {
+        method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category, subcategory, is_visible: isVisible }),
+      });
+    }
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    const wasEdit = _cfgNsiEditId;
+    closeCfgNsiModal();
+    showToast(`Item ${wasEdit ? 'updated' : 'added'}.`);
+    loadCfgNsi();
+  } catch (err) {
+    _setCfgLoading('cfgNsi', false);
+    _showCfgError('cfgNsi', err.message);
+  }
+}
+
+async function deleteCfgNsi(id) {
+  if (!confirm('Delete this item?')) return;
+  try {
+    const res = await fetch(`/api/admin/config/non-software-items/${id}`, {
+      method: 'DELETE', headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Delete failed');
+    showToast('Item deleted.');
+    loadCfgNsi();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
 }
 
 function _buildPrintHtml(dev) {
