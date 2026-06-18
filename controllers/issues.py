@@ -1,6 +1,6 @@
 import re
 import requests
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, render_template
 
 from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
 from services.supabase import supabase_req
@@ -230,6 +230,11 @@ def report():
 @issues_bp.post("/api/issues")
 def api_submit_issue():
     return _submit_issue()
+
+
+@issues_bp.get("/admin/issues/<issue_id>")
+def admin_issue_detail(issue_id):
+    return render_template("admin.html", open_issue_id=issue_id)
 
 
 @issues_bp.get("/api/admin/issues")

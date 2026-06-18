@@ -817,6 +817,9 @@
   </div>
 
   <script src="/static/theme.js"></script>
+  {% if open_issue_id %}
+  <script>window._OPEN_ISSUE_ID = {{ open_issue_id | tojson }};</script>
+  {% endif %}
   <script src="/static/admin.js"></script>
 </body>
 </html>

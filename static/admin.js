@@ -153,7 +153,11 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>`;
   }
 
-  loadRequests('pending');
+  if (window._OPEN_ISSUE_ID) {
+    switchTab('issues');
+  } else {
+    loadRequests('pending');
+  }
   _loadAdminCompanies();
 
   document.addEventListener('keydown', e => {
@@ -926,6 +930,17 @@ async function loadIssues(filterStatus) {
     if (!res.ok) throw new Error(await res.text());
     const all = await res.json();
     _issuesCache = all;
+
+    if (window._OPEN_ISSUE_ID) {
+      const targetId = window._OPEN_ISSUE_ID;
+      window._OPEN_ISSUE_ID = null;
+      // Show all statuses so the target issue is visible regardless of its status
+      _currentIssueStatus = 'all';
+      document.querySelectorAll('#issueStatusTabs .status-tab').forEach(b =>
+        b.classList.toggle('active', b.dataset.status === 'all')
+      );
+      setTimeout(() => openIssueModal(targetId), 0);
+    }
 
     // Update open badge
     const openCount = all.filter(i => i.status === 'open').length;
