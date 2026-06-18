@@ -457,11 +457,24 @@ def send_issue_assigned_email(issue: dict, developer: dict, assigned_by_name: st
 
     def _he(s): return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
+    ticket_number = issue.get("ticket_number") or ""
+    ticket_row = f"""
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;width:140px;border-bottom:1px solid #e2e8f0;">TICKET</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:monospace;font-weight:700;">{_he(ticket_number)}</td>
+        </tr>""" if ticket_number else ""
+
     error_code_row = f"""
         <tr>
           <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#dc2626;border-bottom:1px solid #e2e8f0;">ERROR CODE</td>
           <td style="padding:10px 14px;font-weight:600;color:#dc2626;border-bottom:1px solid #e2e8f0;">{_he(error_code)}</td>
         </tr>""" if error_code else ""
+
+    viber_row = f"""
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">VIBER / PHONE</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">{_he(issue.get('viber_number',''))}</td>
+        </tr>""" if issue.get("viber_number") else ""
 
     html = f"""<!DOCTYPE html>
 <html>
@@ -478,6 +491,7 @@ def send_issue_assigned_email(issue: dict, developer: dict, assigned_by_name: st
       </p>
 
       <table style="width:100%;border-collapse:collapse;margin-bottom:24px;border-radius:8px;overflow:hidden;">
+        {ticket_row}
         <tr style="background:#f8fafc;">
           <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;width:140px;border-bottom:1px solid #e2e8f0;">SYSTEM</td>
           <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:600;">{_he(site_name)}</td>
@@ -493,7 +507,8 @@ def send_issue_assigned_email(issue: dict, developer: dict, assigned_by_name: st
         <tr>
           <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">DEPARTMENT</td>
           <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">{_he(issue.get('department',''))}</td>
-        </tr>{error_code_row}
+        </tr>
+        {viber_row}{error_code_row}
       </table>
 
       <div style="margin-bottom:24px;">
@@ -544,7 +559,7 @@ _PRIORITY_LABELS = {
 }
 
 
-def send_helpdesk_email(form_data: dict, ticket_number: str | None) -> bool:
+def send_helpdesk_email(form_data: dict, ticket_number: str | None, attachments: list | None = None) -> bool:
     developer_email = EMAIL_CONFIG["developer_email"]
     if not developer_email:
         logger.warning("DEVELOPER_EMAIL not set — skipping helpdesk email")
@@ -588,6 +603,10 @@ def send_helpdesk_email(form_data: dict, ticket_number: str | None) -> bool:
     if form_data.get("title"):
         title_block = f'<p style="margin:0 0 8px;font-size:16px;font-weight:600;color:#1e293b;">{form_data["title"]}</p>'
 
+    attach_note = ""
+    if attachments:
+        attach_note = f'<p style="margin-top:16px;color:#64748b;font-size:13px;">&#128206; {len(attachments)} attachment(s) included.</p>'
+
     html_body = f"""<!DOCTYPE html>
 <html>
 <body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
@@ -603,19 +622,116 @@ def send_helpdesk_email(form_data: dict, ticket_number: str | None) -> bool:
       <h3 style="margin:0 0 8px;font-size:15px;color:#1e293b;">Description</h3>
       {title_block}
       <div style="background:#f8fafc;border-left:4px solid #2563eb;padding:14px 16px;border-radius:0 6px 6px 0;font-size:14px;line-height:1.6;">{desc_html}</div>
+      {attach_note}
     </div>
     <div style="background:#f1f5f9;padding:12px 28px;font-size:12px;color:#94a3b8;">Sent via RGMC IT Online Helpdesk</div>
   </div>
 </body>
 </html>"""
 
-    msg = MIMEMultipart("alternative")
+    msg = MIMEMultipart("mixed")
     msg["Subject"]  = f"[Helpdesk] {ticket_ref} — {tt_label}"
     msg["From"]     = from_addr
     msg["To"]       = developer_email
     msg["Reply-To"] = form_data.get("email", from_addr)
     msg.attach(MIMEText(html_body, "html"))
+
+    for att in (attachments or []):
+        part = MIMEBase("application", "octet-stream")
+        part.set_payload(att["data"])
+        encoders.encode_base64(part)
+        part.add_header("Content-Disposition", f'attachment; filename="{att["filename"]}"')
+        msg.attach(part)
+
     return _smtp_send(msg, [developer_email])
+
+
+def send_helpdesk_confirmation_email(form_data: dict, ticket_number: str | None) -> bool:
+    user_email = form_data.get("email", "")
+    if not user_email:
+        logger.warning("Helpdesk submission has no reporter email — skipping confirmation")
+        return False
+
+    from_addr    = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    it_email     = EMAIL_CONFIG["developer_email"] or from_addr
+    ticket_ref   = ticket_number or "—"
+    first_name   = (form_data.get("employee_name") or "").split()[0] if form_data.get("employee_name") else "there"
+    tt_label     = _TICKET_TYPE_LABELS.get(form_data.get("ticket_type", ""), form_data.get("ticket_type", "—"))
+    priority_lbl = _PRIORITY_LABELS.get(form_data.get("priority", ""), form_data.get("priority") or "—")
+
+    def _he(s): return str(s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    def _opt_row(label, value, shade=False):
+        if not value:
+            return ""
+        bg = ' style="background:#f1f5f9;"' if shade else ''
+        return (f'<tr{bg}>'
+                f'<td style="padding:9px 14px;font-weight:600;font-size:12px;color:#64748b;width:160px;border-bottom:1px solid #e2e8f0;">{label}</td>'
+                f'<td style="padding:9px 14px;font-size:14px;border-bottom:1px solid #e2e8f0;">{_he(value)}</td>'
+                f'</tr>')
+
+    rows_html = (
+        _opt_row("TICKET TYPE",  tt_label, shade=True) +
+        _opt_row("COMPANY",      form_data.get("company_name", "")) +
+        _opt_row("DEPARTMENT",   form_data.get("department", ""), shade=True) +
+        _opt_row("CATEGORY",     form_data.get("request_category", "")) +
+        _opt_row("SUB-CATEGORY", form_data.get("request_subcategory", ""), shade=True) +
+        _opt_row("REQUEST TYPE", form_data.get("request_type_name", "")) +
+        _opt_row("PRIORITY",     priority_lbl, shade=True)
+    )
+
+    desc_html  = _he(form_data.get("description") or "").replace("\n", "<br>")
+    title_block = ""
+    if form_data.get("title"):
+        title_block = f'<p style="margin:0 0 6px;font-size:15px;font-weight:600;color:#1e293b;">{_he(form_data["title"])}</p>'
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:620px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid #C4972A;">
+      <h2 style="margin:0;font-size:22px;color:#C4972A;">Ticket Received</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;font-family:monospace;">{_he(ticket_ref)}</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 16px;font-size:15px;">Hello <strong>{_he(first_name)}</strong>,</p>
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#374151;">
+        Your IT helpdesk ticket has been <strong style="color:#15803d;">received</strong> and will be attended to shortly. Here is a summary of your submission:
+      </p>
+
+      <div style="background:linear-gradient(135deg,#f8fafc,#f1f5f9);border:1px solid #e2e8f0;border-left:4px solid #C4972A;border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:24px;text-align:center;">
+        <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.1em;">Your Ticket Number</p>
+        <p style="margin:0;font-size:28px;font-weight:700;color:#1a120a;font-family:monospace;letter-spacing:.06em;">{_he(ticket_ref)}</p>
+        <p style="margin:8px 0 0;font-size:12px;color:#94a3b8;">Please keep this reference for follow-ups.</p>
+      </div>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+        {rows_html}
+      </table>
+
+      <div style="margin-bottom:24px;">
+        <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Your Description</p>
+        {title_block}
+        <div style="background:#f8fafc;border-left:4px solid #2563eb;padding:14px 16px;border-radius:0 6px 6px 0;font-size:14px;line-height:1.6;color:#374151;">{desc_html}</div>
+      </div>
+
+      <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">
+        Our IT team will review your ticket and get back to you as soon as possible.
+        For urgent concerns, you may reach us directly at
+        <a href="mailto:{_he(it_email)}" style="color:#C4972A;text-decoration:none;font-weight:600;">{_he(it_email)}</a>.
+      </p>
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; IT Online Helpdesk</div>
+  </div>
+</body>
+</html>"""
+
+    msg            = MIMEMultipart("alternative")
+    msg["Subject"] = f"[Helpdesk] Ticket {ticket_ref} Received — RGMC IT"
+    msg["From"]    = from_addr
+    msg["To"]      = user_email
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [user_email])
 
 
 def _full_name(record: dict) -> str:

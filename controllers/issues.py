@@ -5,7 +5,7 @@ from flask import Blueprint, request, jsonify, current_app
 from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
 from services.supabase import supabase_req
 from services.guards import _require_admin
-from services.email import send_report_email, send_issue_resolved_email, send_issue_assigned_email, send_helpdesk_email
+from services.email import send_report_email, send_issue_resolved_email, send_issue_assigned_email, send_helpdesk_email, send_helpdesk_confirmation_email
 
 issues_bp = Blueprint("issues", __name__)
 
@@ -199,10 +199,16 @@ def _submit_helpdesk_issue():
                 except Exception as exc:
                     current_app.logger.error("Helpdesk attachment URL save failed: %s", exc)
 
+    email_attachments = [{"filename": f["filename"], "data": f["data"]} for f in raw_files]
     try:
-        send_helpdesk_email(form_data, ticket_number)
+        send_helpdesk_email(form_data, ticket_number, attachments=email_attachments)
     except Exception as exc:
         current_app.logger.error("send_helpdesk_email failed: %s", exc)
+
+    try:
+        send_helpdesk_confirmation_email(form_data, ticket_number)
+    except Exception as exc:
+        current_app.logger.error("send_helpdesk_confirmation_email failed: %s", exc)
 
     msg = (f"Your ticket {ticket_number} has been submitted. The IT team will be in touch shortly."
            if ticket_number else
