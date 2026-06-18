@@ -476,6 +476,66 @@ def config_update_non_software_item(item_id):
         return jsonify({"error": str(exc)}), 500
 
 
+# ── Config: Brands ───────────────────────────────────────────────────────────
+
+@admin_bp.get("/api/admin/config/brands")
+def config_list_brands():
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/brands", params={"select": "*", "order": "name.asc"})
+        return jsonify(rows or [])
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.post("/api/admin/config/brands")
+def config_create_brand():
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    data = request.get_json(silent=True) or {}
+    code = str(data.get("brand_code", "")).strip().upper()
+    name = str(data.get("name", "")).strip()
+    if not code or not name:
+        return jsonify({"error": "brand_code and name are required"}), 400
+    payload = {
+        "brand_code":  code,
+        "name":        name,
+        "initials":    str(data.get("initials", "")).strip().upper(),
+        "description": str(data.get("description", "")).strip(),
+    }
+    try:
+        rows = supabase_req("POST", "/brands", data=payload,
+                            extra_headers={"Prefer": "return=representation"})
+        return jsonify(rows[0] if rows else {}), 201
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.route("/api/admin/config/brands/<string:code>", methods=["PATCH", "DELETE"])
+def config_update_brand(code):
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    if request.method == "DELETE":
+        try:
+            supabase_req("DELETE", "/brands", params={"brand_code": f"eq.{code}"})
+            return jsonify({"success": True})
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
+    data  = request.get_json(silent=True) or {}
+    patch = {}
+    if "name"        in data: patch["name"]        = str(data["name"]).strip()
+    if "initials"    in data: patch["initials"]    = str(data["initials"]).strip().upper()
+    if "description" in data: patch["description"] = str(data["description"]).strip()
+    if not patch:
+        return jsonify({"error": "Nothing to update"}), 400
+    try:
+        supabase_req("PATCH", "/brands", data=patch, params={"brand_code": f"eq.{code}"})
+        return jsonify({"success": True})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
 @admin_bp.post("/api/admin/requests/<string:request_id>/reject")
 def admin_reject_request(request_id):
     _, err = _require_admin()

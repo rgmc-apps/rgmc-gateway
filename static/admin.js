@@ -63,10 +63,12 @@ let _cfgCompaniesCache  = [];
 let _cfgCategoriesCache = [];
 let _cfgTypesCache      = [];
 let _cfgNsiCache        = [];
+let _cfgBrandsCache     = [];
 let _cfgCompanyEditCode = null;
 let _cfgCategoryEditId  = null;
 let _cfgTypeEditId      = null;
 let _cfgNsiEditId       = null;
+let _cfgBrandEditCode   = null;
 
 /* ── Profile dropdown ── */
 function toggleProfileMenu(e) {
@@ -155,7 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
   _loadAdminCompanies();
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape')      { closeLightbox(); closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); closeCfgCompanyModal(); closeCfgCategoryModal(); closeCfgTypeModal(); closeCfgNsiModal(); }
+    if (e.key === 'Escape')      { closeLightbox(); closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); closeCfgCompanyModal(); closeCfgCategoryModal(); closeCfgTypeModal(); closeCfgNsiModal(); closeCfgBrandModal(); }
     if (e.key === 'ArrowLeft')   lightboxNav(-1);
     if (e.key === 'ArrowRight')  lightboxNav(1);
   });
@@ -1470,6 +1472,7 @@ function _loadCurrentConfigSub() {
   if (_currentConfigTab === 'request-categories') loadCfgCategories();
   if (_currentConfigTab === 'request-types')      loadCfgTypes();
   if (_currentConfigTab === 'non-software-items') loadCfgNsi();
+  if (_currentConfigTab === 'brands')             loadCfgBrands();
 }
 
 /* shared modal helpers */
@@ -1916,6 +1919,117 @@ async function deleteCfgNsi(id) {
     if (!res.ok) throw new Error((await res.json()).error || 'Delete failed');
     showToast('Item deleted.');
     loadCfgNsi();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+/* ── Brands ── */
+
+async function loadCfgBrands() {
+  const wrap = document.getElementById('config-brands-body');
+  wrap.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  try {
+    const res = await fetch('/api/admin/config/brands', { headers: authHeaders() });
+    if (!res.ok) throw new Error(await res.text());
+    _cfgBrandsCache = await res.json();
+    _renderCfgBrands();
+  } catch (err) {
+    wrap.innerHTML = `<div class="admin-error">Failed: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function _renderCfgBrands() {
+  const wrap = document.getElementById('config-brands-body');
+  if (!_cfgBrandsCache.length) {
+    wrap.innerHTML = '<div class="admin-empty">No brands. Add one above.</div>';
+    return;
+  }
+  wrap.innerHTML = `
+    <table class="admin-table">
+      <thead><tr><th>Code</th><th>Initials</th><th>Name</th><th>Description</th><th></th></tr></thead>
+      <tbody>${_cfgBrandsCache.map(b => `
+        <tr>
+          <td><code class="mono-val">${escHtml(b.brand_code)}</code></td>
+          <td><code class="mono-val">${escHtml(b.initials)}</code></td>
+          <td>${escHtml(b.name)}</td>
+          <td class="issue-desc-cell">${escHtml(b.description || '—')}</td>
+          <td class="action-cell">
+            <button class="btn-tbl-secondary" onclick='openCfgBrandModal(${JSON.stringify(b)})'>Edit</button>
+            <button class="btn-tbl-danger" onclick="deleteCfgBrand('${escHtml(b.brand_code)}')">Delete</button>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function openCfgBrandModal(brand) {
+  _cfgBrandEditCode = brand ? brand.brand_code : null;
+  document.getElementById('cfgBrandModalTitle').textContent = _cfgBrandEditCode ? 'Edit Brand' : 'Add Brand';
+  const codeField = document.getElementById('cfgBrandCode');
+  codeField.value    = brand?.brand_code ?? '';
+  codeField.disabled = !!_cfgBrandEditCode;
+  document.getElementById('cfgBrandInitials').value = brand?.initials    ?? '';
+  document.getElementById('cfgBrandName').value     = brand?.name        ?? '';
+  document.getElementById('cfgBrandDesc').value     = brand?.description ?? '';
+  _resetCfgModal('cfgBrand');
+  document.getElementById('cfgBrandModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCfgBrandModal() {
+  document.getElementById('cfgBrandModal').classList.remove('open');
+  document.body.style.overflow = '';
+  _cfgBrandEditCode = null;
+}
+
+function overlayCfgBrand(e) {
+  if (e.target === document.getElementById('cfgBrandModal')) closeCfgBrandModal();
+}
+
+async function saveCfgBrand(e) {
+  e.preventDefault();
+  const code     = document.getElementById('cfgBrandCode').value.trim().toUpperCase();
+  const initials = document.getElementById('cfgBrandInitials').value.trim().toUpperCase();
+  const name     = document.getElementById('cfgBrandName').value.trim();
+  const desc     = document.getElementById('cfgBrandDesc').value.trim();
+  if (!name)     { _showCfgError('cfgBrand', 'Name is required.'); return; }
+  if (!initials) { _showCfgError('cfgBrand', 'Initials are required.'); return; }
+  if (!_cfgBrandEditCode && !code) { _showCfgError('cfgBrand', 'Brand Code is required.'); return; }
+  _setCfgLoading('cfgBrand', true);
+  try {
+    let res;
+    if (_cfgBrandEditCode) {
+      res = await fetch(`/api/admin/config/brands/${encodeURIComponent(_cfgBrandEditCode)}`, {
+        method: 'PATCH', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, initials, description: desc }),
+      });
+    } else {
+      res = await fetch('/api/admin/config/brands', {
+        method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brand_code: code, name, initials, description: desc }),
+      });
+    }
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    const wasEdit = _cfgBrandEditCode;
+    closeCfgBrandModal();
+    showToast(`Brand ${wasEdit ? 'updated' : 'added'}.`);
+    loadCfgBrands();
+  } catch (err) {
+    _setCfgLoading('cfgBrand', false);
+    _showCfgError('cfgBrand', err.message);
+  }
+}
+
+async function deleteCfgBrand(code) {
+  if (!confirm(`Delete brand "${code}"? This cannot be undone.`)) return;
+  try {
+    const res = await fetch(`/api/admin/config/brands/${encodeURIComponent(code)}`, {
+      method: 'DELETE', headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Delete failed');
+    showToast('Brand deleted.');
+    loadCfgBrands();
   } catch (err) {
     showToast(`Error: ${err.message}`);
   }
