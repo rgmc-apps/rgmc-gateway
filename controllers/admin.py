@@ -483,7 +483,7 @@ def config_list_brands():
     _, err = _require_admin()
     if err: return jsonify(err[0]), err[1]
     try:
-        rows = supabase_req("GET", "/brands", params={"select": "*", "order": "name.asc"})
+        rows = supabase_req("GET", "/brands", params={"select": "*", "order": "brand_name.asc"})
         return jsonify(rows or [])
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
@@ -495,14 +495,14 @@ def config_create_brand():
     if err: return jsonify(err[0]), err[1]
     data = request.get_json(silent=True) or {}
     code = str(data.get("brand_code", "")).strip().upper()
-    name = str(data.get("name", "")).strip()
+    name = str(data.get("brand_name", "")).strip()
     if not code or not name:
-        return jsonify({"error": "brand_code and name are required"}), 400
+        return jsonify({"error": "brand_code and brand_name are required"}), 400
     payload = {
-        "brand_code":  code,
-        "name":        name,
-        "initials":    str(data.get("initials", "")).strip().upper(),
-        "description": str(data.get("description", "")).strip(),
+        "brand_code":    code,
+        "brand_name":    name,
+        "brand_initial": str(data.get("brand_initial", "")).strip().upper(),
+        "brand_desc":    str(data.get("brand_desc", "")).strip(),
     }
     try:
         rows = supabase_req("POST", "/brands", data=payload,
@@ -524,9 +524,9 @@ def config_update_brand(code):
             return jsonify({"error": str(exc)}), 500
     data  = request.get_json(silent=True) or {}
     patch = {}
-    if "name"        in data: patch["name"]        = str(data["name"]).strip()
-    if "initials"    in data: patch["initials"]    = str(data["initials"]).strip().upper()
-    if "description" in data: patch["description"] = str(data["description"]).strip()
+    if "brand_name"    in data: patch["brand_name"]    = str(data["brand_name"]).strip()
+    if "brand_initial" in data: patch["brand_initial"] = str(data["brand_initial"]).strip().upper()
+    if "brand_desc"    in data: patch["brand_desc"]    = str(data["brand_desc"]).strip()
     if not patch:
         return jsonify({"error": "Nothing to update"}), 400
     try:

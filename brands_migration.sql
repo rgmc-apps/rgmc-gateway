@@ -1,21 +1,13 @@
--- RGMC Gateway — Brands Table Migration
--- Run this in the Supabase SQL Editor
+-- RGMC Gateway — Brands Seed Data
+-- Table already exists with columns: brand_id, brand_code, brand_name, brand_desc, brand_initial
+-- Run this in the Supabase SQL Editor to seed the brands
 
-CREATE TABLE IF NOT EXISTS public.brands (
-    brand_code  TEXT        PRIMARY KEY,
-    name        TEXT        NOT NULL,
-    initials    TEXT        NOT NULL DEFAULT '',
-    description TEXT        NOT NULL DEFAULT '',
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- Seed data
-INSERT INTO public.brands (brand_code, name, initials, description) VALUES
+INSERT INTO public.brands (brand_code, brand_name, brand_initial, brand_desc) VALUES
   ('MRDS',    'MY RUNWAY',              'MR', 'Women''s fashion brand under RGMC Group'),
   ('WT',      'WHARTON',                'WT', 'Premium fashion label for men and women'),
   ('DS',      'DANSEN',                 'DS', 'Contemporary casual wear brand'),
   ('WTA',     'WHARTON ACCESSORIES',    'WA', 'Fashion accessories line under Wharton'),
-  ('WTLG',   'WHARTON LEATHER GOODS',  'WL', 'Leather goods and bags under Wharton'),
+  ('WTLG',    'WHARTON LEATHER GOODS',  'WL', 'Leather goods and bags under Wharton'),
   ('PX',      'PAR EXCELLENCE',         'PX', 'Upscale fashion label'),
   ('WTR',     'WHARTON RAJO',           'WR', 'Wharton collaboration with designer Rajo Laurel'),
   ('UD',      'UBERTO DURANTI',         'UD', 'Italian-inspired fashion brand'),

@@ -1951,9 +1951,9 @@ function _renderCfgBrands() {
       <tbody>${_cfgBrandsCache.map(b => `
         <tr>
           <td><code class="mono-val">${escHtml(b.brand_code)}</code></td>
-          <td><code class="mono-val">${escHtml(b.initials)}</code></td>
-          <td>${escHtml(b.name)}</td>
-          <td class="issue-desc-cell">${escHtml(b.description || '—')}</td>
+          <td><code class="mono-val">${escHtml(b.brand_initial || '—')}</code></td>
+          <td>${escHtml(b.brand_name)}</td>
+          <td class="issue-desc-cell">${escHtml(b.brand_desc || '—')}</td>
           <td class="action-cell">
             <button class="btn-tbl-secondary" onclick='openCfgBrandModal(${JSON.stringify(b)})'>Edit</button>
             <button class="btn-tbl-danger" onclick="deleteCfgBrand('${escHtml(b.brand_code)}')">Delete</button>
@@ -1969,9 +1969,9 @@ function openCfgBrandModal(brand) {
   const codeField = document.getElementById('cfgBrandCode');
   codeField.value    = brand?.brand_code ?? '';
   codeField.disabled = !!_cfgBrandEditCode;
-  document.getElementById('cfgBrandInitials').value = brand?.initials    ?? '';
-  document.getElementById('cfgBrandName').value     = brand?.name        ?? '';
-  document.getElementById('cfgBrandDesc').value     = brand?.description ?? '';
+  document.getElementById('cfgBrandInitials').value = brand?.brand_initial ?? '';
+  document.getElementById('cfgBrandName').value     = brand?.brand_name    ?? '';
+  document.getElementById('cfgBrandDesc').value     = brand?.brand_desc    ?? '';
   _resetCfgModal('cfgBrand');
   document.getElementById('cfgBrandModal').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -2002,12 +2002,12 @@ async function saveCfgBrand(e) {
     if (_cfgBrandEditCode) {
       res = await fetch(`/api/admin/config/brands/${encodeURIComponent(_cfgBrandEditCode)}`, {
         method: 'PATCH', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, initials, description: desc }),
+        body: JSON.stringify({ brand_name: name, brand_initial: initials, brand_desc: desc }),
       });
     } else {
       res = await fetch('/api/admin/config/brands', {
         method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brand_code: code, name, initials, description: desc }),
+        body: JSON.stringify({ brand_code: code, brand_name: name, brand_initial: initials, brand_desc: desc }),
       });
     }
     if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
