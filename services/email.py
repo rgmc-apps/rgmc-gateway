@@ -426,6 +426,7 @@ def send_issue_resolved_email(issue: dict, resolution_notes: str, resolver_name:
         If the issue persists or you have further questions, please contact the IT department at
         <a href="mailto:{_he(it_email)}" style="color:#C4972A;text-decoration:none;font-weight:600;">{_he(it_email)}</a>.
       </p>
+      {_ticket_btn_html(issue.get("id"))}
     </div>
     <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
   </div>
@@ -521,6 +522,7 @@ def send_issue_assigned_email(issue: dict, developer: dict, assigned_by_name: st
         For questions, contact the IT department at
         <a href="mailto:{_he(it_email)}" style="color:#C4972A;text-decoration:none;font-weight:600;">{_he(it_email)}</a>.
       </p>
+      {_ticket_btn_html(issue.get("id"))}
     </div>
     <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
   </div>
@@ -534,6 +536,17 @@ def send_issue_assigned_email(issue: dict, developer: dict, assigned_by_name: st
     msg["Reply-To"] = issue.get("email", from_addr)
     msg.attach(MIMEText(html, "html"))
     return _smtp_send(msg, [dev_email])
+
+
+def _ticket_btn_html(issue_id: str | None) -> str:
+    if not issue_id:
+        return ""
+    base = (GATEWAY_BASE_URL or "").rstrip("/")
+    url  = f"{base}/admin/issues/{issue_id}"
+    return (f'<div style="margin-top:24px;">'
+            f'<a href="{url}" style="display:inline-block;padding:12px 28px;background:#C4972A;'
+            f'color:#0d0a06;text-decoration:none;border-radius:7px;font-size:14px;font-weight:700;'
+            f'letter-spacing:.02em;">View Ticket &rarr;</a></div>')
 
 
 _TICKET_TYPE_LABELS = {
@@ -559,7 +572,7 @@ _PRIORITY_LABELS = {
 }
 
 
-def send_helpdesk_email(form_data: dict, ticket_number: str | None, attachments: list | None = None) -> bool:
+def send_helpdesk_email(form_data: dict, ticket_number: str | None, attachments: list | None = None, issue_id: str | None = None) -> bool:
     developer_email = EMAIL_CONFIG["developer_email"]
     if not developer_email:
         logger.warning("DEVELOPER_EMAIL not set — skipping helpdesk email")
@@ -623,6 +636,7 @@ def send_helpdesk_email(form_data: dict, ticket_number: str | None, attachments:
       {title_block}
       <div style="background:#f8fafc;border-left:4px solid #2563eb;padding:14px 16px;border-radius:0 6px 6px 0;font-size:14px;line-height:1.6;">{desc_html}</div>
       {attach_note}
+      {_ticket_btn_html(issue_id)}
     </div>
     <div style="background:#f1f5f9;padding:12px 28px;font-size:12px;color:#94a3b8;">Sent via RGMC IT Online Helpdesk</div>
   </div>
@@ -646,7 +660,7 @@ def send_helpdesk_email(form_data: dict, ticket_number: str | None, attachments:
     return _smtp_send(msg, [developer_email])
 
 
-def send_helpdesk_confirmation_email(form_data: dict, ticket_number: str | None) -> bool:
+def send_helpdesk_confirmation_email(form_data: dict, ticket_number: str | None, issue_id: str | None = None) -> bool:
     user_email = form_data.get("email", "")
     if not user_email:
         logger.warning("Helpdesk submission has no reporter email — skipping confirmation")
@@ -720,6 +734,7 @@ def send_helpdesk_confirmation_email(form_data: dict, ticket_number: str | None)
         For urgent concerns, you may reach us directly at
         <a href="mailto:{_he(it_email)}" style="color:#C4972A;text-decoration:none;font-weight:600;">{_he(it_email)}</a>.
       </p>
+      {_ticket_btn_html(issue_id)}
     </div>
     <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; IT Online Helpdesk</div>
   </div>

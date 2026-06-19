@@ -201,12 +201,12 @@ def _submit_helpdesk_issue():
 
     email_attachments = [{"filename": f["filename"], "data": f["data"]} for f in raw_files]
     try:
-        send_helpdesk_email(form_data, ticket_number, attachments=email_attachments)
+        send_helpdesk_email(form_data, ticket_number, attachments=email_attachments, issue_id=issue_id)
     except Exception as exc:
         current_app.logger.error("send_helpdesk_email failed: %s", exc)
 
     try:
-        send_helpdesk_confirmation_email(form_data, ticket_number)
+        send_helpdesk_confirmation_email(form_data, ticket_number, issue_id=issue_id)
     except Exception as exc:
         current_app.logger.error("send_helpdesk_confirmation_email failed: %s", exc)
 

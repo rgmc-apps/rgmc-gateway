@@ -89,6 +89,10 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Add System / Task
         </button>
+        <button class="btn-admin-secondary" id="checkAllBtn" onclick="pingAllSystems()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          Check All
+        </button>
       </div>
       <div id="systems-body" class="admin-table-wrap">
         <div class="admin-loading"><div class="spinner"></div><span>Loading systems…</span></div>
@@ -411,6 +415,15 @@
         <div class="form-group form-group-full">
           <label class="form-label" for="sysName">Name <span class="required">*</span></label>
           <input class="form-input" type="text" id="sysName" placeholder="RGMC My System">
+        </div>
+
+        <div class="form-group form-group-full">
+          <label class="form-label">Tags <span class="form-label-hint">(aliases &amp; common names — Enter or comma to add)</span></label>
+          <div class="sys-tags-wrap" id="sysTagsWrap" onclick="document.getElementById('sysTagsField').focus()">
+            <span id="sysTagsChips"></span>
+            <input type="text" id="sysTagsField" class="sys-tags-field" placeholder="Add a tag…"
+              onkeydown="onSysTagKeydown(event)" onblur="onSysTagBlur()">
+          </div>
         </div>
 
         <div id="sysUrlSection">

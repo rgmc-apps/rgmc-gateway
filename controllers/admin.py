@@ -1,3 +1,6 @@
+import time
+import requests as http_requests
+
 from flask import Blueprint, request, jsonify, render_template, current_app
 
 from services.supabase import supabase_req
@@ -210,7 +213,7 @@ def admin_update_system(system_id):
             return jsonify({"error": str(exc)}), 500
 
     data    = request.get_json(silent=True) or {}
-    allowed = {"name", "category", "primary_url", "primary_label", "backup_url", "backup_label", "sort_order", "is_visible", "is_task"}
+    allowed = {"name", "category", "primary_url", "primary_label", "backup_url", "backup_label", "sort_order", "is_visible", "is_task", "tags"}
     patch   = {k: v for k, v in data.items() if k in allowed}
     if not patch:
         return jsonify({"error": "No valid fields"}), 400
@@ -220,6 +223,48 @@ def admin_update_system(system_id):
         return jsonify({"success": True})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.get("/api/admin/systems/<string:system_id>/ping")
+def ping_system(system_id):
+    _, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+
+    try:
+        rows = supabase_req("GET", "/systems", params={"id": f"eq.{system_id}", "select": "id,name,primary_url,backup_url"})
+    except Exception:
+        return jsonify({"error": "Failed to fetch system"}), 500
+
+    if not rows:
+        return jsonify({"error": "System not found"}), 404
+
+    system = rows[0]
+    url = system.get("primary_url") or system.get("backup_url")
+    if not url:
+        return jsonify({"id": system_id, "name": system.get("name"), "status": "no_url", "error": "No URL configured"}), 200
+
+    t0 = time.monotonic()
+    try:
+        resp = http_requests.head(url, timeout=8, allow_redirects=True)
+        if resp.status_code == 405:
+            resp = http_requests.get(url, timeout=8, allow_redirects=True, stream=True)
+        latency_ms = round((time.monotonic() - t0) * 1000)
+        status = "ok" if resp.status_code < 500 else "error"
+        return jsonify({
+            "id":          system_id,
+            "name":        system.get("name"),
+            "url":         url,
+            "status":      status,
+            "http_status": resp.status_code,
+            "latency_ms":  latency_ms,
+        })
+    except http_requests.Timeout:
+        latency_ms = round((time.monotonic() - t0) * 1000)
+        return jsonify({"id": system_id, "name": system.get("name"), "url": url, "status": "timeout", "latency_ms": latency_ms})
+    except Exception as exc:
+        latency_ms = round((time.monotonic() - t0) * 1000)
+        return jsonify({"id": system_id, "name": system.get("name"), "url": url, "status": "down", "latency_ms": latency_ms, "error": str(exc)})
 
 
 @admin_bp.post("/api/admin/requests/<string:request_id>/approve")

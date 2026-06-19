@@ -490,6 +490,8 @@ async function deleteUser(username) {
 
 /* ── Systems ── */
 let _editingSystemId = null;
+let _sysTagsList     = [];
+let _pingResults     = {};
 
 async function loadSystems() {
   const wrap = document.getElementById('systems-body');
@@ -517,6 +519,8 @@ async function loadSystems() {
             <th>Primary URL</th>
             <th>Label</th>
             <th>Backup URL</th>
+            <th>Tags</th>
+            <th>Status</th>
             <th>Order</th>
             <th></th>
           </tr>
@@ -549,6 +553,8 @@ function renderSystemRow(s) {
     <td>${primaryUrlCell}</td>
     <td>${escHtml(s.primary_label || '—')}</td>
     <td>${s.backup_url ? `<a href="${escHtml(s.backup_url)}" target="_blank" rel="noopener" class="tbl-link url-cell" title="${escHtml(s.backup_url)}">${escHtml(truncUrl(s.backup_url))}</a>` : '<span class="text-muted">—</span>'}</td>
+    <td>${s.tags ? s.tags.split(',').map(t => `<span class="sys-tag-chip" style="font-size:11px;">${escHtml(t.trim())}</span>`).join(' ') : '<span class="text-muted">—</span>'}</td>
+    <td id="ping-cell-${escHtml(s.id)}">${_pingBadgeHtml(_pingResults[s.id])}</td>
     <td class="date-cell">${s.sort_order}</td>
     <td class="action-cell">
       <button class="btn-tbl-secondary" onclick='openSystemModal(${JSON.stringify(s)})'>Edit</button>
@@ -588,6 +594,10 @@ function openSystemModal(system) {
   document.getElementById('sysSortOrder').value    = system?.sort_order    ?? 0;
   document.getElementById('sysIsVisible').checked  = system ? (system.is_visible !== false) : true;
 
+  _sysTagsList = (system?.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+  _renderSysTags();
+  document.getElementById('sysTagsField').value = '';
+
   _applySysTypeUi(isTask);
   resetSysForm();
   document.getElementById('systemModal').classList.add('open');
@@ -620,6 +630,41 @@ function overlayCloseSystem(e) {
   if (e.target === document.getElementById('systemModal')) closeSystemModal();
 }
 
+function _renderSysTags() {
+  document.getElementById('sysTagsChips').innerHTML = _sysTagsList.map((t, i) =>
+    `<span class="sys-tag-chip">${escHtml(t)}<button type="button" class="sys-tag-remove" onclick="removeSysTag(${i})" aria-label="Remove">&times;</button></span>`
+  ).join('');
+}
+
+function _addSysTag(raw) {
+  const tag = raw.trim();
+  if (!tag || _sysTagsList.some(t => t.toLowerCase() === tag.toLowerCase())) return;
+  _sysTagsList.push(tag);
+  _renderSysTags();
+}
+
+function onSysTagKeydown(e) {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    const val = e.target.value.replace(/,/g, '').trim();
+    if (val) { _addSysTag(val); e.target.value = ''; }
+  } else if (e.key === 'Backspace' && !e.target.value && _sysTagsList.length) {
+    _sysTagsList.pop();
+    _renderSysTags();
+  }
+}
+
+function onSysTagBlur() {
+  const input = document.getElementById('sysTagsField');
+  const val = input.value.replace(/,/g, '').trim();
+  if (val) { _addSysTag(val); input.value = ''; }
+}
+
+function removeSysTag(i) {
+  _sysTagsList.splice(i, 1);
+  _renderSysTags();
+}
+
 function resetSysForm() {
   document.getElementById('sysFormActions').style.display = '';
   document.getElementById('sysFormLoading').style.display = 'none';
@@ -640,6 +685,7 @@ async function saveSystem(e) {
   const backupLabel = document.getElementById('sysBackupLabel').value.trim() || null;
   const sortOrder   = parseInt(document.getElementById('sysSortOrder').value, 10) || 0;
   const isVisible   = document.getElementById('sysIsVisible').checked;
+  const tags        = _sysTagsList.join(',');
 
   if (!_editingSystemId && !id) {
     showSysError('ID is required.');
@@ -657,7 +703,7 @@ async function saveSystem(e) {
   document.getElementById('sysFormActions').style.display = 'none';
   document.getElementById('sysFormLoading').style.display = '';
 
-  const payload = { name, category, is_task: isTask, primary_url: primaryUrl, primary_label: primaryLabel, backup_url: backupUrl, backup_label: backupLabel, sort_order: sortOrder, is_visible: isVisible };
+  const payload = { name, category, is_task: isTask, primary_url: primaryUrl, primary_label: primaryLabel, backup_url: backupUrl, backup_label: backupLabel, sort_order: sortOrder, is_visible: isVisible, tags };
 
   try {
     let res;
@@ -706,6 +752,40 @@ async function deleteSystem(id) {
     loadSystems();
   } catch (err) {
     showToast(`Error: ${err.message}`);
+  }
+}
+
+/* ── System ping / health check ── */
+
+function _pingBadgeHtml(result) {
+  if (!result) return '<span class="text-muted">—</span>';
+  if (result.status === 'ok')      return `<span class="badge-ping-ok"><span class="ping-dot ping-dot-ok"></span>${result.http_status} · ${result.latency_ms}ms</span>`;
+  if (result.status === 'timeout') return `<span class="badge-ping-timeout"><span class="ping-dot ping-dot-timeout"></span>Timeout</span>`;
+  if (result.status === 'no_url')  return `<span class="text-muted">No URL</span>`;
+  return `<span class="badge-ping-error"><span class="ping-dot ping-dot-error"></span>${result.http_status ? result.http_status + ' · ' : ''}Down</span>`;
+}
+
+async function pingSystem(id) {
+  const cell = document.getElementById(`ping-cell-${id}`);
+  if (cell) cell.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div>';
+  try {
+    const res  = await fetch(`/api/admin/systems/${encodeURIComponent(id)}/ping`, { headers: authHeaders() });
+    const data = await res.json();
+    _pingResults[id] = data;
+    if (cell) cell.innerHTML = _pingBadgeHtml(data);
+  } catch {
+    _pingResults[id] = { status: 'down' };
+    if (cell) cell.innerHTML = _pingBadgeHtml(_pingResults[id]);
+  }
+}
+
+async function pingAllSystems() {
+  const btn = document.getElementById('checkAllBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+  await Promise.allSettled(_systemsCache.filter(s => !s.is_task).map(s => pingSystem(s.id)));
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Check All`;
   }
 }
 
