@@ -50,6 +50,69 @@ def admin_get_users():
         return jsonify({"error": "Failed to fetch users"}), 500
 
 
+@admin_bp.post("/api/admin/users")
+def admin_create_user():
+    _, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+
+    data     = request.get_json(silent=True) or {}
+    username = str(data.get("username", "")).strip().lower()
+    if not username:
+        return jsonify({"error": "username is required"}), 400
+
+    try:
+        existing = supabase_req("GET", "/users", params={"username": f"eq.{username}", "select": "username"})
+        if existing:
+            return jsonify({"error": f"Username '{username}' is already taken"}), 409
+    except Exception:
+        return jsonify({"error": "Failed to check username availability"}), 500
+
+    payload = {"username": username, "systems": data.get("systems", []),
+                "is_admin": bool(data.get("is_admin", False)),
+                "is_developer": bool(data.get("is_developer", False))}
+    for field in ("first_name", "middle_initial", "last_name", "display_name",
+                  "company", "department", "position", "email", "viber_number", "anydesk_id"):
+        val = str(data.get(field, "")).strip()
+        if val:
+            payload[field] = val
+
+    try:
+        rows = supabase_req("POST", "/users", data=payload,
+                            extra_headers={"Prefer": "return=representation"})
+        return jsonify(rows[0] if rows else {}), 201
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.get("/api/admin/users/search")
+def admin_search_user_names():
+    _, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+
+    q = request.args.get("q", "").strip()
+    if len(q) < 2:
+        return jsonify([])
+
+    try:
+        rows = supabase_req("GET", "/access_requests", params={
+            "or":    f"(first_name.ilike.*{q}*,last_name.ilike.*{q}*)",
+            "select": "first_name,middle_initial,last_name,email,company,department,position",
+            "order":  "created_at.desc",
+            "limit":  "10",
+        })
+        seen, results = set(), []
+        for r in (rows or []):
+            key = (r.get("first_name", ""), r.get("last_name", ""), r.get("email", ""))
+            if key not in seen:
+                seen.add(key)
+                results.append(r)
+        return jsonify(results)
+    except Exception:
+        return jsonify([])
+
+
 @admin_bp.route("/api/admin/users/<string:uname>", methods=["PATCH", "DELETE"])
 def admin_update_user(uname):
     _, err = _require_admin()

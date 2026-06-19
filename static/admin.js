@@ -488,6 +488,126 @@ async function deleteUser(username) {
   }
 }
 
+/* ── Add User ── */
+let _auSearchTimer = null;
+
+function openAddUserModal() {
+  document.getElementById('addUserForm').reset();
+  document.getElementById('auSuggestions').style.display = 'none';
+  document.getElementById('auFormActions').style.display = '';
+  document.getElementById('auFormLoading').style.display = 'none';
+  document.getElementById('auFormError').style.display   = 'none';
+  document.getElementById('addUserModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('auFirstName').focus(), 60);
+}
+
+function closeAddUserModal() {
+  document.getElementById('addUserModal').classList.remove('open');
+  document.body.style.overflow = '';
+  document.getElementById('auSuggestions').style.display = 'none';
+}
+
+function overlayCloseAddUser(e) {
+  if (e.target === document.getElementById('addUserModal')) closeAddUserModal();
+}
+
+function onAuNameSearch(val) {
+  const box = document.getElementById('auSuggestions');
+  clearTimeout(_auSearchTimer);
+  if (val.trim().length < 2) { box.style.display = 'none'; return; }
+  _auSearchTimer = setTimeout(async () => {
+    try {
+      const res  = await fetch(`/api/admin/users/search?q=${encodeURIComponent(val.trim())}`, { headers: authHeaders() });
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) {
+        box.innerHTML = '<div class="au-sug-no-results">No matching names found in access requests</div>';
+        box.style.display = '';
+        return;
+      }
+      box.innerHTML = data.map((r, i) => {
+        const name = [r.first_name, r.middle_initial ? r.middle_initial + '.' : '', r.last_name].filter(Boolean).join(' ');
+        const meta = [r.company, r.department, r.email].filter(Boolean).join(' · ');
+        return `<div class="au-suggestion-item" onclick="auSelectSuggestion(${i})" data-idx="${i}">${
+          `<span class="au-sug-name">${escHtml(name)}</span>` +
+          (meta ? `<span class="au-sug-meta">${escHtml(meta)}</span>` : '')
+        }</div>`;
+      }).join('');
+      box.dataset.results = JSON.stringify(data);
+      box.style.display = '';
+    } catch { box.style.display = 'none'; }
+  }, 300);
+}
+
+function auSelectSuggestion(idx) {
+  const box  = document.getElementById('auSuggestions');
+  const data = JSON.parse(box.dataset.results || '[]');
+  const r    = data[idx];
+  if (!r) return;
+  document.getElementById('auFirstName').value      = r.first_name      || '';
+  document.getElementById('auMiddleInitial').value  = r.middle_initial  || '';
+  document.getElementById('auLastName').value       = r.last_name       || '';
+  document.getElementById('auEmail').value          = r.email           || '';
+  document.getElementById('auCompany').value        = r.company         || '';
+  document.getElementById('auDepartment').value     = r.department      || '';
+  document.getElementById('auPosition').value       = r.position        || '';
+  // Auto-suggest username: first initial + last name, lowercase, no spaces
+  const suggested = ((r.first_name || '').charAt(0) + (r.last_name || '')).toLowerCase().replace(/\s+/g, '');
+  if (suggested) document.getElementById('auUsername').value = suggested;
+  const fullName = [r.first_name, r.middle_initial, r.last_name].filter(Boolean).join(' ');
+  document.getElementById('auNameSearch').value = fullName;
+  box.style.display = 'none';
+  document.getElementById('auUsername').focus();
+}
+
+async function submitAddUser(e) {
+  e.preventDefault();
+  document.getElementById('auFormActions').style.display = 'none';
+  document.getElementById('auFormError').style.display   = 'none';
+  document.getElementById('auFormLoading').style.display = '';
+
+  const payload = {
+    username:       document.getElementById('auUsername').value.trim().toLowerCase(),
+    first_name:     document.getElementById('auFirstName').value.trim(),
+    middle_initial: document.getElementById('auMiddleInitial').value.trim(),
+    last_name:      document.getElementById('auLastName').value.trim(),
+    display_name:   document.getElementById('auDisplayName').value.trim(),
+    email:          document.getElementById('auEmail').value.trim(),
+    company:        document.getElementById('auCompany').value.trim(),
+    department:     document.getElementById('auDepartment').value.trim(),
+    position:       document.getElementById('auPosition').value.trim(),
+    is_admin:       document.getElementById('auIsAdmin').checked,
+    is_developer:   document.getElementById('auIsDeveloper').checked,
+    systems:        [],
+  };
+
+  try {
+    const res = await fetch('/api/admin/users', {
+      method:  'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to create user');
+    closeAddUserModal();
+    showToast(`User "${payload.username}" created`);
+    loadUsers();
+  } catch (err) {
+    document.getElementById('auFormLoading').style.display = 'none';
+    document.getElementById('auFormActions').style.display = '';
+    document.getElementById('auFormError').style.display   = '';
+    document.getElementById('auErrorMsg').textContent = err.message;
+  }
+}
+
+// Close suggestions when clicking outside
+document.addEventListener('click', e => {
+  const box = document.getElementById('auSuggestions');
+  if (box && !box.contains(e.target) && e.target.id !== 'auNameSearch') {
+    box.style.display = 'none';
+  }
+});
+
 /* ── Systems ── */
 let _editingSystemId = null;
 let _sysTagsList     = [];
