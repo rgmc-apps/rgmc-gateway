@@ -12,9 +12,6 @@ STATUS_ORDER   = {s: i for i, s in enumerate(VALID_STATUSES)}
 
 @tasks_bp.get("/tasks")
 def tasks_page():
-    admin_username, err = _require_admin()
-    if err:
-        return jsonify(err[0]), err[1]
     return render_template("tasks.html")
 
 
