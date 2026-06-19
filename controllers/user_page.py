@@ -1,0 +1,224 @@
+from datetime import datetime, timezone
+from flask import Blueprint, request, jsonify, render_template, current_app
+from services.supabase import supabase_req
+
+user_page_bp = Blueprint("user_page", __name__)
+
+VALID_TASK_STATUSES = ('open', 'ongoing', 'done')
+
+
+def _require_user():
+    username = request.headers.get("X-Gateway-Username", "").strip().lower()
+    if not username:
+        return None, ({"error": "Authentication required"}, 401)
+    try:
+        rows = supabase_req("GET", "/users", params={
+            "username": f"eq.{username}",
+            "select":   "username",
+        })
+    except Exception:
+        return None, ({"error": "Authentication failed"}, 500)
+    if not rows:
+        return None, ({"error": "User not found"}, 404)
+    return rows[0]["username"], None
+
+
+def _user_info(username):
+    try:
+        rows = supabase_req("GET", "/users", params={
+            "username": f"eq.{username}",
+            "select":   "username,department,email",
+        })
+        return rows[0] if rows else {}
+    except Exception:
+        return {}
+
+
+def _dept_id_for(dept_name):
+    if not dept_name:
+        return None
+    try:
+        rows = supabase_req("GET", "/departments", params={
+            "department_name": f"eq.{dept_name}",
+            "select":          "department_id",
+            "is_active":       "eq.true",
+        })
+        return rows[0]["department_id"] if rows else None
+    except Exception:
+        return None
+
+
+@user_page_bp.get("/workspace")
+def workspace_page():
+    return render_template("user.html")
+
+
+@user_page_bp.get("/api/user/issues/team")
+def user_team_issues():
+    username, err = _require_user()
+    if err:
+        return jsonify(err[0]), err[1]
+    info    = _user_info(username)
+    dept_id = _dept_id_for(info.get("department", ""))
+    if not dept_id:
+        return jsonify([])
+    try:
+        rows = supabase_req("GET", "/issues", params={
+            "request_to_department_id": f"eq.{dept_id}",
+            "select": "id,ticket_number,title,description,status,priority,urgency,employee_name,company_name,email,created_at,assigned_to,request_category,ticket_type,from_helpdesk",
+            "order":  "created_at.desc",
+        })
+        return jsonify(rows or [])
+    except Exception as exc:
+        current_app.logger.error("user_team_issues: %s", exc)
+        return jsonify({"error": "Failed to fetch team issues"}), 500
+
+
+@user_page_bp.get("/api/user/issues/mine")
+def user_my_issues():
+    username, err = _require_user()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/issues", params={
+            "assigned_to": f"eq.{username}",
+            "select":      "id,ticket_number,title,description,status,priority,urgency,employee_name,company_name,email,created_at,assigned_to,request_category,ticket_type,from_helpdesk",
+            "order":       "created_at.desc",
+        })
+        return jsonify(rows or [])
+    except Exception as exc:
+        current_app.logger.error("user_my_issues: %s", exc)
+        return jsonify({"error": "Failed to fetch assigned issues"}), 500
+
+
+@user_page_bp.get("/api/user/issues/filed")
+def user_filed_issues():
+    username, err = _require_user()
+    if err:
+        return jsonify(err[0]), err[1]
+    info       = _user_info(username)
+    user_email = info.get("email", "")
+    if not user_email:
+        return jsonify([])
+    try:
+        rows = supabase_req("GET", "/issues", params={
+            "email":  f"eq.{user_email}",
+            "select": "id,ticket_number,title,description,status,priority,urgency,employee_name,company_name,email,created_at,assigned_to,request_category,ticket_type,from_helpdesk",
+            "order":  "created_at.desc",
+        })
+        return jsonify(rows or [])
+    except Exception as exc:
+        current_app.logger.error("user_filed_issues: %s", exc)
+        return jsonify({"error": "Failed to fetch filed issues"}), 500
+
+
+@user_page_bp.get("/api/user/team")
+def user_team_members():
+    username, err = _require_user()
+    if err:
+        return jsonify(err[0]), err[1]
+    info      = _user_info(username)
+    dept_name = info.get("department", "")
+    if not dept_name:
+        return jsonify([])
+    try:
+        rows = supabase_req("GET", "/users", params={
+            "department": f"eq.{dept_name}",
+            "select":     "username,first_name,last_name,display_name,avatar_url,position,email,company",
+            "order":      "first_name.asc",
+        })
+        return jsonify(rows or [])
+    except Exception as exc:
+        current_app.logger.error("user_team_members: %s", exc)
+        return jsonify({"error": "Failed to fetch team members"}), 500
+
+
+@user_page_bp.get("/api/user/tasks")
+def user_list_tasks():
+    username, err = _require_user()
+    if err:
+        return jsonify(err[0]), err[1]
+    scope     = request.args.get("scope", "team")
+    info      = _user_info(username)
+    dept_name = info.get("department", "")
+    dept_id   = _dept_id_for(dept_name) if dept_name else None
+
+    params = {"select": "*", "order": "created_at.desc"}
+    if scope == "mine":
+        params["created_by"] = f"eq.{username}"
+    elif dept_id:
+        params["department_id"] = f"eq.{dept_id}"
+    else:
+        params["created_by"] = f"eq.{username}"
+
+    try:
+        rows = supabase_req("GET", "/user_tasks", params=params)
+        return jsonify(rows or [])
+    except Exception as exc:
+        current_app.logger.error("user_list_tasks: %s", exc)
+        return jsonify({"error": "Failed to fetch tasks"}), 500
+
+
+@user_page_bp.post("/api/user/tasks")
+def user_create_task():
+    username, err = _require_user()
+    if err:
+        return jsonify(err[0]), err[1]
+    body  = request.get_json(silent=True) or {}
+    title = (body.get("title") or "").strip()
+    if not title:
+        return jsonify({"error": "Title is required"}), 400
+    info      = _user_info(username)
+    dept_name = info.get("department", "")
+    dept_id   = _dept_id_for(dept_name)
+    data = {
+        "title":           title,
+        "description":     (body.get("description") or "").strip() or None,
+        "status":          "open",
+        "created_by":      username,
+        "department_id":   dept_id,
+        "department_name": dept_name or None,
+        "due_date":        body.get("due_date") or None,
+    }
+    try:
+        rows = supabase_req("POST", "/user_tasks", data=data,
+                            extra_headers={"Prefer": "return=representation"})
+        return jsonify(rows[0] if rows else data), 201
+    except Exception as exc:
+        current_app.logger.error("user_create_task: %s", exc)
+        return jsonify({"error": "Failed to create task"}), 500
+
+
+@user_page_bp.patch("/api/user/tasks/<task_id>")
+def user_update_task(task_id):
+    username, err = _require_user()
+    if err:
+        return jsonify(err[0]), err[1]
+    body    = request.get_json(silent=True) or {}
+    allowed = {"title", "description", "status", "due_date"}
+    patch   = {k: v for k, v in body.items() if k in allowed}
+    if "status" in patch and patch["status"] not in VALID_TASK_STATUSES:
+        return jsonify({"error": "Invalid status"}), 400
+    if not patch:
+        return jsonify({"error": "Nothing to update"}), 400
+    patch["updated_at"] = datetime.now(timezone.utc).isoformat()
+    try:
+        supabase_req("PATCH", "/user_tasks", data=patch, params={"id": f"eq.{task_id}"})
+        rows = supabase_req("GET", "/user_tasks", params={"id": f"eq.{task_id}", "select": "*"})
+        return jsonify(rows[0] if rows else {"success": True})
+    except Exception as exc:
+        current_app.logger.error("user_update_task: %s", exc)
+        return jsonify({"error": "Failed to update task"}), 500
+
+
+@user_page_bp.delete("/api/user/tasks/<task_id>")
+def user_delete_task(task_id):
+    username, err = _require_user()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        supabase_req("DELETE", "/user_tasks", params={"id": f"eq.{task_id}"})
+        return jsonify({"success": True})
+    except Exception as exc:
+        current_app.logger.error("user_delete_task: %s", exc)
+        return jsonify({"error": "Failed to delete task"}), 500

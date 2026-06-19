@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Workspace — RGMC Gateway</title>
+  <link rel="icon" type="image/png" href="/static/badge.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('rgmc-theme')||'light');</script>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="header-brand">
+        <div class="header-logo-wrap">
+          <img src="/static/logo.png" alt="RGMC Gateway" class="header-logo-img">
+        </div>
+        <div class="header-divider"></div>
+        <div class="header-tagline">My Workspace</div>
+      </a>
+      <div id="wsHeaderUser" class="header-user"></div>
+    </div>
+  </header>
+
+  <main class="admin-main">
+
+    <div class="dev-page-header">
+      <div>
+        <h1 class="admin-page-title">My Workspace</h1>
+        <p class="admin-page-sub" id="wsGreeting">Your issues, team, and tasks in one place.</p>
+      </div>
+    </div>
+
+    <!-- ── Main tab navigation ── -->
+    <div class="admin-tabs" style="margin-bottom:24px;">
+      <button class="admin-tab active" data-main-tab="issues" onclick="switchTab('issues')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Issues
+      </button>
+      <button class="admin-tab" data-main-tab="team" onclick="switchTab('team')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        My Team
+      </button>
+      <button class="admin-tab" data-main-tab="tasks" onclick="switchTab('tasks')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Tasks
+      </button>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         ISSUES PANEL
+    ══════════════════════════════════════════ -->
+    <div id="ws-panel-issues" class="ws-tab-panel ws-active">
+
+      <div class="ws-subtabs-row">
+        <div class="dev-filter-tabs">
+          <button class="dev-filter-tab active" data-issue-subtab="team"  onclick="switchIssueSubtab('team')">Team Issues</button>
+          <button class="dev-filter-tab"        data-issue-subtab="mine"  onclick="switchIssueSubtab('mine')">My Issues</button>
+          <button class="dev-filter-tab"        data-issue-subtab="filed" onclick="switchIssueSubtab('filed')">Issues I Filed</button>
+        </div>
+      </div>
+
+      <div id="ws-issues-team">
+        <div id="ws-issue-list-team" class="issue-list"></div>
+      </div>
+      <div id="ws-issues-mine" style="display:none;">
+        <div id="ws-issue-list-mine" class="issue-list"></div>
+      </div>
+      <div id="ws-issues-filed" style="display:none;">
+        <div id="ws-issue-list-filed" class="issue-list"></div>
+      </div>
+
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         MY TEAM PANEL
+    ══════════════════════════════════════════ -->
+    <div id="ws-panel-team" class="ws-tab-panel">
+      <div id="ws-team-grid" class="team-member-grid"></div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         TASKS PANEL
+    ══════════════════════════════════════════ -->
+    <div id="ws-panel-tasks" class="ws-tab-panel">
+
+      <div class="dev-page-header" style="margin-bottom:16px;">
+        <div class="dev-filter-tabs">
+          <button class="dev-filter-tab active" data-task-filter="team" onclick="setUtFilter('team')">Team</button>
+          <button class="dev-filter-tab"        data-task-filter="mine" onclick="setUtFilter('mine')">Mine</button>
+        </div>
+        <button class="btn-admin-add" onclick="openUtModal(null)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Task
+        </button>
+      </div>
+
+      <div class="dev-stats-bar">
+        <div class="dev-stat-pill stat-open">
+          <span class="dev-stat-dot dot-open"></span>
+          <span class="dev-stat-count" id="ut-stat-open">—</span>
+          <span class="dev-stat-label">Open</span>
+        </div>
+        <div class="dev-stat-pill stat-ongoing">
+          <span class="dev-stat-dot dot-ongoing"></span>
+          <span class="dev-stat-count" id="ut-stat-ongoing">—</span>
+          <span class="dev-stat-label">Ongoing</span>
+        </div>
+        <div class="dev-stat-pill stat-done">
+          <span class="dev-stat-dot dot-done"></span>
+          <span class="dev-stat-count" id="ut-stat-done">—</span>
+          <span class="dev-stat-label">Done</span>
+        </div>
+      </div>
+
+      <div class="kanban-board" id="ut-kanban">
+        <div class="kanban-col" id="ut-col-open" data-status="open">
+          <div class="kanban-col-header">
+            <span class="kanban-col-dot dot-open"></span>
+            Open
+            <span class="kanban-count" id="ut-count-open">0</span>
+          </div>
+          <div class="kanban-cards" id="ut-cards-open"></div>
+        </div>
+        <div class="kanban-col" id="ut-col-ongoing" data-status="ongoing">
+          <div class="kanban-col-header">
+            <span class="kanban-col-dot dot-ongoing"></span>
+            Ongoing
+            <span class="kanban-count" id="ut-count-ongoing">0</span>
+          </div>
+          <div class="kanban-cards" id="ut-cards-ongoing"></div>
+        </div>
+        <div class="kanban-col" id="ut-col-done" data-status="done">
+          <div class="kanban-col-header">
+            <span class="kanban-col-dot dot-done"></span>
+            Done
+            <span class="kanban-count" id="ut-count-done">0</span>
+          </div>
+          <div class="kanban-cards" id="ut-cards-done"></div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ══════════════════════════════════════════
+       ISSUE DETAIL MODAL
+  ══════════════════════════════════════════ -->
+  <div id="issueDetailModal" class="modal-overlay" onclick="overlayCloseIssue(event)">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span class="issue-card-ticket" id="iss-modal-ticket" style="font-size:12px;"></span>
+          <span class="iss-badge" id="iss-modal-status"></span>
+          <span id="iss-modal-priority-badge"></span>
+        </div>
+        <button class="modal-close" onclick="closeIssueDetail()" aria-label="Close">&times;</button>
+      </div>
+      <div style="padding:0 28px 14px;">
+        <h2 id="iss-modal-title" style="margin:0;font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--text-primary);line-height:1.3;"></h2>
+      </div>
+      <div class="iss-modal-desc">
+        <p class="iss-modal-desc-text" id="iss-modal-desc"></p>
+      </div>
+      <div class="iss-modal-grid">
+        <div class="iss-modal-field">
+          <div class="iss-modal-label">Reporter</div>
+          <div class="iss-modal-value" id="iss-modal-reporter"></div>
+        </div>
+        <div class="iss-modal-field">
+          <div class="iss-modal-label">Company</div>
+          <div class="iss-modal-value" id="iss-modal-company"></div>
+        </div>
+        <div class="iss-modal-field">
+          <div class="iss-modal-label">Email</div>
+          <div class="iss-modal-value" id="iss-modal-email"></div>
+        </div>
+        <div class="iss-modal-field">
+          <div class="iss-modal-label">Assigned To</div>
+          <div class="iss-modal-value" id="iss-modal-assigned"></div>
+        </div>
+        <div class="iss-modal-field">
+          <div class="iss-modal-label">Category</div>
+          <div class="iss-modal-value" id="iss-modal-category"></div>
+        </div>
+        <div class="iss-modal-field">
+          <div class="iss-modal-label">Ticket Type</div>
+          <div class="iss-modal-value" id="iss-modal-type"></div>
+        </div>
+        <div class="iss-modal-field">
+          <div class="iss-modal-label">Urgency</div>
+          <div class="iss-modal-value" id="iss-modal-urgency"></div>
+        </div>
+        <div class="iss-modal-field">
+          <div class="iss-modal-label">Date Filed</div>
+          <div class="iss-modal-value" id="iss-modal-date"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       USER TASK MODAL
+  ══════════════════════════════════════════ -->
+  <div id="utTaskModal" class="modal-overlay" onclick="overlayCloseUtTask(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="ut-modal-title-text">New Task</h3>
+          <p class="modal-site-name">Fill in the task details below</p>
+        </div>
+        <button class="modal-close" onclick="closeUtModal()" aria-label="Close">&times;</button>
+      </div>
+      <form id="utTaskForm" class="modal-form" onsubmit="saveUtTask(event)">
+        <input type="hidden" id="ut-task-id">
+
+        <div class="form-group form-group-full">
+          <label class="form-label" for="ut-task-title">Title <span class="required">*</span></label>
+          <input class="form-input" type="text" id="ut-task-title" placeholder="Brief description of the task">
+        </div>
+
+        <div class="form-group form-group-full">
+          <label class="form-label" for="ut-task-desc">Description</label>
+          <textarea class="form-input form-textarea" id="ut-task-desc" rows="3" placeholder="Additional notes or context…"></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="ut-task-status">Status</label>
+            <select class="form-input" id="ut-task-status">
+              <option value="open">Open</option>
+              <option value="ongoing">Ongoing</option>
+              <option value="done">Done</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="ut-task-due">Due Date</label>
+            <input class="form-input" type="date" id="ut-task-due">
+          </div>
+        </div>
+
+        <div class="modal-actions" id="ut-form-actions">
+          <button type="button" class="btn-detail-delete" id="ut-delete-btn" onclick="deleteUtTaskFromModal()" style="display:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            Delete
+          </button>
+          <div style="display:flex;gap:8px;margin-left:auto;">
+            <button type="button" class="btn-modal-cancel" onclick="closeUtModal()">Cancel</button>
+            <button type="submit" class="btn-modal-submit" id="ut-task-submit">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Save
+            </button>
+          </div>
+        </div>
+        <div id="ut-form-loading" class="form-state" style="display:none;">
+          <div class="spinner"></div><span>Saving…</span>
+        </div>
+        <div id="ut-form-error" class="form-state form-error" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="ut-form-error-msg"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script src="/static/theme.js"></script>
+  <script src="/static/user.js"></script>
+</body>
+</html>

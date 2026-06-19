@@ -96,7 +96,7 @@ function closeProfileMenu() {
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', () => {
   const session = loadSession();
-  if (!session || !session.username || !session.isAdmin) {
+  if (!session || !session.username || (!session.isAdmin && !session.isManagement)) {
     location.href = '/';
     return;
   }
@@ -126,11 +126,27 @@ document.addEventListener('DOMContentLoaded', () => {
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         Portal
       </a>`,
-      `<a href="/admin" class="profile-menu-item">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-        Admin Panel
+      `<a href="/helpdesk" class="profile-menu-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        IT Helpdesk
+      </a>`,
+      `<a href="/workspace" class="profile-menu-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        My Workspace
       </a>`,
     ];
+    if (session.isDeveloper || session.isAdmin) {
+      navItems.push(`<a href="/developer" class="profile-menu-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Dev Board
+      </a>`);
+    }
+    if (session.isAdmin || session.isManagement) {
+      navItems.push(`<a href="/admin" class="profile-menu-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Admin Panel
+      </a>`);
+    }
 
     container.innerHTML = `
       <div class="profile-trigger" id="profileTrigger" onclick="toggleProfileMenu(event)">

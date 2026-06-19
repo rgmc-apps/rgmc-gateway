@@ -12,7 +12,7 @@ No deployment pipeline exists — changes are served directly via Flask and comm
 
 **All changes are in code but uncommitted. Nothing is broken — all edits are additive.**
 
-The **Departments feature** is fully implemented in code. One manual step remains before it works: **run `departments_migration.sql` in Supabase SQL Editor.**
+Pending SQL migrations must be run in Supabase before those features work (see Pending Steps below).
 
 ### What was done (this session series)
 
@@ -38,15 +38,28 @@ The **Departments feature** is fully implemented in code. One manual step remain
    - `issues.py` PATCH handler accepts `request_to_department_id`
    - Both `_submit_issue()` and `_submit_helpdesk_issue()` read `request_to_department_id` from form data
 
+7. **is_management flag** — `users.is_management` boolean column. Users with this flag can access admin/tasks screens but are excluded from developer lists and issue/task assignee dropdowns. Requires `management_migration.sql`.
+
+8. **Uniform profile submenu** — all pages now show the same nav structure: My Profile (hidden on profile), Portal (hidden on portal), IT Helpdesk (always), My Workspace (always, hidden on workspace), Dev Board (if isDeveloper || isAdmin, hidden on dev board), Tasks Board (if isAdmin || isManagement, hidden on tasks), Admin Panel (if isAdmin || isManagement, hidden on admin). Updated: `script.js`, `admin.js`, `developer.js`, `tasks.js`, `profile.js`, `user.js`.
+
+9. **My Workspace page** (`/workspace`) — new general user page with 3 tabs:
+   - **Issues**: Team Issues (dept), My Issues (assigned_to), Issues I Filed (by email)
+   - **My Team**: grid of same-department users
+   - **Tasks**: kanban board (Open/Ongoing/Done), team or mine filter, full CRUD
+   - New files: `controllers/user_page.py`, `templates/user.html`, `static/user.js`
+   - New migration: `user_page_migration.sql` (creates `user_tasks` table — run this!)
+
 ---
 
-## Pending Step — MUST DO BEFORE DEPARTMENTS WORK
+## Pending Steps — SQL Migrations to Run
 
-**Run `departments_migration.sql` in Supabase:**
-1. Go to Supabase Dashboard → SQL Editor → New Query
-2. Paste the contents of `departments_migration.sql` and run it
-3. This creates the `departments` table and adds `request_to_department_id` to `issues`
-4. Then go to Admin → Configurations → Departments to add departments
+**1. `departments_migration.sql`** — creates `departments` table + adds `request_to_department_id` to `issues`
+- Go to Supabase → SQL Editor → New Query, paste + run
+- Then go to Admin → Configurations → Departments to add departments
+
+**2. `management_migration.sql`** — adds `is_management` boolean column to `users`
+
+**3. `user_page_migration.sql`** — creates `user_tasks` table (needed for /workspace Tasks tab)
 
 ---
 
@@ -56,14 +69,23 @@ The **Departments feature** is fully implemented in code. One manual step remain
 - `controllers/admin.py` — Add User endpoints, Departments CRUD, Brands CRUD
 - `controllers/public.py` — `GET /api/departments`
 - `controllers/issues.py` — `request_to_department_id` in submit functions and PATCH
+- `controllers/user_page.py` — NEW: all /workspace and /api/user/* endpoints
 - `templates/index.html` — view toggle, `#department`/`#arDepartment` as `<select>`, compact table markup
 - `templates/admin.html` — Add User modal, Departments config sub-tab + panel + `cfgDeptModal`, `euDepartment`/`auDepartment` as `<select>`, `#issueReqDept` in issue modal
 - `templates/helpdesk.html` — `#hdDepartment` as `<select>`, `#hdReqDept` select for assigned department
-- `static/style.css` — compact table styles, view toggle, typeahead suggestion styles
-- `static/script.js` — compact mode toggle, `_loadDepartments()`, companies dropdown
-- `static/admin.js` — Add User, `_loadAdminDepartments()`, `_fillDeptSelect()`, Departments CRUD, issue modal department wiring, `saveIssuePatch` with `request_to_department_id`
+- `templates/user.html` — NEW: My Workspace page
+- `static/style.css` — compact table styles, view toggle, typeahead suggestion styles; +workspace CSS
+- `static/script.js` — compact mode toggle, `_loadDepartments()`, companies dropdown; +My Workspace nav link
+- `static/admin.js` — Add User, `_loadAdminDepartments()`, `_fillDeptSelect()`, Departments CRUD, issue modal department wiring, `saveIssuePatch` with `request_to_department_id`; +My Workspace nav link
+- `static/developer.js` — uniform nav (IT Helpdesk, My Workspace, Tasks Board, Admin Panel); +My Workspace nav link
+- `static/tasks.js` — uniform nav; +My Workspace nav link
+- `static/profile.js` — uniform nav; +My Workspace nav link
+- `static/user.js` — NEW: workspace JS (issues, team, tasks kanban)
 - `static/helpdesk.js` — `_loadDepartments()` for `#hdDepartment` and `#hdReqDept`
+- `app.py` — registered user_page_bp
 - `departments_migration.sql` — creates table + adds FK column to issues (run this!)
+- `management_migration.sql` — adds is_management to users (run this!)
+- `user_page_migration.sql` — creates user_tasks table (run this!)
 - `services/email.py` — helpdesk attachments, reporter confirmation email, assignment email improvements
 
 ---

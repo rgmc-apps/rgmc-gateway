@@ -125,11 +125,27 @@ document.addEventListener('DOMContentLoaded', () => {
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         Portal
       </a>`,
-      `<a href="/developer" class="profile-menu-item">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-        Dev Board
+      `<a href="/helpdesk" class="profile-menu-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        IT Helpdesk
+      </a>`,
+      `<a href="/workspace" class="profile-menu-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        My Workspace
       </a>`,
     ];
+    if (session.isDeveloper || session.isAdmin) {
+      navItems.push(`<a href="/developer" class="profile-menu-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Dev Board
+      </a>`);
+    }
+    if (session.isAdmin || session.isManagement) {
+      navItems.push(`<a href="/tasks" class="profile-menu-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Tasks Board
+      </a>`);
+    }
 
     container.innerHTML = `
       <div class="profile-trigger" id="profileTrigger" onclick="toggleProfileMenu(event)">
@@ -2377,7 +2393,7 @@ function _renderCfgDepts() {
           <td class="issue-desc-cell">${escHtml(d.department_desc || '—')}</td>
           <td>${d.is_active !== false ? '<span class="badge-visible">Active</span>' : '<span class="badge-hidden">Inactive</span>'}</td>
           <td class="action-cell">
-            <button class="btn-tbl-secondary" onclick='openCfgDeptModal(${JSON.stringify(d)})'>Edit</button>
+            <button class="btn-tbl-secondary" onclick="openCfgDeptModal(${d.department_id})">Edit</button>
             <button class="btn-tbl-danger" onclick="deleteCfgDept(${d.department_id})">Delete</button>
           </td>
         </tr>`).join('')}
@@ -2385,7 +2401,10 @@ function _renderCfgDepts() {
     </table>`;
 }
 
-function openCfgDeptModal(dept) {
+function openCfgDeptModal(deptOrId) {
+  const dept = typeof deptOrId === 'number'
+    ? (_cfgDeptsCache.find(d => d.department_id === deptOrId) ?? null)
+    : deptOrId;
   _cfgDeptEditId = dept ? dept.department_id : null;
   document.getElementById('cfgDeptModalTitle').textContent = _cfgDeptEditId ? 'Edit Department' : 'Add Department';
   const codeField = document.getElementById('cfgDeptCode');
