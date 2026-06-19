@@ -41,7 +41,7 @@ def admin_get_users():
         return jsonify(err[0]), err[1]
     try:
         rows = supabase_req("GET", "/users", params={
-            "select": "username,first_name,middle_initial,last_name,display_name,avatar_url,company,department,position,email,viber_number,anydesk_id,systems,is_admin,is_developer,created_at",
+            "select": "username,first_name,middle_initial,last_name,display_name,avatar_url,company,department,position,email,viber_number,anydesk_id,systems,is_admin,is_developer,is_management,created_at",
             "order":  "created_at.asc",
         })
         return jsonify(rows)
@@ -69,8 +69,9 @@ def admin_create_user():
         return jsonify({"error": "Failed to check username availability"}), 500
 
     payload = {"username": username, "systems": data.get("systems", []),
-                "is_admin": bool(data.get("is_admin", False)),
-                "is_developer": bool(data.get("is_developer", False))}
+                "is_admin":      bool(data.get("is_admin",      False)),
+                "is_developer":  bool(data.get("is_developer",  False)),
+                "is_management": bool(data.get("is_management", False))}
     for field in ("first_name", "middle_initial", "last_name", "display_name",
                   "company", "department", "position", "email", "viber_number", "anydesk_id"):
         val = str(data.get(field, "")).strip()
@@ -127,7 +128,7 @@ def admin_update_user(uname):
             return jsonify({"error": str(exc)}), 500
 
     data  = request.get_json(silent=True) or {}
-    allowed = {"is_admin", "is_developer", "systems",
+    allowed = {"is_admin", "is_developer", "is_management", "systems",
                "first_name", "middle_initial", "last_name", "display_name",
                "company", "department", "position", "email", "viber_number", "anydesk_id"}
     patch = {k: v for k, v in data.items() if k in allowed}
@@ -150,8 +151,9 @@ def admin_dev_performance():
 
     try:
         users = supabase_req("GET", "/users", params={
-            "or":     "(is_developer.eq.true,is_admin.eq.true)",
-            "select": "username,first_name,last_name,display_name,avatar_url,company,department,position,email,is_admin,is_developer",
+            "or":            "(is_developer.eq.true,is_admin.eq.true)",
+            "is_management": "eq.false",
+            "select":        "username,first_name,last_name,display_name,avatar_url,company,department,position,email,is_admin,is_developer",
         })
     except Exception as exc:
         current_app.logger.error("admin_dev_performance users: %s", exc)

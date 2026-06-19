@@ -319,6 +319,8 @@ function applySession(session) {
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
           Tasks Board
         </a>`);
+    }
+    if (session.isAdmin || session.isManagement) {
       navItems.push(`
         <a href="/admin" class="profile-menu-item">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
@@ -452,8 +454,9 @@ async function signIn() {
         department:  data.department,
         email:       data.email,
         systems:     data.systems,
-        isAdmin:       data.is_admin     || false,
-        isDeveloper:   data.is_developer || false,
+        isAdmin:       data.is_admin      || false,
+        isDeveloper:   data.is_developer  || false,
+        isManagement:  data.is_management || false,
       };
       saveSession(session);
       applySession(session);

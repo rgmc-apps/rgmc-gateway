@@ -95,7 +95,7 @@ function closeProfileMenu() {
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', () => {
   const session = loadSession();
-  if (!session || !session.username || !session.isAdmin) {
+  if (!session || !session.username || (!session.isAdmin && !session.isManagement)) {
     location.href = '/';
     return;
   }
@@ -415,9 +415,11 @@ function renderUserRow(u) {
   const adminBadge = u.is_admin
     ? '<span class="badge-admin">Admin</span>'
     : '<span class="badge-user">User</span>';
-  const devBadge = u.is_developer ? '<span class="badge-dev">Dev</span>' : '';
-  const toggleAdminLabel = u.is_admin ? 'Revoke Admin' : 'Make Admin';
-  const toggleDevLabel   = u.is_developer ? 'Revoke Dev' : 'Make Dev';
+  const devBadge  = u.is_developer  ? '<span class="badge-dev">Dev</span>'  : '';
+  const mgmtBadge = u.is_management ? '<span class="badge-admin" style="background:var(--accent-muted,#78350f);color:#fef9c3;">Mgmt</span>' : '';
+  const toggleAdminLabel = u.is_admin      ? 'Revoke Admin' : 'Make Admin';
+  const toggleDevLabel   = u.is_developer  ? 'Revoke Dev'   : 'Make Dev';
+  const toggleMgmtLabel  = u.is_management ? 'Revoke Mgmt'  : 'Make Mgmt';
   const uname = escHtml(u.username);
 
   return `<tr id="user-row-${uname}">
@@ -428,13 +430,14 @@ function renderUserRow(u) {
     <td>${escHtml(u.department || '')}</td>
     <td><a href="mailto:${escHtml(u.email)}" class="tbl-link">${escHtml(u.email)}</a></td>
     <td><span class="systems-count">${systems} system${systems !== 1 ? 's' : ''}</span></td>
-    <td>${adminBadge} ${devBadge}</td>
+    <td>${adminBadge} ${devBadge} ${mgmtBadge}</td>
     <td class="date-cell">${fmtDate(u.created_at)}</td>
     <td class="action-cell">
       <button class="btn-tbl-secondary" onclick="openEditUserModal('${uname}')">Edit</button>
       <button class="btn-tbl-secondary" onclick="openEditSystemsModal('${uname}')">Systems</button>
       <button class="btn-tbl-secondary" onclick="toggleAdmin('${uname}', ${u.is_admin})">${toggleAdminLabel}</button>
       <button class="btn-tbl-secondary" onclick="toggleDeveloper('${uname}', ${u.is_developer})">${toggleDevLabel}</button>
+      <button class="btn-tbl-secondary" onclick="toggleManagement('${uname}', ${u.is_management})">${toggleMgmtLabel}</button>
       <button class="btn-tbl-danger" onclick="deleteUser('${uname}')">Delete</button>
     </td>
   </tr>`;
@@ -472,6 +475,25 @@ async function toggleDeveloper(username, currentIsDev) {
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Failed');
     showToast(`Developer access ${newVal ? 'granted to' : 'revoked from'} ${username}`);
+    loadUsers();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+async function toggleManagement(username, currentIsMgmt) {
+  const newVal = !currentIsMgmt;
+  const label  = newVal ? 'grant management access to' : 'revoke management access from';
+  if (!confirm(`Are you sure you want to ${label} "${username}"?`)) return;
+
+  try {
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(username)}`, {
+      method:  'PATCH',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ is_management: newVal }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    showToast(`Management access ${newVal ? 'granted to' : 'revoked from'} ${username}`);
     loadUsers();
   } catch (err) {
     showToast(`Error: ${err.message}`);
@@ -585,6 +607,7 @@ async function submitAddUser(e) {
     position:       document.getElementById('auPosition').value.trim(),
     is_admin:       document.getElementById('auIsAdmin').checked,
     is_developer:   document.getElementById('auIsDeveloper').checked,
+    is_management:  document.getElementById('auIsManagement').checked,
     systems:        [],
   };
 
@@ -1308,7 +1331,7 @@ async function _ensureDevelopers() {
     const res = await fetch('/api/admin/users', { headers: authHeaders() });
     if (res.ok) {
       const all = await res.json();
-      _developersCache = all.filter(u => u.is_developer || u.is_admin);
+      _developersCache = all.filter(u => (u.is_developer || u.is_admin) && !u.is_management);
     }
   } catch { /* non-fatal */ }
 }

@@ -10,11 +10,11 @@ def _require_admin():
     try:
         rows = supabase_req("GET", "/users", params={
             "username": f"eq.{username}",
-            "select":   "username,is_admin",
+            "select":   "username,is_admin,is_management",
         })
     except Exception:
         return None, ({"error": "Authentication failed"}, 500)
-    if not rows or not rows[0].get("is_admin"):
+    if not rows or not (rows[0].get("is_admin") or rows[0].get("is_management")):
         return None, ({"error": "Admin access required"}, 403)
     return rows[0]["username"], None
 
