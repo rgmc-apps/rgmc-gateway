@@ -266,9 +266,19 @@ function applySession(session) {
   // 1. Filter system cards while main is still invisible (prevents flash)
   filterSystems(session.systems);
 
-  // 2. Reveal main content
+  // 2. Reveal main content; restore saved view mode before paint
   const main = document.getElementById('mainContent');
-  if (main) main.style.visibility = 'visible';
+  if (main) {
+    const savedView = localStorage.getItem(VIEW_KEY) || 'cards';
+    if (savedView === 'compact') {
+      const approvedSet = new Set((session.systems || []).map(s => s.toLowerCase()));
+      buildCompactTables(approvedSet);
+      main.classList.add('is-compact');
+      document.getElementById('vswCards')?.classList.remove('active');
+      document.getElementById('vswCompact')?.classList.add('active');
+    }
+    main.style.visibility = 'visible';
+  }
 
   // 3. Populate header profile dropdown
   const headerUser = document.getElementById('headerUser');
@@ -659,6 +669,72 @@ function _selectCompanyOption(sel, value) {
   for (const opt of sel.options) {
     if (opt.value === value) { sel.value = value; return; }
   }
+}
+
+/* ── View Toggle (Cards / Compact) ── */
+const VIEW_KEY = 'rgmc-view-mode';
+let _compactBuilt = false;
+
+function buildCompactTables(approvedSet) {
+  const svgExt  = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
+  const svgWarn = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+
+  document.querySelectorAll('.section:not(.health-section)').forEach(section => {
+    if (section.querySelector('.systems-table-wrap')) return;
+
+    const badgeText = (section.querySelector('.label-badge')?.textContent || '').trim().toUpperCase();
+    const catKey = badgeText === 'RGMC' ? 'RGMC' : badgeText === 'SBIC' ? 'SBIC' : 'NAV Sites';
+
+    const sites = (typeof ALL_SITES !== 'undefined' ? ALL_SITES : []).filter(s => s.category === catKey);
+
+    const rows = sites.map(site => {
+      const visible   = !approvedSet || approvedSet.has((site.name || '').toLowerCase());
+      const name      = escapeHtml(site.name || '');
+      const safeCall  = escapeAttr((site.name || '').replace(/'/g, "\\'"));
+      const primaryLbl = escapeHtml(site.primary_label || 'Open');
+      const backupCell = site.backup_url
+        ? `<a href="${escapeAttr(site.backup_url)}" target="_blank" rel="noopener" class="st-link st-backup">${svgExt} ${escapeHtml(site.backup_label || 'Backup')}</a>`
+        : `<span class="st-none">—</span>`;
+      return `<tr class="st-row"${visible ? '' : ' style="display:none"'}>
+        <td class="st-name">${name}</td>
+        <td><a href="${escapeAttr(site.primary_url || '#')}" target="_blank" rel="noopener" class="st-link st-primary">${svgExt} ${primaryLbl}</a></td>
+        <td>${backupCell}</td>
+        <td class="st-actions"><button class="btn btn-report" onclick="openReport('${safeCall}')">${svgWarn} Report</button></td>
+      </tr>`;
+    }).join('');
+
+    const wrap = document.createElement('div');
+    wrap.className = 'systems-table-wrap';
+    wrap.innerHTML = `<table class="systems-table">
+      <thead><tr><th>System</th><th>Primary Link</th><th>Backup</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+    section.querySelector('.systems-grid')?.after(wrap);
+  });
+
+  _compactBuilt = true;
+}
+
+function setViewMode(mode) {
+  const main = document.getElementById('mainContent');
+  if (!main) return;
+
+  if (mode === 'compact') {
+    if (!_compactBuilt) {
+      const session = loadSession();
+      const approvedSet = session?.systems ? new Set(session.systems.map(s => s.toLowerCase())) : null;
+      buildCompactTables(approvedSet);
+    }
+    main.classList.add('is-compact');
+    document.getElementById('vswCards')?.classList.remove('active');
+    document.getElementById('vswCompact')?.classList.add('active');
+  } else {
+    main.classList.remove('is-compact');
+    document.getElementById('vswCards')?.classList.add('active');
+    document.getElementById('vswCompact')?.classList.remove('active');
+  }
+
+  localStorage.setItem(VIEW_KEY, mode);
 }
 
 /* ── Init ── */

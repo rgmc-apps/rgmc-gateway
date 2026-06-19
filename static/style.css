@@ -4340,6 +4340,148 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
     box-shadow      0.35s ease !important;
 }
 
+/* ── View Toggle ── */
+.view-toggle-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -48px;
+  position: relative;
+  z-index: 2;
+}
+
+.view-switcher {
+  display: inline-flex;
+  background: rgba(196,151,42,0.05);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 3px;
+  gap: 2px;
+  backdrop-filter: blur(8px);
+}
+
+.view-sw-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 13px;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: all 0.22s var(--ease);
+  white-space: nowrap;
+}
+
+.view-sw-btn:hover { color: var(--text-secondary); }
+
+.view-sw-btn.active {
+  background: var(--gold-dim);
+  color: var(--gold-light);
+  border-color: var(--gold-border);
+  box-shadow: 0 1px 6px rgba(196,151,42,0.14);
+}
+
+/* ── Compact Table View ── */
+.systems-table-wrap {
+  display: none;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+  animation: fadeInUp 0.4s var(--ease-spring) both;
+}
+
+.main.is-compact .systems-table-wrap { display: block; }
+.main.is-compact .systems-grid { display: none !important; }
+
+.systems-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-ui);
+}
+
+.systems-table thead th {
+  padding: 9px 18px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--bg-card-inner);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.systems-table thead th:last-child { width: 110px; }
+
+.st-row {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.18s var(--ease);
+}
+
+.st-row:last-child { border-bottom: none; }
+
+.st-row:hover { background: rgba(196,151,42,0.04); }
+
+.st-row td {
+  padding: 10px 18px;
+  vertical-align: middle;
+}
+
+.st-name {
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  min-width: 160px;
+}
+
+.st-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-decoration: none;
+  padding: 4px 11px;
+  border-radius: var(--radius-pill);
+  transition: all 0.2s var(--ease);
+  white-space: nowrap;
+}
+
+.st-primary {
+  background: var(--gold);
+  color: #080604;
+}
+.st-primary:hover { background: var(--gold-light); box-shadow: 0 2px 10px rgba(196,151,42,0.32); transform: translateY(-1px); }
+
+.st-backup {
+  background: transparent;
+  color: var(--gold);
+  border: 1px solid var(--gold-border-h);
+}
+.st-backup:hover { background: var(--gold-dim); border-color: var(--gold); transform: translateY(-1px); }
+
+.st-none {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.st-actions { text-align: right; }
+.st-actions .btn-report { margin-left: 0; font-size: 11px; padding: 4px 11px; }
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* ══ Light mode — CSS variable overrides ══ */
 [data-theme="light"] {
   --bg:            #F5F0E8;
@@ -4665,3 +4807,10 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
 [data-theme="light"] .hd-priority-badge.p4 { background: #dcfce7; color: #15803d; border-color: #86efac; }
 [data-theme="light"] .hd-section-label { color: #8a6930; }
 [data-theme="light"] .hd-divider { border-color: #d4b26a; }
+
+/* Compact view — light theme */
+[data-theme="light"] .systems-table-wrap { background: #fff; }
+[data-theme="light"] .systems-table thead th { background: #faf8f4; color: #8a6930; }
+[data-theme="light"] .st-row:hover { background: rgba(196,151,42,0.03); }
+[data-theme="light"] .st-name { color: #1a1409; }
+[data-theme="light"] .view-switcher { background: rgba(196,151,42,0.04); }
