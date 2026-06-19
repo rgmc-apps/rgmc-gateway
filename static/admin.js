@@ -497,6 +497,7 @@ function openAddUserModal() {
   document.getElementById('auFormActions').style.display = '';
   document.getElementById('auFormLoading').style.display = 'none';
   document.getElementById('auFormError').style.display   = 'none';
+  _fillCompanySelect('auCompany', '');
   document.getElementById('addUserModal').classList.add('open');
   document.body.style.overflow = 'hidden';
   setTimeout(() => document.getElementById('auFirstName').focus(), 60);
@@ -548,7 +549,7 @@ function auSelectSuggestion(idx) {
   document.getElementById('auMiddleInitial').value  = r.middle_initial  || '';
   document.getElementById('auLastName').value       = r.last_name       || '';
   document.getElementById('auEmail').value          = r.email           || '';
-  document.getElementById('auCompany').value        = r.company         || '';
+  _fillCompanySelect('auCompany', r.company || '');
   document.getElementById('auDepartment').value     = r.department      || '';
   document.getElementById('auPosition').value       = r.position        || '';
   // Auto-suggest username: first initial + last name, lowercase, no spaces
