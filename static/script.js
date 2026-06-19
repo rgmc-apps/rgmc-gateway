@@ -676,6 +676,30 @@ function _selectCompanyOption(sel, value) {
   }
 }
 
+/* ── Departments dropdown ── */
+
+async function _loadDepartments() {
+  try {
+    const res = await fetch('/api/departments');
+    const depts = await res.json();
+    const opts = depts.map(d =>
+      `<option value="${d.department_name}">${d.department_code} — ${d.department_name}</option>`
+    ).join('');
+    ['department', 'arDepartment'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (sel) sel.insertAdjacentHTML('beforeend', opts);
+    });
+    // Pre-fill from session
+    const session = loadSession();
+    if (session?.department) {
+      ['department', 'arDepartment'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (sel) sel.value = session.department;
+      });
+    }
+  } catch { /* non-fatal */ }
+}
+
 /* ── View Toggle (Cards / Compact) ── */
 const VIEW_KEY = 'rgmc-view-mode';
 let _compactBuilt = false;
@@ -761,6 +785,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (cSel) _selectCompanyOption(cSel, session.company);
     }
   });
+
+  // Populate department dropdowns
+  _loadDepartments();
 
   // Enter key in gate username field
   document.getElementById('gateUsername')?.addEventListener('keydown', e => {

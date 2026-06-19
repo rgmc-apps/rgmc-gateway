@@ -138,6 +138,7 @@
         <button class="status-tab"        data-ctab="request-types"      onclick="switchConfigTab('request-types')">Request Types</button>
         <button class="status-tab"        data-ctab="non-software-items" onclick="switchConfigTab('non-software-items')">Non-Software Items</button>
         <button class="status-tab"        data-ctab="brands"             onclick="switchConfigTab('brands')">Brands</button>
+        <button class="status-tab"        data-ctab="departments"        onclick="switchConfigTab('departments')">Departments</button>
       </div>
 
       <!-- Companies -->
@@ -188,6 +189,19 @@
           </button>
         </div>
         <div id="config-brands-body" class="admin-table-wrap">
+          <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
+        </div>
+      </div>
+
+      <!-- Departments -->
+      <div id="config-panel-departments" class="config-sub-panel" style="display:none;">
+        <div class="admin-toolbar">
+          <button class="btn-admin-add" onclick="openCfgDeptModal(null)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Department
+          </button>
+        </div>
+        <div id="config-depts-body" class="admin-table-wrap">
           <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
         </div>
       </div>
@@ -268,7 +282,9 @@
           </div>
           <div class="form-group">
             <label class="form-label" for="euDepartment">Department</label>
-            <input class="form-input" type="text" id="euDepartment" maxlength="120">
+            <select class="form-input" id="euDepartment">
+              <option value="">— Select department —</option>
+            </select>
           </div>
         </div>
         <div class="form-row">
@@ -573,6 +589,12 @@
               <option value="">— Unassigned —</option>
             </select>
           </div>
+          <div class="form-group">
+            <label class="form-label" for="issueReqDept">Assigned Department</label>
+            <select class="form-input" id="issueReqDept">
+              <option value="">— Unassigned —</option>
+            </select>
+          </div>
         </div>
 
         <!-- Resolution fields (shown when status = resolved or closed) -->
@@ -831,6 +853,51 @@
     </div>
   </div>
 
+  <!-- ── Config: Department Modal ── -->
+  <div id="cfgDeptModal" class="modal-overlay" onclick="overlayCfgDept(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <div><h3 class="modal-title" id="cfgDeptModalTitle">Add Department</h3></div>
+        <button class="modal-close" onclick="closeCfgDeptModal()" aria-label="Close">&times;</button>
+      </div>
+      <form id="cfgDeptForm" class="modal-form" onsubmit="saveCfgDept(event)">
+        <div class="form-row">
+          <div class="form-group" style="max-width:160px;">
+            <label class="form-label" for="cfgDeptCode">Code <span class="required">*</span></label>
+            <input class="form-input" type="text" id="cfgDeptCode" maxlength="20" placeholder="HR" style="text-transform:uppercase;">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cfgDeptName">Department Name <span class="required">*</span></label>
+            <input class="form-input" type="text" id="cfgDeptName" maxlength="150" placeholder="Human Resources">
+          </div>
+        </div>
+        <div class="form-group form-group-full">
+          <label class="form-label" for="cfgDeptDesc">Description <span class="form-label-hint">(optional)</span></label>
+          <textarea class="form-input form-textarea" id="cfgDeptDesc" rows="2" placeholder="Brief description…"></textarea>
+        </div>
+        <div class="form-group" style="max-width:260px;">
+          <label class="form-label">Status</label>
+          <label class="toggle-label">
+            <input type="checkbox" id="cfgDeptActive" checked>
+            <span class="toggle-text">Active</span>
+          </label>
+        </div>
+        <div id="cfgDeptFormActions" class="modal-actions">
+          <button type="button" class="btn-modal-cancel" onclick="closeCfgDeptModal()">Cancel</button>
+          <button type="submit" class="btn-modal-submit">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Save
+          </button>
+        </div>
+        <div id="cfgDeptFormLoading" class="form-state" style="display:none;"><div class="spinner"></div><span>Saving…</span></div>
+        <div id="cfgDeptFormError" class="form-state form-error" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="cfgDeptErrorMsg"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ── Add User Modal ── -->
   <div id="addUserModal" class="modal-overlay" onclick="overlayCloseAddUser(event)">
     <div class="modal modal-lg">
@@ -885,7 +952,9 @@
           </div>
           <div class="form-group">
             <label class="form-label" for="auDepartment">Department</label>
-            <input class="form-input" type="text" id="auDepartment">
+            <select class="form-input" id="auDepartment">
+              <option value="">— Select department —</option>
+            </select>
           </div>
         </div>
 

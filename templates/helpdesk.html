@@ -145,8 +145,9 @@
               <label class="form-label" for="hdDepartment">Department
                 <span class="form-label-hint">(optional)</span>
               </label>
-              <input class="form-input" type="text" id="hdDepartment" name="department"
-                placeholder="IT / Finance / Operations">
+              <select class="form-input" id="hdDepartment" name="department">
+                <option value="">— Select department —</option>
+              </select>
             </div>
             <div class="form-group" style="max-width:200px;">
               <label class="form-label" for="hdAnydeskId">AnyDesk ID
@@ -195,6 +196,16 @@
             </label>
             <input class="form-input" type="text" id="hdTitle" name="title"
               placeholder="e.g. Cannot log in to the system">
+          </div>
+
+          <!-- Assign to Department -->
+          <div class="form-group form-group-full">
+            <label class="form-label" for="hdReqDept">Which department should handle this?
+              <span class="form-label-hint">(optional)</span>
+            </label>
+            <select class="form-input" id="hdReqDept" name="request_to_department_id">
+              <option value="">— Select department —</option>
+            </select>
           </div>
 
           <!-- Full Description -->

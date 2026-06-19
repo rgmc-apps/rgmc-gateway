@@ -64,11 +64,15 @@ let _cfgCategoriesCache = [];
 let _cfgTypesCache      = [];
 let _cfgNsiCache        = [];
 let _cfgBrandsCache     = [];
+let _cfgDeptsCache      = [];
 let _cfgCompanyEditCode = null;
 let _cfgCategoryEditId  = null;
 let _cfgTypeEditId      = null;
 let _cfgNsiEditId       = null;
 let _cfgBrandEditCode   = null;
+let _cfgDeptEditId      = null;
+
+let _adminDepartments   = [];
 
 /* ── Profile dropdown ── */
 function toggleProfileMenu(e) {
@@ -159,9 +163,10 @@ document.addEventListener('DOMContentLoaded', () => {
     loadRequests('pending');
   }
   _loadAdminCompanies();
+  _loadAdminDepartments();
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape')      { closeLightbox(); closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); closeCfgCompanyModal(); closeCfgCategoryModal(); closeCfgTypeModal(); closeCfgNsiModal(); closeCfgBrandModal(); }
+    if (e.key === 'Escape')      { closeLightbox(); closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); closeCfgCompanyModal(); closeCfgCategoryModal(); closeCfgTypeModal(); closeCfgNsiModal(); closeCfgBrandModal(); closeCfgDeptModal(); closeAddUserModal(); }
     if (e.key === 'ArrowLeft')   lightboxNav(-1);
     if (e.key === 'ArrowRight')  lightboxNav(1);
   });
@@ -498,6 +503,7 @@ function openAddUserModal() {
   document.getElementById('auFormLoading').style.display = 'none';
   document.getElementById('auFormError').style.display   = 'none';
   _fillCompanySelect('auCompany', '');
+  _fillDeptSelect('auDepartment', '');
   document.getElementById('addUserModal').classList.add('open');
   document.body.style.overflow = 'hidden';
   setTimeout(() => document.getElementById('auFirstName').focus(), 60);
@@ -550,7 +556,7 @@ function auSelectSuggestion(idx) {
   document.getElementById('auLastName').value       = r.last_name       || '';
   document.getElementById('auEmail').value          = r.email           || '';
   _fillCompanySelect('auCompany', r.company || '');
-  document.getElementById('auDepartment').value     = r.department      || '';
+  _fillDeptSelect('auDepartment', r.department || '');
   document.getElementById('auPosition').value       = r.position        || '';
   // Auto-suggest username: first initial + last name, lowercase, no spaces
   const suggested = ((r.first_name || '').charAt(0) + (r.last_name || '')).toLowerCase().replace(/\s+/g, '');
@@ -934,6 +940,28 @@ function _fillCompanySelect(selId, selectedName) {
   });
 }
 
+async function _loadAdminDepartments() {
+  try {
+    const res = await fetch('/api/departments');
+    _adminDepartments = await res.json();
+  } catch { _adminDepartments = []; }
+}
+
+function _fillDeptSelect(selId, selectedVal, byId = false) {
+  const sel = document.getElementById(selId);
+  if (!sel) return;
+  const placeholder = sel.options[0];
+  sel.innerHTML = '';
+  sel.appendChild(placeholder);
+  _adminDepartments.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = byId ? d.department_id : d.department_name;
+    opt.textContent = `${d.department_code} — ${d.department_name}`;
+    if (byId ? String(d.department_id) === String(selectedVal) : d.department_name === selectedVal) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
 /* ── Edit User modal ── */
 
 function openEditUserModal(username) {
@@ -946,12 +974,12 @@ function openEditUserModal(username) {
   document.getElementById('euMiddleInitial').value  = user.middle_initial  || '';
   document.getElementById('euLastName').value       = user.last_name       || '';
   document.getElementById('euDisplayName').value    = user.display_name    || '';
-  document.getElementById('euDepartment').value   = user.department    || '';
   document.getElementById('euPosition').value     = user.position      || '';
   document.getElementById('euEmail').value        = user.email         || '';
   document.getElementById('euViberNumber').value  = user.viber_number  || '';
   document.getElementById('euAnydeskId').value    = user.anydesk_id   || '';
   _fillCompanySelect('euCompany', user.company || '');
+  _fillDeptSelect('euDepartment', user.department || '');
 
   document.getElementById('euFormActions').style.display = '';
   document.getElementById('euFormLoading').style.display = 'none';
@@ -1377,6 +1405,9 @@ async function openIssueModal(id) {
       return `<option value="${escHtml(u.username)}"${selected}>${escHtml(label)} (@${escHtml(u.username)})</option>`;
     }).join('');
 
+  // Populate assigned-department dropdown
+  _fillDeptSelect('issueReqDept', issue.request_to_department_id || '', true);
+
   // Resolution fields
   document.getElementById('issueResolutionNotes').value = issue.resolution_notes || '';
   document.getElementById('issueResolvedBy').value      = issue.resolved_by      || '';
@@ -1418,11 +1449,13 @@ async function saveIssuePatch() {
   document.getElementById('issueModalError').style.display   = 'none';
 
   try {
-    const isTerminal = status === 'resolved' || status === 'closed';
+    const isTerminal  = status === 'resolved' || status === 'closed';
+    const reqDeptRaw  = document.getElementById('issueReqDept').value;
     const body = {
       status,
-      assigned_to:      assignedTo,
-      title:            document.getElementById('issueTitleInput').value.trim() || null,
+      assigned_to:              assignedTo,
+      title:                    document.getElementById('issueTitleInput').value.trim() || null,
+      request_to_department_id: reqDeptRaw ? parseInt(reqDeptRaw, 10) : null,
       resolution_notes: isTerminal ? (document.getElementById('issueResolutionNotes').value.trim() || null) : undefined,
       resolved_by:      isTerminal ? (document.getElementById('issueResolvedBy').value.trim() || null)      : undefined,
     };
@@ -1726,6 +1759,7 @@ function _loadCurrentConfigSub() {
   if (_currentConfigTab === 'request-types')      loadCfgTypes();
   if (_currentConfigTab === 'non-software-items') loadCfgNsi();
   if (_currentConfigTab === 'brands')             loadCfgBrands();
+  if (_currentConfigTab === 'departments')        loadCfgDepts();
 }
 
 /* shared modal helpers */
@@ -2283,6 +2317,119 @@ async function deleteCfgBrand(code) {
     if (!res.ok) throw new Error((await res.json()).error || 'Delete failed');
     showToast('Brand deleted.');
     loadCfgBrands();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+/* ── Departments ── */
+
+async function loadCfgDepts() {
+  const wrap = document.getElementById('config-depts-body');
+  wrap.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  try {
+    const res = await fetch('/api/admin/config/departments', { headers: authHeaders() });
+    if (!res.ok) throw new Error(await res.text());
+    _cfgDeptsCache = await res.json();
+    _renderCfgDepts();
+  } catch (err) {
+    wrap.innerHTML = `<div class="admin-error">Failed: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function _renderCfgDepts() {
+  const wrap = document.getElementById('config-depts-body');
+  if (!_cfgDeptsCache.length) {
+    wrap.innerHTML = '<div class="admin-empty">No departments. Add one above.</div>';
+    return;
+  }
+  wrap.innerHTML = `
+    <table class="admin-table">
+      <thead><tr><th>ID</th><th>Code</th><th>Name</th><th>Description</th><th>Status</th><th></th></tr></thead>
+      <tbody>${_cfgDeptsCache.map(d => `
+        <tr>
+          <td><code class="mono-val">${d.department_id}</code></td>
+          <td><code class="mono-val">${escHtml(d.department_code)}</code></td>
+          <td>${escHtml(d.department_name)}</td>
+          <td class="issue-desc-cell">${escHtml(d.department_desc || '—')}</td>
+          <td>${d.is_active !== false ? '<span class="badge-visible">Active</span>' : '<span class="badge-hidden">Inactive</span>'}</td>
+          <td class="action-cell">
+            <button class="btn-tbl-secondary" onclick='openCfgDeptModal(${JSON.stringify(d)})'>Edit</button>
+            <button class="btn-tbl-danger" onclick="deleteCfgDept(${d.department_id})">Delete</button>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function openCfgDeptModal(dept) {
+  _cfgDeptEditId = dept ? dept.department_id : null;
+  document.getElementById('cfgDeptModalTitle').textContent = _cfgDeptEditId ? 'Edit Department' : 'Add Department';
+  const codeField = document.getElementById('cfgDeptCode');
+  codeField.value    = dept?.department_code ?? '';
+  codeField.disabled = !!_cfgDeptEditId;
+  document.getElementById('cfgDeptName').value   = dept?.department_name ?? '';
+  document.getElementById('cfgDeptDesc').value   = dept?.department_desc ?? '';
+  document.getElementById('cfgDeptActive').checked = dept ? (dept.is_active !== false) : true;
+  _resetCfgModal('cfgDept');
+  document.getElementById('cfgDeptModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCfgDeptModal() {
+  document.getElementById('cfgDeptModal').classList.remove('open');
+  document.body.style.overflow = '';
+  _cfgDeptEditId = null;
+}
+
+function overlayCfgDept(e) {
+  if (e.target === document.getElementById('cfgDeptModal')) closeCfgDeptModal();
+}
+
+async function saveCfgDept(e) {
+  e.preventDefault();
+  const code     = document.getElementById('cfgDeptCode').value.trim().toUpperCase();
+  const name     = document.getElementById('cfgDeptName').value.trim();
+  const desc     = document.getElementById('cfgDeptDesc').value.trim() || null;
+  const isActive = document.getElementById('cfgDeptActive').checked;
+  if (!name) { _showCfgError('cfgDept', 'Name is required.'); return; }
+  if (!_cfgDeptEditId && !code) { _showCfgError('cfgDept', 'Code is required.'); return; }
+  _setCfgLoading('cfgDept', true);
+  try {
+    let res;
+    if (_cfgDeptEditId) {
+      res = await fetch(`/api/admin/config/departments/${_cfgDeptEditId}`, {
+        method: 'PATCH', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ department_name: name, department_desc: desc, is_active: isActive }),
+      });
+    } else {
+      res = await fetch('/api/admin/config/departments', {
+        method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ department_code: code, department_name: name, department_desc: desc, is_active: isActive }),
+      });
+    }
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    const wasEdit = _cfgDeptEditId;
+    closeCfgDeptModal();
+    showToast(`Department ${wasEdit ? 'updated' : 'added'}.`);
+    loadCfgDepts();
+    _loadAdminDepartments();
+  } catch (err) {
+    _setCfgLoading('cfgDept', false);
+    _showCfgError('cfgDept', err.message);
+  }
+}
+
+async function deleteCfgDept(id) {
+  if (!confirm('Delete this department? Users with this department assigned may be affected.')) return;
+  try {
+    const res = await fetch(`/api/admin/config/departments/${id}`, {
+      method: 'DELETE', headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Delete failed');
+    showToast('Department deleted.');
+    loadCfgDepts();
+    _loadAdminDepartments();
   } catch (err) {
     showToast(`Error: ${err.message}`);
   }

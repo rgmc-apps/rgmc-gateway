@@ -584,6 +584,67 @@ def config_update_non_software_item(item_id):
         return jsonify({"error": str(exc)}), 500
 
 
+# ── Config: Departments ──────────────────────────────────────────────────
+
+@admin_bp.get("/api/admin/config/departments")
+def config_list_departments():
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/departments", params={"select": "*", "order": "department_name.asc"})
+        return jsonify(rows or [])
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.post("/api/admin/config/departments")
+def config_create_department():
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    data = request.get_json(silent=True) or {}
+    code = str(data.get("department_code", "")).strip().upper()
+    name = str(data.get("department_name", "")).strip()
+    if not code or not name:
+        return jsonify({"error": "department_code and department_name are required"}), 400
+    payload = {
+        "department_code": code,
+        "department_name": name,
+        "department_desc": str(data.get("department_desc", "")).strip() or None,
+        "is_active":       bool(data.get("is_active", True)),
+    }
+    try:
+        rows = supabase_req("POST", "/departments", data=payload,
+                            extra_headers={"Prefer": "return=representation"})
+        return jsonify(rows[0] if rows else {}), 201
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.route("/api/admin/config/departments/<int:dept_id>", methods=["PATCH", "DELETE"])
+def config_update_department(dept_id):
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    if request.method == "DELETE":
+        try:
+            supabase_req("DELETE", "/departments", params={"department_id": f"eq.{dept_id}"})
+            return jsonify({"success": True})
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
+    data  = request.get_json(silent=True) or {}
+    patch = {}
+    if "department_name" in data: patch["department_name"] = str(data["department_name"]).strip()
+    if "department_code" in data: patch["department_code"] = str(data["department_code"]).strip().upper()
+    if "department_desc" in data: patch["department_desc"] = str(data["department_desc"]).strip() or None
+    if "is_active"       in data: patch["is_active"]       = bool(data["is_active"])
+    if not patch:
+        return jsonify({"error": "Nothing to update"}), 400
+    try:
+        supabase_req("PATCH", "/departments", data=patch, params={"department_id": f"eq.{dept_id}"})
+        return jsonify({"success": True})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
 # ── Config: Brands ───────────────────────────────────────────────────────────
 
 @admin_bp.get("/api/admin/config/brands")

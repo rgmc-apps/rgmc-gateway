@@ -75,6 +75,16 @@ def get_companies():
     return jsonify(rows or [])
 
 
+@public_bp.get("/api/departments")
+def get_departments():
+    rows = supabase_req("GET", "/departments", params={
+        "is_active": "eq.true",
+        "order":     "department_name.asc",
+        "select":    "department_id,department_name,department_code",
+    })
+    return jsonify(rows or [])
+
+
 @public_bp.get("/api/systems/by-tag")
 def system_by_tag():
     tag = request.args.get("tag", "").strip().lower()

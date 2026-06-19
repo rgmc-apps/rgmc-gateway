@@ -186,6 +186,25 @@ async function _loadCompanies() {
   } catch { /* non-fatal */ }
 }
 
+/* ── Departments dropdowns ────────────────────────────────────────────────── */
+
+async function _loadDepartments() {
+  try {
+    const res   = await fetch('/api/departments');
+    const depts = await res.json();
+    ['hdDepartment', 'hdReqDept'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      depts.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = id === 'hdReqDept' ? d.department_id : d.department_name;
+        opt.textContent = `${d.department_code} — ${d.department_name}`;
+        sel.appendChild(opt);
+      });
+    });
+  } catch { /* non-fatal */ }
+}
+
 /* ── Categories dropdown ──────────────────────────────────────────────────── */
 
 async function _loadCategories() {
@@ -369,7 +388,7 @@ async function hdSubmit(e) {
 /* ── Bootstrap ────────────────────────────────────────────────────────────── */
 
 document.addEventListener('DOMContentLoaded', async () => {
-  await Promise.all([_loadCompanies(), _loadCategories()]);
+  await Promise.all([_loadCompanies(), _loadCategories(), _loadDepartments()]);
   await _applyUrlParams();
 
   const zone = document.getElementById('hdDropZone');

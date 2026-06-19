@@ -34,16 +34,18 @@ def _upload_issue_attachment(issue_id: str, index: int, filename: str, data: byt
 
 
 def _submit_issue():
+    _raw_dept_id = request.form.get("request_to_department_id", "").strip()
     form_data = {
-        "employee_name": request.form.get("employee_name", "").strip(),
-        "company_name":  request.form.get("company_name", "").strip(),
-        "viber_number":  request.form.get("viber_number", "").strip(),
-        "email":         request.form.get("email", "").strip(),
-        "department":    request.form.get("department", "").strip(),
-        "site_name":     request.form.get("site_name", "").strip(),
-        "description":   request.form.get("description", "").strip(),
-        "title":         request.form.get("title", "").strip() or None,
-        "error_code":    request.form.get("error_code", "").strip() or None,
+        "employee_name":            request.form.get("employee_name", "").strip(),
+        "company_name":             request.form.get("company_name", "").strip(),
+        "viber_number":             request.form.get("viber_number", "").strip(),
+        "email":                    request.form.get("email", "").strip(),
+        "department":               request.form.get("department", "").strip(),
+        "site_name":                request.form.get("site_name", "").strip(),
+        "description":              request.form.get("description", "").strip(),
+        "title":                    request.form.get("title", "").strip() or None,
+        "error_code":               request.form.get("error_code", "").strip() or None,
+        "request_to_department_id": int(_raw_dept_id) if _raw_dept_id.isdigit() else None,
     }
 
     required = ["employee_name", "company_name", "viber_number", "email", "site_name", "description"]
@@ -80,6 +82,8 @@ def _submit_issue():
                 issue_row["title"] = form_data["title"]
             if form_data["error_code"]:
                 issue_row["error_code"] = form_data["error_code"]
+            if form_data["request_to_department_id"]:
+                issue_row["request_to_department_id"] = form_data["request_to_department_id"]
             rows = supabase_req("POST", "/issues", data=issue_row,
                                 extra_headers={"Prefer": "return=representation"})
             if rows:
@@ -111,22 +115,24 @@ def _submit_issue():
 
 
 def _submit_helpdesk_issue():
+    _raw_hd_dept_id = request.form.get("request_to_department_id", "").strip()
     form_data = {
-        "employee_name":      request.form.get("employee_name", "").strip(),
-        "email":              request.form.get("email", "").strip(),
-        "viber_number":       request.form.get("viber_number", "").strip(),
-        "company_name":       request.form.get("company_name", "").strip(),
-        "department":         request.form.get("department", "").strip(),
-        "anydesk_id":         request.form.get("anydesk_id", "").strip() or None,
-        "ticket_type":        request.form.get("ticket_type", "").strip(),
-        "request_category":   request.form.get("request_category", "").strip(),
-        "request_subcategory": request.form.get("request_subcategory", "").strip() or None,
-        "request_type_name":  request.form.get("request_type_name", "").strip() or None,
-        "business_impact":    request.form.get("business_impact", "").strip() or None,
-        "urgency":            request.form.get("urgency", "").strip() or None,
-        "priority":           request.form.get("priority", "").strip() or None,
-        "title":              request.form.get("title", "").strip() or None,
-        "description":        request.form.get("description", "").strip(),
+        "employee_name":            request.form.get("employee_name", "").strip(),
+        "email":                    request.form.get("email", "").strip(),
+        "viber_number":             request.form.get("viber_number", "").strip(),
+        "company_name":             request.form.get("company_name", "").strip(),
+        "department":               request.form.get("department", "").strip(),
+        "anydesk_id":               request.form.get("anydesk_id", "").strip() or None,
+        "ticket_type":              request.form.get("ticket_type", "").strip(),
+        "request_category":         request.form.get("request_category", "").strip(),
+        "request_subcategory":      request.form.get("request_subcategory", "").strip() or None,
+        "request_type_name":        request.form.get("request_type_name", "").strip() or None,
+        "business_impact":          request.form.get("business_impact", "").strip() or None,
+        "urgency":                  request.form.get("urgency", "").strip() or None,
+        "priority":                 request.form.get("priority", "").strip() or None,
+        "title":                    request.form.get("title", "").strip() or None,
+        "description":              request.form.get("description", "").strip(),
+        "request_to_department_id": int(_raw_hd_dept_id) if _raw_hd_dept_id.isdigit() else None,
     }
 
     required = ["employee_name", "email", "viber_number", "company_name",
@@ -171,6 +177,8 @@ def _submit_helpdesk_issue():
         issue_row["anydesk_id"] = form_data["anydesk_id"]
     if form_data["title"]:
         issue_row["title"] = form_data["title"]
+    if form_data["request_to_department_id"]:
+        issue_row["request_to_department_id"] = form_data["request_to_department_id"]
 
     ticket_number = None
     issue_id = None
@@ -259,7 +267,7 @@ def admin_patch_issue(issue_id):
     if err:
         return jsonify(err[0]), err[1]
     body    = request.get_json(silent=True) or {}
-    allowed = {"status", "assigned_to", "title", "resolution_notes", "resolved_by"}
+    allowed = {"status", "assigned_to", "title", "resolution_notes", "resolved_by", "request_to_department_id"}
     patch   = {k: v for k, v in body.items() if k in allowed}
     if not patch:
         return jsonify({"error": "Nothing to update"}), 400
