@@ -6,6 +6,7 @@ from controllers.issues import issues_bp
 from controllers.admin import admin_bp
 from controllers.developer import developer_bp
 from controllers.profile import profile_bp
+from controllers.tasks import tasks_bp
 
 
 def create_app() -> Flask:
@@ -18,6 +19,7 @@ def create_app() -> Flask:
     app.register_blueprint(admin_bp)
     app.register_blueprint(developer_bp)
     app.register_blueprint(profile_bp)
+    app.register_blueprint(tasks_bp)
 
     return app
 

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tasks Board — RGMC Gateway</title>
+  <link rel="icon" type="image/png" href="/static/badge.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('rgmc-theme')||'light');</script>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="header-brand">
+        <div class="header-logo-wrap">
+          <img src="/static/logo.png" alt="RGMC Gateway" class="header-logo-img">
+        </div>
+        <div class="header-divider"></div>
+        <div class="header-tagline">RGMC Tasks Board</div>
+      </a>
+      <div id="tasksHeaderUser" class="header-user"></div>
+    </div>
+  </header>
+
+  <main class="admin-main">
+
+    <div class="dev-page-header">
+      <div>
+        <h1 class="admin-page-title">Tasks Board</h1>
+        <p class="admin-page-sub">Track and manage tasks across the pipeline.</p>
+      </div>
+      <div class="dev-page-actions">
+        <div class="dev-filter-tabs">
+          <button class="dev-filter-tab active" data-filter="all"  onclick="setTaskFilter('all')">All</button>
+          <button class="dev-filter-tab"        data-filter="mine" onclick="setTaskFilter('mine')">Mine</button>
+        </div>
+        <button class="btn-admin-add" onclick="openTaskDetailModal(null)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Task
+        </button>
+      </div>
+    </div>
+
+    <div class="dev-stats-bar">
+      <div class="dev-stat-pill stat-open">
+        <span class="dev-stat-dot dot-open"></span>
+        <span class="dev-stat-count" id="stat-count-open">—</span>
+        <span class="dev-stat-label">Open</span>
+      </div>
+      <div class="dev-stat-pill stat-in_progress">
+        <span class="dev-stat-dot dot-in_progress"></span>
+        <span class="dev-stat-count" id="stat-count-in_progress">—</span>
+        <span class="dev-stat-label">In Progress</span>
+      </div>
+      <div class="dev-stat-pill stat-for_review">
+        <span class="dev-stat-dot dot-for_review"></span>
+        <span class="dev-stat-count" id="stat-count-for_review">—</span>
+        <span class="dev-stat-label">For Review</span>
+      </div>
+      <div class="dev-stat-pill stat-done">
+        <span class="dev-stat-dot dot-done"></span>
+        <span class="dev-stat-count" id="stat-count-done">—</span>
+        <span class="dev-stat-label">Done</span>
+      </div>
+    </div>
+
+    <!-- Kanban board -->
+    <div class="kanban-board" id="kanbanBoard">
+      <div class="kanban-col" id="col-open" data-status="open">
+        <div class="kanban-col-header">
+          <span class="kanban-col-dot dot-open"></span>
+          Open
+          <span class="kanban-count" id="count-open">0</span>
+        </div>
+        <div class="kanban-cards" id="cards-open"></div>
+      </div>
+      <div class="kanban-col" id="col-in_progress" data-status="in_progress">
+        <div class="kanban-col-header">
+          <span class="kanban-col-dot dot-in_progress"></span>
+          In Progress
+          <span class="kanban-count" id="count-in_progress">0</span>
+        </div>
+        <div class="kanban-cards" id="cards-in_progress"></div>
+      </div>
+      <div class="kanban-col" id="col-for_review" data-status="for_review">
+        <div class="kanban-col-header">
+          <span class="kanban-col-dot dot-for_review"></span>
+          For Review
+          <span class="kanban-count" id="count-for_review">0</span>
+        </div>
+        <div class="kanban-cards" id="cards-for_review"></div>
+      </div>
+      <div class="kanban-col" id="col-done" data-status="done">
+        <div class="kanban-col-header">
+          <span class="kanban-col-dot dot-done"></span>
+          Done
+          <span class="kanban-count" id="count-done">0</span>
+        </div>
+        <div class="kanban-cards" id="cards-done"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ── Task Detail Modal (edit + activity log) ── -->
+  <div id="taskDetailModal" class="modal-overlay" onclick="overlayCloseTaskDetail(event)">
+    <div class="modal modal-xl">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="taskDetailModalTitle">New Task</h3>
+          <p class="modal-site-name" id="taskDetailModalMeta">Fill in the details below</p>
+        </div>
+        <button class="modal-close" onclick="closeTaskDetailModal()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="item-detail-body detail-new" id="taskDetailBody">
+
+        <!-- ── Left: editable fields ── -->
+        <form id="taskForm" class="item-detail-form" onsubmit="saveTask(event)">
+          <input type="hidden" id="taskEditId">
+
+          <div class="form-group">
+            <label class="form-label" for="taskName">Task Name <span class="required">*</span></label>
+            <input class="form-input" type="text" id="taskName" placeholder="Brief description of the task">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="taskType">Task Type</label>
+            <select class="form-input" id="taskType">
+              <option value="">— Select Type —</option>
+              <option value="General">General</option>
+              <option value="Follow-up">Follow-up</option>
+              <option value="Investigation">Investigation</option>
+              <option value="Bug Fix">Bug Fix</option>
+              <option value="Improvement">Improvement</option>
+              <option value="Admin Task">Admin Task</option>
+              <option value="Others">Others (please specify)</option>
+            </select>
+          </div>
+          <div class="form-group" id="taskTypeOthersGroup" style="display:none;">
+            <label class="form-label" for="taskTypeOthers">Please specify</label>
+            <input class="form-input" type="text" id="taskTypeOthers" placeholder="Describe the task type…">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="taskDesc">Description</label>
+            <textarea class="form-input form-textarea" id="taskDesc" rows="3" placeholder="More detail, notes, or context…"></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="taskStatus">Status</label>
+              <select class="form-input" id="taskStatus">
+                <option value="open">Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="for_review">For Review</option>
+                <option value="done">Done</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="taskStart">Start Date</label>
+              <input class="form-input" type="date" id="taskStart">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="taskEstEnd">Estimated End Date</label>
+            <input class="form-input" type="date" id="taskEstEnd">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Active</label>
+            <label class="toggle-label">
+              <input type="checkbox" id="taskIsActive" checked>
+              <span class="toggle-text">Task is active</span>
+            </label>
+          </div>
+
+          <div class="item-detail-footer">
+            <button type="button" class="btn-detail-delete" id="taskDetailDeleteBtn" onclick="deleteTaskFromDetail()" style="display:none;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+              Delete
+            </button>
+            <div class="item-detail-footer-right">
+              <div id="taskFormLoading" class="form-state" style="display:none;"><div class="spinner"></div><span>Saving…</span></div>
+              <div id="taskFormError" class="form-state form-error" style="display:none;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span id="taskErrorMsg"></span>
+              </div>
+              <div id="taskFormActions" class="detail-save-group">
+                <button type="button" class="btn-modal-cancel" onclick="closeTaskDetailModal()">Cancel</button>
+                <button type="submit" class="btn-modal-submit" id="taskSubmitBtn">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+
+        <!-- ── Right: activity log (hidden for new tasks) ── -->
+        <div class="item-detail-log" id="taskDetailLogPane" style="display:none;">
+          <div class="detail-log-header">
+            <div class="log-header-left">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Activity Log
+            </div>
+            <div id="taskLogTotalHours" class="log-total-hours" style="display:none;"></div>
+          </div>
+          <div id="taskLogList" class="activity-log-list">
+            <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
+          </div>
+          <div class="activity-log-add">
+            <textarea class="form-input form-textarea" id="taskLogMessage" rows="2" placeholder="Add an activity note…"></textarea>
+            <div class="log-hours-row">
+              <label class="log-hours-label" for="taskLogHours">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Hours spent
+              </label>
+              <input class="form-input log-hours-input" type="number" id="taskLogHours"
+                placeholder="0.0" min="0" max="24" step="0.25">
+            </div>
+            <div class="log-post-row">
+              <div id="taskLogAddError" class="form-state form-error" style="display:none;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span id="taskLogAddErrorMsg"></span>
+              </div>
+              <button type="button" class="btn-modal-submit" onclick="addTaskLog()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                Post
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Mark Done Remarks Modal ── -->
+  <div id="taskDoneRemarksModal" class="modal-overlay" onclick="overlayCloseTaskDoneRemarks(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Mark as Done</h3>
+          <p class="modal-site-name">Optionally add resolution remarks</p>
+        </div>
+        <button class="modal-close" onclick="closeTaskDoneRemarksModal()" aria-label="Close">&times;</button>
+      </div>
+      <div style="padding:0 24px 24px;">
+        <div class="form-group form-group-full">
+          <label class="form-label" for="taskDoneRemarksText">Resolution Remarks
+            <span class="form-label-hint">(optional — sent to the reporter if this task is linked to a support ticket)</span>
+          </label>
+          <textarea class="form-input form-textarea" id="taskDoneRemarksText" rows="4"
+            placeholder="Describe what was done, changes made, or any notes for the reporter…"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-modal-cancel" onclick="closeTaskDoneRemarksModal()">Cancel</button>
+          <button type="button" class="btn-modal-submit" onclick="confirmTaskMarkDone()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Mark Done
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script src="/static/theme.js"></script>
+  <script src="/static/tasks.js"></script>
+</body>
+</html>

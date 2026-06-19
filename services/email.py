@@ -538,6 +538,90 @@ def send_issue_assigned_email(issue: dict, developer: dict, assigned_by_name: st
     return _smtp_send(msg, [dev_email])
 
 
+def send_task_status_email(task: dict, issue: dict, old_status: str, new_status: str, changed_by: str) -> bool:
+    user_email = issue.get("email", "")
+    if not user_email:
+        return False
+
+    from_addr  = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    site_name  = issue.get("site_name", "Unknown System")
+
+    STATUS_LABELS = {
+        "open":        "Open",
+        "in_progress": "In Progress",
+        "for_review":  "Under Review",
+        "done":        "Done",
+    }
+    STATUS_COLORS = {
+        "open":        "#6b7280",
+        "in_progress": "#3b82f6",
+        "for_review":  "#f59e0b",
+        "done":        "#15803d",
+    }
+
+    new_label  = STATUS_LABELS.get(new_status, new_status)
+    new_color  = STATUS_COLORS.get(new_status, "#64748b")
+    task_name  = task.get("task_name", "")
+    ticket_num = issue.get("ticket_number")
+
+    def _he(s): return str(s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    ticket_row = f"""
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;width:140px;border-bottom:1px solid #e2e8f0;">Ticket</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:monospace;font-weight:700;">{_he(ticket_num)}</td>
+        </tr>""" if ticket_num else ""
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid {new_color};">
+      <h2 style="margin:0;font-size:22px;color:#fff;">Task Update</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">{_he(site_name)}</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#374151;">
+        A task linked to your issue has been updated. Here are the latest details:
+      </p>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;border-radius:8px;overflow:hidden;">
+        {ticket_row}
+        <tr>
+          <td style="padding:10px 14px;font-weight:600;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;width:140px;border-bottom:1px solid #e2e8f0;">Task</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:600;">{_he(task_name)}</td>
+        </tr>
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e2e8f0;">New Status</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">
+            <span style="display:inline-block;padding:3px 12px;background:{new_color};border-radius:20px;color:#fff;font-size:12px;font-weight:700;">{_he(new_label)}</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;font-weight:600;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Updated By</td>
+          <td style="padding:10px 14px;">{_he(changed_by)}</td>
+        </tr>
+      </table>
+
+      <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">
+        You will be notified again when the status changes further or when your issue is fully resolved.
+      </p>
+      {_ticket_btn_html(issue.get("id"))}
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    subject = f"Task Update: {new_label} — {site_name}"
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"]    = from_addr
+    msg["To"]      = user_email
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [user_email])
+
+
 def _ticket_btn_html(issue_id: str | None) -> str:
     if not issue_id:
         return ""

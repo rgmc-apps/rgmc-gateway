@@ -1261,6 +1261,9 @@ select.form-input option:hover {
   color: var(--gold);
   border: 1px solid var(--gold-border);
 }
+.admin-tab-link {
+  text-decoration: none;
+}
 
 .tab-badge {
   display: inline-flex;
@@ -1672,13 +1675,17 @@ select.form-input option:hover {
 }
 
 /* Status-tinted stat pills */
-.dev-stat-pill.stat-pending { background: rgba(107,114,128,0.08); border-color: rgba(107,114,128,0.22); }
-.dev-stat-pill.stat-ongoing { background: rgba(168,85,247,0.09);  border-color: rgba(168,85,247,0.25); }
+.dev-stat-pill.stat-pending     { background: rgba(107,114,128,0.08); border-color: rgba(107,114,128,0.22); }
+.dev-stat-pill.stat-ongoing     { background: rgba(168,85,247,0.09);  border-color: rgba(168,85,247,0.25); }
 .dev-stat-pill.stat-ongoing .dev-stat-count { color: #c084fc; }
-.dev-stat-pill.stat-coding  { background: rgba(59,130,246,0.09);  border-color: rgba(59,130,246,0.25); }
-.dev-stat-pill.stat-testing { background: rgba(245,158,11,0.09);  border-color: rgba(245,158,11,0.25); }
-.dev-stat-pill.stat-done    { background: rgba(34,197,94,0.08);   border-color: rgba(34,197,94,0.22); }
+.dev-stat-pill.stat-coding      { background: rgba(59,130,246,0.09);  border-color: rgba(59,130,246,0.25); }
+.dev-stat-pill.stat-testing     { background: rgba(245,158,11,0.09);  border-color: rgba(245,158,11,0.25); }
+.dev-stat-pill.stat-done        { background: rgba(34,197,94,0.08);   border-color: rgba(34,197,94,0.22); }
 .dev-stat-pill.stat-done .dev-stat-count { color: #4ade80; }
+/* Tasks board stat pills */
+.dev-stat-pill.stat-open        { background: rgba(107,114,128,0.08); border-color: rgba(107,114,128,0.22); }
+.dev-stat-pill.stat-in_progress { background: rgba(59,130,246,0.09);  border-color: rgba(59,130,246,0.25); }
+.dev-stat-pill.stat-for_review  { background: rgba(245,158,11,0.09);  border-color: rgba(245,158,11,0.25); }
 
 @media (max-width: 640px) {
   .dev-stats-bar { gap: 6px; }
@@ -1768,16 +1775,21 @@ select.form-input option:hover {
   border-radius: 50%;
   flex-shrink: 0;
 }
-.dot-pending { background: #6b7280; }
-.dot-ongoing { background: #a855f7; }
-.dot-coding  { background: #3b82f6; }
-.dot-testing { background: #f59e0b; }
-.dot-done    { background: #22c55e; }
+.dot-pending    { background: #6b7280; }
+.dot-ongoing    { background: #a855f7; }
+.dot-coding     { background: #3b82f6; }
+.dot-testing    { background: #f59e0b; }
+.dot-done       { background: #22c55e; }
+.dot-open       { background: #6b7280; }
+.dot-in_progress { background: #3b82f6; }
+.dot-for_review { background: #f59e0b; }
 
 /* Pulse on in-progress states */
-.kanban-col-header .dot-ongoing { animation: dot-pulse-violet 2.2s ease-in-out infinite; }
-.kanban-col-header .dot-coding  { animation: dot-pulse-blue   2.2s ease-in-out infinite; }
-.kanban-col-header .dot-testing { animation: dot-pulse-amber  2.2s ease-in-out infinite; }
+.kanban-col-header .dot-ongoing     { animation: dot-pulse-violet 2.2s ease-in-out infinite; }
+.kanban-col-header .dot-coding      { animation: dot-pulse-blue   2.2s ease-in-out infinite; }
+.kanban-col-header .dot-testing     { animation: dot-pulse-amber  2.2s ease-in-out infinite; }
+.kanban-col-header .dot-in_progress { animation: dot-pulse-blue   2.2s ease-in-out infinite; }
+.kanban-col-header .dot-for_review  { animation: dot-pulse-amber  2.2s ease-in-out infinite; }
 
 /* Count badge — status-tinted */
 .kanban-count {
@@ -1817,11 +1829,29 @@ select.form-input option:hover {
   transform: rotate(-90deg);
   transition: stroke-dashoffset 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
-#col-pending .col-arc-fill { stroke: #9ca3af; }
-#col-ongoing .col-arc-fill { stroke: #c084fc; }
-#col-coding  .col-arc-fill { stroke: #60a5fa; }
-#col-testing .col-arc-fill { stroke: #fbbf24; }
-#col-done    .col-arc-fill { stroke: #4ade80; }
+#col-pending    .col-arc-fill { stroke: #9ca3af; }
+#col-ongoing    .col-arc-fill { stroke: #c084fc; }
+#col-coding     .col-arc-fill { stroke: #60a5fa; }
+#col-testing    .col-arc-fill { stroke: #fbbf24; }
+#col-done       .col-arc-fill { stroke: #4ade80; }
+/* Tasks board arc fills */
+#col-open       .col-arc-fill { stroke: #9ca3af; }
+#col-in_progress .col-arc-fill { stroke: #60a5fa; }
+#col-for_review .col-arc-fill { stroke: #fbbf24; }
+
+/* Tasks board kanban count badges */
+#col-open        .kanban-count { background: rgba(107,114,128,0.12); border: 1px solid rgba(107,114,128,0.2);  color: #9ca3af; }
+#col-in_progress .kanban-count { background: rgba(59,130,246,0.12);  border: 1px solid rgba(59,130,246,0.22);  color: #60a5fa; }
+#col-for_review  .kanban-count { background: rgba(245,158,11,0.12);  border: 1px solid rgba(245,158,11,0.22);  color: #fbbf24; }
+
+/* Tasks board column card backgrounds */
+#col-open        .kanban-card { background: rgba(107,114,128,0.04); }
+#col-in_progress .kanban-card { background: rgba(59,130,246,0.05);  }
+#col-for_review  .kanban-card { background: rgba(245,158,11,0.05);  }
+
+#col-open        .kanban-card:hover { background: rgba(107,114,128,0.09); }
+#col-in_progress .kanban-card:hover { background: rgba(59,130,246,0.09);  }
+#col-for_review  .kanban-card:hover { background: rgba(245,158,11,0.09);  }
 
 /* Card list */
 .kanban-cards {
@@ -2104,6 +2134,20 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
   border: 1px solid rgba(59,130,246,0.28);
   border-radius: var(--radius-pill);
   color: #60a5fa;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* ── Task badge ── */
+.badge-task {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  background: rgba(245,158,11,0.12);
+  border: 1px solid rgba(245,158,11,0.28);
+  border-radius: var(--radius-pill);
+  color: #fbbf24;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;

@@ -1135,13 +1135,14 @@ function renderIssueRow(issue) {
   const statusBadge = `<span class="label-badge ${ISSUE_STATUS_CLASS[issue.status] || 'label-rgmc'}">${ISSUE_STATUS_LABELS[issue.status] || issue.status}</span>`;
   const titleText   = issue.title ? issue.title : (issue.description.length > 60 ? issue.description.slice(0, 58) + '…' : issue.description);
   const devBadge    = issue.dev_item_id ? '<span class="badge-dev" title="Promoted to dev item">Dev</span> ' : '';
+  const taskBadge   = issue.task_id ? '<span class="badge-task" title="Promoted to task">Task</span> ' : '';
   const ticketRef = issue.ticket_number
     ? `<code class="mono-val" style="font-size:11px;">${escHtml(issue.ticket_number)}</code><br>`
     : '';
   return `<tr>
     <td>${ticketRef}<span class="user-name">${escHtml(issue.site_name)}</span></td>
     <td>${escHtml(issue.employee_name)}<br><small class="text-muted">${escHtml(issue.company_name)}</small></td>
-    <td class="issue-desc-cell">${devBadge}${escHtml(titleText)}</td>
+    <td class="issue-desc-cell">${devBadge}${taskBadge}${escHtml(titleText)}</td>
     <td class="attach-preview-cell">${_renderAttachPreviews(issue.id, issue.attachment_urls)}</td>
     <td>${statusBadge}</td>
     <td>${issue.assigned_to ? `<code class="mono-val">${escHtml(issue.assigned_to)}</code>` : '<span class="text-muted">—</span>'}</td>
@@ -1231,6 +1232,18 @@ async function openIssueModal(id) {
   } else {
     devGroup.style.display = 'none';
     promoteBtn.style.display = '';
+  }
+
+  // Task link
+  const taskGroup      = document.getElementById('issueTaskGroup');
+  const promoteTaskBtn = document.getElementById('issuePromoteTaskBtn');
+  if (issue.task_id) {
+    taskGroup.style.display = '';
+    document.getElementById('issueTaskId').textContent = issue.task_id;
+    promoteTaskBtn.style.display = 'none';
+  } else {
+    taskGroup.style.display = 'none';
+    promoteTaskBtn.style.display = '';
   }
 
   // Populate assigned-to dropdown
@@ -1329,6 +1342,30 @@ async function promoteIssueToDevItem() {
     if (!res.ok) throw new Error(data.error || 'Promote failed');
     closeIssueModal();
     showToast('Issue promoted to dev board item.');
+    loadIssues(_currentIssueStatus);
+  } catch (err) {
+    document.getElementById('issueModalLoading').style.display = 'none';
+    document.getElementById('issueModalActions').style.display = '';
+    document.getElementById('issueModalError').style.display   = '';
+    document.getElementById('issueModalErrorMsg').textContent  = err.message;
+  }
+}
+
+async function promoteIssueToTask() {
+  if (!_editingIssueId) return;
+  if (!confirm('Create a task from this issue?')) return;
+  document.getElementById('issueModalActions').style.display = 'none';
+  document.getElementById('issueModalLoading').style.display = '';
+  document.getElementById('issueModalError').style.display   = 'none';
+  try {
+    const res = await fetch(`/api/admin/issues/${encodeURIComponent(_editingIssueId)}/promote-task`, {
+      method:  'POST',
+      headers: authHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Promote failed');
+    closeIssueModal();
+    showToast('Issue promoted to task board.');
     loadIssues(_currentIssueStatus);
   } catch (err) {
     document.getElementById('issueModalLoading').style.display = 'none';

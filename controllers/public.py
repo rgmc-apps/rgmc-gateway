@@ -75,6 +75,38 @@ def get_companies():
     return jsonify(rows or [])
 
 
+@public_bp.get("/api/systems/by-tag")
+def system_by_tag():
+    tag = request.args.get("tag", "").strip().lower()
+    if not tag:
+        return jsonify({"error": "tag parameter is required"}), 400
+
+    try:
+        rows = supabase_req("GET", "/systems", params={
+            "select": "id,name,primary_url,primary_label,backup_url",
+            "order":  "sort_order.asc,name.asc",
+        })
+    except Exception:
+        return jsonify({"error": "Failed to fetch systems"}), 500
+
+    matches = []
+    for row in (rows or []):
+        row_tags = [t.strip().lower() for t in (row.get("tags") or "").split(",") if t.strip()]
+        if tag in row_tags:
+            matches.append({
+                "id":            row["id"],
+                "name":          row["name"],
+                "primary_url":   row.get("primary_url"),
+                "primary_label": row.get("primary_label"),
+                "backup_url":    row.get("backup_url"),
+            })
+
+    if not matches:
+        return jsonify({"error": f"No system found for tag '{tag}'"}), 404
+
+    return jsonify(matches)
+
+
 @public_bp.get("/api/health")
 def health_check():
     results = []

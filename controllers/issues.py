@@ -375,3 +375,52 @@ def admin_promote_issue(issue_id):
             current_app.logger.error("promote link issue failed: %s", exc)
 
     return jsonify({"success": True, "dev_item_id": dev_item_id})
+
+
+@issues_bp.post("/api/admin/issues/<issue_id>/promote-task")
+def admin_promote_issue_to_task(issue_id):
+    admin_username, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/issues", params={"id": f"eq.{issue_id}", "select": "*"})
+    except Exception as exc:
+        current_app.logger.error("promote-task fetch issue failed: %s", exc)
+        return jsonify({"error": "Failed to fetch issue"}), 500
+    if not rows:
+        return jsonify({"error": "Issue not found"}), 404
+
+    issue = rows[0]
+    if issue.get("task_id"):
+        return jsonify({"error": "Already promoted to a task"}), 409
+
+    task_name = (issue.get("title") or
+                 f"[{issue['site_name']}] {issue['description'][:80]}{'…' if len(issue['description']) > 80 else ''}")
+    desc = (
+        f"Reported by {issue['employee_name']} ({issue['company_name']}, {issue.get('department','')})\n"
+        f"Email: {issue['email']}\n\n"
+        f"{issue['description']}"
+    )
+    try:
+        new_task = supabase_req("POST", "/tasks", data={
+            "task_name":  task_name,
+            "description": desc,
+            "issue_id":   issue_id,
+            "status":     "open",
+            "is_active":  True,
+            "created_by": admin_username,
+        }, extra_headers={"Prefer": "return=representation"})
+    except Exception as exc:
+        current_app.logger.error("promote-task create task failed: %s", exc)
+        return jsonify({"error": "Failed to create task"}), 500
+
+    task_id = new_task[0]["id"] if new_task else None
+    if task_id:
+        try:
+            supabase_req("PATCH", "/issues",
+                         data={"task_id": task_id, "status": "in_progress"},
+                         params={"id": f"eq.{issue_id}"})
+        except Exception as exc:
+            current_app.logger.error("promote-task link issue failed: %s", exc)
+
+    return jsonify({"success": True, "task_id": task_id})
