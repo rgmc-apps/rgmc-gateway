@@ -7,6 +7,12 @@ user_page_bp = Blueprint("user_page", __name__)
 
 VALID_TASK_STATUSES = ('open', 'ongoing', 'done')
 
+_TASK_STATUS_LABEL = {
+    "open":    "Open",
+    "ongoing": "Ongoing",
+    "done":    "Done",
+}
+
 
 def _require_user():
     username = request.headers.get("X-Gateway-Username", "").strip().lower()
@@ -263,6 +269,16 @@ def user_update_task(task_id):
             })
         except Exception as exc:
             current_app.logger.warning("user_update_task: task log failed: %s", exc)
+        try:
+            from_lbl = _TASK_STATUS_LABEL.get(old_status, old_status) if old_status else "—"
+            to_lbl   = _TASK_STATUS_LABEL.get(new_status, new_status)
+            supabase_req("POST", "/task_activity_logs", data={
+                "task_id":  task_id,
+                "username": username,
+                "message":  f"{username} moved this from {from_lbl} to {to_lbl}",
+            })
+        except Exception as exc:
+            current_app.logger.warning("user_update_task: activity log failed: %s", exc)
 
     # Cascade status and assignee changes to the linked issue
     new_status          = patch.get("status")

@@ -8,6 +8,14 @@ from services.email import send_issue_resolved_email
 
 developer_bp = Blueprint("developer", __name__)
 
+_DEV_STATUS_LABEL = {
+    "pending": "Pending",
+    "ongoing": "Ongoing",
+    "coding":  "Coding",
+    "testing": "Testing",
+    "done":    "Done",
+}
+
 
 @developer_bp.get("/developer")
 def developer_page():
@@ -112,6 +120,16 @@ def dev_update_item(item_id):
             })
         except Exception as exc:
             current_app.logger.warning("dev_update_item: movement log failed: %s", exc)
+        try:
+            from_lbl = _DEV_STATUS_LABEL.get(old_status, old_status) if old_status else "—"
+            to_lbl   = _DEV_STATUS_LABEL.get(new_status, new_status)
+            supabase_req("POST", "/dev_activity_logs", data={
+                "item_id":  item_id,
+                "username": dev_username,
+                "message":  f"{dev_username} moved this from {from_lbl} to {to_lbl}",
+            })
+        except Exception as exc:
+            current_app.logger.warning("dev_update_item: activity log failed: %s", exc)
 
     if becoming_done:
         try:
