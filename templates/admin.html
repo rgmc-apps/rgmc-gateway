@@ -637,6 +637,26 @@
           </p>
         </div>
 
+        <!-- Activity & Comments -->
+        <div class="iss-activity-section">
+          <div class="iss-activity-header">
+            <span class="iss-activity-label">Activity &amp; Comments</span>
+            <button type="button" class="iss-activity-refresh" onclick="refreshIssueActivity()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              Refresh
+            </button>
+          </div>
+          <div class="iss-activity-list" id="issueActivityList">
+            <div class="iss-activity-loading"><div class="spinner"></div><span>Loading…</span></div>
+          </div>
+          <div class="iss-comment-form">
+            <textarea class="form-input iss-comment-input" id="issueCommentInput" rows="2" placeholder="Add a comment…"></textarea>
+            <div class="iss-comment-actions">
+              <button type="button" class="btn-modal-submit iss-comment-submit" onclick="postIssueComment()">Post Comment</button>
+            </div>
+          </div>
+        </div>
+
         <div id="issueModalActions" class="modal-actions">
           <button type="button" class="btn-modal-cancel" onclick="closeIssueModal()">Cancel</button>
           <button type="button" class="btn-modal-promote" id="issuePromoteBtn" onclick="promoteIssueToDevItem()">

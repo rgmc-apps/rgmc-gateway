@@ -304,7 +304,7 @@ function applySession(session) {
   // 2. Reveal main content; restore saved view mode before paint
   const main = document.getElementById('mainContent');
   if (main) {
-    const savedView = localStorage.getItem(VIEW_KEY) || 'cards';
+    const savedView = localStorage.getItem(VIEW_KEY) || 'compact';
     if (savedView === 'compact') {
       const approvedSet = new Set((session.systems || []).map(s => s.toLowerCase()));
       buildCompactTables(approvedSet);

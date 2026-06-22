@@ -446,6 +446,120 @@ def admin_promote_issue_to_task(issue_id):
     return jsonify({"success": True, "task_id": task_id})
 
 
+@issues_bp.get("/api/issues/<issue_id>/activity")
+def get_issue_activity(issue_id):
+    result = []
+
+    try:
+        rows = supabase_req("GET", "/issues", params={
+            "id":     f"eq.{issue_id}",
+            "select": "id,user_task_id,dev_item_id",
+        })
+    except Exception:
+        return jsonify([])
+    if not rows:
+        return jsonify([])
+    issue = rows[0]
+
+    try:
+        comments = supabase_req("GET", "/issue_comments", params={
+            "issue_id": f"eq.{issue_id}",
+            "order":    "created_at.asc",
+            "select":   "id,username,comment,created_at",
+        })
+        for c in (comments or []):
+            result.append({
+                "type":       "comment",
+                "username":   c["username"],
+                "text":       c["comment"],
+                "created_at": c["created_at"],
+            })
+    except Exception:
+        pass
+
+    user_task_id = issue.get("user_task_id")
+    if user_task_id:
+        try:
+            logs = supabase_req("GET", "/task_item_logs", params={
+                "task_id": f"eq.{user_task_id}",
+                "order":   "created_at.asc",
+                "select":  "username,from_status,to_status,created_at",
+            })
+            for l in (logs or []):
+                result.append({
+                    "type":       "moved",
+                    "source":     "task",
+                    "username":   l["username"],
+                    "from":       l.get("from_status"),
+                    "to":         l["to_status"],
+                    "created_at": l["created_at"],
+                })
+        except Exception:
+            pass
+        try:
+            activity = supabase_req("GET", "/task_activity_logs", params={
+                "task_id": f"eq.{user_task_id}",
+                "order":   "created_at.asc",
+                "select":  "username,message,created_at",
+            })
+            for a in (activity or []):
+                result.append({
+                    "type":       "note",
+                    "source":     "task",
+                    "username":   a["username"],
+                    "text":       a["message"],
+                    "created_at": a["created_at"],
+                })
+        except Exception:
+            pass
+
+    dev_item_id = issue.get("dev_item_id")
+    if dev_item_id:
+        try:
+            logs = supabase_req("GET", "/dev_item_logs", params={
+                "item_id": f"eq.{dev_item_id}",
+                "order":   "created_at.asc",
+                "select":  "username,from_status,to_status,created_at",
+            })
+            for l in (logs or []):
+                result.append({
+                    "type":       "moved",
+                    "source":     "dev",
+                    "username":   l["username"],
+                    "from":       l.get("from_status"),
+                    "to":         l["to_status"],
+                    "created_at": l["created_at"],
+                })
+        except Exception:
+            pass
+
+    result.sort(key=lambda x: x.get("created_at") or "")
+    return jsonify(result)
+
+
+@issues_bp.post("/api/issues/<issue_id>/comments")
+def post_issue_comment(issue_id):
+    username = request.headers.get("X-Gateway-Username", "").strip().lower()
+    if not username:
+        return jsonify({"error": "Authentication required"}), 401
+
+    body    = request.get_json(silent=True) or {}
+    comment = (body.get("comment") or "").strip()
+    if not comment:
+        return jsonify({"error": "Comment cannot be empty"}), 400
+
+    try:
+        rows = supabase_req("POST", "/issue_comments", data={
+            "issue_id": issue_id,
+            "username": username,
+            "comment":  comment,
+        }, extra_headers={"Prefer": "return=representation"})
+        return jsonify({"success": True, "comment": rows[0] if rows else {}})
+    except Exception as exc:
+        current_app.logger.error("post_issue_comment failed: %s", exc)
+        return jsonify({"error": "Failed to save comment"}), 500
+
+
 @issues_bp.post("/api/admin/issues/<issue_id>/promote-user-task")
 def admin_promote_issue_to_user_task(issue_id):
     admin_username, err = _require_admin()

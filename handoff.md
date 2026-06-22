@@ -10,116 +10,74 @@ No deployment pipeline exists — changes are served directly via Flask and comm
 
 ## Current State
 
-**All changes are in code but uncommitted. Everything is functional — no broken state.**
+**All code changes are committed and clean. No broken state.**
 
-Three SQL migrations are still pending (must be run in Supabase before their features work). See Pending Steps below.
+One SQL migration is pending (must be run in Supabase before its features work). Supabase MCP authentication failed repeatedly this session (OAuth callback issue), so the migration was not executed. It must be run manually via the Supabase SQL Editor.
 
-### What was done across recent sessions
+### What was done this session
 
-1. **Admin tasks board auth fix** — removed `_require_admin()` from the `/tasks` page route in `controllers/tasks.py`. Page routes don't receive `X-Gateway-Username` headers from browsers.
+1. **Request category group → department code binding** — `category_group` in `request_category` is now keyed by department code (e.g. `HR`, `FIN`) instead of full department name. This involved:
+   - `controllers/public.py` — `/api/helpdesk/categories` now filters `category_group = 'IT'` only (IT Helpdesk sees IT categories only)
+   - `static/general_helpdesk.js` — department options get `data-code` attribute; `ghOnDeptChange()` passes `deptCode` to `_loadCategories()`; `ghOnCategoryChange()` auto-matches `opt.dataset.code` instead of `opt.dataset.name`
+   - `supabase-migrations/request_category_group_migration.sql` — NEW: updates existing category groups to dept codes via JOIN, inserts 9 IT-specific categories with `category_group = 'IT'`, and adds request types for IT categories
 
-2. **Compact mode (index)** — Cards/Compact toggle on the portal home. Compact = table view. Toggle persists in `localStorage` (`rgmc-view-mode`).
-
-3. **Add User facility** — admin can manually create users on the Users panel. Name typeahead searches `access_requests` to pre-fill fields.
-
-4. **Company dropdown on user forms** — `#companyName`, `#arCompany`, `#auCompany`, `#euCompany` are `<select>` elements populated from `/api/companies`.
-
-5. **Departments feature** — full implementation:
-   - New `departments` table (`department_id`, `department_name`, `department_code`, `department_desc`, `is_active`)
-   - New `request_to_department_id` FK column on `issues` table
-   - `GET /api/departments` public endpoint (active only, ordered by name)
-   - `GET/POST/PATCH/DELETE /api/admin/config/departments` admin CRUD endpoints
-   - Admin panel → Configurations → Departments tab with Add/Edit/Delete
-   - All department fields on all forms (`#department`, `#arDepartment`, `#euDepartment`, `#auDepartment`, `#hdDepartment`) are `<select>` elements populated from `/api/departments`
-   - Issue modal in admin has `#issueReqDept` dropdown for assigning which department handles it
-   - `saveIssuePatch()` sends `request_to_department_id` in PATCH body
-   - `issues.py` PATCH handler accepts `request_to_department_id`
-   - Both `_submit_issue()` and `_submit_helpdesk_issue()` read `request_to_department_id` from form data
-
-6. **is_management flag** — `users.is_management` boolean column. Users with this flag can access admin/tasks screens but are excluded from developer lists and issue/task assignee dropdowns. Requires `management_migration.sql`.
-
-7. **Uniform profile submenu** — all pages now show the same nav structure:
-   - My Profile (hidden on profile page)
-   - Portal (hidden on portal page)
-   - IT Helpdesk (always)
-   - My Workspace (always, hidden on workspace page)
-   - Dev Board (if `isDeveloper || isAdmin`, hidden on dev board)
-   - Tasks Board (if `isAdmin || isManagement`, hidden on tasks page)
-   - Admin Panel (if `isAdmin || isManagement`, hidden on admin page)
-   - Updated in: `script.js`, `admin.js`, `developer.js`, `tasks.js`, `profile.js`, `user.js`
-
-8. **My Workspace page** (`/workspace`) — new general user page with 3 tabs:
-   - **Issues**: sub-tabs → Team Issues (by `request_to_department_id`), My Issues (`assigned_to = username`), Issues I Filed (`email = user.email`)
-   - **My Team**: card grid of users sharing the same `department` text value
-   - **Tasks**: kanban board (Open/Ongoing/Done only), Team/Mine filter, full CRUD (create, edit, move, delete). Scoped to `user_tasks` table by `department_id`.
-   - New files: `controllers/user_page.py`, `templates/user.html`, `static/user.js`
-   - New migration: `user_page_migration.sql` (creates `user_tasks` table)
-
-9. **Departments edit bug fix** — `static/admin.js` line ~2396: the Edit button in the departments config table was using `onclick='openCfgDeptModal(${JSON.stringify(d)})'`. This broke (Uncaught SyntaxError: Invalid or unexpected token) if any department field contained an apostrophe. Fixed by:
-   - Button now passes only the integer ID: `onclick="openCfgDeptModal(${d.department_id})"`
-   - `openCfgDeptModal(deptOrId)` now accepts either a number (looks up from `_cfgDeptsCache`) or `null` (for Add flow)
-
----
-
-## Pending Steps — SQL Migrations to Run
-
-**1. `departments_migration.sql`** — creates `departments` table + adds `request_to_department_id` to `issues`
-- Supabase → SQL Editor → New Query, paste + run
-- Then go to Admin → Configurations → Departments to add department records
-
-**2. `management_migration.sql`** — adds `is_management` boolean column to `users`
-
-**3. `user_page_migration.sql`** — creates `user_tasks` table (required for /workspace Tasks tab)
-
-**4. `user_payload_migration.sql`** — adds `user_payload TEXT` column to `issues` table (required for the new User Input / Payload field on the report issue form)
+2. **Admin: category group field → department dropdown** — The "Group" field in the Request Categories modal (Admin → Config → Request Categories) is now a `<select>` instead of a free-text input:
+   - `templates/admin.html` — `#cfgCategoryGroup` is now a `<select>` element
+   - `static/admin.js` — Added `_fillCategoryGroupSelect(selectedGroup)` helper that populates the select with static options (IT, General) + all departments by code from `_adminDepartments`; updated `openCfgCategoryModal()` to call it
 
 ---
 
 ## Files Actively Being Edited
 
-All modified, none mid-change. Everything compiles and runs:
+All committed. None mid-change.
 
-- `controllers/tasks.py` — removed `_require_admin()` from page route
-- `controllers/admin.py` — Add User endpoints, Departments CRUD, Brands CRUD
-- `controllers/public.py` — `GET /api/departments`
-- `controllers/issues.py` — `request_to_department_id` in submit functions and PATCH
-- `controllers/user_page.py` — **NEW**: all `/workspace` page + `/api/user/*` endpoints (9 routes)
-- `app.py` — registered `user_page_bp`
-- `templates/index.html` — view toggle, department selects, compact table markup
-- `templates/admin.html` — Add User modal, Departments config tab, department selects, `#issueReqDept`
-- `templates/helpdesk.html` — `#hdDepartment` and `#hdReqDept` as selects
-- `templates/user.html` — **NEW**: My Workspace page (3 main tabs, 3 issue sub-tabs, kanban, 2 modals)
-- `static/style.css` — compact table styles, view toggle, typeahead styles, ~120 lines of workspace CSS appended at end
-- `static/script.js` — compact toggle, `_loadDepartments()`, companies dropdown, My Workspace nav link
-- `static/admin.js` — Add User, departments CRUD (incl. apostrophe bug fix in Edit button at line ~2396), My Workspace nav link
-- `static/developer.js` — uniform nav: IT Helpdesk, My Workspace, Tasks Board, Admin Panel
-- `static/tasks.js` — uniform nav: IT Helpdesk, My Workspace, Dev Board, Admin Panel
-- `static/profile.js` — uniform nav: Portal, IT Helpdesk, My Workspace, Dev Board, Tasks Board, Admin Panel
-- `static/user.js` — **NEW**: workspace JS (~360 lines) — tab switching, lazy loading, issue cards + detail modal, team grid, kanban board with CRUD
-- `static/helpdesk.js` — `_loadDepartments()` for `#hdDepartment` and `#hdReqDept`
-- `services/email.py` — helpdesk attachments, reporter confirmation email, assignment email
-- `departments_migration.sql` — **run this in Supabase**
-- `management_migration.sql` — **run this in Supabase**
-- `user_page_migration.sql` — **run this in Supabase**
+- `controllers/public.py` — `/api/helpdesk/categories` filters `category_group = 'IT'` only
+- `static/general_helpdesk.js` — dept options get `data-code`; category loading uses dept code; auto-match uses `dataset.code`
+- `templates/admin.html` — `#cfgCategoryGroup` changed from `<input type="text">` to `<select>`
+- `static/admin.js` — Added `_fillCategoryGroupSelect()`, updated `openCfgCategoryModal()`
+- `supabase-migrations/request_category_group_migration.sql` — NEW migration, not yet run in Supabase
 
 ---
 
 ## Failed Attempts
 
-- **`JSON.stringify(d)` in single-quoted onclick attribute** (admin.js departments Edit button) — produced `Uncaught SyntaxError: Invalid or unexpected token` in console when clicking Edit. Root cause: if `department_name` or `department_desc` contained an apostrophe, it terminated the single-quoted HTML attribute mid-string. Fixed by passing only the integer `department_id` and looking up the object from `_cfgDeptsCache` inside the function.
+- **Supabase MCP authentication** — Attempted OAuth flow three times. The MCP server starts the flow and provides an authorize URL, but after the user authorizes on Supabase, the browser is redirected to `http://localhost:<port>/callback?code=...`. The user was unable to copy the callback URL — they kept pasting the original authorize URL instead. Root cause is likely that the redirect to localhost fails visually (connection error page), making it confusing to find the URL in the address bar. The migration was not run as a result.
 
 ---
 
 ## Next Step
 
-No immediate broken state. The app is ready to test. The most impactful next action is:
+**Run `supabase-migrations/request_category_group_migration.sql` in Supabase SQL Editor.**
 
-**Run all three SQL migrations in Supabase** (in order):
-1. `departments_migration.sql`
-2. `management_migration.sql`
-3. `user_page_migration.sql`
+1. Open Supabase dashboard → SQL Editor → New Query
+2. Paste the full contents of `supabase-migrations/request_category_group_migration.sql`
+3. Run it
 
-Then smoke-test the workspace page at `/workspace` — verify all three tabs load, the task kanban creates/edits/deletes, and issue sub-tabs show the correct filtered results.
+What it does:
+- **Step 1**: `UPDATE request_category` joining on `departments.department_name = category_group` (case-insensitive) to replace full dept names with dept codes. Skips `'General'` and `'IT'`.
+- **Step 2**: Inserts 9 IT categories (`Software/Application`, `Hardware`, `Network`, `Account & Access`, `Email & Collaboration`, `Printer & Peripherals`, `Data & Backup`, `Security Incident`, `Other IT Request`) with `category_group = 'IT'`.
+- **Step 3**: Inserts request types for the non-subcategory IT categories.
+
+After running, verify: Admin → Config → Request Categories shows dept codes in the Group column; IT Helpdesk (`/helpdesk`) shows only IT categories; General Helpdesk (`/general-helpdesk`) filters correctly by dept when "Who should handle this?" is selected.
+
+---
+
+## Pending SQL Migrations (accumulated, run order matters)
+
+Not all of these may have been run. Run in this order if any are missing:
+
+1. `supabase-migrations/departments_migration.sql` — creates `departments` table + `request_to_department_id` FK on `issues`
+2. `supabase-migrations/management_migration.sql` — adds `is_management BOOLEAN` to `users`
+3. `supabase-migrations/user_page_migration.sql` — creates `user_tasks` table (required for /workspace)
+4. `supabase-migrations/user_payload_migration.sql` — adds `user_payload TEXT` to `issues`
+5. `supabase-migrations/user_task_promote_migration.sql` — adds `user_task_id UUID` to `issues`
+6. `supabase-migrations/user_task_assigned_to_migration.sql` — adds `assigned_to TEXT` to `user_tasks`
+7. `supabase-migrations/is_department_head_migration.sql` — adds `is_department_head BOOLEAN` to `users`
+8. `supabase-migrations/dev_item_logs_migration.sql` — creates `dev_item_logs` table
+9. `supabase-migrations/task_item_logs_migration.sql` — creates `task_item_logs` table
+10. `supabase-migrations/task_activity_logs_migration.sql` — creates `task_activity_logs` table
+11. `supabase-migrations/general_helpdesk_categories_seed.sql` — re-run to seed/update general helpdesk categories (safe, uses ON CONFLICT DO UPDATE)
+12. **`supabase-migrations/request_category_group_migration.sql`** — (this session, not yet run) updates category groups to dept codes + adds IT categories
 
 ---
 
@@ -131,38 +89,44 @@ Then smoke-test the workspace page at `/workspace` — verify all three tabs loa
 
 - **Supabase via REST, no ORM.** Service key bypasses RLS. Use `supabase_req(method, path, data=, params=, extra_headers=)` from `services/supabase.py`.
 
-- **Department field storage duality:** `users.department` stores the department name as plain text (no FK). `issues.request_to_department_id` stores an integer FK to `departments.department_id`. The workspace `_dept_id_for(dept_name)` helper bridges this by looking up the name in the `departments` table.
+- **Supabase MCP auth pattern.** When the OAuth redirect to `localhost` fails with a connection error, the callback URL is still in the browser address bar. It looks like `http://localhost:45XXX/callback?code=XXXX&state=XXXX`. The user must copy THAT URL (not the original authorize URL) and call `mcp__supabase__complete_authentication` with it. Previous attempts failed because the user kept pasting the authorize URL instead.
+
+- **`category_group` values after migration:**
+  - `'IT'` — IT Helpdesk categories only (shown on `/helpdesk`)
+  - `'General'` — always visible in general helpdesk regardless of selected dept
+  - Department codes (e.g. `'HR'`, `'FIN'`) — shown in general helpdesk when matching dept is selected
+
+- **IT Helpdesk hardcoded category name:** `helpdesk.js` has `catSel.value = 'Software/Application'` when pre-filling from a system link. The category in the DB must be named exactly `'Software/Application'` (no spaces around slash). The migration uses this exact name.
+
+- **`_fillCategoryGroupSelect(selectedGroup)`** in `admin.js` reads from `_adminDepartments` (loaded at init). If departments haven't been set up yet, only the static IT/General options will appear.
+
+- **`_adminDepartments` cache** is populated at admin init via `_loadAdminDepartments()` which calls `GET /api/departments`. It refreshes after department CRUD. The category group select depends on this cache.
+
+- **Department field storage duality:** `users.department` stores the department name as plain text (no FK). `issues.request_to_department_id` stores an integer FK to `departments.department_id`. The workspace `_dept_id_for(dept_name)` helper bridges this.
 
 - **`_fillDeptSelect(selId, selectedVal, byId=False)`** in admin.js — `byId=True` uses `department_id` as option value (for issue assignment); default uses `department_name` as value (for user profile fields).
 
-- **`_adminDepartments` cache in admin.js** is populated at init and refreshed after any department CRUD. `_fillDeptSelect` reads from this cache — no extra fetch needed.
+- **general_helpdesk.js category/dept matching flow:**
+  1. User selects handling dept → `ghOnDeptChange()` → reads `selected.dataset.code` → calls `_loadCategories(deptCode)`
+  2. API `GET /api/general-helpdesk/categories?group=<deptCode>` filters `category_group IN (deptCode, 'General')`
+  3. User selects category → `ghOnCategoryChange()` → reads `catGroup` from `opt.dataset.group` → finds matching dept option by `opt.dataset.code === catGroup` → auto-selects dept
 
-- **`_cfgDeptCode` is immutable after creation** (disabled on edit) — same pattern as company code and brand code.
-
-- **Brands table schema:** `brand_id` (serial PK), `brand_code` (unique), `brand_name`, `brand_desc`, `brand_initial`. Do NOT use `name`, `initials`, `description`.
-
-- **`helpdesk.js` has no `script.js` dependency.** Any shared utilities needed in helpdesk must be defined locally in that file.
-
-- **config sub-panel visibility** is toggled via `style.display` in JS. All sub-panels except companies default to `style="display:none;"` in HTML.
-
-- **`_resetCfgModal`, `_setCfgLoading`, `_showCfgError`** take a prefix string (e.g. `'cfgDept'`) and resolve IDs like `cfgDeptFormActions`, `cfgDeptFormLoading`, `cfgDeptFormError`, `cfgDeptErrorMsg`.
-
-- **`openCfgDeptModal(deptOrId)`** now accepts either a number (looked up from `_cfgDeptsCache`) for the Edit flow, or `null` for the Add flow. Don't pass raw objects.
-
-- **`_issueMap` in user.js** — issue cards use `onclick="openIssueDetailById('id')"` which looks up `_issueMap[id]`. This avoids inline JSON escaping issues in onclick attributes (same lesson as the dept bug above).
-
-- **user_tasks vs tasks** — there are two separate task tables. `tasks` is the admin/management Kanban (in `controllers/tasks.py`). `user_tasks` is the new general-user workspace Kanban (in `controllers/user_page.py`). They are entirely separate.
+- **user_tasks vs tasks** — two separate tables. `tasks` is the admin/management Kanban (`controllers/tasks.py`). `user_tasks` is the workspace Kanban (`controllers/user_page.py`). Entirely separate.
 
 - **Theme localStorage key:** `rgmc-theme`. Absence = light. Only `"dark"` is ever written.
 
+- **Session stored in `localStorage`** as `rgmc_gateway_session`. Flags: `isDepartmentHead`, `isAdmin`, `isManagement`, `isDeveloper`.
+
 - **Priority matrix:** P1=high urgency+high impact, P2=high+medium (or reverse), P3=medium+medium, P4=everything else.
 
-- **AnyDesk ID:** 9 digits exactly. Validated client-side and server-side. Stored as TEXT.
-
-- **URL param shortcut for system issues:** `/helpdesk?system=<system_id>` pre-fills category, ticket type, request type, subcategory.
+- **`_issueMap` in user.js** — issue cards use `onclick="openIssueDetailById('id')"` which looks up `_issueMap[id]`. Avoids inline JSON escaping issues in onclick attributes.
 
 - **ticket_number DEFAULT** is a PostgreSQL sequence-backed expression (`RGMC-XXXXX`).
+
+- **Brands table schema:** `brand_id` (serial PK), `brand_code` (unique), `brand_name`, `brand_desc`, `brand_initial`. Do NOT use `name`, `initials`, `description`.
 
 - **Helpdesk subcategory cascade:**
   - `Software/Application` → `GET /systems?is_visible=eq.true`
   - `Hardware` / `Network` → `GET /non_software_items?category=eq.X`
+
+- **AnyDesk ID:** 9 digits exactly. Validated client-side and server-side. Stored as TEXT.

@@ -5065,6 +5065,131 @@ kbd {
   color: var(--text-secondary);
 }
 
+/* ── Issue Activity & Comments ── */
+.iss-activity-section {
+  border-top: 1px solid var(--border-subtle);
+  padding: 20px 28px 24px;
+}
+.iss-activity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.iss-activity-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+.iss-activity-refresh {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.iss-activity-refresh:hover { color: var(--gold); border-color: var(--gold-border-h); }
+
+.iss-activity-list {
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card-inner);
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.iss-activity-list::-webkit-scrollbar { width: 3px; }
+.iss-activity-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.iss-activity-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.iss-activity-empty {
+  padding: 20px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.iss-act-entry {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.iss-act-entry:last-child { border-bottom: none; }
+
+.iss-act-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+  flex-wrap: wrap;
+}
+.iss-act-tag {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.iss-act-tag--comment { background: var(--gold-dim); color: var(--gold); }
+.iss-act-tag--moved   { background: var(--warning-bg); color: var(--warning); }
+.iss-act-tag--note    { background: var(--border-subtle); color: var(--text-muted); }
+.iss-act-user {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.iss-act-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.iss-act-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+.iss-act-arrow {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 3px;
+}
+
+.iss-comment-form { display: flex; flex-direction: column; gap: 8px; }
+.iss-comment-input {
+  resize: none;
+  font-size: 13px !important;
+  min-height: 62px;
+}
+.iss-comment-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.iss-comment-submit {
+  height: 34px !important;
+  font-size: 12px !important;
+  padding: 0 14px !important;
+}
+
 /* Skeleton cards */
 [data-theme="light"] .kanban-skel {
   background: #F9F6F1;

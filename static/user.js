@@ -247,8 +247,10 @@ function openIssueDetail(iss) {
     dhPanel.style.display = 'none';
   }
 
+  document.getElementById('issCommentInput').value = '';
   document.getElementById('issueDetailModal').classList.add('open');
   document.body.style.overflow = 'hidden';
+  loadIssActivity(iss.id);
 }
 
 function _populateIssueAssigneeSelect(currentAssignee) {
@@ -322,6 +324,77 @@ function closeIssueDetail() {
 
 function overlayCloseIssue(e) {
   if (e.target === document.getElementById('issueDetailModal')) closeIssueDetail();
+}
+
+/* ── Issue Activity & Comments ── */
+
+function _renderIssActivityEntries(entries) {
+  const list = document.getElementById('issActivityList');
+  if (!entries || entries.length === 0) {
+    list.innerHTML = '<div class="iss-activity-empty">No activity yet. Be the first to comment.</div>';
+    return;
+  }
+  list.innerHTML = entries.map(e => {
+    const time = fmtDateTime(e.created_at);
+    const user = escHtml(e.username || '?');
+    let tag = '', body = '';
+    if (e.type === 'comment') {
+      tag  = '<span class="iss-act-tag iss-act-tag--comment">Comment</span>';
+      body = `<div class="iss-act-text">${escHtml(e.text || '')}</div>`;
+    } else if (e.type === 'moved') {
+      const src = e.source === 'dev' ? 'Dev' : 'Task';
+      tag  = `<span class="iss-act-tag iss-act-tag--moved">Moved · ${src}</span>`;
+      body = `<div class="iss-act-text">${escHtml(e.from || 'None')}<span class="iss-act-arrow">→</span>${escHtml(e.to || '')}</div>`;
+    } else {
+      const src = e.source === 'dev' ? 'Dev' : 'Task';
+      tag  = `<span class="iss-act-tag iss-act-tag--note">Note · ${src}</span>`;
+      body = `<div class="iss-act-text">${escHtml(e.text || '')}</div>`;
+    }
+    return `<div class="iss-act-entry">
+      <div class="iss-act-meta">${tag}<span class="iss-act-user">${user}</span><span class="iss-act-time">${time}</span></div>
+      ${body}
+    </div>`;
+  }).join('');
+}
+
+async function loadIssActivity(issueId) {
+  const list = document.getElementById('issActivityList');
+  if (!list || !issueId) return;
+  list.innerHTML = '<div class="iss-activity-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  try {
+    const res  = await fetch(`/api/issues/${encodeURIComponent(issueId)}/activity`, { headers: authHeaders() });
+    const data = res.ok ? await res.json() : [];
+    _renderIssActivityEntries(data);
+  } catch {
+    list.innerHTML = '<div class="iss-activity-empty">Failed to load activity.</div>';
+  }
+}
+
+function refreshIssActivity() {
+  if (_currentIssue) loadIssActivity(_currentIssue.id);
+}
+
+async function postIssComment() {
+  const input   = document.getElementById('issCommentInput');
+  const comment = (input?.value || '').trim();
+  if (!comment || !_currentIssue) return;
+
+  const btn = document.querySelector('#issueDetailModal .iss-comment-submit');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch(`/api/issues/${encodeURIComponent(_currentIssue.id)}/comments`, {
+      method:  'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ comment }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed to post comment');
+    input.value = '';
+    await loadIssActivity(_currentIssue.id);
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 /* ── Team ── */
