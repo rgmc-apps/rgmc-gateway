@@ -639,6 +639,8 @@ _TICKET_TYPE_LABELS = {
     'service_request':  'Service Request',
     'incident_problem': 'Incident / Problem',
     'change_request':   'Change Request',
+    'request':          'Request',
+    'incident_report':  'Incident Report',
 }
 _IMPACT_LABELS = {
     'high':   'High — Company Wide',

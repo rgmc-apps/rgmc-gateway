@@ -1322,15 +1322,16 @@ function _renderAttachPreviews(issueId, urls) {
 function renderIssueRow(issue) {
   const statusBadge = `<span class="label-badge ${ISSUE_STATUS_CLASS[issue.status] || 'label-rgmc'}">${ISSUE_STATUS_LABELS[issue.status] || issue.status}</span>`;
   const titleText   = issue.title ? issue.title : (issue.description.length > 60 ? issue.description.slice(0, 58) + '…' : issue.description);
-  const devBadge    = issue.dev_item_id ? '<span class="badge-dev" title="Promoted to dev item">Dev</span> ' : '';
-  const taskBadge   = issue.task_id ? '<span class="badge-task" title="Promoted to task">Task</span> ' : '';
+  const devBadge      = issue.dev_item_id   ? '<span class="badge-dev" title="Promoted to dev item">Dev</span> '       : '';
+  const taskBadge     = issue.task_id       ? '<span class="badge-task" title="Promoted to task">Task</span> '         : '';
+  const userTaskBadge = issue.user_task_id  ? '<span class="badge-user-task" title="Promoted to user task">User Task</span> ' : '';
   const ticketRef = issue.ticket_number
     ? `<code class="mono-val" style="font-size:11px;">${escHtml(issue.ticket_number)}</code><br>`
     : '';
   return `<tr>
     <td>${ticketRef}<span class="user-name">${escHtml(issue.site_name)}</span></td>
     <td>${escHtml(issue.employee_name)}<br><small class="text-muted">${escHtml(issue.company_name)}</small></td>
-    <td class="issue-desc-cell">${devBadge}${taskBadge}${escHtml(titleText)}</td>
+    <td class="issue-desc-cell">${devBadge}${taskBadge}${userTaskBadge}${escHtml(titleText)}</td>
     <td class="attach-preview-cell">${_renderAttachPreviews(issue.id, issue.attachment_urls)}</td>
     <td>${statusBadge}</td>
     <td>${issue.assigned_to ? `<code class="mono-val">${escHtml(issue.assigned_to)}</code>` : '<span class="text-muted">—</span>'}</td>
@@ -1432,6 +1433,18 @@ async function openIssueModal(id) {
   } else {
     taskGroup.style.display = 'none';
     promoteTaskBtn.style.display = '';
+  }
+
+  // User task link
+  const userTaskGroup      = document.getElementById('issueUserTaskGroup');
+  const promoteUserTaskBtn = document.getElementById('issuePromoteUserTaskBtn');
+  if (issue.user_task_id) {
+    userTaskGroup.style.display = '';
+    document.getElementById('issueUserTaskId').textContent = issue.user_task_id;
+    promoteUserTaskBtn.style.display = 'none';
+  } else {
+    userTaskGroup.style.display = 'none';
+    promoteUserTaskBtn.style.display = '';
   }
 
   // Populate assigned-to dropdown
@@ -1559,6 +1572,30 @@ async function promoteIssueToTask() {
     if (!res.ok) throw new Error(data.error || 'Promote failed');
     closeIssueModal();
     showToast('Issue promoted to task board.');
+    loadIssues(_currentIssueStatus);
+  } catch (err) {
+    document.getElementById('issueModalLoading').style.display = 'none';
+    document.getElementById('issueModalActions').style.display = '';
+    document.getElementById('issueModalError').style.display   = '';
+    document.getElementById('issueModalErrorMsg').textContent  = err.message;
+  }
+}
+
+async function promoteIssueToUserTask() {
+  if (!_editingIssueId) return;
+  if (!confirm('Create a user task from this issue?')) return;
+  document.getElementById('issueModalActions').style.display = 'none';
+  document.getElementById('issueModalLoading').style.display = '';
+  document.getElementById('issueModalError').style.display   = 'none';
+  try {
+    const res = await fetch(`/api/admin/issues/${encodeURIComponent(_editingIssueId)}/promote-user-task`, {
+      method:  'POST',
+      headers: authHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Promote failed');
+    closeIssueModal();
+    showToast('Issue promoted to user task.');
     loadIssues(_currentIssueStatus);
   } catch (err) {
     document.getElementById('issueModalLoading').style.display = 'none';

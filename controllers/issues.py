@@ -435,3 +435,66 @@ def admin_promote_issue_to_task(issue_id):
             current_app.logger.error("promote-task link issue failed: %s", exc)
 
     return jsonify({"success": True, "task_id": task_id})
+
+
+@issues_bp.post("/api/admin/issues/<issue_id>/promote-user-task")
+def admin_promote_issue_to_user_task(issue_id):
+    admin_username, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/issues", params={"id": f"eq.{issue_id}", "select": "*"})
+    except Exception as exc:
+        current_app.logger.error("promote-user-task fetch issue failed: %s", exc)
+        return jsonify({"error": "Failed to fetch issue"}), 500
+    if not rows:
+        return jsonify({"error": "Issue not found"}), 404
+
+    issue = rows[0]
+    if issue.get("user_task_id"):
+        return jsonify({"error": "Already promoted to a user task"}), 409
+
+    title = (issue.get("title") or
+             f"[{issue['site_name']}] {issue['description'][:80]}{'…' if len(issue['description']) > 80 else ''}")
+    desc = (
+        f"Reported by {issue['employee_name']} ({issue['company_name']}, {issue.get('department', '')})\n"
+        f"Email: {issue['email']}\n\n"
+        f"{issue['description']}"
+    )
+
+    dept_id   = issue.get("request_to_department_id")
+    dept_name = issue.get("department") or ""
+
+    if dept_id and not dept_name:
+        try:
+            dept_rows = supabase_req("GET", "/departments", params={
+                "department_id": f"eq.{dept_id}", "select": "department_name",
+            })
+            if dept_rows:
+                dept_name = dept_rows[0].get("department_name", "")
+        except Exception:
+            pass
+
+    try:
+        new_task = supabase_req("POST", "/user_tasks", data={
+            "title":           title,
+            "description":     desc,
+            "status":          "open",
+            "created_by":      admin_username,
+            "department_id":   dept_id,
+            "department_name": dept_name or None,
+        }, extra_headers={"Prefer": "return=representation"})
+    except Exception as exc:
+        current_app.logger.error("promote-user-task create user_task failed: %s", exc)
+        return jsonify({"error": "Failed to create user task"}), 500
+
+    user_task_id = new_task[0]["id"] if new_task else None
+    if user_task_id:
+        try:
+            supabase_req("PATCH", "/issues",
+                         data={"user_task_id": user_task_id, "status": "in_progress"},
+                         params={"id": f"eq.{issue_id}"})
+        except Exception as exc:
+            current_app.logger.error("promote-user-task link issue failed: %s", exc)
+
+    return jsonify({"success": True, "user_task_id": user_task_id})

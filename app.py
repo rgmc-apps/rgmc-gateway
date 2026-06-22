@@ -8,6 +8,7 @@ from controllers.developer import developer_bp
 from controllers.profile import profile_bp
 from controllers.tasks import tasks_bp
 from controllers.user_page import user_page_bp
+from controllers.general_helpdesk import general_helpdesk_bp
 
 
 def create_app() -> Flask:
@@ -22,6 +23,7 @@ def create_app() -> Flask:
     app.register_blueprint(profile_bp)
     app.register_blueprint(tasks_bp)
     app.register_blueprint(user_page_bp)
+    app.register_blueprint(general_helpdesk_bp)
 
     return app
 
