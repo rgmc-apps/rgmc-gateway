@@ -354,7 +354,8 @@ function _showSkeletons() {
 
 /* ── Load & render board ── */
 async function loadItems() {
-  const board = document.getElementById('kanbanBoard');
+  const board  = document.getElementById('kanbanBoard');
+  const loader = document.getElementById('boardLoader');
   board.classList.add('loading');
   _showSkeletons();
 
@@ -370,6 +371,11 @@ async function loadItems() {
     });
   } finally {
     board.classList.remove('loading');
+    board.classList.add('board-revealed');
+    if (loader) {
+      loader.classList.add('board-loader--done');
+      loader.addEventListener('transitionend', () => loader.remove(), { once: true });
+    }
   }
 }
 

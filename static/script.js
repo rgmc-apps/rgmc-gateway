@@ -159,26 +159,61 @@ function renderHealth(apis) {
 }
 
 function renderEndpoint(ep) {
-  if (ep.connections) {
-    return renderConnections(ep);
-  }
+  if (ep.connections) return renderConnections(ep);
 
   let detail = '';
   if (ep.error) {
-    detail = `<span style="font-size:12px;color:#94a3b8;">${ep.error}</span>`;
+    detail = `<div class="health-ep-error">${escapeHtml(ep.error)}</div>`;
   } else if (ep.response !== undefined) {
-    const raw = typeof ep.response === 'object' ? JSON.stringify(ep.response) : String(ep.response);
-    const truncated = raw.length > 80 ? raw.slice(0, 80) + '…' : raw;
-    detail = `<span style="font-size:11px;color:#94a3b8;font-family:monospace;" title="${escapeAttr(raw)}">${escapeHtml(truncated)}</span>`;
+    const rendered    = renderJsonValue(ep.response);
+    const lineCount   = (rendered.match(/\n/g) || []).length + 1;
+    const needsToggle = lineCount > 7;
+    const uid         = 'hj' + Math.random().toString(36).slice(2, 8);
+    detail = `
+      <div class="health-json-wrap">
+        <pre class="health-json${needsToggle ? ' health-json--collapsed' : ''}" id="${uid}">${rendered}</pre>
+        ${needsToggle ? `<button class="health-json-toggle" onclick="toggleHealthJson('${uid}',this)">Show more</button>` : ''}
+      </div>`;
   }
 
   return `
     <div class="status-row">
       <div class="status-dot ${ep.status}"></div>
-      <span class="status-label">${ep.label}</span>
+      <span class="status-label">${escapeHtml(ep.label)}</span>
       <span class="status-badge ${ep.status}">${statusText(ep.status)}</span>
     </div>
-    ${detail ? `<div style="padding-left:20px;margin-top:-4px;">${detail}</div>` : ''}`;
+    ${detail}`;
+}
+
+function renderJsonValue(val, depth) {
+  depth = depth || 0;
+  if (val === null)             return '<span class="json-null">null</span>';
+  if (typeof val === 'boolean') return `<span class="json-bool">${val}</span>`;
+  if (typeof val === 'number')  return `<span class="json-num">${val}</span>`;
+  if (typeof val === 'string')  return `<span class="json-str">&quot;${escapeHtml(val)}&quot;</span>`;
+  if (Array.isArray(val)) {
+    if (!val.length) return '[]';
+    const pad   = '  '.repeat(depth + 1);
+    const close = '  '.repeat(depth);
+    return `[\n${val.map(v => pad + renderJsonValue(v, depth + 1)).join(',\n')}\n${close}]`;
+  }
+  if (typeof val === 'object') {
+    const keys = Object.keys(val);
+    if (!keys.length) return '{}';
+    const pad   = '  '.repeat(depth + 1);
+    const close = '  '.repeat(depth);
+    return `{\n${keys.map(k =>
+      `${pad}<span class="json-key">&quot;${escapeHtml(k)}&quot;</span>: ${renderJsonValue(val[k], depth + 1)}`
+    ).join(',\n')}\n${close}}`;
+  }
+  return escapeHtml(String(val));
+}
+
+function toggleHealthJson(id, btn) {
+  const pre = document.getElementById(id);
+  if (!pre) return;
+  const collapsed = pre.classList.toggle('health-json--collapsed');
+  btn.textContent = collapsed ? 'Show more' : 'Show less';
 }
 
 function renderConnections(ep) {

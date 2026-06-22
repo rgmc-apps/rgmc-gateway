@@ -46,6 +46,11 @@
   --shadow-modal:  0 32px 100px rgba(0,0,0,0.8);
   --shadow-btn:    0 4px 18px rgba(196,151,42,0.42);
   --shadow-nav:    0 8px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05);
+
+  /* JSON syntax token colors (dark theme) */
+  --json-str:  #86efac;
+  --json-num:  #7dd3fc;
+  --json-bool: #f9a8d4;
 }
 
 /* ── Reset ── */
@@ -499,6 +504,56 @@ body::before {
 .conn-status-ok  { color: var(--success); font-weight: 700; font-size: 12px; }
 .conn-status-err { color: var(--error);   font-weight: 700; font-size: 12px; }
 .conn-error-text { color: var(--text-muted); font-size: 12px; }
+
+/* ── Health check JSON response ── */
+.health-ep-error {
+  padding: 3px 0 4px 20px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+}
+.health-json-wrap {
+  padding: 5px 0 2px 20px;
+}
+.health-json {
+  margin: 0;
+  background: var(--bg-card-inner);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-family: ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  overflow-x: auto;
+  white-space: pre;
+}
+.health-json--collapsed {
+  max-height: 88px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+}
+.health-json-toggle {
+  display: inline-block;
+  margin-top: 4px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gold);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.75;
+  transition: opacity 0.15s;
+}
+.health-json-toggle:hover { opacity: 1; }
+.json-key  { color: var(--gold); }
+.json-str  { color: var(--json-str); }
+.json-num  { color: var(--json-num); }
+.json-bool { color: var(--json-bool); }
+.json-null { color: var(--text-muted); font-style: italic; }
 
 /* ── Modal ── */
 .modal-overlay {
@@ -4458,6 +4513,87 @@ kbd {
   .kanban-skel { animation: none; opacity: 1; }
 }
 
+/* ── Dev board full-screen loader ── */
+#boardLoader {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: oklch(5.5% 0.012 55 / 0.97);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.32s cubic-bezier(0.25, 1, 0.5, 1);
+}
+#boardLoader.board-loader--done {
+  opacity: 0;
+  pointer-events: none;
+}
+.board-loader-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+.board-loader-pips {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+}
+.board-loader-pip {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: oklch(52% 0.05 55 / 0.22);
+  animation: blp-seq 1.75s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+.board-loader-pip:nth-child(1) { animation-delay: 0ms; }
+.board-loader-pip:nth-child(2) { animation-delay: 175ms; }
+.board-loader-pip:nth-child(3) { animation-delay: 350ms; }
+.board-loader-pip:nth-child(4) { animation-delay: 525ms; }
+.board-loader-pip:nth-child(5) { animation-delay: 700ms; }
+
+@keyframes blp-seq {
+  0%, 55%, 100% {
+    background: oklch(52% 0.05 55 / 0.22);
+    transform: scale(1);
+    box-shadow: none;
+  }
+  27% {
+    background: oklch(70% 0.12 55);
+    transform: scale(1.55);
+    box-shadow: 0 0 0 5px oklch(70% 0.12 55 / 0.18);
+  }
+}
+.board-loader-label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  color: oklch(52% 0.05 55 / 0.55);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ── Board column reveal on load ── */
+@keyframes col-reveal {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+#kanbanBoard.board-revealed .kanban-col {
+  animation: col-reveal 0.45s cubic-bezier(0.25, 1, 0.5, 1) backwards;
+}
+#kanbanBoard.board-revealed #col-pending { animation-delay: 0ms; }
+#kanbanBoard.board-revealed #col-ongoing { animation-delay: 65ms; }
+#kanbanBoard.board-revealed #col-coding  { animation-delay: 130ms; }
+#kanbanBoard.board-revealed #col-testing { animation-delay: 195ms; }
+#kanbanBoard.board-revealed #col-done    { animation-delay: 260ms; }
+
+/* ── Reduced motion overrides for loader ── */
+@media (prefers-reduced-motion: reduce) {
+  .board-loader-pip { animation: none; background: oklch(70% 0.12 55 / 0.5); }
+  #boardLoader      { transition: none; }
+  #kanbanBoard.board-revealed .kanban-col { animation: none; }
+}
+
 /* ── User table avatar ── */
 .tbl-avatar {
   width: 32px;
@@ -4865,6 +5001,11 @@ kbd {
   --shadow-modal:  0 24px 80px rgba(0,0,0,0.20);
   --shadow-btn:    0 4px 18px rgba(196,151,42,0.32);
   --shadow-nav:    0 4px 24px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.7);
+
+  /* JSON syntax token colors (light theme) */
+  --json-str:  #15803d;
+  --json-num:  #1d4ed8;
+  --json-bool: #be185d;
 }
 
 /* Gradient blobs — subtler tones on warm light bg */
