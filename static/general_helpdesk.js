@@ -205,13 +205,13 @@ async function ghOnCategoryChange() {
     return;
   }
 
-  // auto-select matching handling dept based on the category's group
+  // auto-select matching handling dept based on the category's group (dept code)
   const selectedOpt = catSel.options[catSel.selectedIndex];
   const catGroup    = selectedOpt ? (selectedOpt.dataset.group || '') : '';
   if (catGroup && catGroup !== 'General') {
     const deptSel = document.getElementById('ghReqDept');
     for (const opt of deptSel.options) {
-      if (opt.dataset.name === catGroup) {
+      if (opt.dataset.code === catGroup) {
         deptSel.value = opt.value;
         break;
       }
@@ -260,6 +260,7 @@ async function ghOnDeptChange() {
   const deptSel  = document.getElementById('ghReqDept');
   const selected = deptSel.options[deptSel.selectedIndex];
   const deptName = selected ? (selected.dataset.name || '') : '';
+  const deptCode = selected ? (selected.dataset.code || '') : '';
 
   if (_isItDepartment(deptName)) showItHelpdeskPrompt();
 
@@ -269,7 +270,7 @@ async function ghOnDeptChange() {
   typeSel.disabled        = true;
   typeGroup.style.display = 'none';
 
-  await _loadCategories(deptName);
+  await _loadCategories(deptCode);
 }
 
 /* ── Companies dropdown ───────────────────────────────────────────────────── */
@@ -308,6 +309,7 @@ async function _loadDepartments() {
         opt.value = d.department_id;
         opt.textContent = `${d.department_code} — ${d.department_name}`;
         opt.dataset.name = d.department_name;
+        opt.dataset.code = d.department_code;
         reqDeptSel.appendChild(opt);
       }
     });

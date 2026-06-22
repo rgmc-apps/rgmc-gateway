@@ -26,8 +26,9 @@ def helpdesk_page():
 @public_bp.get("/api/helpdesk/categories")
 def get_helpdesk_categories():
     rows = supabase_req("GET", "/request_category", params={
-        "order":  "category_id.asc",
-        "select": "category_id,category_name,category_desc,category_group",
+        "order":          "category_id.asc",
+        "select":         "category_id,category_name,category_desc,category_group",
+        "category_group": "eq.IT",
     })
     return jsonify(rows or [])
 
