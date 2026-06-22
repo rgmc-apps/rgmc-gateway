@@ -169,6 +169,83 @@ function _renderGhPreviews() {
   container.style.display = '';
 }
 
+/* ── Categories dropdown ─────────────────────────────────────────────────── */
+
+async function _loadCategories(group = '') {
+  const sel = document.getElementById('ghCategory');
+  sel.innerHTML = '<option value="">— Select a category —</option>';
+  try {
+    const url  = group
+      ? `/api/general-helpdesk/categories?group=${encodeURIComponent(group)}`
+      : '/api/general-helpdesk/categories';
+    const res  = await fetch(url);
+    const list = await res.json();
+    list.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.category_name;
+      opt.textContent = c.category_name;
+      opt.dataset.group = c.category_group || '';
+      sel.appendChild(opt);
+    });
+  } catch { /* non-fatal */ }
+}
+
+async function ghOnCategoryChange() {
+  const catSel    = document.getElementById('ghCategory');
+  const category  = catSel.value;
+  const typeSel   = document.getElementById('ghRequestType');
+  const typeGroup = document.getElementById('ghRequestTypeGroup');
+
+  typeSel.innerHTML = '<option value="">Loading…</option>';
+  typeSel.disabled  = true;
+
+  if (!category) {
+    typeSel.innerHTML       = '<option value="">— Select a category first —</option>';
+    typeGroup.style.display = 'none';
+    return;
+  }
+
+  // auto-select matching handling dept based on the category's group
+  const selectedOpt = catSel.options[catSel.selectedIndex];
+  const catGroup    = selectedOpt ? (selectedOpt.dataset.group || '') : '';
+  if (catGroup && catGroup !== 'General') {
+    const deptSel = document.getElementById('ghReqDept');
+    for (const opt of deptSel.options) {
+      if (opt.dataset.name === catGroup) {
+        deptSel.value = opt.value;
+        break;
+      }
+    }
+  }
+
+  const items = await fetch(`/api/general-helpdesk/request-types?category=${encodeURIComponent(category)}`)
+    .then(r => r.json()).catch(() => []);
+
+  typeSel.innerHTML = '<option value="">— Select a type (optional) —</option>';
+  items.forEach(item => {
+    const opt = document.createElement('option');
+    opt.value = item.request_type;
+    opt.textContent = item.request_type;
+    typeSel.appendChild(opt);
+  });
+  typeSel.disabled        = items.length === 0;
+  typeGroup.style.display = items.length > 0 ? '' : 'none';
+}
+
+async function ghOnDeptChange() {
+  const deptSel  = document.getElementById('ghReqDept');
+  const selected = deptSel.options[deptSel.selectedIndex];
+  const deptName = selected ? (selected.dataset.name || '') : '';
+
+  const typeSel   = document.getElementById('ghRequestType');
+  const typeGroup = document.getElementById('ghRequestTypeGroup');
+  typeSel.innerHTML       = '<option value="">— Select a category first —</option>';
+  typeSel.disabled        = true;
+  typeGroup.style.display = 'none';
+
+  await _loadCategories(deptName);
+}
+
 /* ── Companies dropdown ───────────────────────────────────────────────────── */
 
 async function _loadCompanies() {
@@ -189,17 +266,24 @@ async function _loadCompanies() {
 
 async function _loadDepartments() {
   try {
-    const res   = await fetch('/api/departments');
-    const depts = await res.json();
-    ['ghDepartment', 'ghReqDept'].forEach(id => {
-      const sel = document.getElementById(id);
-      if (!sel) return;
-      depts.forEach(d => {
+    const res         = await fetch('/api/departments');
+    const depts       = await res.json();
+    const userDeptSel = document.getElementById('ghDepartment');
+    const reqDeptSel  = document.getElementById('ghReqDept');
+    depts.forEach(d => {
+      if (userDeptSel) {
         const opt = document.createElement('option');
-        opt.value = id === 'ghReqDept' ? d.department_id : d.department_name;
+        opt.value = d.department_name;
         opt.textContent = `${d.department_code} — ${d.department_name}`;
-        sel.appendChild(opt);
-      });
+        userDeptSel.appendChild(opt);
+      }
+      if (reqDeptSel) {
+        const opt = document.createElement('option');
+        opt.value = d.department_id;
+        opt.textContent = `${d.department_code} — ${d.department_name}`;
+        opt.dataset.name = d.department_name;
+        reqDeptSel.appendChild(opt);
+      }
     });
   } catch { /* non-fatal */ }
 }
@@ -239,6 +323,9 @@ async function ghSubmit(e) {
       document.querySelectorAll('.hd-ticket-option').forEach(el => el.classList.remove('selected'));
       ghComputePriority();
       _ghClearFiles();
+      document.getElementById('ghRequestType').innerHTML = '<option value="">— Select a category first —</option>';
+      document.getElementById('ghRequestType').disabled  = true;
+      document.getElementById('ghRequestTypeGroup').style.display = 'none';
     } else {
       document.getElementById('ghFormActions').style.display = 'flex';
       document.getElementById('ghError').style.display       = 'flex';
@@ -255,7 +342,7 @@ async function ghSubmit(e) {
 /* ── Bootstrap ────────────────────────────────────────────────────────────── */
 
 document.addEventListener('DOMContentLoaded', async () => {
-  await Promise.all([_loadCompanies(), _loadDepartments()]);
+  await Promise.all([_loadCompanies(), _loadCategories(), _loadDepartments()]);
 
   const zone = document.getElementById('ghDropZone');
   if (zone) {

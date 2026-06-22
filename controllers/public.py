@@ -69,6 +69,35 @@ def get_helpdesk_request_types():
     return jsonify(rows or [])
 
 
+@public_bp.get("/api/general-helpdesk/categories")
+def get_general_helpdesk_categories():
+    group  = request.args.get("group", "").strip()
+    params = {
+        "order":  "category_id.asc",
+        "select": "category_id,category_name,category_desc,category_group",
+    }
+    if group:
+        params["category_group"] = f"in.({group},General)"
+    else:
+        params["category_group"] = "neq.IT"
+    rows = supabase_req("GET", "/request_category", params=params)
+    return jsonify(rows or [])
+
+
+@public_bp.get("/api/general-helpdesk/request-types")
+def get_general_helpdesk_request_types():
+    category = request.args.get("category", "").strip()
+    if not category:
+        return jsonify([])
+    rows = supabase_req("GET", "/request_type", params={
+        "request_category": f"eq.{category}",
+        "is_visible":       "eq.true",
+        "order":            "id.asc",
+        "select":           "id,request_type",
+    })
+    return jsonify(rows or [])
+
+
 @public_bp.get("/api/companies")
 def get_companies():
     rows = supabase_req("GET", "/companies", params={"order": "name.asc", "select": "company_code,name"})

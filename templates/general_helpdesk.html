@@ -154,26 +154,28 @@
               <label class="form-label" for="ghCategory">Category
                 <span class="form-label-hint">(optional — pick the closest match)</span>
               </label>
-              <select class="form-input" id="ghCategory" name="request_category">
+              <select class="form-input" id="ghCategory" name="request_category" onchange="ghOnCategoryChange()">
                 <option value="">— Select a category —</option>
-                <option value="Administrative / General Affairs">Administrative / General Affairs</option>
-                <option value="Human Resources">Human Resources</option>
-                <option value="Finance / Accounting">Finance / Accounting</option>
-                <option value="Facilities &amp; Maintenance">Facilities &amp; Maintenance</option>
-                <option value="Operations">Operations</option>
-                <option value="Safety &amp; Security">Safety &amp; Security</option>
-                <option value="Legal / Compliance">Legal / Compliance</option>
-                <option value="Other">Other</option>
               </select>
             </div>
             <div class="form-group">
               <label class="form-label" for="ghReqDept">Who should handle this?
                 <span class="form-label-hint">(optional)</span>
               </label>
-              <select class="form-input" id="ghReqDept" name="request_to_department_id">
+              <select class="form-input" id="ghReqDept" name="request_to_department_id" onchange="ghOnDeptChange()">
                 <option value="">— Not sure / Any available —</option>
               </select>
             </div>
+          </div>
+
+          <!-- Request Type (shown after category is selected) -->
+          <div class="form-group form-group-full" id="ghRequestTypeGroup" style="display:none;">
+            <label class="form-label" for="ghRequestType">Type of Request
+              <span class="form-label-hint">(optional)</span>
+            </label>
+            <select class="form-input" id="ghRequestType" name="request_type_name" disabled>
+              <option value="">— Select a category first —</option>
+            </select>
           </div>
 
           <!-- Short Description -->
