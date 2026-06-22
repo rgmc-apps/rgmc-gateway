@@ -112,6 +112,21 @@
           Done
           <span class="kanban-count" id="count-done">0</span>
         </div>
+        <div class="done-col-controls" style="display:flex;align-items:center;justify-content:space-between;padding:2px 2px 8px;gap:8px;font-size:11px;color:var(--text-muted);">
+          <label style="display:flex;align-items:center;gap:4px;white-space:nowrap;cursor:default;">
+            Last
+            <input type="number" id="doneWeeksInput" min="1" max="52" value="2"
+                   style="width:40px;padding:1px 4px;border:1px solid var(--border);border-radius:4px;font-size:11px;background:var(--bg-secondary);color:var(--text-primary);text-align:center;"
+                   onchange="setDoneWeeks(this.value)">
+            wk(s)
+          </label>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span id="done-archived-count" style="opacity:0.7;"></span>
+            <button onclick="openArchiveModal()"
+                    style="font-size:11px;color:var(--text-muted);background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:4px;text-decoration:underline;text-underline-offset:2px;"
+                    title="View all archived done items">Archive</button>
+          </div>
+        </div>
         <div class="kanban-cards" id="cards-done"></div>
       </div>
     </div>
@@ -364,6 +379,22 @@
             Mark Done
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Archive Modal ── -->
+  <div id="archiveModal" class="modal-overlay" onclick="overlayCloseArchive(event)">
+    <div class="modal modal-xl">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Dev Item Archive</h3>
+          <p class="modal-site-name" id="archiveModalMeta">Done items outside the board window</p>
+        </div>
+        <button class="modal-close" onclick="closeArchiveModal()" aria-label="Close">&times;</button>
+      </div>
+      <div style="padding:0 24px 24px;">
+        <div id="archiveList" style="max-height:65vh;overflow-y:auto;border:1px solid var(--border);border-radius:8px;"></div>
       </div>
     </div>
   </div>

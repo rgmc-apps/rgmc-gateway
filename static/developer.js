@@ -64,6 +64,18 @@ let _editingId           = null;
 let _filter              = 'all'; // 'all' | 'mine'
 let _doneRemarksCallback = null;
 
+const DONE_WEEKS_KEY = 'dev-done-weeks';
+let _doneWeeks = Math.max(1, parseInt(localStorage.getItem(DONE_WEEKS_KEY) || '2', 10));
+
+function setDoneWeeks(val) {
+  const n = Math.max(1, Math.min(52, parseInt(val, 10) || 2));
+  _doneWeeks = n;
+  localStorage.setItem(DONE_WEEKS_KEY, String(n));
+  const inp = document.getElementById('doneWeeksInput');
+  if (inp) inp.value = n;
+  renderBoard();
+}
+
 function setFilter(f) {
   _filter = f;
   document.querySelectorAll('.dev-filter-tab').forEach(btn => {
@@ -179,8 +191,11 @@ document.addEventListener('DOMContentLoaded', () => {
   initPhysicsDrag();
   loadMembers().then(() => loadSystems()).then(() => loadItems());
 
+  const doneWeeksInput = document.getElementById('doneWeeksInput');
+  if (doneWeeksInput) doneWeeksInput.value = _doneWeeks;
+
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeDoneRemarksModal(); closeDetailModal(); closeAddSystemModal(); closeProfileMenu(); }
+    if (e.key === 'Escape') { closeDoneRemarksModal(); closeDetailModal(); closeAddSystemModal(); closeArchiveModal(); closeProfileMenu(); }
   });
   document.addEventListener('click', () => closeProfileMenu());
 
@@ -362,19 +377,32 @@ const STATUSES = ['pending', 'ongoing', 'coding', 'testing', 'done'];
 
 function renderBoard() {
   const counts = {};
-  const me = loadSession()?.username || '';
+  const me      = loadSession()?.username || '';
   const visible = _filter === 'mine' ? _items.filter(i => i.created_by === me) : _items;
+
   STATUSES.forEach(status => {
-    const col   = document.getElementById(`cards-${status}`);
-    const items = visible.filter(i => i.status === status);
+    const col  = document.getElementById(`cards-${status}`);
+    let   items = visible.filter(i => i.status === status);
+
+    if (status === 'done') {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - _doneWeeks * 7);
+      const cutoffStr      = cutoff.toISOString().slice(0, 10);
+      const allDoneCount   = items.length;
+      items                = items.filter(i => !i.actual_end_date || i.actual_end_date >= cutoffStr);
+      const archivedCount  = allDoneCount - items.length;
+      const archivedEl     = document.getElementById('done-archived-count');
+      if (archivedEl) archivedEl.textContent = archivedCount > 0 ? `${archivedCount} archived` : '';
+    }
+
     const count = items.length;
     counts[status] = count;
 
-    const countEl  = document.getElementById(`count-${status}`);
-    const prevCol  = parseInt(countEl.textContent, 10);
+    const countEl = document.getElementById(`count-${status}`);
+    const prevCol = parseInt(countEl.textContent, 10);
     rollNumber(countEl, isNaN(prevCol) ? 0 : prevCol, count);
 
-    const statEl   = document.getElementById(`stat-count-${status}`);
+    const statEl = document.getElementById(`stat-count-${status}`);
     if (statEl) {
       const prevStat = parseInt(statEl.textContent, 10);
       rollNumber(statEl, isNaN(prevStat) ? 0 : prevStat, count);
@@ -846,15 +874,17 @@ function fmtHours(h) {
 
 async function refreshLogs() {
   if (!_editingId) return;
-  const list       = document.getElementById('logList');
-  const totalEl    = document.getElementById('logTotalHours');
-  list.innerHTML   = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  const list    = document.getElementById('logList');
+  const totalEl = document.getElementById('logTotalHours');
+  list.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
   try {
-    const res  = await fetch(`/api/dev/items/${encodeURIComponent(_editingId)}/logs`, { headers: authHeaders() });
-    if (!res.ok) throw new Error(await res.text());
-    const logs = await res.json();
+    const [actRes, mvRes] = await Promise.all([
+      fetch(`/api/dev/items/${encodeURIComponent(_editingId)}/logs`,     { headers: authHeaders() }),
+      fetch(`/api/dev/items/${encodeURIComponent(_editingId)}/movement`, { headers: authHeaders() }),
+    ]);
+    const logs  = actRes.ok ? await actRes.json() : [];
+    const moves = mvRes.ok  ? await mvRes.json()  : [];
 
-    // Compute total hours
     const total = logs.reduce((sum, l) => sum + (parseFloat(l.hours_spent) || 0), 0);
     if (total > 0) {
       const display = total % 1 === 0 ? `${total}` : total.toFixed(2).replace(/\.?0+$/, '');
@@ -864,25 +894,109 @@ async function refreshLogs() {
       totalEl.style.display = 'none';
     }
 
-    if (logs.length === 0) {
+    const all = [
+      ...logs.map(l => ({ ...l, _type: 'activity' })),
+      ...moves.map(m => ({ ...m, _type: 'movement' })),
+    ].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+    if (all.length === 0) {
       list.innerHTML = '<div class="activity-log-empty">No activity yet. Be the first to log something.</div>';
       return;
     }
-    list.innerHTML = logs.map(log => {
-      const hrs = fmtHours(log.hours_spent);
-      return `
-      <div class="activity-log-entry">
+
+    list.innerHTML = all.map(entry => {
+      if (entry._type === 'movement') {
+        const label = entry.from_status
+          ? `${entry.from_status} → ${entry.to_status}`
+          : `Created (${entry.to_status})`;
+        return `<div class="activity-log-entry" style="opacity:0.72;">
+          <div class="log-meta">
+            <span class="log-author">${escHtml(entry.username)}</span>
+            <span class="log-time">${fmtDateTime(entry.created_at)}</span>
+          </div>
+          <div class="log-message" style="display:flex;align-items:center;gap:5px;font-style:italic;color:var(--text-muted);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            ${escHtml(label)}
+          </div>
+        </div>`;
+      }
+      const hrs = fmtHours(entry.hours_spent);
+      return `<div class="activity-log-entry">
         <div class="log-meta">
-          <span class="log-author">${escHtml(log.username)}</span>
+          <span class="log-author">${escHtml(entry.username)}</span>
           ${hrs ? `<span class="log-hours-badge">${escHtml(hrs)}</span>` : ''}
-          <span class="log-time">${fmtDateTime(log.created_at)}</span>
+          <span class="log-time">${fmtDateTime(entry.created_at)}</span>
         </div>
-        <div class="log-message">${escHtml(log.message)}</div>
+        <div class="log-message">${escHtml(entry.message)}</div>
       </div>`;
     }).join('');
     list.scrollTop = list.scrollHeight;
   } catch (err) {
     list.innerHTML = `<div class="admin-error">Failed to load: ${escHtml(err.message)}</div>`;
+  }
+}
+
+/* ── Archive modal ── */
+function openArchiveModal() {
+  document.getElementById('archiveModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  loadArchive();
+}
+
+function closeArchiveModal() {
+  document.getElementById('archiveModal').classList.remove('open');
+  const anyOpen = document.querySelector('.modal-overlay.open:not(#archiveModal)');
+  if (!anyOpen) document.body.style.overflow = '';
+}
+
+function overlayCloseArchive(e) {
+  if (e.target === document.getElementById('archiveModal')) closeArchiveModal();
+}
+
+function renderArchiveRow(item) {
+  const sysLabel = systemName(item.system_id);
+  const id       = escHtml(item.id);
+  return `<div onclick="openDetailModal('${id}')"
+    style="cursor:pointer;padding:14px 16px;border-bottom:1px solid var(--border);display:flex;gap:14px;align-items:flex-start;transition:background 0.12s;"
+    onmouseenter="this.style.background='var(--bg-secondary)'" onmouseleave="this.style.background=''">
+    <div style="flex:1;min-width:0;">
+      ${item.dev_item_code ? `<div class="kcard-code" style="margin-bottom:4px;">${escHtml(item.dev_item_code)}</div>` : ''}
+      <div style="font-weight:600;font-size:13px;color:var(--text-primary);margin-bottom:5px;">${escHtml(item.title)}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        ${sysLabel           ? `<span class="kcard-system-tag">${escHtml(sysLabel)}</span>` : ''}
+        ${item.dev_item_type ? typeBadge(item.dev_item_type) : ''}
+        ${item.created_by    ? `<span style="font-size:11px;color:var(--text-muted);">${authorBubble(item.created_by)}</span>` : ''}
+      </div>
+    </div>
+    <div style="flex-shrink:0;text-align:right;font-size:11px;color:var(--text-muted);">
+      <div style="font-weight:600;color:#22c55e;margin-bottom:2px;">Done</div>
+      ${item.actual_end_date ? `<div>${fmtDate(item.actual_end_date)}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+async function loadArchive() {
+  const listEl = document.getElementById('archiveList');
+  const metaEl = document.getElementById('archiveModalMeta');
+  listEl.innerHTML = '<div class="admin-loading" style="padding:24px;"><div class="spinner"></div><span>Loading…</span></div>';
+  metaEl.textContent = `Done items completed more than ${_doneWeeks} week(s) ago`;
+  try {
+    const res = await fetch(`/api/dev/items/archive?weeks=${_doneWeeks}`, { headers: authHeaders() });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    const items = await res.json();
+
+    // Ensure archived items are accessible in _items for the detail modal
+    items.forEach(item => {
+      if (!_items.find(i => i.id === item.id)) _items.push(item);
+    });
+
+    if (items.length === 0) {
+      listEl.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-muted);font-size:14px;">No archived items found.</div>';
+      return;
+    }
+    listEl.innerHTML = items.map(item => renderArchiveRow(item)).join('');
+  } catch (err) {
+    listEl.innerHTML = `<div class="admin-error" style="margin:12px;">${escHtml(err.message)}</div>`;
   }
 }
 

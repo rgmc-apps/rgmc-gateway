@@ -202,9 +202,20 @@ def user_create_task():
         "due_date":        body.get("due_date") or None,
     }
     try:
-        rows = supabase_req("POST", "/user_tasks", data=data,
-                            extra_headers={"Prefer": "return=representation"})
-        return jsonify(rows[0] if rows else data), 201
+        rows    = supabase_req("POST", "/user_tasks", data=data,
+                               extra_headers={"Prefer": "return=representation"})
+        created = rows[0] if rows else data
+        if created.get("id"):
+            try:
+                supabase_req("POST", "/task_item_logs", data={
+                    "task_id":     created["id"],
+                    "username":    username,
+                    "from_status": None,
+                    "to_status":   "open",
+                })
+            except Exception as exc:
+                current_app.logger.warning("user_create_task: task log failed: %s", exc)
+        return jsonify(created), 201
     except Exception as exc:
         current_app.logger.error("user_create_task: %s", exc)
         return jsonify({"error": "Failed to create task"}), 500
@@ -222,6 +233,16 @@ def user_update_task(task_id):
         return jsonify({"error": "Invalid status"}), 400
     if not patch:
         return jsonify({"error": "Nothing to update"}), 400
+
+    old_status = None
+    if "status" in patch:
+        try:
+            existing = supabase_req("GET", "/user_tasks", params={"id": f"eq.{task_id}", "select": "status"})
+            if existing:
+                old_status = existing[0].get("status")
+        except Exception:
+            pass
+
     patch["updated_at"] = datetime.now(timezone.utc).isoformat()
     try:
         supabase_req("PATCH", "/user_tasks", data=patch, params={"id": f"eq.{task_id}"})
@@ -230,6 +251,18 @@ def user_update_task(task_id):
     except Exception as exc:
         current_app.logger.error("user_update_task: %s", exc)
         return jsonify({"error": "Failed to update task"}), 500
+
+    new_status = patch.get("status")
+    if new_status and old_status != new_status:
+        try:
+            supabase_req("POST", "/task_item_logs", data={
+                "task_id":     task_id,
+                "username":    username,
+                "from_status": old_status,
+                "to_status":   new_status,
+            })
+        except Exception as exc:
+            current_app.logger.warning("user_update_task: task log failed: %s", exc)
 
     # Cascade status and assignee changes to the linked issue
     new_status          = patch.get("status")

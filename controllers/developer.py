@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from flask import Blueprint, request, jsonify, render_template, current_app
 
 from services.supabase import supabase_req
@@ -50,8 +50,19 @@ def dev_create_item():
         "created_by":         username,
     }
     try:
-        rows = supabase_req("POST", "/dev_items", data=item)
-        return jsonify(rows[0] if rows else {}), 201
+        rows    = supabase_req("POST", "/dev_items", data=item)
+        created = rows[0] if rows else {}
+        if created.get("id"):
+            try:
+                supabase_req("POST", "/dev_item_logs", data={
+                    "item_id":     created["id"],
+                    "username":    username,
+                    "from_status": None,
+                    "to_status":   "pending",
+                })
+            except Exception as exc:
+                current_app.logger.warning("dev_create_item: movement log failed: %s", exc)
+        return jsonify(created), 201
     except Exception as exc:
         current_app.logger.error("dev_create_item failed: %s", exc)
         return jsonify({"error": "Failed to create item"}), 500
@@ -71,15 +82,16 @@ def dev_update_item(item_id):
     if not patch:
         return jsonify({"error": "No valid fields to update"}), 400
 
-    becoming_done = patch.get("status") == "done"
-    old_status    = None
-    if becoming_done:
+    old_status = None
+    if "status" in patch:
         try:
             existing = supabase_req("GET", "/dev_items", params={"id": f"eq.{item_id}", "select": "status"})
             if existing:
                 old_status = existing[0].get("status")
         except Exception:
             pass
+
+    becoming_done = patch.get("status") == "done" and old_status != "done"
 
     patch["updated_at"] = datetime.now(timezone.utc).isoformat()
     try:
@@ -88,7 +100,20 @@ def dev_update_item(item_id):
         current_app.logger.error("dev_update_item failed: %s", exc)
         return jsonify({"error": "Failed to update item"}), 500
 
-    if becoming_done and old_status != "done":
+    # Log status movement
+    new_status = patch.get("status")
+    if new_status and old_status != new_status:
+        try:
+            supabase_req("POST", "/dev_item_logs", data={
+                "item_id":     item_id,
+                "username":    dev_username,
+                "from_status": old_status,
+                "to_status":   new_status,
+            })
+        except Exception as exc:
+            current_app.logger.warning("dev_update_item: movement log failed: %s", exc)
+
+    if becoming_done:
         try:
             linked = supabase_req("GET", "/issues", params={
                 "dev_item_id": f"eq.{item_id}",
@@ -130,6 +155,46 @@ def dev_delete_item(item_id):
     except Exception as exc:
         current_app.logger.error("dev_delete_item failed: %s", exc)
         return jsonify({"error": "Failed to delete item"}), 500
+
+
+@developer_bp.get("/api/dev/items/archive")
+def dev_get_archive():
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        weeks = min(max(int(request.args.get("weeks", 2)), 1), 52)
+    except (ValueError, TypeError):
+        weeks = 2
+    cutoff = (datetime.now(timezone.utc) - timedelta(weeks=weeks)).date().isoformat()
+    try:
+        rows = supabase_req("GET", "/dev_items", params={
+            "select":          "*",
+            "status":          "eq.done",
+            "actual_end_date": f"lt.{cutoff}",
+            "order":           "actual_end_date.desc",
+        })
+        return jsonify(rows or [])
+    except Exception as exc:
+        current_app.logger.error("dev_get_archive failed: %s", exc)
+        return jsonify({"error": "Failed to fetch archive"}), 500
+
+
+@developer_bp.get("/api/dev/items/<string:item_id>/movement")
+def dev_get_movement_logs(item_id):
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/dev_item_logs", params={
+            "item_id": f"eq.{item_id}",
+            "select":  "*",
+            "order":   "created_at.asc",
+        })
+        return jsonify(rows or [])
+    except Exception as exc:
+        current_app.logger.error("dev_get_movement_logs failed: %s", exc)
+        return jsonify({"error": "Failed to fetch movement logs"}), 500
 
 
 @developer_bp.get("/api/dev/items/<string:item_id>/logs")
