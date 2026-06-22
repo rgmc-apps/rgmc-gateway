@@ -172,6 +172,23 @@ def health_check():
                             "status": "error",
                             "error":  "Invalid JSON response",
                         })
+                elif ep.get("parse_bc_status"):
+                    try:
+                        data = resp.json()
+                        api_result["endpoints"].append({
+                            "path":        ep["path"],
+                            "label":       ep["label"],
+                            "status":      "ok" if data.get("status") == "ok" else "error",
+                            "http_status": resp.status_code,
+                            "response":    data,
+                        })
+                    except Exception:
+                        api_result["endpoints"].append({
+                            "path":   ep["path"],
+                            "label":  ep["label"],
+                            "status": "error",
+                            "error":  "Invalid JSON response",
+                        })
                 else:
                     try:
                         data = resp.json()

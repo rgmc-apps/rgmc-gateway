@@ -317,8 +317,9 @@ function renderTaskCard(task) {
     ${task.description ? `<div class="ut-card-desc">${escHtml(task.description)}</div>` : ''}
     <div class="ut-card-footer">
       <div class="ut-card-meta">
-        ${task.due_date  ? `<span>Due ${fmtDate(task.due_date)}</span>` : ''}
+        ${task.due_date   ? `<span>Due ${fmtDate(task.due_date)}</span>` : ''}
         ${task.created_by ? `<span${task.due_date ? ' style="opacity:0.65;"' : ''}> · ${escHtml(task.created_by)}</span>` : ''}
+        ${task.assigned_to ? `<span class="issue-assigned-to" style="margin-left:auto;">→ ${escHtml(task.assigned_to)}</span>` : ''}
       </div>
       <div class="ut-card-actions">
         ${statusIdx > 0
@@ -364,11 +365,12 @@ function openUtModal(idOrNull) {
   const task = typeof idOrNull === 'string' ? _tasks.find(t => t.id === idOrNull) : null;
   _taskEditId = task?.id ?? null;
   document.getElementById('ut-modal-title-text').textContent = task ? 'Edit Task' : 'New Task';
-  document.getElementById('ut-task-id').value     = task?.id         ?? '';
-  document.getElementById('ut-task-title').value  = task?.title      ?? '';
-  document.getElementById('ut-task-desc').value   = task?.description ?? '';
-  document.getElementById('ut-task-status').value = task?.status     ?? 'open';
-  document.getElementById('ut-task-due').value    = task?.due_date   ?? '';
+  document.getElementById('ut-task-id').value       = task?.id          ?? '';
+  document.getElementById('ut-task-title').value    = task?.title       ?? '';
+  document.getElementById('ut-task-desc').value     = task?.description ?? '';
+  document.getElementById('ut-task-status').value   = task?.status      ?? 'open';
+  document.getElementById('ut-task-due').value      = task?.due_date    ?? '';
+  document.getElementById('ut-task-assignee').value = task?.assigned_to ?? '';
   document.getElementById('ut-delete-btn').style.display = task ? '' : 'none';
   _resetUtModalState();
   document.getElementById('utTaskModal').classList.add('open');
@@ -406,9 +408,10 @@ async function saveUtTask(e) {
 
   const payload = {
     title,
-    description: document.getElementById('ut-task-desc').value.trim()  || null,
+    description: document.getElementById('ut-task-desc').value.trim()     || null,
     status:      document.getElementById('ut-task-status').value,
-    due_date:    document.getElementById('ut-task-due').value           || null,
+    due_date:    document.getElementById('ut-task-due').value              || null,
+    assigned_to: document.getElementById('ut-task-assignee').value.trim() || null,
   };
 
   try {

@@ -58,13 +58,33 @@ def user_team_issues():
     username, err = _require_user()
     if err:
         return jsonify(err[0]), err[1]
-    info    = _user_info(username)
-    dept_id = _dept_id_for(info.get("department", ""))
-    if not dept_id:
+    info      = _user_info(username)
+    dept_name = info.get("department", "")
+    dept_id   = _dept_id_for(dept_name) if dept_name else None
+
+    team_usernames = []
+    if dept_name:
+        try:
+            members = supabase_req("GET", "/users", params={
+                "department": f"eq.{dept_name}",
+                "select":     "username",
+            })
+            team_usernames = [m["username"] for m in (members or [])]
+        except Exception:
+            pass
+
+    or_parts = []
+    if dept_id:
+        or_parts.append(f"request_to_department_id.eq.{dept_id}")
+    if team_usernames:
+        or_parts.append(f"assigned_to.in.({','.join(team_usernames)})")
+
+    if not or_parts:
         return jsonify([])
+
     try:
         rows = supabase_req("GET", "/issues", params={
-            "request_to_department_id": f"eq.{dept_id}",
+            "or":     f"({','.join(or_parts)})",
             "select": "id,ticket_number,title,description,status,priority,urgency,employee_name,company_name,email,created_at,assigned_to,request_category,ticket_type,from_helpdesk",
             "order":  "created_at.desc",
         })
@@ -195,7 +215,7 @@ def user_update_task(task_id):
     if err:
         return jsonify(err[0]), err[1]
     body    = request.get_json(silent=True) or {}
-    allowed = {"title", "description", "status", "due_date"}
+    allowed = {"title", "description", "status", "due_date", "assigned_to"}
     patch   = {k: v for k, v in body.items() if k in allowed}
     if "status" in patch and patch["status"] not in VALID_TASK_STATUSES:
         return jsonify({"error": "Invalid status"}), 400
@@ -205,10 +225,37 @@ def user_update_task(task_id):
     try:
         supabase_req("PATCH", "/user_tasks", data=patch, params={"id": f"eq.{task_id}"})
         rows = supabase_req("GET", "/user_tasks", params={"id": f"eq.{task_id}", "select": "*"})
-        return jsonify(rows[0] if rows else {"success": True})
+        updated_task = rows[0] if rows else None
     except Exception as exc:
         current_app.logger.error("user_update_task: %s", exc)
         return jsonify({"error": "Failed to update task"}), 500
+
+    # Cascade status and assignee changes to the linked issue
+    new_status          = patch.get("status")
+    assigned_to_changed = "assigned_to" in patch
+    if (new_status or assigned_to_changed) and updated_task:
+        try:
+            issue_rows = supabase_req("GET", "/issues", params={
+                "user_task_id": f"eq.{task_id}",
+                "select":       "id,status",
+            })
+            if issue_rows:
+                issue       = issue_rows[0]
+                issue_patch = {}
+                if new_status == "done" and issue.get("status") not in ("resolved", "closed"):
+                    issue_patch["status"] = "resolved"
+                elif new_status in ("open", "ongoing") and issue.get("status") not in ("in_progress", "resolved", "closed"):
+                    issue_patch["status"] = "in_progress"
+                if assigned_to_changed:
+                    issue_patch["assigned_to"] = patch["assigned_to"]
+                if issue_patch:
+                    supabase_req("PATCH", "/issues",
+                                 data=issue_patch,
+                                 params={"id": f"eq.{issue['id']}"})
+        except Exception as exc:
+            current_app.logger.warning("user_update_task: issue sync failed: %s", exc)
+
+    return jsonify(updated_task or {"success": True})
 
 
 @user_page_bp.delete("/api/user/tasks/<task_id>")

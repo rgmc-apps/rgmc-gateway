@@ -338,6 +338,15 @@ def admin_patch_issue(issue_id):
         except Exception as exc:
             current_app.logger.error("send_issue_assigned_email failed: %s", exc)
 
+    # Cascade assigned_to change to the linked user_task
+    if "assigned_to" in patch and issue and issue.get("user_task_id"):
+        try:
+            supabase_req("PATCH", "/user_tasks",
+                         data={"assigned_to": patch.get("assigned_to")},
+                         params={"id": f"eq.{issue['user_task_id']}"})
+        except Exception as exc:
+            current_app.logger.warning("admin_patch_issue: user_task assigned_to sync failed: %s", exc)
+
     return jsonify({"success": True})
 
 

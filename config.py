@@ -207,4 +207,12 @@ HEALTH_CHECKS = [
             {"path": "/api/Health/connections", "label": "Connections", "parse_connections": True},
         ],
     },
+    {
+        "id": "rgmc-bc-api",
+        "name": "RGMC BC API",
+        "base_url": "https://rgmc-bc-api-prod-935246372408.asia-southeast1.run.app",
+        "endpoints": [
+            {"path": "/healthcheck/bc", "label": "Business Central", "parse_bc_status": True},
+        ],
+    },
 ]
