@@ -432,14 +432,16 @@ function renderUserRow(u) {
     ? `<div class="tbl-avatar"><img src="${escHtml(av)}" class="tbl-avatar-img" alt="${initial}"></div>`
     : `<div class="tbl-avatar tbl-avatar-initial">${initial}</div>`;
 
-  const adminBadge = u.is_admin
+  const adminBadge    = u.is_admin
     ? '<span class="badge-admin">Admin</span>'
     : '<span class="badge-user">User</span>';
-  const devBadge  = u.is_developer  ? '<span class="badge-dev">Dev</span>'  : '';
-  const mgmtBadge = u.is_management ? '<span class="badge-admin" style="background:var(--accent-muted,#78350f);color:#fef9c3;">Mgmt</span>' : '';
-  const toggleAdminLabel = u.is_admin      ? 'Revoke Admin' : 'Make Admin';
-  const toggleDevLabel   = u.is_developer  ? 'Revoke Dev'   : 'Make Dev';
-  const toggleMgmtLabel  = u.is_management ? 'Revoke Mgmt'  : 'Make Mgmt';
+  const devBadge      = u.is_developer      ? '<span class="badge-dev">Dev</span>'  : '';
+  const mgmtBadge     = u.is_management     ? '<span class="badge-admin" style="background:var(--accent-muted,#78350f);color:#fef9c3;">Mgmt</span>' : '';
+  const deptHeadBadge = u.is_department_head ? '<span class="badge-admin" style="background:rgba(14,165,233,0.18);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);">Dept Head</span>' : '';
+  const toggleAdminLabel    = u.is_admin           ? 'Revoke Admin'    : 'Make Admin';
+  const toggleDevLabel      = u.is_developer       ? 'Revoke Dev'      : 'Make Dev';
+  const toggleMgmtLabel     = u.is_management      ? 'Revoke Mgmt'     : 'Make Mgmt';
+  const toggleDeptHeadLabel = u.is_department_head ? 'Revoke Dept Head' : 'Make Dept Head';
   const uname = escHtml(u.username);
 
   return `<tr id="user-row-${uname}">
@@ -450,7 +452,7 @@ function renderUserRow(u) {
     <td>${escHtml(u.department || '')}</td>
     <td><a href="mailto:${escHtml(u.email)}" class="tbl-link">${escHtml(u.email)}</a></td>
     <td><span class="systems-count">${systems} system${systems !== 1 ? 's' : ''}</span></td>
-    <td>${adminBadge} ${devBadge} ${mgmtBadge}</td>
+    <td>${adminBadge} ${devBadge} ${mgmtBadge} ${deptHeadBadge}</td>
     <td class="date-cell">${fmtDate(u.created_at)}</td>
     <td class="action-cell">
       <button class="btn-tbl-secondary" onclick="openEditUserModal('${uname}')">Edit</button>
@@ -458,6 +460,7 @@ function renderUserRow(u) {
       <button class="btn-tbl-secondary" onclick="toggleAdmin('${uname}', ${u.is_admin})">${toggleAdminLabel}</button>
       <button class="btn-tbl-secondary" onclick="toggleDeveloper('${uname}', ${u.is_developer})">${toggleDevLabel}</button>
       <button class="btn-tbl-secondary" onclick="toggleManagement('${uname}', ${u.is_management})">${toggleMgmtLabel}</button>
+      <button class="btn-tbl-secondary" onclick="toggleDeptHead('${uname}', ${u.is_department_head})">${toggleDeptHeadLabel}</button>
       <button class="btn-tbl-danger" onclick="deleteUser('${uname}')">Delete</button>
     </td>
   </tr>`;
@@ -514,6 +517,25 @@ async function toggleManagement(username, currentIsMgmt) {
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Failed');
     showToast(`Management access ${newVal ? 'granted to' : 'revoked from'} ${username}`);
+    loadUsers();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+async function toggleDeptHead(username, currentIsDeptHead) {
+  const newVal = !currentIsDeptHead;
+  const label  = newVal ? 'grant department head access to' : 'revoke department head access from';
+  if (!confirm(`Are you sure you want to ${label} "${username}"?`)) return;
+
+  try {
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(username)}`, {
+      method:  'PATCH',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ is_department_head: newVal }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    showToast(`Department head ${newVal ? 'granted to' : 'revoked from'} ${username}`);
     loadUsers();
   } catch (err) {
     showToast(`Error: ${err.message}`);
@@ -625,10 +647,11 @@ async function submitAddUser(e) {
     company:        document.getElementById('auCompany').value.trim(),
     department:     document.getElementById('auDepartment').value.trim(),
     position:       document.getElementById('auPosition').value.trim(),
-    is_admin:       document.getElementById('auIsAdmin').checked,
-    is_developer:   document.getElementById('auIsDeveloper').checked,
-    is_management:  document.getElementById('auIsManagement').checked,
-    systems:        [],
+    is_admin:            document.getElementById('auIsAdmin').checked,
+    is_developer:        document.getElementById('auIsDeveloper').checked,
+    is_management:       document.getElementById('auIsManagement').checked,
+    is_department_head:  document.getElementById('auIsDepartmentHead').checked,
+    systems:             [],
   };
 
   try {

@@ -44,14 +44,16 @@ function closeProfileMenu() {
 }
 
 /* ── State ── */
-let _tasks       = [];
-let _issues      = { team: null, mine: null, filed: null };
-let _issueMap    = {};
-let _teamMembers = null;
-let _taskFilter  = 'team';
-let _issueSubtab = 'team';
-let _taskEditId  = null;
-let _activeTab   = 'issues';
+let _tasks              = [];
+let _issues             = { team: null, mine: null, filed: null };
+let _issueMap           = {};
+let _teamMembers        = null;
+let _taskFilter         = 'team';
+let _issueSubtab        = 'team';
+let _issueStatusFilter  = 'open_unassigned';
+let _taskEditId         = null;
+let _activeTab          = 'issues';
+let _currentIssue       = null;
 
 const UT_STATUSES = ['open', 'ongoing', 'done'];
 
@@ -82,6 +84,25 @@ function switchIssueSubtab(subtab) {
     if (panel) panel.style.display = s === subtab ? '' : 'none';
   });
   if (_issues[subtab] === null) loadIssues(subtab);
+}
+
+function setIssueStatusFilter(filter) {
+  _issueStatusFilter = filter;
+  document.querySelectorAll('[data-issue-filter]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.issueFilter === filter);
+  });
+  const issues = _issues[_issueSubtab];
+  if (issues !== null) renderIssueList(_issueSubtab, issues);
+}
+
+function _applyIssueFilter(issues) {
+  switch (_issueStatusFilter) {
+    case 'open_unassigned': return issues.filter(i => ['new', 'open'].includes(i.status) && !i.assigned_to);
+    case 'in_progress':     return issues.filter(i => i.status === 'in_progress');
+    case 'resolved':        return issues.filter(i => i.status === 'resolved');
+    case 'closed':          return issues.filter(i => i.status === 'closed');
+    default:                return issues;
+  }
 }
 
 /* ── Issue helpers ── */
@@ -137,19 +158,26 @@ async function loadIssues(scope) {
 function renderIssueList(scope, issues) {
   const listEl = document.getElementById(`ws-issue-list-${scope}`);
   if (!listEl) return;
+
+  const issueIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-muted);margin-bottom:14px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`;
+
   if (!issues || issues.length === 0) {
     const msgs = {
       team:  'No issues have been routed to your team yet.',
       mine:  'No issues are currently assigned to you.',
       filed: 'You have not filed any issues yet. Use the IT Helpdesk to submit one.',
     };
-    listEl.innerHTML = `<div class="ws-empty-state">
-      <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-muted);margin-bottom:14px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      <p style="color:var(--text-muted);font-size:14px;margin:0;">${msgs[scope] || 'No issues found.'}</p>
-    </div>`;
+    listEl.innerHTML = `<div class="ws-empty-state">${issueIcon}<p style="color:var(--text-muted);font-size:14px;margin:0;">${msgs[scope] || 'No issues found.'}</p></div>`;
     return;
   }
-  listEl.innerHTML = issues.map(iss => renderIssueCard(iss)).join('');
+
+  const filtered = _applyIssueFilter(issues);
+  if (filtered.length === 0) {
+    listEl.innerHTML = `<div class="ws-empty-state">${issueIcon}<p style="color:var(--text-muted);font-size:14px;margin:0;">No issues match the selected filter.</p></div>`;
+    return;
+  }
+
+  listEl.innerHTML = filtered.map(iss => renderIssueCard(iss)).join('');
 }
 
 function renderIssueCard(iss) {
@@ -186,28 +214,105 @@ function openIssueDetailById(id) {
 }
 
 function openIssueDetail(iss) {
+  _currentIssue = iss;
   const status = iss.status || 'new';
   const label  = ISSUE_STATUS_LABELS[status] || status.replace('_', ' ');
   const title  = iss.title || iss.description || '(No title)';
 
-  document.getElementById('iss-modal-ticket').textContent         = iss.ticket_number || '';
+  document.getElementById('iss-modal-ticket').textContent        = iss.ticket_number || '';
   const statusEl = document.getElementById('iss-modal-status');
   statusEl.className   = `iss-badge ${issueBadgeClass(status)}`;
   statusEl.textContent = label;
   document.getElementById('iss-modal-priority-badge').innerHTML  = prioBadgeHtml(iss.priority);
-  document.getElementById('iss-modal-title').textContent          = title;
-  document.getElementById('iss-modal-desc').textContent           = iss.description || '—';
-  document.getElementById('iss-modal-reporter').textContent       = iss.employee_name || '—';
-  document.getElementById('iss-modal-company').textContent        = iss.company_name  || '—';
-  document.getElementById('iss-modal-email').textContent          = iss.email         || '—';
-  document.getElementById('iss-modal-assigned').textContent       = iss.assigned_to   || 'Unassigned';
-  document.getElementById('iss-modal-category').textContent       = iss.request_category || '—';
-  document.getElementById('iss-modal-type').textContent           = iss.ticket_type   || '—';
-  document.getElementById('iss-modal-urgency').textContent        = iss.urgency       || '—';
-  document.getElementById('iss-modal-date').textContent           = fmtDateTime(iss.created_at);
+  document.getElementById('iss-modal-title').textContent         = title;
+  document.getElementById('iss-modal-desc').textContent          = iss.description || '—';
+  document.getElementById('iss-modal-reporter').textContent      = iss.employee_name || '—';
+  document.getElementById('iss-modal-company').textContent       = iss.company_name  || '—';
+  document.getElementById('iss-modal-email').textContent         = iss.email         || '—';
+  document.getElementById('iss-modal-assigned').textContent      = iss.assigned_to   || 'Unassigned';
+  document.getElementById('iss-modal-category').textContent      = iss.request_category || '—';
+  document.getElementById('iss-modal-type').textContent          = iss.ticket_type   || '—';
+  document.getElementById('iss-modal-urgency').textContent       = iss.urgency       || '—';
+  document.getElementById('iss-modal-date').textContent          = fmtDateTime(iss.created_at);
+
+  // Show dept head action panel
+  const session = loadSession();
+  const dhPanel = document.getElementById('iss-dh-actions');
+  if (session && (session.isDepartmentHead || session.isAdmin || session.isManagement)) {
+    dhPanel.style.display = '';
+    document.getElementById('iss-dh-status').value = status;
+    document.getElementById('iss-dh-error').style.display = 'none';
+    _populateIssueAssigneeSelect(iss.assigned_to || '');
+  } else {
+    dhPanel.style.display = 'none';
+  }
 
   document.getElementById('issueDetailModal').classList.add('open');
   document.body.style.overflow = 'hidden';
+}
+
+function _populateIssueAssigneeSelect(currentAssignee) {
+  const sel = document.getElementById('iss-dh-assignee');
+  sel.innerHTML = '<option value="">— Unassigned —</option>';
+  const members = _teamMembers || [];
+  members.forEach(m => {
+    const name = m.display_name || `${m.first_name || ''} ${m.last_name || ''}`.trim() || m.username;
+    const opt  = document.createElement('option');
+    opt.value       = m.username;
+    opt.textContent = `${name} (${m.username})`;
+    if (m.username === currentAssignee) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+async function updateTeamIssue() {
+  if (!_currentIssue) return;
+  const assignedTo = document.getElementById('iss-dh-assignee').value;
+  const status     = document.getElementById('iss-dh-status').value;
+  const errEl      = document.getElementById('iss-dh-error');
+  const saveBtn    = document.getElementById('iss-dh-save-btn');
+
+  errEl.style.display    = 'none';
+  saveBtn.disabled       = true;
+  saveBtn.textContent    = 'Saving…';
+
+  const payload = { status };
+  payload.assigned_to = assignedTo || null;
+
+  try {
+    const res = await fetch(`/api/user/issues/team/${encodeURIComponent(_currentIssue.id)}`, {
+      method:  'PATCH',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Update failed');
+
+    // Refresh local state
+    _currentIssue.status      = status;
+    _currentIssue.assigned_to = assignedTo || null;
+    _issueMap[_currentIssue.id] = _currentIssue;
+
+    const scope = _issueSubtab;
+    if (_issues[scope]) {
+      const idx = _issues[scope].findIndex(i => i.id === _currentIssue.id);
+      if (idx !== -1) _issues[scope][idx] = { ..._issues[scope][idx], status, assigned_to: assignedTo || null };
+      renderIssueList(scope, _issues[scope]);
+    }
+
+    // Update the status badge in the modal header
+    const statusEl = document.getElementById('iss-modal-status');
+    statusEl.className   = `iss-badge ${issueBadgeClass(status)}`;
+    statusEl.textContent = ISSUE_STATUS_LABELS[status] || status.replace('_', ' ');
+    document.getElementById('iss-modal-assigned').textContent = assignedTo || 'Unassigned';
+
+    showToast('Issue updated.');
+  } catch (err) {
+    document.getElementById('iss-dh-error-msg').textContent = err.message;
+    errEl.style.display = 'flex';
+  } finally {
+    saveBtn.disabled    = false;
+    saveBtn.textContent = 'Save';
+  }
 }
 
 function closeIssueDetail() {

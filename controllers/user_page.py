@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify, render_template, current_app
 from services.supabase import supabase_req
+from services.guards import _require_dept_head
 
 user_page_bp = Blueprint("user_page", __name__)
 
@@ -256,6 +257,72 @@ def user_update_task(task_id):
             current_app.logger.warning("user_update_task: issue sync failed: %s", exc)
 
     return jsonify(updated_task or {"success": True})
+
+
+@user_page_bp.patch("/api/user/issues/team/<issue_id>")
+def user_update_team_issue(issue_id):
+    username, user_row, err = _require_dept_head()
+    if err:
+        return jsonify(err[0]), err[1]
+
+    dept_name = user_row.get("department", "")
+    dept_id   = _dept_id_for(dept_name) if dept_name else None
+
+    body    = request.get_json(silent=True) or {}
+    allowed = {"assigned_to", "status"}
+    patch   = {k: v for k, v in body.items() if k in allowed}
+    if not patch:
+        return jsonify({"error": "Nothing to update"}), 400
+
+    # Resolve team scope for validation
+    team_usernames = []
+    if dept_name:
+        try:
+            members = supabase_req("GET", "/users", params={
+                "department": f"eq.{dept_name}",
+                "select":     "username",
+            })
+            team_usernames = [m["username"] for m in (members or [])]
+        except Exception:
+            pass
+
+    # Verify the issue is in this dept head's scope
+    try:
+        iss_rows = supabase_req("GET", "/issues", params={
+            "id":     f"eq.{issue_id}",
+            "select": "id,request_to_department_id,assigned_to,user_task_id",
+        })
+        if not iss_rows:
+            return jsonify({"error": "Issue not found"}), 404
+        issue = iss_rows[0]
+    except Exception as exc:
+        current_app.logger.error("user_update_team_issue fetch: %s", exc)
+        return jsonify({"error": "Failed to fetch issue"}), 500
+
+    in_scope = (
+        (dept_id and issue.get("request_to_department_id") == dept_id) or
+        issue.get("assigned_to") in team_usernames or
+        user_row.get("is_admin") or user_row.get("is_management")
+    )
+    if not in_scope:
+        return jsonify({"error": "Issue is not in your team's scope"}), 403
+
+    try:
+        supabase_req("PATCH", "/issues", data=patch, params={"id": f"eq.{issue_id}"})
+    except Exception as exc:
+        current_app.logger.error("user_update_team_issue patch: %s", exc)
+        return jsonify({"error": "Update failed"}), 500
+
+    # Cascade assigned_to to linked user_task
+    if "assigned_to" in patch and issue.get("user_task_id"):
+        try:
+            supabase_req("PATCH", "/user_tasks",
+                         data={"assigned_to": patch["assigned_to"]},
+                         params={"id": f"eq.{issue['user_task_id']}"})
+        except Exception as exc:
+            current_app.logger.warning("user_update_team_issue: user_task sync failed: %s", exc)
+
+    return jsonify({"success": True})
 
 
 @user_page_bp.delete("/api/user/tasks/<task_id>")

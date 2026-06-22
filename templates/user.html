@@ -63,6 +63,15 @@
           <button class="dev-filter-tab"        data-issue-subtab="filed" onclick="switchIssueSubtab('filed')">Issues I Filed</button>
         </div>
       </div>
+      <div class="ws-subtabs-row" style="margin-top:10px;">
+        <div class="dev-filter-tabs">
+          <button class="dev-filter-tab active" data-issue-filter="open_unassigned" onclick="setIssueStatusFilter('open_unassigned')">Open &amp; Unassigned</button>
+          <button class="dev-filter-tab"        data-issue-filter="all"             onclick="setIssueStatusFilter('all')">All</button>
+          <button class="dev-filter-tab"        data-issue-filter="in_progress"     onclick="setIssueStatusFilter('in_progress')">In Progress</button>
+          <button class="dev-filter-tab"        data-issue-filter="resolved"        onclick="setIssueStatusFilter('resolved')">Resolved</button>
+          <button class="dev-filter-tab"        data-issue-filter="closed"          onclick="setIssueStatusFilter('closed')">Closed</button>
+        </div>
+      </div>
 
       <div id="ws-issues-team">
         <div id="ws-issue-list-team" class="issue-list"></div>
@@ -201,6 +210,39 @@
           <div class="iss-modal-value" id="iss-modal-date"></div>
         </div>
       </div>
+
+      <!-- Dept head actions — shown only to department heads and admins -->
+      <div id="iss-dh-actions" style="display:none;padding:0 28px 24px;">
+        <div style="border-top:1px solid var(--border);padding-top:18px;display:flex;flex-direction:column;gap:12px;">
+          <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">Update Issue</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+            <div style="flex:1;min-width:160px;">
+              <label class="form-label" for="iss-dh-assignee" style="font-size:12px;">Assign To</label>
+              <select class="form-input" id="iss-dh-assignee" style="height:36px;font-size:13px;">
+                <option value="">— Unassigned —</option>
+              </select>
+            </div>
+            <div style="flex:1;min-width:160px;">
+              <label class="form-label" for="iss-dh-status" style="font-size:12px;">Status</label>
+              <select class="form-input" id="iss-dh-status" style="height:36px;font-size:13px;">
+                <option value="new">New</option>
+                <option value="open">Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+                <option value="closed">Closed</option>
+              </select>
+            </div>
+            <div>
+              <button class="btn-modal-submit" id="iss-dh-save-btn" onclick="updateTeamIssue()" style="height:36px;">Save</button>
+            </div>
+          </div>
+          <div id="iss-dh-error" class="form-state form-error" style="display:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="iss-dh-error-msg"></span>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 

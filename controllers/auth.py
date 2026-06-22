@@ -26,26 +26,27 @@ def verify_username():
     try:
         user_rows = supabase_req("GET", "/users", params={
             "username": f"eq.{username}",
-            "select":   "username,first_name,last_name,display_name,avatar_url,company,department,email,systems,is_admin,is_developer,is_management",
+            "select":   "username,first_name,last_name,display_name,avatar_url,company,department,email,systems,is_admin,is_developer,is_management,is_department_head",
         })
         if user_rows:
             u     = user_rows[0]
             first = u.get("first_name", "")
             last  = u.get("last_name", "")
             return jsonify({
-                "success":       True,
-                "username":      u["username"],
-                "first_name":    first,
-                "full_name":     f"{first} {last}".strip(),
-                "display_name":  u.get("display_name") or "",
-                "avatar_url":    u.get("avatar_url") or "",
-                "company":       u.get("company", ""),
-                "department":    u.get("department", ""),
-                "email":         u.get("email", ""),
-                "systems":       u.get("systems", []),
-                "is_admin":      u.get("is_admin", False),
-                "is_developer":  u.get("is_developer", False),
-                "is_management": u.get("is_management", False),
+                "success":             True,
+                "username":            u["username"],
+                "first_name":          first,
+                "full_name":           f"{first} {last}".strip(),
+                "display_name":        u.get("display_name") or "",
+                "avatar_url":          u.get("avatar_url") or "",
+                "company":             u.get("company", ""),
+                "department":          u.get("department", ""),
+                "email":               u.get("email", ""),
+                "systems":             u.get("systems", []),
+                "is_admin":            u.get("is_admin", False),
+                "is_developer":        u.get("is_developer", False),
+                "is_management":       u.get("is_management", False),
+                "is_department_head":  u.get("is_department_head", False),
             })
     except Exception as exc:
         from flask import current_app

@@ -462,9 +462,10 @@ async function signIn() {
         department:  data.department,
         email:       data.email,
         systems:     data.systems,
-        isAdmin:       data.is_admin      || false,
-        isDeveloper:   data.is_developer  || false,
-        isManagement:  data.is_management || false,
+        isAdmin:           data.is_admin           || false,
+        isDeveloper:       data.is_developer       || false,
+        isManagement:      data.is_management      || false,
+        isDepartmentHead:  data.is_department_head || false,
       };
       saveSession(session);
       applySession(session);
