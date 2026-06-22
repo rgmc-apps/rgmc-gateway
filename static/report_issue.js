@@ -23,6 +23,18 @@ async function _fetchAndPopulateCompanies() {
   } catch { /* non-fatal */ }
 }
 
+/* ── Payload help modal ───────────────────────────────────── */
+
+function riOpenPayloadHelp() {
+  document.getElementById('riPayloadHelpOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function riClosePayloadHelp() {
+  document.getElementById('riPayloadHelpOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
 /* ── Form submission ──────────────────────────────────────── */
 
 async function riSubmit(e) {
@@ -98,10 +110,11 @@ function riUpdateFiles(input) {
 document.addEventListener('DOMContentLoaded', () => {
   _fetchAndPopulateCompanies();
 
-  // Parse ?system= and ?error= query params
+  // Parse ?system=, ?error=, and ?payload= query params
   const params    = new URLSearchParams(window.location.search);
-  const system    = (params.get('system') || '').trim();
-  const errorCode = (params.get('error')  || '').trim();
+  const system    = (params.get('system')  || '').trim();
+  const errorCode = (params.get('error')   || '').trim();
+  const payload   = (params.get('payload') || '').trim();
 
   if (system) {
     document.getElementById('riSiteName').value         = system;
@@ -119,6 +132,13 @@ document.addEventListener('DOMContentLoaded', () => {
   if (errorCode) {
     document.getElementById('riErrorCode').value = errorCode;
   }
+
+  if (payload) {
+    document.getElementById('riUserPayload').value = payload;
+  }
+
+  // Close payload help modal on ESC
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') riClosePayloadHelp(); });
 
   // Drag & drop feedback on the file zone
   const zone = document.getElementById('riDropZone');

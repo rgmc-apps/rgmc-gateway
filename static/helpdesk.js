@@ -192,15 +192,13 @@ async function _loadDepartments() {
   try {
     const res   = await fetch('/api/departments');
     const depts = await res.json();
-    ['hdDepartment', 'hdReqDept'].forEach(id => {
-      const sel = document.getElementById(id);
-      if (!sel) return;
-      depts.forEach(d => {
-        const opt = document.createElement('option');
-        opt.value = id === 'hdReqDept' ? d.department_id : d.department_name;
-        opt.textContent = `${d.department_code} — ${d.department_name}`;
-        sel.appendChild(opt);
-      });
+    const sel   = document.getElementById('hdDepartment');
+    if (!sel) return;
+    depts.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.department_name;
+      opt.textContent = `${d.department_code} — ${d.department_name}`;
+      sel.appendChild(opt);
     });
   } catch { /* non-fatal */ }
 }
