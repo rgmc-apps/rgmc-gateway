@@ -232,10 +232,36 @@ async function ghOnCategoryChange() {
   typeGroup.style.display = items.length > 0 ? '' : 'none';
 }
 
+/* ── IT Helpdesk redirect prompt ─────────────────────────────────────────── */
+
+function _isItDepartment(name) {
+  if (!name) return false;
+  const n = name.toLowerCase();
+  return n.includes('information technology') || /\bit\b/.test(n);
+}
+
+function showItHelpdeskPrompt() {
+  const modal = document.getElementById('ghItModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeItHelpdeskPrompt() {
+  const modal = document.getElementById('ghItModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function ghOnUserDeptChange() {
+  const sel  = document.getElementById('ghDepartment');
+  const val  = sel.value;
+  if (_isItDepartment(val)) showItHelpdeskPrompt();
+}
+
 async function ghOnDeptChange() {
   const deptSel  = document.getElementById('ghReqDept');
   const selected = deptSel.options[deptSel.selectedIndex];
   const deptName = selected ? (selected.dataset.name || '') : '';
+
+  if (_isItDepartment(deptName)) showItHelpdeskPrompt();
 
   const typeSel   = document.getElementById('ghRequestType');
   const typeGroup = document.getElementById('ghRequestTypeGroup');
@@ -342,6 +368,10 @@ async function ghSubmit(e) {
 /* ── Bootstrap ────────────────────────────────────────────────────────────── */
 
 document.addEventListener('DOMContentLoaded', async () => {
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeItHelpdeskPrompt();
+  });
+
   await Promise.all([_loadCompanies(), _loadCategories(), _loadDepartments()]);
 
   const zone = document.getElementById('ghDropZone');

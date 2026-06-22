@@ -186,11 +186,11 @@ document.addEventListener('DOMContentLoaded', () => {
   _loadAdminDepartments();
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape')      { closeLightbox(); closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); closeCfgCompanyModal(); closeCfgCategoryModal(); closeCfgTypeModal(); closeCfgNsiModal(); closeCfgBrandModal(); closeCfgDeptModal(); closeAddUserModal(); }
+    if (e.key === 'Escape')      { closeLightbox(); closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); closeCfgCompanyModal(); closeCfgCategoryModal(); closeCfgTypeModal(); closeCfgNsiModal(); closeCfgBrandModal(); closeCfgDeptModal(); closeAddUserModal(); closeAllUserDropdowns(); }
     if (e.key === 'ArrowLeft')   lightboxNav(-1);
     if (e.key === 'ArrowRight')  lightboxNav(1);
   });
-  document.addEventListener('click', () => closeProfileMenu());
+  document.addEventListener('click', () => { closeProfileMenu(); closeAllUserDropdowns(); });
 
   // Show/hide resolution fields when status changes
   document.getElementById('issueStatusSelect').addEventListener('change', function () {
@@ -444,6 +444,7 @@ function renderUserRow(u) {
   const toggleDeptHeadLabel = u.is_department_head ? 'Revoke Dept Head' : 'Make Dept Head';
   const uname = escHtml(u.username);
 
+  const dropId = `udrop-${uname}`;
   return `<tr id="user-row-${uname}">
     <td style="padding:8px 8px 8px 16px;">${avatarHtml}</td>
     <td><code class="mono-val">${uname}</code></td>
@@ -455,15 +456,59 @@ function renderUserRow(u) {
     <td>${adminBadge} ${devBadge} ${mgmtBadge} ${deptHeadBadge}</td>
     <td class="date-cell">${fmtDate(u.created_at)}</td>
     <td class="action-cell">
-      <button class="btn-tbl-secondary" onclick="openEditUserModal('${uname}')">Edit</button>
-      <button class="btn-tbl-secondary" onclick="openEditSystemsModal('${uname}')">Systems</button>
-      <button class="btn-tbl-secondary" onclick="toggleAdmin('${uname}', ${u.is_admin})">${toggleAdminLabel}</button>
-      <button class="btn-tbl-secondary" onclick="toggleDeveloper('${uname}', ${u.is_developer})">${toggleDevLabel}</button>
-      <button class="btn-tbl-secondary" onclick="toggleManagement('${uname}', ${u.is_management})">${toggleMgmtLabel}</button>
-      <button class="btn-tbl-secondary" onclick="toggleDeptHead('${uname}', ${u.is_department_head})">${toggleDeptHeadLabel}</button>
-      <button class="btn-tbl-danger" onclick="deleteUser('${uname}')">Delete</button>
+      <div class="user-action-dropdown">
+        <button class="user-action-trigger" onclick="toggleUserDropdown('${dropId}',event)" title="Actions">···</button>
+        <div class="user-action-menu" id="${dropId}">
+          <div class="user-action-menu-section">
+            <button class="user-action-menu-item" onclick="closeAllUserDropdowns();openEditUserModal('${uname}')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Edit User
+            </button>
+            <button class="user-action-menu-item" onclick="closeAllUserDropdowns();openEditSystemsModal('${uname}')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              Manage Systems
+            </button>
+          </div>
+          <div class="user-action-menu-section">
+            <button class="user-action-menu-item" onclick="closeAllUserDropdowns();toggleAdmin('${uname}',${u.is_admin})">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              ${toggleAdminLabel}
+            </button>
+            <button class="user-action-menu-item" onclick="closeAllUserDropdowns();toggleDeveloper('${uname}',${u.is_developer})">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              ${toggleDevLabel}
+            </button>
+            <button class="user-action-menu-item" onclick="closeAllUserDropdowns();toggleManagement('${uname}',${u.is_management})">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              ${toggleMgmtLabel}
+            </button>
+            <button class="user-action-menu-item" onclick="closeAllUserDropdowns();toggleDeptHead('${uname}',${u.is_department_head})">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0 1 12 0v2"/><polyline points="9 11 12 14 15 11"/></svg>
+              ${toggleDeptHeadLabel}
+            </button>
+          </div>
+          <div class="user-action-menu-section">
+            <button class="user-action-menu-item is-danger" onclick="closeAllUserDropdowns();deleteUser('${uname}')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+              Delete User
+            </button>
+          </div>
+        </div>
+      </div>
     </td>
   </tr>`;
+}
+
+function toggleUserDropdown(id, e) {
+  e.stopPropagation();
+  const menu   = document.getElementById(id);
+  const isOpen = menu.classList.contains('open');
+  closeAllUserDropdowns();
+  if (!isOpen) menu.classList.add('open');
+}
+
+function closeAllUserDropdowns() {
+  document.querySelectorAll('.user-action-menu.open').forEach(m => m.classList.remove('open'));
 }
 
 async function toggleAdmin(username, currentIsAdmin) {
@@ -1643,7 +1688,36 @@ const DP_ITEM_STATUS_CLS = { pending: 'dp-s-pending', ongoing: 'dp-s-ongoing', c
 async function loadDevPerf() {
   const body = document.getElementById('devperf-body');
   if (!body) return;
-  body.innerHTML = '<p class="loading-text">Loading developer data…</p>';
+
+  const skelCell = () => `<td class="dp-stat-td"><span class="dp-skel dp-skel-stat"></span></td>`;
+  const skelRow  = (delay) => `
+    <tr class="dp-row" style="pointer-events:none;opacity:${0.4 + delay * 0.15};">
+      <td class="dp-avatar-td">
+        <div class="dp-avatar"><span class="dp-skel dp-skel-avatar" style="animation-delay:${delay * 0.12}s"></span></div>
+        <div class="dp-dev-info">
+          <span class="dp-skel dp-skel-name" style="animation-delay:${delay * 0.12}s"></span>
+          <span class="dp-skel dp-skel-org"  style="animation-delay:${delay * 0.12 + 0.06}s"></span>
+        </div>
+      </td>
+      ${Array(6).fill(0).map(() => skelCell()).join('')}
+    </tr>`;
+
+  body.innerHTML = `
+    <table class="dp-table">
+      <thead>
+        <tr>
+          <th>Developer</th>
+          <th class="dp-th-stat">Pending</th>
+          <th class="dp-th-stat">Ongoing</th>
+          <th class="dp-th-stat">Coding</th>
+          <th class="dp-th-stat">Testing</th>
+          <th class="dp-th-stat">Done</th>
+          <th class="dp-th-stat dp-total-th">Total</th>
+        </tr>
+      </thead>
+      <tbody>${[0,1,2,3,4].map(skelRow).join('')}</tbody>
+    </table>`;
+
   try {
     const res  = await fetch('/api/admin/dev-performance', { headers: authHeaders() });
     const data = await res.json();
