@@ -84,6 +84,8 @@ def send_report_email(form_data: dict, screenshots: list, ticket_number: str | N
           <td style="padding:10px 14px;font-weight:600;color:#dc2626;">{form_data.get("error_code","")}</td>
         </tr>''' if form_data.get('error_code') else ''}
       </table>
+      {f'''<h3 style="margin:0 0 10px;font-size:15px;color:#1e293b;">User Input / Payload</h3>
+      <div style="background:#f1f5f9;border-left:4px solid #64748b;padding:14px 16px;border-radius:0 6px 6px 0;font-size:13px;line-height:1.6;font-family:monospace;white-space:pre-wrap;word-break:break-all;margin-bottom:20px;">{form_data.get("user_payload","").replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")}</div>''' if form_data.get('user_payload') else ''}
       <h3 style="margin:0 0 10px;font-size:15px;color:#1e293b;">Problem Description</h3>
       <div style="background:#f8fafc;border-left:4px solid #2563eb;padding:14px 16px;border-radius:0 6px 6px 0;font-size:14px;line-height:1.6;">{description_html}</div>
       {'<p style="margin-top:16px;color:#64748b;font-size:13px;">&#128206; ' + str(len(screenshots)) + ' screenshot(s) attached.</p>' if screenshots else ''}
