@@ -2099,12 +2099,34 @@ function _renderCfgCategories() {
     </table>`;
 }
 
+function _fillCategoryGroupSelect(selectedGroup) {
+  const sel = document.getElementById('cfgCategoryGroup');
+  sel.innerHTML = '<option value="">— No group —</option>';
+  [
+    { value: 'IT',      label: 'IT — IT Helpdesk' },
+    { value: 'General', label: 'General — Always visible' },
+  ].forEach(({ value, label }) => {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = label;
+    if (value === selectedGroup) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  _adminDepartments.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.department_code;
+    opt.textContent = `${d.department_code} — ${d.department_name}`;
+    if (d.department_code === selectedGroup) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
 function openCfgCategoryModal(cat) {
   _cfgCategoryEditId = cat ? cat.category_id : null;
   document.getElementById('cfgCategoryModalTitle').textContent = _cfgCategoryEditId ? 'Edit Category' : 'Add Category';
-  document.getElementById('cfgCategoryName').value  = cat?.category_name  ?? '';
-  document.getElementById('cfgCategoryGroup').value = cat?.category_group ?? '';
-  document.getElementById('cfgCategoryDesc').value  = cat?.category_desc  ?? '';
+  document.getElementById('cfgCategoryName').value = cat?.category_name ?? '';
+  document.getElementById('cfgCategoryDesc').value = cat?.category_desc ?? '';
+  _fillCategoryGroupSelect(cat?.category_group ?? '');
   _resetCfgModal('cfgCategory');
   document.getElementById('cfgCategoryModal').classList.add('open');
   document.body.style.overflow = 'hidden';
