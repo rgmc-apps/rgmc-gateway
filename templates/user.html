@@ -307,10 +307,23 @@
         </div>
 
         <div class="form-group form-group-full">
-          <label class="form-label" for="ut-task-assignee">Assigned To
-            <span class="form-label-hint">(optional — username)</span>
+          <label class="form-label">Assigned To
+            <span class="form-label-hint">(optional)</span>
           </label>
-          <input class="form-input" type="text" id="ut-task-assignee" placeholder="e.g. jdelacruz">
+          <div class="ut-assignee-wrap" id="ut-assignee-wrap">
+            <input type="hidden" id="ut-task-assignee">
+            <div class="ut-assignee-trigger" id="ut-assignee-trigger" onclick="utAssigneeToggle()">
+              <span class="ut-assignee-avatar" id="ut-assignee-avatar"></span>
+              <span class="ut-assignee-label" id="ut-assignee-label">Unassigned</span>
+              <svg class="ut-assignee-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="ut-assignee-dropdown" id="ut-assignee-dropdown">
+              <div class="ut-assignee-search-wrap">
+                <input class="ut-assignee-search" id="ut-assignee-search" type="text" placeholder="Search team…" autocomplete="off" oninput="utAssigneeFilter(this.value)" onkeydown="utAssigneeKeydown(event)">
+              </div>
+              <div class="ut-assignee-list" id="ut-assignee-list"></div>
+            </div>
+          </div>
         </div>
 
         <div class="modal-actions" id="ut-form-actions">

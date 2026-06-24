@@ -54,6 +54,7 @@ let _issueStatusFilter  = 'open_unassigned';
 let _taskEditId         = null;
 let _activeTab          = 'issues';
 let _currentIssue       = null;
+let _utAssigneeOpen     = false;
 
 const UT_STATUSES = ['open', 'ongoing', 'done'];
 
@@ -71,7 +72,7 @@ function switchTab(tab) {
   });
   if (tab === 'issues' && _issues[_issueSubtab] === null) loadIssues(_issueSubtab);
   if (tab === 'team'   && _teamMembers === null)           loadTeam();
-  if (tab === 'tasks'  && _tasks.length === 0)             loadTasks();
+  if (tab === 'tasks') { if (_tasks.length === 0) loadTasks(); if (_teamMembers === null) _ensureTeamMembersLoaded(); }
 }
 
 function switchIssueSubtab(subtab) {
@@ -539,16 +540,17 @@ async function moveUtTask(id, newStatus) {
 }
 
 /* ── Task modal ── */
-function openUtModal(idOrNull) {
+async function openUtModal(idOrNull) {
   const task = typeof idOrNull === 'string' ? _tasks.find(t => t.id === idOrNull) : null;
   _taskEditId = task?.id ?? null;
   document.getElementById('ut-modal-title-text').textContent = task ? 'Edit Task' : 'New Task';
-  document.getElementById('ut-task-id').value       = task?.id          ?? '';
-  document.getElementById('ut-task-title').value    = task?.title       ?? '';
-  document.getElementById('ut-task-desc').value     = task?.description ?? '';
-  document.getElementById('ut-task-status').value   = task?.status      ?? 'open';
-  document.getElementById('ut-task-due').value      = task?.due_date    ?? '';
-  document.getElementById('ut-task-assignee').value = task?.assigned_to ?? '';
+  document.getElementById('ut-task-id').value    = task?.id          ?? '';
+  document.getElementById('ut-task-title').value = task?.title       ?? '';
+  document.getElementById('ut-task-desc').value  = task?.description ?? '';
+  document.getElementById('ut-task-status').value = task?.status     ?? 'open';
+  document.getElementById('ut-task-due').value   = task?.due_date    ?? '';
+  await _ensureTeamMembersLoaded();
+  _setUtAssigneeDropdown(task?.assigned_to ?? '');
   document.getElementById('ut-delete-btn').style.display = task ? '' : 'none';
   _resetUtModalState();
   document.getElementById('utTaskModal').classList.add('open');
@@ -571,6 +573,112 @@ function _resetUtModalState() {
   document.getElementById('ut-form-loading').style.display = 'none';
   document.getElementById('ut-form-error').style.display   = 'none';
   document.getElementById('ut-task-submit').disabled       = false;
+}
+
+/* ── Assignee searchable dropdown ── */
+async function _ensureTeamMembersLoaded() {
+  if (_teamMembers !== null) return;
+  try {
+    const res = await fetch('/api/user/team', { headers: authHeaders() });
+    if (!res.ok) throw new Error();
+    _teamMembers = await res.json();
+  } catch {
+    _teamMembers = [];
+  }
+}
+
+function _buildAssigneeList(filterText) {
+  const list = document.getElementById('ut-assignee-list');
+  if (!list) return;
+  const q       = (filterText || '').toLowerCase().trim();
+  const members = (_teamMembers || []).filter(m => {
+    if (!q) return true;
+    const name = (m.display_name || `${m.first_name || ''} ${m.last_name || ''}`.trim()).toLowerCase();
+    return name.includes(q) || (m.username || '').toLowerCase().includes(q);
+  });
+
+  const rows = [];
+  if (!q) {
+    rows.push(`<div class="ut-assignee-opt" onclick="utAssigneeSelect('','Unassigned','')">
+      <span class="ut-assignee-opt-avatar ut-assignee-opt-avatar--empty">—</span>
+      <span class="ut-assignee-opt-name">Unassigned</span>
+    </div>`);
+  }
+  members.forEach(m => {
+    const name     = m.display_name || `${m.first_name || ''} ${m.last_name || ''}`.trim() || m.username;
+    const initials = name.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const safeUser = escHtml(m.username);
+    const safeName = escHtml(name);
+    const safeAv   = escHtml(m.avatar_url || '');
+    const avatar   = m.avatar_url
+      ? `<img class="ut-assignee-opt-avatar" src="${safeAv}" alt="">`
+      : `<span class="ut-assignee-opt-avatar ut-assignee-opt-avatar--initials">${initials}</span>`;
+    rows.push(`<div class="ut-assignee-opt" onclick="utAssigneeSelect('${safeUser}','${safeName}','${safeAv}')">
+      ${avatar}
+      <div class="ut-assignee-opt-info">
+        <span class="ut-assignee-opt-name">${safeName}</span>
+        ${m.position ? `<span class="ut-assignee-opt-pos">${escHtml(m.position)}</span>` : ''}
+      </div>
+    </div>`);
+  });
+
+  list.innerHTML = rows.length
+    ? rows.join('')
+    : `<div class="ut-assignee-empty">No members found</div>`;
+}
+
+function utAssigneeToggle() {
+  _utAssigneeOpen ? _closeAssigneeDropdown() : _openAssigneeDropdown();
+}
+
+function _openAssigneeDropdown() {
+  _utAssigneeOpen = true;
+  document.getElementById('ut-assignee-dropdown')?.classList.add('open');
+  document.getElementById('ut-assignee-wrap')?.classList.add('open');
+  const search = document.getElementById('ut-assignee-search');
+  if (search) search.value = '';
+  _buildAssigneeList('');
+  setTimeout(() => search?.focus(), 30);
+}
+
+function _closeAssigneeDropdown() {
+  _utAssigneeOpen = false;
+  document.getElementById('ut-assignee-dropdown')?.classList.remove('open');
+  document.getElementById('ut-assignee-wrap')?.classList.remove('open');
+}
+
+function utAssigneeFilter(val) { _buildAssigneeList(val); }
+function utAssigneeKeydown(e)  { if (e.key === 'Escape') _closeAssigneeDropdown(); }
+
+function utAssigneeSelect(username, label, avatarUrl) {
+  document.getElementById('ut-task-assignee').value  = username;
+  document.getElementById('ut-assignee-label').textContent = label;
+  const avatarEl = document.getElementById('ut-assignee-avatar');
+  if (!username) {
+    avatarEl.textContent          = '';
+    avatarEl.className            = 'ut-assignee-avatar';
+    avatarEl.style.backgroundImage = '';
+  } else if (avatarUrl) {
+    avatarEl.textContent          = '';
+    avatarEl.className            = 'ut-assignee-avatar ut-assignee-avatar--img';
+    avatarEl.style.backgroundImage = `url(${avatarUrl})`;
+  } else {
+    const initials = label.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    avatarEl.textContent          = initials;
+    avatarEl.className            = 'ut-assignee-avatar ut-assignee-avatar--initials';
+    avatarEl.style.backgroundImage = '';
+  }
+  _closeAssigneeDropdown();
+}
+
+function _setUtAssigneeDropdown(username) {
+  const member = (username && _teamMembers) ? _teamMembers.find(m => m.username === username) : null;
+  if (!username || !member) {
+    utAssigneeSelect('', 'Unassigned', '');
+  } else {
+    const name = member.display_name || `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.username;
+    utAssigneeSelect(member.username, name, member.avatar_url || '');
+  }
 }
 
 async function saveUtTask(e) {
@@ -753,5 +861,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeIssueDetail(); closeUtModal(); closeProfileMenu(); }
   });
-  document.addEventListener('click', () => closeProfileMenu());
+  document.addEventListener('click', e => {
+    closeProfileMenu();
+    if (_utAssigneeOpen && !document.getElementById('ut-assignee-wrap')?.contains(e.target)) _closeAssigneeDropdown();
+  });
 });

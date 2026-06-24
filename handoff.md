@@ -10,20 +10,23 @@ No deployment pipeline exists — changes are served directly via Flask and comm
 
 ## Current State
 
-**All code changes are committed and clean. No broken state.**
+**All code is committed and clean. No broken state.**
 
-One SQL migration is pending (must be run in Supabase before its features work). Supabase MCP authentication failed repeatedly this session (OAuth callback issue), so the migration was not executed. It must be run manually via the Supabase SQL Editor.
+Two SQL migrations are pending (must be run in Supabase before their features work). The Supabase MCP OAuth flow has failed repeatedly across multiple sessions — run these manually via the Supabase SQL Editor.
 
 ### What was done this session
 
-1. **Request category group → department code binding** — `category_group` in `request_category` is now keyed by department code (e.g. `HR`, `FIN`) instead of full department name. This involved:
-   - `controllers/public.py` — `/api/helpdesk/categories` now filters `category_group = 'IT'` only (IT Helpdesk sees IT categories only)
-   - `static/general_helpdesk.js` — department options get `data-code` attribute; `ghOnDeptChange()` passes `deptCode` to `_loadCategories()`; `ghOnCategoryChange()` auto-matches `opt.dataset.code` instead of `opt.dataset.name`
-   - `supabase-migrations/request_category_group_migration.sql` — NEW: updates existing category groups to dept codes via JOIN, inserts 9 IT-specific categories with `category_group = 'IT'`, and adds request types for IT categories
+1. **Default view → compact mode** — Home screen now opens in compact (list table) view by default for users with no stored preference.
+   - `static/script.js` line 307: fallback changed from `'cards'` to `'compact'`
+   - Users who previously chose card view are unaffected (preference is persisted in localStorage)
 
-2. **Admin: category group field → department dropdown** — The "Group" field in the Request Categories modal (Admin → Config → Request Categories) is now a `<select>` instead of a free-text input:
-   - `templates/admin.html` — `#cfgCategoryGroup` is now a `<select>` element
-   - `static/admin.js` — Added `_fillCategoryGroupSelect(selectedGroup)` helper that populates the select with static options (IT, General) + all departments by code from `_adminDepartments`; updated `openCfgCategoryModal()` to call it
+2. **Issue comments + activity feed** — Added a full Activity & Comments section to both the admin issue modal and the workspace issue detail modal.
+   - **`GET /api/issues/<id>/activity`** — returns a unified sorted timeline combining: comments on the issue (`issue_comments` table) + status movements from linked user tasks (`task_item_logs`, `task_activity_logs`) + status movements from linked dev items (`dev_item_logs`)
+   - **`POST /api/issues/<id>/comments`** — authenticated endpoint (X-Gateway-Username header) to post a new comment
+   - HTML section added to bottom of both issue modals (before save actions in admin; at bottom of modal in workspace)
+   - JS functions added to `admin.js` and `user.js`: `loadIssueActivity` / `loadIssActivity`, `postIssueComment` / `postIssComment`, `refreshIssueActivity` / `refreshIssActivity`
+   - Timeline entry types: **Comment** (gold tag), **Moved · Task/Dev** (amber), **Note · Task/Dev** (muted)
+   - Activity section auto-loads when the modal opens and clears the comment input
 
 ---
 
@@ -31,34 +34,52 @@ One SQL migration is pending (must be run in Supabase before its features work).
 
 All committed. None mid-change.
 
-- `controllers/public.py` — `/api/helpdesk/categories` filters `category_group = 'IT'` only
-- `static/general_helpdesk.js` — dept options get `data-code`; category loading uses dept code; auto-match uses `dataset.code`
-- `templates/admin.html` — `#cfgCategoryGroup` changed from `<input type="text">` to `<select>`
-- `static/admin.js` — Added `_fillCategoryGroupSelect()`, updated `openCfgCategoryModal()`
-- `supabase-migrations/request_category_group_migration.sql` — NEW migration, not yet run in Supabase
+- `static/script.js` — line 307 fallback changed from `'cards'` to `'compact'` (default view mode)
+- `controllers/issues.py` — added `get_issue_activity` (GET `/api/issues/<id>/activity`) and `post_issue_comment` (POST `/api/issues/<id>/comments`) routes at lines ~449–560
+- `templates/admin.html` — added `<div class="iss-activity-section">` block (id `issueActivityList`, `issueCommentInput`) before `issueModalActions`
+- `templates/user.html` — added `<div class="iss-activity-section">` block (id `issActivityList`, `issCommentInput`) after `iss-dh-actions`, before closing modal div
+- `static/admin.js` — added `_renderIssueActivityEntries`, `loadIssueActivity`, `refreshIssueActivity`, `postIssueComment`; wired into `openIssueModal` (calls `loadIssueActivity(id)` + clears input on open)
+- `static/user.js` — added `_renderIssActivityEntries`, `loadIssActivity`, `refreshIssActivity`, `postIssComment`; wired into `openIssueDetail` (calls `loadIssActivity(iss.id)` + clears input on open)
+- `static/style.css` — appended `.iss-activity-section`, `.iss-act-entry`, `.iss-act-tag--comment/moved/note`, `.iss-comment-form` etc. at end of file
+- `supabase-migrations/issue_comments_migration.sql` — NEW: creates `issue_comments` table (not yet run in Supabase)
 
 ---
 
 ## Failed Attempts
 
-- **Supabase MCP authentication** — Attempted OAuth flow three times. The MCP server starts the flow and provides an authorize URL, but after the user authorizes on Supabase, the browser is redirected to `http://localhost:<port>/callback?code=...`. The user was unable to copy the callback URL — they kept pasting the original authorize URL instead. Root cause is likely that the redirect to localhost fails visually (connection error page), making it confusing to find the URL in the address bar. The migration was not run as a result.
+- **Supabase MCP authentication** — Attempted OAuth flow across multiple sessions. The MCP server starts the flow and provides an authorize URL, but after the user authorizes on Supabase, the browser is redirected to `http://localhost:<port>/callback?code=...`. The user was unable to copy the callback URL — kept pasting the original authorize URL instead. Root cause: the redirect to localhost fails visually (connection error page), making it hard to find the URL in the address bar. No migrations have been run through MCP as a result.
 
 ---
 
 ## Next Step
 
-**Run `supabase-migrations/request_category_group_migration.sql` in Supabase SQL Editor.**
+**Run two pending migrations in Supabase SQL Editor, in this order:**
 
+### Migration 1 — `supabase-migrations/request_category_group_migration.sql`
 1. Open Supabase dashboard → SQL Editor → New Query
-2. Paste the full contents of `supabase-migrations/request_category_group_migration.sql`
+2. Paste the full file contents
 3. Run it
 
 What it does:
-- **Step 1**: `UPDATE request_category` joining on `departments.department_name = category_group` (case-insensitive) to replace full dept names with dept codes. Skips `'General'` and `'IT'`.
-- **Step 2**: Inserts 9 IT categories (`Software/Application`, `Hardware`, `Network`, `Account & Access`, `Email & Collaboration`, `Printer & Peripherals`, `Data & Backup`, `Security Incident`, `Other IT Request`) with `category_group = 'IT'`.
-- **Step 3**: Inserts request types for the non-subcategory IT categories.
+- Updates existing `category_group` values from full department names → dept codes (e.g. `"Human Resources"` → `"HR"`)
+- Inserts 9 IT categories (`Software/Application`, `Hardware`, `Network`, `Account & Access`, `Email & Collaboration`, `Printer & Peripherals`, `Data & Backup`, `Security Incident`, `Other IT Request`) with `category_group = 'IT'`
+- Inserts request types for those IT categories
 
-After running, verify: Admin → Config → Request Categories shows dept codes in the Group column; IT Helpdesk (`/helpdesk`) shows only IT categories; General Helpdesk (`/general-helpdesk`) filters correctly by dept when "Who should handle this?" is selected.
+### Migration 2 — `supabase-migrations/issue_comments_migration.sql`
+1. New Query in Supabase SQL Editor
+2. Paste and run
+
+What it does:
+- Creates `issue_comments` table (`id UUID PK`, `issue_id UUID FK → issues`, `username TEXT`, `comment TEXT`, `created_at TIMESTAMPTZ`)
+- Creates indexes on `issue_id` and `created_at`
+
+**After both are run, verify:**
+- Admin → Config → Request Categories: Group column shows dept codes (e.g. `HR`, `IT`)
+- `/helpdesk` (IT Helpdesk): shows only IT categories
+- `/general-helpdesk`: filters categories correctly by selected dept
+- Admin issue modal → open any issue → Activity & Comments section loads (shows "No activity yet" if none exist)
+- Can post a comment; it appears immediately in the timeline
+- Opening an issue with a linked user task shows the task's movements in the timeline
 
 ---
 
@@ -77,7 +98,8 @@ Not all of these may have been run. Run in this order if any are missing:
 9. `supabase-migrations/task_item_logs_migration.sql` — creates `task_item_logs` table
 10. `supabase-migrations/task_activity_logs_migration.sql` — creates `task_activity_logs` table
 11. `supabase-migrations/general_helpdesk_categories_seed.sql` — re-run to seed/update general helpdesk categories (safe, uses ON CONFLICT DO UPDATE)
-12. **`supabase-migrations/request_category_group_migration.sql`** — (this session, not yet run) updates category groups to dept codes + adds IT categories
+12. **`supabase-migrations/request_category_group_migration.sql`** — (not yet run) updates category groups to dept codes + adds IT categories
+13. **`supabase-migrations/issue_comments_migration.sql`** — (not yet run, added this session) creates `issue_comments` table
 
 ---
 
@@ -89,14 +111,18 @@ Not all of these may have been run. Run in this order if any are missing:
 
 - **Supabase via REST, no ORM.** Service key bypasses RLS. Use `supabase_req(method, path, data=, params=, extra_headers=)` from `services/supabase.py`.
 
-- **Supabase MCP auth pattern.** When the OAuth redirect to `localhost` fails with a connection error, the callback URL is still in the browser address bar. It looks like `http://localhost:45XXX/callback?code=XXXX&state=XXXX`. The user must copy THAT URL (not the original authorize URL) and call `mcp__supabase__complete_authentication` with it. Previous attempts failed because the user kept pasting the authorize URL instead.
+- **Supabase MCP auth pattern.** When the OAuth redirect to `localhost` fails with a connection error, the callback URL is still in the browser address bar. It looks like `http://localhost:45XXX/callback?code=XXXX&state=XXXX`. The user must copy THAT URL (not the original authorize URL) and call `mcp__supabase__complete_authentication` with it.
 
-- **`category_group` values after migration:**
+- **`category_group` values after migration 12:**
   - `'IT'` — IT Helpdesk categories only (shown on `/helpdesk`)
   - `'General'` — always visible in general helpdesk regardless of selected dept
   - Department codes (e.g. `'HR'`, `'FIN'`) — shown in general helpdesk when matching dept is selected
 
-- **IT Helpdesk hardcoded category name:** `helpdesk.js` has `catSel.value = 'Software/Application'` when pre-filling from a system link. The category in the DB must be named exactly `'Software/Application'` (no spaces around slash). The migration uses this exact name.
+- **IT Helpdesk hardcoded category name:** `helpdesk.js` has `catSel.value = 'Software/Application'` when pre-filling from a system link. The category in the DB must be named exactly `'Software/Application'`. Migration 12 uses this exact name.
+
+- **Issue activity endpoint is open (no auth required for GET).** The `GET /api/issues/<id>/activity` route does not call any guard — it returns data without authentication. This is intentional since the activity feed is read-only and non-sensitive. Only the POST (comment) requires `X-Gateway-Username`.
+
+- **Admin vs workspace activity IDs differ.** Admin modal uses element IDs `issueActivityList` / `issueCommentInput` and JS functions `loadIssueActivity` / `postIssueComment` / `refreshIssueActivity` (in `admin.js`). Workspace modal uses `issActivityList` / `issCommentInput` and `loadIssActivity` / `postIssComment` / `refreshIssActivity` (in `user.js`). Names differ to avoid any risk of collision since both pages load different JS bundles.
 
 - **`_fillCategoryGroupSelect(selectedGroup)`** in `admin.js` reads from `_adminDepartments` (loaded at init). If departments haven't been set up yet, only the static IT/General options will appear.
 
@@ -116,6 +142,8 @@ Not all of these may have been run. Run in this order if any are missing:
 - **Theme localStorage key:** `rgmc-theme`. Absence = light. Only `"dark"` is ever written.
 
 - **Session stored in `localStorage`** as `rgmc_gateway_session`. Flags: `isDepartmentHead`, `isAdmin`, `isManagement`, `isDeveloper`.
+
+- **View mode localStorage key:** `rgmc-view-mode`. Default fallback is now `'compact'` (changed this session). Only `'cards'` or `'compact'` are valid values.
 
 - **Priority matrix:** P1=high urgency+high impact, P2=high+medium (or reverse), P3=medium+medium, P4=everything else.
 
