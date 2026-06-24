@@ -1366,9 +1366,56 @@ select.form-input option:hover {
 /* ── Toolbar ── */
 .admin-toolbar {
   display: flex;
+  align-items: center;
+  gap: 8px;
   justify-content: flex-end;
   margin-bottom: 16px;
 }
+
+.admin-toolbar-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-right: auto;
+}
+.admin-toolbar-search-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--text-muted);
+  pointer-events: none;
+  flex-shrink: 0;
+}
+.admin-toolbar-search {
+  background: var(--bg-card-inner);
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  padding: 7px 32px 7px 30px;
+  font-size: 13px;
+  font-family: var(--font-ui);
+  color: var(--text-primary);
+  width: 220px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s, width 0.2s var(--ease);
+}
+.admin-toolbar-search::placeholder { color: var(--text-muted); }
+.admin-toolbar-search:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-dim);
+  width: 280px;
+}
+.admin-toolbar-search-clear {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+  transition: color 0.12s;
+}
+.admin-toolbar-search-clear:hover { color: var(--text-primary); }
 .btn-admin-add {
   display: inline-flex;
   align-items: center;

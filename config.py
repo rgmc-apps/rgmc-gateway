@@ -14,6 +14,9 @@ SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 APPROVER_EMAIL       = os.environ.get("APPROVER_EMAIL", "")
 GATEWAY_BASE_URL     = os.environ.get("GATEWAY_BASE_URL", "")
 
+IT_BOT_URL     = os.environ.get("IT_BOT_URL", "")
+IT_BOT_API_KEY = os.environ.get("IT_BOT_API_KEY", "")
+
 # Fallback site list used when the systems table is empty or DB is unreachable.
 SITES_FALLBACK = [
     {

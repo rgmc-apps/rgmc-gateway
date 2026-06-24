@@ -67,6 +67,7 @@ def _submit_issue():
     issue_id: str | None = None
     ticket_number: str | None = None
     attachment_urls: list[str] = []
+    created_issue: dict | None = None
 
     if SUPABASE_URL and SUPABASE_SERVICE_KEY:
         try:
@@ -90,8 +91,9 @@ def _submit_issue():
             rows = supabase_req("POST", "/issues", data=issue_row,
                                 extra_headers={"Prefer": "return=representation"})
             if rows:
-                issue_id      = rows[0]["id"]
-                ticket_number = rows[0].get("ticket_number")
+                created_issue = dict(rows[0])
+                issue_id      = created_issue["id"]
+                ticket_number = created_issue.get("ticket_number")
         except Exception as exc:
             current_app.logger.error("Issue save failed: %s", exc)
 
@@ -110,6 +112,12 @@ def _submit_issue():
 
     email_attachments = [{"filename": f["filename"], "data": f["data"]} for f in raw_files]
     send_report_email(form_data, email_attachments, ticket_number=ticket_number)
+
+    if created_issue:
+        from services.it_bot import notify_ticket_created
+        if attachment_urls:
+            created_issue["attachment_urls"] = attachment_urls
+        notify_ticket_created(created_issue)
 
     msg = (f"Your report {ticket_number} has been submitted. The IT team will be in touch shortly."
            if ticket_number else
@@ -186,14 +194,16 @@ def _submit_helpdesk_issue():
     ticket_number = None
     issue_id = None
     attachment_urls: list[str] = []
+    created_issue: dict | None = None
 
     if SUPABASE_URL and SUPABASE_SERVICE_KEY:
         try:
             rows = supabase_req("POST", "/issues", data=issue_row,
                                 extra_headers={"Prefer": "return=representation"})
             if rows:
-                ticket_number = rows[0].get("ticket_number")
-                issue_id      = rows[0].get("id")
+                created_issue = dict(rows[0])
+                ticket_number = created_issue.get("ticket_number")
+                issue_id      = created_issue.get("id")
         except Exception as exc:
             current_app.logger.error("Helpdesk issue save failed: %s", exc)
 
@@ -220,6 +230,12 @@ def _submit_helpdesk_issue():
         send_helpdesk_confirmation_email(form_data, ticket_number, issue_id=issue_id)
     except Exception as exc:
         current_app.logger.error("send_helpdesk_confirmation_email failed: %s", exc)
+
+    if created_issue:
+        from services.it_bot import notify_ticket_created
+        if attachment_urls:
+            created_issue["attachment_urls"] = attachment_urls
+        notify_ticket_created(created_issue)
 
     msg = (f"Your ticket {ticket_number} has been submitted. The IT team will be in touch shortly."
            if ticket_number else
@@ -312,6 +328,12 @@ def admin_patch_issue(issue_id):
     except Exception as exc:
         current_app.logger.error("admin_patch_issue failed: %s", exc)
         return jsonify({"error": "Update failed"}), 500
+
+    if issue:
+        from services.it_bot import notify_ticket_updated, build_changes
+        changes = build_changes(issue, patch)
+        if changes:
+            notify_ticket_updated({**issue, **patch}, changes)
 
     if notify_resolved:
         resolution_notes = (patch.get("resolution_notes") or "").strip()

@@ -730,46 +730,72 @@ document.addEventListener('click', e => {
 let _editingSystemId = null;
 let _sysTagsList     = [];
 let _pingResults     = {};
+let _sysSearchQuery  = '';
 
 async function loadSystems() {
   const wrap = document.getElementById('systems-body');
   wrap.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
-
   try {
     const res = await fetch('/api/admin/systems', { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
-    const rows = await res.json();
-    _systemsCache = rows;
-
-    if (rows.length === 0) {
-      wrap.innerHTML = '<div class="admin-empty">No systems found. Add one above.</div>';
-      return;
-    }
-
-    wrap.innerHTML = `
-      <table class="admin-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Category</th>
-            <th>Visible</th>
-            <th>Primary URL</th>
-            <th>Label</th>
-            <th>Backup URL</th>
-            <th>Tags</th>
-            <th>Status</th>
-            <th>Order</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map(s => renderSystemRow(s)).join('')}
-        </tbody>
-      </table>`;
+    _systemsCache = await res.json();
+    _renderSystemsTable();
   } catch (err) {
     wrap.innerHTML = `<div class="admin-error">Failed to load systems: ${escHtml(err.message)}</div>`;
   }
+}
+
+function _renderSystemsTable() {
+  const wrap = document.getElementById('systems-body');
+  if (!wrap) return;
+
+  const q = _sysSearchQuery.toLowerCase().trim();
+  const rows = q
+    ? _systemsCache.filter(s =>
+        (s.name            || '').toLowerCase().includes(q) ||
+        (s.category        || '').toLowerCase().includes(q) ||
+        (s.tags            || '').toLowerCase().includes(q) ||
+        (s.primary_url     || '').toLowerCase().includes(q) ||
+        (s.is_task ? 'task' : 'system').includes(q)
+      )
+    : _systemsCache;
+
+  if (_systemsCache.length === 0) {
+    wrap.innerHTML = '<div class="admin-empty">No systems found. Add one above.</div>';
+    return;
+  }
+  if (rows.length === 0) {
+    wrap.innerHTML = `<div class="admin-empty">No systems match <strong>"${escHtml(_sysSearchQuery)}"</strong>.</div>`;
+    return;
+  }
+
+  wrap.innerHTML = `
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Name</th><th>Type</th><th>Category</th><th>Visible</th>
+          <th>Primary URL</th><th>Label</th><th>Backup URL</th>
+          <th>Tags</th><th>Status</th><th>Order</th><th></th>
+        </tr>
+      </thead>
+      <tbody>${rows.map(s => renderSystemRow(s)).join('')}</tbody>
+    </table>`;
+}
+
+function sysSearch(val) {
+  _sysSearchQuery = val;
+  const clearBtn = document.getElementById('sysSearchClear');
+  if (clearBtn) clearBtn.style.display = val ? '' : 'none';
+  _renderSystemsTable();
+}
+
+function sysClearSearch() {
+  _sysSearchQuery = '';
+  const input = document.getElementById('sysSearchInput');
+  const clearBtn = document.getElementById('sysSearchClear');
+  if (input)    { input.value = ''; input.focus(); }
+  if (clearBtn) clearBtn.style.display = 'none';
+  _renderSystemsTable();
 }
 
 function renderSystemRow(s) {
