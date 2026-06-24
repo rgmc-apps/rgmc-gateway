@@ -664,18 +664,41 @@
 
         <div id="issueModalActions" class="modal-actions">
           <button type="button" class="btn-modal-cancel" onclick="closeIssueModal()">Cancel</button>
-          <button type="button" class="btn-modal-promote" id="issuePromoteBtn" onclick="promoteIssueToDevItem()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-            Promote to Dev Item
-          </button>
-          <button type="button" class="btn-modal-promote" id="issuePromoteTaskBtn" onclick="promoteIssueToTask()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-            Promote to Task
-          </button>
-          <button type="button" class="btn-modal-promote" id="issuePromoteUserTaskBtn" onclick="promoteIssueToUserTask()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            Promote to User Task
-          </button>
+
+          <!-- Actions submenu -->
+          <div class="iss-actions-wrap" id="issActionsWrap">
+            <button type="button" class="btn-iss-actions" id="issActionsBtn" onclick="toggleIssActionsMenu(event)">
+              Actions
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="iss-actions-menu" id="issActionsMenu">
+              <!-- Quick resolve -->
+              <button class="iss-actions-item iss-actions-item--resolve" id="issQuickResolveItem" onclick="quickResolveIssue()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                Resolve Issue
+              </button>
+              <div class="iss-actions-divider"></div>
+              <!-- Promote options (hidden when already promoted) -->
+              <button class="iss-actions-item" id="issPromoteDevBtn" onclick="promoteIssueToDevItem()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                Promote to Dev Item
+              </button>
+              <button class="iss-actions-item" id="issPromoteTaskBtn" onclick="promoteIssueToTask()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+                Promote to Admin Task
+              </button>
+              <button class="iss-actions-item" id="issPromoteUserTaskBtn" onclick="promoteIssueToUserTask()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Promote to User Task
+              </button>
+              <!-- Already-promoted notice (shown when any promotion exists) -->
+              <div class="iss-actions-promoted-note" id="issPromotedNote" style="display:none;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Already promoted
+              </div>
+            </div>
+          </div>
+
           <button type="button" class="btn-modal-submit" onclick="saveIssuePatch()">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             Save

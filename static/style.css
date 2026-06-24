@@ -3303,6 +3303,98 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
   border-color: var(--accent);
 }
 
+/* ── Issue Actions submenu ── */
+.iss-actions-wrap { position: relative; }
+
+.btn-iss-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px;
+  background: var(--bg-card-inner);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  user-select: none;
+}
+.btn-iss-actions:hover,
+.iss-actions-wrap.open .btn-iss-actions {
+  border-color: var(--gold-border-h);
+  background: var(--gold-dim);
+  color: var(--gold);
+}
+.btn-iss-actions svg {
+  transition: transform 0.18s var(--ease);
+}
+.iss-actions-wrap.open .btn-iss-actions svg { transform: rotate(180deg); }
+
+.iss-actions-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  min-width: 210px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 -10px 32px rgba(0,0,0,0.55), 0 0 0 1px var(--gold-border);
+  z-index: 400;
+  overflow: hidden;
+  display: none;
+  animation: iss-menu-in 0.14s var(--ease-spring) both;
+}
+.iss-actions-menu.open { display: block; }
+
+@keyframes iss-menu-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.iss-actions-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+}
+.iss-actions-item:hover { background: rgba(196,151,42,0.07); }
+.iss-actions-item svg   { flex-shrink: 0; color: var(--text-muted); }
+.iss-actions-item:hover svg { color: var(--text-primary); }
+
+.iss-actions-item--resolve        { color: var(--success); }
+.iss-actions-item--resolve svg    { color: var(--success); }
+.iss-actions-item--resolve:hover  { background: var(--success-bg); }
+
+.iss-actions-divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 4px 0;
+}
+
+.iss-actions-promoted-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.iss-actions-promoted-note svg { color: var(--success); flex-shrink: 0; }
+
 /* ── Report-Issue standalone page ── */
 
 /* Wall (auth gate) */

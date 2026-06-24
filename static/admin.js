@@ -186,11 +186,15 @@ document.addEventListener('DOMContentLoaded', () => {
   _loadAdminDepartments();
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape')      { closeLightbox(); closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); closeCfgCompanyModal(); closeCfgCategoryModal(); closeCfgTypeModal(); closeCfgNsiModal(); closeCfgBrandModal(); closeCfgDeptModal(); closeAddUserModal(); closeAllUserDropdowns(); }
+    if (e.key === 'Escape')      { closeLightbox(); closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); closeCfgCompanyModal(); closeCfgCategoryModal(); closeCfgTypeModal(); closeCfgNsiModal(); closeCfgBrandModal(); closeCfgDeptModal(); closeAddUserModal(); closeAllUserDropdowns(); _closeIssActionsMenu(); }
     if (e.key === 'ArrowLeft')   lightboxNav(-1);
     if (e.key === 'ArrowRight')  lightboxNav(1);
   });
-  document.addEventListener('click', () => { closeProfileMenu(); closeAllUserDropdowns(); });
+  document.addEventListener('click', e => {
+    closeProfileMenu();
+    closeAllUserDropdowns();
+    if (_issActionsOpen && !document.getElementById('issActionsWrap')?.contains(e.target)) _closeIssActionsMenu();
+  });
 
   // Show/hide resolution fields when status changes
   document.getElementById('issueStatusSelect').addEventListener('change', function () {
@@ -1511,39 +1515,46 @@ async function openIssueModal(id) {
 
   // Dev item link
   const devGroup = document.getElementById('issueDevItemGroup');
-  const promoteBtn = document.getElementById('issuePromoteBtn');
   if (issue.dev_item_id) {
     devGroup.style.display = '';
     document.getElementById('issueDevItemId').textContent = issue.dev_item_id;
-    promoteBtn.style.display = 'none';
   } else {
     devGroup.style.display = 'none';
-    promoteBtn.style.display = '';
   }
 
   // Task link
-  const taskGroup      = document.getElementById('issueTaskGroup');
-  const promoteTaskBtn = document.getElementById('issuePromoteTaskBtn');
+  const taskGroup = document.getElementById('issueTaskGroup');
   if (issue.task_id) {
     taskGroup.style.display = '';
     document.getElementById('issueTaskId').textContent = issue.task_id;
-    promoteTaskBtn.style.display = 'none';
   } else {
     taskGroup.style.display = 'none';
-    promoteTaskBtn.style.display = '';
   }
 
   // User task link
-  const userTaskGroup      = document.getElementById('issueUserTaskGroup');
-  const promoteUserTaskBtn = document.getElementById('issuePromoteUserTaskBtn');
+  const userTaskGroup = document.getElementById('issueUserTaskGroup');
   if (issue.user_task_id) {
     userTaskGroup.style.display = '';
     document.getElementById('issueUserTaskId').textContent = issue.user_task_id;
-    promoteUserTaskBtn.style.display = 'none';
   } else {
     userTaskGroup.style.display = 'none';
-    promoteUserTaskBtn.style.display = '';
   }
+
+  // Actions submenu state: hide all promote options once any promotion exists
+  const anyPromoted = !!(issue.dev_item_id || issue.task_id || issue.user_task_id);
+  ['issPromoteDevBtn', 'issPromoteTaskBtn', 'issPromoteUserTaskBtn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = anyPromoted ? 'none' : '';
+  });
+  const promotedNote = document.getElementById('issPromotedNote');
+  if (promotedNote) promotedNote.style.display = anyPromoted ? '' : 'none';
+
+  // Quick resolve hidden if already terminal
+  const isTerminal  = issue.status === 'resolved' || issue.status === 'closed';
+  const resolveItem = document.getElementById('issQuickResolveItem');
+  if (resolveItem) resolveItem.style.display = isTerminal ? 'none' : '';
+
+  _closeIssActionsMenu();
 
   // Populate assigned-to dropdown
   await _ensureDevelopers();
@@ -1702,6 +1713,7 @@ async function saveIssuePatch() {
 
 async function promoteIssueToDevItem() {
   if (!_editingIssueId) return;
+  _closeIssActionsMenu();
   if (!confirm('Create a dev board item from this issue?')) return;
 
   document.getElementById('issueModalActions').style.display = 'none';
@@ -1728,6 +1740,7 @@ async function promoteIssueToDevItem() {
 
 async function promoteIssueToTask() {
   if (!_editingIssueId) return;
+  _closeIssActionsMenu();
   if (!confirm('Create a task from this issue?')) return;
   document.getElementById('issueModalActions').style.display = 'none';
   document.getElementById('issueModalLoading').style.display = '';
@@ -1752,6 +1765,7 @@ async function promoteIssueToTask() {
 
 async function promoteIssueToUserTask() {
   if (!_editingIssueId) return;
+  _closeIssActionsMenu();
   if (!confirm('Create a user task from this issue?')) return;
   document.getElementById('issueModalActions').style.display = 'none';
   document.getElementById('issueModalLoading').style.display = '';
@@ -1765,6 +1779,52 @@ async function promoteIssueToUserTask() {
     if (!res.ok) throw new Error(data.error || 'Promote failed');
     closeIssueModal();
     showToast('Issue promoted to user task.');
+    loadIssues(_currentIssueStatus);
+  } catch (err) {
+    document.getElementById('issueModalLoading').style.display = 'none';
+    document.getElementById('issueModalActions').style.display = '';
+    document.getElementById('issueModalError').style.display   = '';
+    document.getElementById('issueModalErrorMsg').textContent  = err.message;
+  }
+}
+
+/* ── Issue Actions submenu ── */
+let _issActionsOpen = false;
+
+function toggleIssActionsMenu(e) {
+  if (e) e.stopPropagation();
+  _issActionsOpen ? _closeIssActionsMenu() : _openIssActionsMenu();
+}
+
+function _openIssActionsMenu() {
+  _issActionsOpen = true;
+  document.getElementById('issActionsMenu')?.classList.add('open');
+  document.getElementById('issActionsWrap')?.classList.add('open');
+}
+
+function _closeIssActionsMenu() {
+  _issActionsOpen = false;
+  document.getElementById('issActionsMenu')?.classList.remove('open');
+  document.getElementById('issActionsWrap')?.classList.remove('open');
+}
+
+async function quickResolveIssue() {
+  if (!_editingIssueId) return;
+  _closeIssActionsMenu();
+  if (!confirm('Mark this issue as resolved?')) return;
+  document.getElementById('issueModalActions').style.display = 'none';
+  document.getElementById('issueModalLoading').style.display = '';
+  document.getElementById('issueModalError').style.display   = 'none';
+  try {
+    const res = await fetch(`/api/admin/issues/${encodeURIComponent(_editingIssueId)}`, {
+      method:  'PATCH',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ status: 'resolved' }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to resolve issue');
+    closeIssueModal();
+    showToast('Issue marked as resolved.');
     loadIssues(_currentIssueStatus);
   } catch (err) {
     document.getElementById('issueModalLoading').style.display = 'none';
