@@ -71,6 +71,8 @@ let _cfgTypeEditId      = null;
 let _cfgNsiEditId       = null;
 let _cfgBrandEditCode   = null;
 let _cfgDeptEditId      = null;
+let _cfgActionsCache    = [];
+let _cfgActionEditId    = null;
 
 let _adminDepartments   = [];
 
@@ -224,6 +226,7 @@ function switchTab(tab) {
   if (tab === 'users')    loadUsers();
   if (tab === 'systems')  loadSystems();
   if (tab === 'issues')   loadIssues(_currentIssueStatus);
+  if (tab === 'commonissues') loadCommonIssues();
   if (tab === 'devperf')  loadDevPerf();
   if (tab === 'config')   _loadCurrentConfigSub();
 }
@@ -1450,7 +1453,7 @@ async function _ensureDevelopers() {
     const res = await fetch('/api/admin/users', { headers: authHeaders() });
     if (res.ok) {
       const all = await res.json();
-      _developersCache = all.filter(u => (u.is_developer || u.is_admin) && !u.is_management);
+      _developersCache = all.filter(u => u.is_developer && !u.is_admin && !u.is_management);
     }
   } catch { /* non-fatal */ }
 }
@@ -1805,6 +1808,145 @@ async function promoteIssueToUserTask() {
     document.getElementById('issueModalError').style.display   = '';
     document.getElementById('issueModalErrorMsg').textContent  = err.message;
   }
+}
+
+/* ── Common Issues ── */
+let _ciData      = null;   // { by_system: [...], by_category: [...] }
+let _ciGroupBy   = 'system';
+let _ciSearch    = '';
+let _ciExpanded  = new Set();
+
+async function loadCommonIssues(force = false) {
+  if (_ciData && !force) { _renderCommonIssues(); return; }
+  document.getElementById('ci-body').innerHTML =
+    '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  try {
+    const res = await fetch('/api/admin/common-issues', { headers: authHeaders() });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    _ciData = await res.json();
+    _ciExpanded.clear();
+    _renderCommonIssues();
+  } catch (err) {
+    document.getElementById('ci-body').innerHTML =
+      `<div class="admin-empty">Failed to load: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function ciSetGroupBy(mode) {
+  _ciGroupBy = mode;
+  _ciExpanded.clear();
+  document.getElementById('ciToggleSystem').classList.toggle('active', mode === 'system');
+  document.getElementById('ciToggleCategory').classList.toggle('active', mode === 'category');
+  _renderCommonIssues();
+}
+
+function ciSearch(q) {
+  _ciSearch = q.trim().toLowerCase();
+  document.getElementById('ciSearchClear').style.display = q ? '' : 'none';
+  _renderCommonIssues();
+}
+
+function ciClearSearch() {
+  document.getElementById('ciSearchInput').value = '';
+  ciSearch('');
+}
+
+function ciToggleGroup(groupKey) {
+  if (_ciExpanded.has(groupKey)) _ciExpanded.delete(groupKey);
+  else _ciExpanded.add(groupKey);
+  _renderCommonIssues();
+}
+
+function _renderCommonIssues() {
+  if (!_ciData) return;
+  const groups = (_ciGroupBy === 'system' ? _ciData.by_system : _ciData.by_category) || [];
+  const filtered = _ciSearch
+    ? groups.filter(g => g.group.toLowerCase().includes(_ciSearch))
+    : groups;
+
+  // Stats
+  const totalIssues   = groups.reduce((s, g) => s + g.total, 0);
+  const totalResolved = groups.reduce((s, g) => s + g.resolved, 0);
+  const totalOpen     = groups.reduce((s, g) => s + g.open, 0);
+  document.getElementById('ciStats').innerHTML =
+    `<span class="ci-stat"><span class="ci-stat-num">${totalIssues}</span> total</span>` +
+    `<span class="ci-stat ci-stat--resolved"><span class="ci-stat-num">${totalResolved}</span> resolved</span>` +
+    `<span class="ci-stat ci-stat--open"><span class="ci-stat-num">${totalOpen}</span> open</span>`;
+
+  if (!filtered.length) {
+    document.getElementById('ci-body').innerHTML =
+      '<div class="admin-empty">No groups found.</div>';
+    return;
+  }
+
+  document.getElementById('ci-body').innerHTML = filtered.map(g => _renderCiGroup(g)).join('');
+}
+
+function _renderCiGroup(g) {
+  const key      = escHtml(g.group);
+  const expanded = _ciExpanded.has(g.group);
+  const hasRes   = g.resolutions && g.resolutions.length > 0;
+
+  const resolvedPct = g.total > 0 ? Math.round((g.resolved / g.total) * 100) : 0;
+
+  return `<div class="ci-group-card${expanded ? ' expanded' : ''}">
+    <div class="ci-group-header" onclick="ciToggleGroup(${JSON.stringify(g.group)})">
+      <div class="ci-group-title-row">
+        <svg class="ci-chevron" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        <span class="ci-group-name">${key}</span>
+        <span class="ci-badge-total">${g.total}</span>
+      </div>
+      <div class="ci-group-meta">
+        <span class="ci-meta-resolved">${g.resolved} resolved</span>
+        <span class="ci-meta-open">${g.open} open</span>
+        <div class="ci-pct-bar"><div class="ci-pct-fill" style="width:${resolvedPct}%"></div></div>
+      </div>
+    </div>
+    <div class="ci-group-body">
+      ${hasRes ? g.resolutions.map(_renderCiResolution).join('') : '<p class="ci-no-res">No resolutions recorded yet.</p>'}
+    </div>
+  </div>`;
+}
+
+function _renderCiResolution(r) {
+  const title    = escHtml(r.title || (r.description || '').slice(0, 80) + ((r.description || '').length > 80 ? '…' : ''));
+  const desc     = r.description ? escHtml(r.description.slice(0, 160)) + (r.description.length > 160 ? '…' : '') : '';
+  const date     = r.resolved_at ? new Date(r.resolved_at).toLocaleDateString('en-PH', { year:'numeric', month:'short', day:'numeric' }) : '';
+  const resolver = r.resolved_by ? `<span class="ci-res-by">by ${escHtml(r.resolved_by)}</span>` : '';
+  const ticket   = r.ticket_number ? `<span class="ci-res-ticket">${escHtml(r.ticket_number)}</span>` : '';
+  const reporter = r.employee_name ? `<span class="ci-res-reporter">${escHtml(r.employee_name)}${r.company_name ? ` · ${escHtml(r.company_name)}` : ''}</span>` : '';
+
+  const noteHtml = r.resolution_notes
+    ? `<div class="ci-res-notes">${escHtml(r.resolution_notes).replace(/\n/g, '<br>')}</div>`
+    : '';
+
+  const actionHtml = (r.resolution_action_names || []).length
+    ? `<div class="ci-res-actions">${r.resolution_action_names.map(n =>
+        `<span class="ci-action-pill">&#10003;&nbsp;${escHtml(n)}</span>`).join('')}</div>`
+    : '';
+
+  const thumbHtml = (r.resolution_attachment_urls || []).length
+    ? `<div class="ci-res-thumbs">${r.resolution_attachment_urls.map(u =>
+        `<a href="${escHtml(u)}" target="_blank" rel="noopener"><img src="${escHtml(u)}" class="ci-thumb" alt="attachment"></a>`
+      ).join('')}</div>`
+    : '';
+
+  const statusCls = r.status === 'resolved' ? 'ci-status-resolved' : 'ci-status-closed';
+
+  return `<div class="ci-resolution-item">
+    <div class="ci-res-header">
+      <div class="ci-res-title-row">
+        ${ticket}
+        <span class="ci-res-title">${title}</span>
+        <span class="ci-res-status ${statusCls}">${r.status}</span>
+      </div>
+      <div class="ci-res-meta">${reporter}${date ? `<span class="ci-res-date">${date}</span>` : ''}${resolver}</div>
+    </div>
+    ${desc ? `<p class="ci-res-desc">${desc}</p>` : ''}
+    ${noteHtml}
+    ${actionHtml}
+    ${thumbHtml}
+  </div>`;
 }
 
 /* ── Resolution: actions checklist + image attachments ── */
@@ -2206,6 +2348,7 @@ function _loadCurrentConfigSub() {
   if (_currentConfigTab === 'non-software-items') loadCfgNsi();
   if (_currentConfigTab === 'brands')             loadCfgBrands();
   if (_currentConfigTab === 'departments')        loadCfgDepts();
+  if (_currentConfigTab === 'actions')            loadCfgActions();
 }
 
 /* shared modal helpers */
@@ -2901,6 +3044,117 @@ async function deleteCfgDept(id) {
     showToast('Department deleted.');
     loadCfgDepts();
     _loadAdminDepartments();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+/* ── Actions ── */
+
+async function loadCfgActions() {
+  const wrap = document.getElementById('config-actions-body');
+  wrap.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  try {
+    const res = await fetch('/api/admin/config/actions', { headers: authHeaders() });
+    if (!res.ok) throw new Error(await res.text());
+    _cfgActionsCache = await res.json();
+    _renderCfgActions();
+  } catch (err) {
+    wrap.innerHTML = `<div class="admin-error">Failed: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function _renderCfgActions() {
+  const wrap = document.getElementById('config-actions-body');
+  if (!_cfgActionsCache.length) {
+    wrap.innerHTML = '<div class="admin-empty">No actions defined. Add one above.</div>';
+    return;
+  }
+  wrap.innerHTML = `
+    <table class="admin-table">
+      <thead><tr><th>ID</th><th>Code</th><th>Name</th><th>Description</th><th>Active</th><th></th></tr></thead>
+      <tbody>${_cfgActionsCache.map(a => `
+        <tr>
+          <td><code class="mono-val">${a.action_id}</code></td>
+          <td><code class="mono-val">${escHtml(a.action_code)}</code></td>
+          <td>${escHtml(a.action_name)}</td>
+          <td class="issue-desc-cell">${escHtml(a.action_desc || '—')}</td>
+          <td>${a.is_active !== false ? '<span class="badge-visible">Active</span>' : '<span class="badge-hidden">Inactive</span>'}</td>
+          <td class="action-cell">
+            <button class="btn-tbl-secondary" onclick='openCfgActionModal(${JSON.stringify(a)})'>Edit</button>
+            <button class="btn-tbl-danger" onclick="deleteCfgAction(${a.action_id})">Delete</button>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function openCfgActionModal(action) {
+  _cfgActionEditId = action ? action.action_id : null;
+  document.getElementById('cfgActionModalTitle').textContent = _cfgActionEditId ? 'Edit Action' : 'Add Action';
+  document.getElementById('cfgActionCode').value    = action?.action_code ?? '';
+  document.getElementById('cfgActionName').value    = action?.action_name ?? '';
+  document.getElementById('cfgActionDesc').value    = action?.action_desc ?? '';
+  document.getElementById('cfgActionActive').checked = action ? (action.is_active !== false) : true;
+  _resetCfgModal('cfgAction');
+  document.getElementById('cfgActionModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCfgActionModal() {
+  document.getElementById('cfgActionModal').classList.remove('open');
+  document.body.style.overflow = '';
+  _cfgActionEditId = null;
+}
+
+function overlayCfgAction(e) {
+  if (e.target === document.getElementById('cfgActionModal')) closeCfgActionModal();
+}
+
+async function saveCfgAction(e) {
+  e.preventDefault();
+  const code     = document.getElementById('cfgActionCode').value.trim().toUpperCase();
+  const name     = document.getElementById('cfgActionName').value.trim();
+  const desc     = document.getElementById('cfgActionDesc').value.trim() || null;
+  const isActive = document.getElementById('cfgActionActive').checked;
+  if (!name) { _showCfgError('cfgAction', 'Action name is required.'); return; }
+  if (!code) { _showCfgError('cfgAction', 'Code is required.'); return; }
+  _setCfgLoading('cfgAction', true);
+  try {
+    let res;
+    if (_cfgActionEditId) {
+      res = await fetch(`/api/admin/config/actions/${_cfgActionEditId}`, {
+        method: 'PATCH', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action_name: name, action_code: code, action_desc: desc, is_active: isActive }),
+      });
+    } else {
+      res = await fetch('/api/admin/config/actions', {
+        method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action_name: name, action_code: code, action_desc: desc, is_active: isActive }),
+      });
+    }
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    const wasEdit = _cfgActionEditId;
+    closeCfgActionModal();
+    showToast(`Action ${wasEdit ? 'updated' : 'added'}.`);
+    loadCfgActions();
+    _actionsCache = null; // invalidate resolution actions cache
+  } catch (err) {
+    _setCfgLoading('cfgAction', false);
+    _showCfgError('cfgAction', err.message);
+  }
+}
+
+async function deleteCfgAction(id) {
+  if (!confirm('Delete this action? It will no longer appear in resolution checklists.')) return;
+  try {
+    const res = await fetch(`/api/admin/config/actions/${id}`, {
+      method: 'DELETE', headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Delete failed');
+    showToast('Action deleted.');
+    loadCfgActions();
+    _actionsCache = null; // invalidate resolution actions cache
   } catch (err) {
     showToast(`Error: ${err.message}`);
   }

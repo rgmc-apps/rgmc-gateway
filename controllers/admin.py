@@ -1,4 +1,5 @@
 import time
+from collections import defaultdict
 import requests as http_requests
 
 from flask import Blueprint, request, jsonify, render_template, current_app
@@ -735,3 +736,142 @@ def admin_reject_request(request_id):
 
     send_access_rejected_email(record, remarks)
     return jsonify({"success": True})
+
+
+@admin_bp.get("/api/admin/common-issues")
+def admin_common_issues():
+    _, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+
+    try:
+        issues = supabase_req("GET", "/issues", params={
+            "select": "id,ticket_number,title,description,status,site_name,request_category,"
+                      "employee_name,company_name,resolved_by,resolved_at,resolution_notes,"
+                      "resolution_action_ids,resolution_attachment_urls,created_at",
+            "order":  "created_at.desc",
+        })
+    except Exception as exc:
+        current_app.logger.error("admin_common_issues: fetch failed: %s", exc)
+        return jsonify({"error": "Failed to fetch issues"}), 500
+
+    # Resolve action IDs → names in a single lookup
+    action_name_map = {}
+    try:
+        action_rows = supabase_req("GET", "/actions", params={
+            "select":    "action_id,action_name",
+            "is_active": "eq.true",
+        })
+        action_name_map = {r["action_id"]: r["action_name"] for r in (action_rows or [])}
+    except Exception:
+        pass
+
+    def _enrich(iss):
+        ids = iss.get("resolution_action_ids") or []
+        return {
+            "id":                         iss.get("id"),
+            "ticket_number":              iss.get("ticket_number"),
+            "title":                      iss.get("title"),
+            "description":                iss.get("description"),
+            "status":                     iss.get("status"),
+            "employee_name":              iss.get("employee_name"),
+            "company_name":               iss.get("company_name"),
+            "resolved_by":                iss.get("resolved_by"),
+            "resolved_at":                iss.get("resolved_at"),
+            "resolution_notes":           iss.get("resolution_notes"),
+            "resolution_action_names":    [action_name_map[i] for i in ids if i in action_name_map],
+            "resolution_attachment_urls": [u for u in (iss.get("resolution_attachment_urls") or []) if u],
+            "created_at":                 iss.get("created_at"),
+        }
+
+    by_system   = defaultdict(lambda: {"total": 0, "open": 0, "resolved": 0, "resolutions": []})
+    by_category = defaultdict(lambda: {"total": 0, "open": 0, "resolved": 0, "resolutions": []})
+
+    for iss in (issues or []):
+        sys_key  = (iss.get("site_name") or "").strip() or "Unknown System"
+        cat_key  = (iss.get("request_category") or "").strip() or "Uncategorized"
+        terminal = iss.get("status") in ("resolved", "closed")
+
+        for grp, key in ((by_system, sys_key), (by_category, cat_key)):
+            grp[key]["total"] += 1
+            if terminal:
+                grp[key]["resolved"] += 1
+                grp[key]["resolutions"].append(_enrich(iss))
+            else:
+                grp[key]["open"] += 1
+
+    def _sort(d):
+        return sorted(
+            [{"group": k, **v} for k, v in d.items()],
+            key=lambda x: x["total"],
+            reverse=True,
+        )
+
+    return jsonify({"by_system": _sort(by_system), "by_category": _sort(by_category)})
+
+
+# ── Config: Actions ───────────────────────────────────────────────────────────
+
+@admin_bp.get("/api/admin/config/actions")
+def config_list_actions():
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/actions", params={"select": "*", "order": "action_id.asc"})
+        return jsonify(rows or [])
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.post("/api/admin/config/actions")
+def config_create_action():
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("action_name", "")).strip()
+    code = str(data.get("action_code", "")).strip().upper()
+    if not name or not code:
+        return jsonify({"error": "action_name and action_code are required"}), 400
+    payload = {
+        "action_name": name,
+        "action_code": code,
+        "action_desc": str(data.get("action_desc", "")).strip() or None,
+        "is_active":   bool(data.get("is_active", True)),
+    }
+    try:
+        rows = supabase_req("POST", "/actions", data=payload,
+                            extra_headers={"Prefer": "return=representation"})
+        return jsonify(rows[0] if rows else {}), 201
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.route("/api/admin/config/actions/<int:action_id>", methods=["PATCH", "DELETE"])
+def config_update_action(action_id):
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    if request.method == "DELETE":
+        try:
+            supabase_req("DELETE", "/actions", params={"action_id": f"eq.{action_id}"})
+            return jsonify({"success": True})
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
+    data  = request.get_json(silent=True) or {}
+    patch = {}
+    if "action_name" in data:
+        v = str(data["action_name"]).strip()
+        if v: patch["action_name"] = v
+    if "action_code" in data:
+        v = str(data["action_code"]).strip().upper()
+        if v: patch["action_code"] = v
+    if "action_desc" in data:
+        patch["action_desc"] = str(data["action_desc"]).strip() or None
+    if "is_active" in data:
+        patch["is_active"] = bool(data["is_active"])
+    if not patch:
+        return jsonify({"error": "Nothing to update"}), 400
+    try:
+        supabase_req("PATCH", "/actions", data=patch, params={"action_id": f"eq.{action_id}"})
+        return jsonify({"success": True})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
