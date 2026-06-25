@@ -5931,6 +5931,194 @@ kbd {
 [data-theme="light"] .res-attach-add:hover { border-color: #b8862a; color: #1a1409; }
 
 /* ══════════════════════════════════════
+   Common Issues: Analytics Charts
+   ══════════════════════════════════════ */
+
+.ci-analytics-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+.ci-analytics-toggle:hover { border-color: var(--gold-border); color: var(--text-secondary); }
+.ci-analytics-toggle.active {
+  border-color: var(--gold-border);
+  background: var(--gold-dim);
+  color: var(--gold);
+}
+
+.ci-analytics {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+  animation: ciAnalyticsIn 0.3s var(--ease-spring);
+}
+@keyframes ciAnalyticsIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.ci-analytics[hidden] { display: none !important; }
+
+.ci-chart-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  padding: 16px;
+}
+
+.ci-chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.ci-chart-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+}
+.ci-chart-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Ring chart ── */
+.ci-ring-svg { overflow: visible; display: block; margin: 0 auto; }
+.ci-ring-arc { transition: stroke-dasharray 1s var(--ease-spring), stroke-dashoffset 1s var(--ease-spring); }
+
+.ci-ring-wrap {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  margin: 0 auto 14px;
+}
+.ci-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.ci-ring-pct {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--gold-light);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.ci-ring-sub {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.ci-ring-legend { display: flex; flex-direction: column; gap: 8px; }
+.ci-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.ci-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.ci-legend-val {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* ── Bars chart ── */
+.ci-bars-body { display: flex; flex-direction: column; gap: 8px; }
+
+.ci-bar-row {
+  display: grid;
+  grid-template-columns: 130px 1fr 38px;
+  align-items: center;
+  gap: 10px;
+}
+.ci-bar-label {
+  font-size: 12px;
+  color: var(--text-primary);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ci-bar-track {
+  position: relative;
+  height: 20px;
+  border-radius: 5px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.ci-bar-total {
+  position: absolute;
+  inset: 0;
+  background: var(--gold-dim);
+  border-radius: 5px;
+}
+.ci-bar-res {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(196,151,42,0.55) 0%, #C4972A 100%);
+  border-radius: 5px;
+  transition: width 0.9s var(--ease-spring);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+.ci-bar-pct {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(0,0,0,0.55);
+  padding-right: 5px;
+  white-space: nowrap;
+  pointer-events: none;
+  line-height: 1;
+}
+.ci-bar-num {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+/* Light mode overrides for charts */
+[data-theme="light"] .ci-analytics-toggle.active { background: rgba(184,134,42,0.1); border-color: #b8862a; color: #b8862a; }
+[data-theme="light"] .ci-chart-card { border-color: #e2c97a; background: #faf7f0; }
+[data-theme="light"] .ci-ring-pct { color: #b8862a; }
+[data-theme="light"] .ci-bar-pct { color: rgba(0,0,0,0.7); }
+
+/* ══════════════════════════════════════
    Common Issues panel
    ══════════════════════════════════════ */
 

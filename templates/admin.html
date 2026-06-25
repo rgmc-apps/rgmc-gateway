@@ -139,12 +139,41 @@
           <button class="ci-toggle-btn active" id="ciToggleSystem"   onclick="ciSetGroupBy('system')">By System</button>
           <button class="ci-toggle-btn"         id="ciToggleCategory" onclick="ciSetGroupBy('category')">By Category</button>
         </div>
+        <button class="ci-analytics-toggle active" id="ciAnalyticsBtn" onclick="ciToggleCharts()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Analytics
+        </button>
         <div class="ci-stats" id="ciStats"></div>
         <div class="admin-toolbar-search-wrap">
           <input class="admin-toolbar-search" id="ciSearchInput" type="text" placeholder="Filter groups…" oninput="ciSearch(this.value)" autocomplete="off">
           <button class="admin-toolbar-search-clear" id="ciSearchClear" onclick="ciClearSearch()" style="display:none;" aria-label="Clear">&times;</button>
         </div>
       </div>
+
+      <!-- Analytics charts -->
+      <div id="ci-analytics" class="ci-analytics">
+        <div class="ci-chart-card ci-chart-ring-card">
+          <div class="ci-chart-head">
+            <span class="ci-chart-label">Resolution Rate</span>
+          </div>
+          <div class="ci-ring-wrap">
+            <svg id="ciRingChart" viewBox="0 0 160 160" width="160" height="160" class="ci-ring-svg"></svg>
+            <div class="ci-ring-center">
+              <span class="ci-ring-pct" id="ciRingPct">—</span>
+              <span class="ci-ring-sub">resolved</span>
+            </div>
+          </div>
+          <div class="ci-ring-legend" id="ciRingLegend"></div>
+        </div>
+        <div class="ci-chart-card ci-chart-bars-card">
+          <div class="ci-chart-head">
+            <span class="ci-chart-label">Issue Volume</span>
+            <span class="ci-chart-sub" id="ciBarsSubLabel"></span>
+          </div>
+          <div id="ciBarsChart" class="ci-bars-body"></div>
+        </div>
+      </div>
+
       <div id="ci-body" class="ci-body">
         <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
       </div>

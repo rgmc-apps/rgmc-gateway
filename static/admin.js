@@ -1815,6 +1815,7 @@ let _ciData      = null;   // { by_system: [...], by_category: [...] }
 let _ciGroupBy   = 'system';
 let _ciSearch    = '';
 let _ciExpanded  = new Set();
+let _ciShowCharts = true;
 
 async function loadCommonIssues(force = false) {
   if (_ciData && !force) { _renderCommonIssues(); return; }
@@ -1838,6 +1839,126 @@ function ciSetGroupBy(mode) {
   document.getElementById('ciToggleSystem').classList.toggle('active', mode === 'system');
   document.getElementById('ciToggleCategory').classList.toggle('active', mode === 'category');
   _renderCommonIssues();
+  _renderCiCharts();
+}
+
+function ciToggleCharts() {
+  _ciShowCharts = !_ciShowCharts;
+  const el  = document.getElementById('ci-analytics');
+  const btn = document.getElementById('ciAnalyticsBtn');
+  if (el)  el.hidden = !_ciShowCharts;
+  if (btn) btn.classList.toggle('active', _ciShowCharts);
+  if (_ciShowCharts) _renderCiCharts();
+}
+
+function _renderCiCharts() {
+  if (!_ciData || !_ciShowCharts) return;
+  const groups   = (_ciGroupBy === 'system' ? _ciData.by_system : _ciData.by_category) || [];
+  const total    = groups.reduce((s, g) => s + g.total,    0);
+  const resolved = groups.reduce((s, g) => s + g.resolved, 0);
+  const open     = groups.reduce((s, g) => s + g.open,     0);
+  _ciDrawRing(resolved, open, total);
+  _ciDrawBars(groups);
+}
+
+function _ciDrawRing(resolved, open, total) {
+  const svg      = document.getElementById('ciRingChart');
+  const pctEl    = document.getElementById('ciRingPct');
+  const legendEl = document.getElementById('ciRingLegend');
+  if (!svg || !pctEl || !legendEl) return;
+
+  const R    = 62, cx = 80, cy = 80, sw = 15;
+  const circ = 2 * Math.PI * R;
+  const resPct  = total > 0 ? resolved / total : 0;
+  const openPct = total > 0 ? open / total : 0;
+  const resArc  = circ * resPct;
+  const openArc = circ * openPct;
+  const startOff = circ * 0.25; // 12 o'clock
+
+  svg.innerHTML = `
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="none"
+      stroke="rgba(255,255,255,0.05)" stroke-width="${sw}"/>
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="none"
+      stroke="rgba(212,150,50,0.28)" stroke-width="${sw}"
+      stroke-dasharray="0 ${circ}"
+      stroke-dashoffset="${startOff}"
+      stroke-linecap="round"
+      class="ci-ring-arc" id="ciOpenArc"/>
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="none"
+      stroke="#C4972A" stroke-width="${sw}"
+      stroke-dasharray="0 ${circ}"
+      stroke-dashoffset="${startOff}"
+      stroke-linecap="round"
+      class="ci-ring-arc" id="ciResArc"/>`;
+
+  pctEl.textContent = total > 0 ? Math.round(resPct * 100) + '%' : '—';
+
+  legendEl.innerHTML = `
+    <div class="ci-legend-row">
+      <div class="ci-legend-dot" style="background:#C4972A"></div>
+      <span>Resolved</span><span class="ci-legend-val">${resolved}</span>
+    </div>
+    <div class="ci-legend-row">
+      <div class="ci-legend-dot" style="background:rgba(212,150,50,0.4)"></div>
+      <span>Open</span><span class="ci-legend-val">${open}</span>
+    </div>
+    <div class="ci-legend-row">
+      <div class="ci-legend-dot" style="background:rgba(255,255,255,0.07);outline:1px solid rgba(255,255,255,0.12)"></div>
+      <span>Total</span><span class="ci-legend-val">${total}</span>
+    </div>`;
+
+  // Animate arcs after paint
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const resEl  = document.getElementById('ciResArc');
+    const openEl = document.getElementById('ciOpenArc');
+    if (resEl)  resEl.setAttribute('stroke-dasharray',  `${resArc} ${circ - resArc}`);
+    if (openEl && open > 0) {
+      openEl.setAttribute('stroke-dasharray',  `${openArc} ${circ - openArc}`);
+      openEl.setAttribute('stroke-dashoffset', startOff - resArc);
+    }
+  }));
+}
+
+function _ciDrawBars(groups) {
+  const wrap     = document.getElementById('ciBarsChart');
+  const subLabel = document.getElementById('ciBarsSubLabel');
+  if (!wrap) return;
+
+  const top = groups.slice(0, 10);
+  const max = Math.max(...top.map(g => g.total), 1);
+
+  if (subLabel) {
+    subLabel.textContent = top.length < groups.length
+      ? `top ${top.length} of ${groups.length}`
+      : `${groups.length} group${groups.length !== 1 ? 's' : ''}`;
+  }
+
+  if (!top.length) {
+    wrap.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:12px 0">No data</div>';
+    return;
+  }
+
+  wrap.innerHTML = top.map(g => {
+    const totalW = (g.total / max) * 100;
+    const resW   = g.total > 0 ? (g.resolved / g.total) * totalW : 0;
+    const label  = escHtml(g.group.length > 22 ? g.group.slice(0, 20) + '…' : g.group);
+    const resPct = g.total > 0 ? Math.round((g.resolved / g.total) * 100) : 0;
+    return `
+      <div class="ci-bar-row">
+        <div class="ci-bar-label" title="${escHtml(g.group)}">${label}</div>
+        <div class="ci-bar-track">
+          <div class="ci-bar-total" style="width:${totalW}%"></div>
+          <div class="ci-bar-res" data-w="${resW}%" style="width:0%">
+            ${resPct > 0 ? `<span class="ci-bar-pct">${resPct}%</span>` : ''}
+          </div>
+        </div>
+        <div class="ci-bar-num">${g.total}</div>
+      </div>`;
+  }).join('');
+
+  requestAnimationFrame(() => {
+    wrap.querySelectorAll('.ci-bar-res').forEach(el => { el.style.width = el.dataset.w; });
+  });
 }
 
 function ciSearch(q) {
@@ -1880,6 +2001,7 @@ function _renderCommonIssues() {
   }
 
   document.getElementById('ci-body').innerHTML = filtered.map(g => _renderCiGroup(g)).join('');
+  _renderCiCharts();
 }
 
 function _renderCiGroup(g) {
