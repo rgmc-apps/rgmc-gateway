@@ -1543,6 +1543,24 @@ async function openIssueModal(id) {
     userTaskGroup.style.display = 'none';
   }
 
+  // Linked issue / duplicate display
+  const linkGroup   = document.getElementById('issueLinkGroup');
+  const linkLabel   = document.getElementById('issueLinkLabel');
+  const linkDisplay = document.getElementById('issueLinkDisplay');
+  if (issue.linked_issue_id) {
+    linkGroup.style.display = '';
+    linkLabel.textContent   = issue.is_duplicate ? 'Duplicate of' : 'Related Issue';
+    // Find linked issue in cache for richer display
+    const linked = _issuesCache.find(i => i.id === issue.linked_issue_id);
+    const ticket = linked?.ticket_number || issue.linked_issue_id.slice(0, 8);
+    const title  = linked?.title || linked?.description?.slice(0, 80) || '';
+    const dupBadge = issue.is_duplicate ? '<span class="badge-duplicate">Duplicate</span>' : '<span class="badge-linked">Linked</span>';
+    linkDisplay.innerHTML = `${dupBadge} <span class="iss-link-ref">#${escHtml(ticket)}</span>${title ? ` — <span class="iss-link-ref-title">${escHtml(title)}</span>` : ''}`;
+  } else {
+    linkGroup.style.display = 'none';
+    linkDisplay.innerHTML   = '';
+  }
+
   // Actions submenu state: hide all promote options once any promotion exists
   const anyPromoted = !!(issue.dev_item_id || issue.task_id || issue.user_task_id);
   ['issPromoteDevBtn', 'issPromoteTaskBtn', 'issPromoteUserTaskBtn'].forEach(id => {
@@ -1811,6 +1829,226 @@ async function promoteIssueToUserTask() {
 }
 
 /* ── Common Issues ── */
+/* ── Issue Link / Duplicate Modal ── */
+let _linkTab           = 'issue';
+let _linkSelectedId    = null;
+let _linkSelectedLabel = '';
+let _linkIssuesCache   = null;  // all issues for searching
+let _linkTasksCache    = null;
+let _linkDevCache      = null;
+let _linkSearchTimers  = {};
+
+function openIssueLinkModal() {
+  _closeIssActionsMenu();
+  _linkTab           = 'issue';
+  _linkSelectedId    = null;
+  _linkSelectedLabel = '';
+  // Reset UI
+  document.querySelectorAll('.iss-link-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.ltab === 'issue')
+  );
+  document.querySelectorAll('.iss-link-tab-panel').forEach(p => p.style.display = 'none');
+  document.getElementById('issueLinkTabIssue').style.display = '';
+  document.getElementById('issueLinkIsDuplicate').checked = false;
+  document.getElementById('issueLinkIssueSearch').value   = '';
+  document.getElementById('issueLinkTaskSearch').value    = '';
+  document.getElementById('issueLinkDevSearch').value     = '';
+  _issueLinkClearResults();
+  _issueLinkUpdateSelected();
+  _issueLinkUpdateConfirmBtn();
+  document.getElementById('issueLinkLoading').style.display = 'none';
+  document.getElementById('issueLinkError').style.display   = 'none';
+  document.getElementById('issueLinkModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeIssueLinkModal() {
+  document.getElementById('issueLinkModal').classList.remove('open');
+  // don't restore overflow — issue modal is still open behind it
+}
+
+function overlayCloseIssueLink(e) {
+  if (e.target === document.getElementById('issueLinkModal')) closeIssueLinkModal();
+}
+
+function setIssueLinkTab(tab) {
+  _linkTab        = tab;
+  _linkSelectedId = null;
+  document.querySelectorAll('.iss-link-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.ltab === tab)
+  );
+  document.querySelectorAll('.iss-link-tab-panel').forEach(p => p.style.display = 'none');
+  document.getElementById(`issueLinkTab${tab === 'issue' ? 'Issue' : tab === 'task' ? 'Task' : 'Dev'}`).style.display = '';
+  _issueLinkUpdateSelected();
+  _issueLinkUpdateConfirmBtn();
+}
+
+function issueLinkDupChange() {
+  _issueLinkUpdateConfirmBtn();
+}
+
+function _issueLinkClearResults() {
+  ['issueLinkIssueResults', 'issueLinkTaskResults', 'issueLinkDevResults'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<div class="iss-link-hint">Type to search…</div>';
+  });
+}
+
+function _issueLinkUpdateSelected() {
+  const el    = document.getElementById('issueLinkSelected');
+  const label = document.getElementById('issueLinkSelectedLabel');
+  if (_linkSelectedId) {
+    el.style.display   = '';
+    label.textContent  = _linkSelectedLabel;
+  } else {
+    el.style.display   = 'none';
+  }
+}
+
+function _issueLinkUpdateConfirmBtn() {
+  const btn      = document.getElementById('issueLinkConfirmBtn');
+  const labelEl  = document.getElementById('issueLinkConfirmLabel');
+  const isDup    = document.getElementById('issueLinkIsDuplicate')?.checked;
+  const enabled  = !!_linkSelectedId;
+  btn.disabled   = !enabled;
+  if (_linkTab === 'issue' && isDup) {
+    labelEl.textContent = 'Mark Duplicate & Resolve';
+    btn.classList.add('btn-modal-danger');
+  } else {
+    labelEl.textContent = 'Link';
+    btn.classList.remove('btn-modal-danger');
+  }
+}
+
+function issueLinkDeselect() {
+  _linkSelectedId    = null;
+  _linkSelectedLabel = '';
+  _issueLinkUpdateSelected();
+  _issueLinkUpdateConfirmBtn();
+}
+
+function issueLinkSearch(tab, q) {
+  clearTimeout(_linkSearchTimers[tab]);
+  _linkSearchTimers[tab] = setTimeout(() => _doIssueLinkSearch(tab, q.trim()), 280);
+}
+
+async function _doIssueLinkSearch(tab, q) {
+  const resultsId = tab === 'issue' ? 'issueLinkIssueResults'
+    : tab === 'task' ? 'issueLinkTaskResults' : 'issueLinkDevResults';
+  const wrap = document.getElementById(resultsId);
+  if (!wrap) return;
+
+  if (!q) {
+    wrap.innerHTML = '<div class="iss-link-hint">Type to search…</div>';
+    return;
+  }
+
+  wrap.innerHTML = '<div class="iss-link-hint"><div class="spinner" style="width:14px;height:14px;margin-right:6px;display:inline-block;vertical-align:middle"></div>Searching…</div>';
+
+  try {
+    let items = [];
+    if (tab === 'issue') {
+      // exclude the currently-editing issue
+      const res = await fetch(`/api/admin/issues/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() });
+      const all = res.ok ? await res.json() : [];
+      items = all.filter(i => i.id !== _editingIssueId);
+    } else if (tab === 'task') {
+      if (!_linkTasksCache) {
+        const res = await fetch('/api/tasks', { headers: authHeaders() });
+        _linkTasksCache = res.ok ? await res.json() : [];
+      }
+      const ql = q.toLowerCase();
+      items = _linkTasksCache.filter(t =>
+        (t.task_name || '').toLowerCase().includes(ql) ||
+        (t.description || '').toLowerCase().includes(ql)
+      ).slice(0, 20);
+    } else {
+      if (!_linkDevCache) {
+        const res = await fetch('/api/dev/items', { headers: authHeaders() });
+        _linkDevCache = res.ok ? await res.json() : [];
+      }
+      const ql = q.toLowerCase();
+      items = _linkDevCache.filter(d =>
+        (d.title || '').toLowerCase().includes(ql) ||
+        (d.description || '').toLowerCase().includes(ql)
+      ).slice(0, 20);
+    }
+
+    if (!items.length) {
+      wrap.innerHTML = '<div class="iss-link-hint">No results found.</div>';
+      return;
+    }
+
+    wrap.innerHTML = items.map(item => {
+      let id, primary, secondary, statusText;
+      if (tab === 'issue') {
+        id         = item.id;
+        primary    = escHtml(item.ticket_number ? `#${item.ticket_number}` : item.id.slice(0, 8));
+        secondary  = escHtml(item.title || (item.description || '').slice(0, 80));
+        statusText = `<span class="iss-link-status iss-link-status--${(item.status||'').replace('_','-')}">${escHtml(item.status || '')}</span>`;
+      } else if (tab === 'task') {
+        id         = item.id;
+        primary    = escHtml(item.task_name || 'Untitled');
+        secondary  = escHtml(item.description ? item.description.slice(0, 80) : '');
+        statusText = `<span class="iss-link-status">${escHtml(item.status || '')}</span>`;
+      } else {
+        id         = item.id;
+        primary    = escHtml(item.title || 'Untitled');
+        secondary  = escHtml(item.description ? item.description.slice(0, 80) : '');
+        statusText = `<span class="iss-link-status">${escHtml(item.status || '')}</span>`;
+      }
+      const isSelected = id === _linkSelectedId;
+      return `<div class="iss-link-item${isSelected ? ' selected' : ''}" onclick='_selectLinkItem(${JSON.stringify(id)}, ${JSON.stringify(primary + (secondary ? ' — ' + item.title || item.task_name || item.description?.slice(0,60) : ''))})'>
+        <div class="iss-link-item-primary">${primary} ${statusText}</div>
+        ${secondary ? `<div class="iss-link-item-secondary">${secondary}</div>` : ''}
+      </div>`;
+    }).join('');
+
+  } catch (err) {
+    wrap.innerHTML = `<div class="iss-link-hint">Search failed: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function _selectLinkItem(id, label) {
+  _linkSelectedId    = id;
+  _linkSelectedLabel = label;
+  // Mark selected in results
+  document.querySelectorAll('.iss-link-item').forEach(el => {
+    el.classList.toggle('selected', el.getAttribute('onclick').includes(JSON.stringify(id)));
+  });
+  _issueLinkUpdateSelected();
+  _issueLinkUpdateConfirmBtn();
+}
+
+async function confirmIssueLink() {
+  if (!_linkSelectedId || !_editingIssueId) return;
+  const isDup   = _linkTab === 'issue' && document.getElementById('issueLinkIsDuplicate').checked;
+  const loadEl  = document.getElementById('issueLinkLoading');
+  const errEl   = document.getElementById('issueLinkError');
+  const actEl   = document.getElementById('issueLinkConfirmBtn');
+  loadEl.style.display = '';
+  errEl.style.display  = 'none';
+  actEl.disabled       = true;
+  try {
+    const res = await fetch(`/api/admin/issues/${encodeURIComponent(_editingIssueId)}/link`, {
+      method:  'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ link_type: _linkTab, target_id: _linkSelectedId, is_duplicate: isDup }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Link failed');
+    closeIssueLinkModal();
+    showToast(isDup ? 'Marked as duplicate and resolved.' : 'Issue linked.');
+    // Reload issues and re-open modal with fresh data
+    await loadIssues(_currentIssueStatus);
+    setTimeout(() => openIssueModal(_editingIssueId), 0);
+  } catch (err) {
+    loadEl.style.display = 'none';
+    actEl.disabled       = false;
+    errEl.style.display  = '';
+    document.getElementById('issueLinkErrorMsg').textContent = err.message;
+  }
+}
+
 let _ciData      = null;   // { by_system: [...], by_category: [...] }
 let _ciGroupBy   = 'system';
 let _ciSearch    = '';

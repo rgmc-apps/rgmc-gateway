@@ -5806,6 +5806,169 @@ kbd {
 [data-theme="light"] .st-name { color: #1a1409; }
 [data-theme="light"] .view-switcher { background: rgba(196,151,42,0.04); }
 
+/* ── Issue Link / Duplicate ── */
+
+.badge-duplicate {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(216,88,88,0.15);
+  color: #D85858;
+  border: 1px solid rgba(216,88,88,0.3);
+}
+.badge-linked {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(82,168,112,0.13);
+  color: #52A870;
+  border: 1px solid rgba(82,168,112,0.3);
+}
+.iss-link-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.iss-link-ref {
+  font-family: monospace;
+  color: var(--gold);
+  font-weight: 600;
+}
+.iss-link-ref-title { color: var(--text-secondary); }
+
+/* Link modal */
+.iss-link-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  margin: -4px -24px 16px;
+  padding: 0 24px;
+}
+.iss-link-tab {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.iss-link-tab:hover  { color: var(--text-primary); }
+.iss-link-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+.iss-link-tab-panel { display: flex; flex-direction: column; gap: 10px; }
+
+.iss-link-dup-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--error-bg);
+  border: 1px solid rgba(216,88,88,0.2);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.iss-link-dup-label input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; }
+.iss-link-dup-text { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+.iss-link-dup-text strong { color: #D85858; }
+
+.iss-link-search { width: 100%; }
+
+.iss-link-results {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--bg-card-inner);
+}
+.iss-link-hint {
+  padding: 14px 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+}
+.iss-link-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.12s;
+}
+.iss-link-item:last-child { border-bottom: none; }
+.iss-link-item:hover      { background: var(--bg-card-h); }
+.iss-link-item.selected   { background: var(--gold-dim); }
+.iss-link-item-primary {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.iss-link-item-secondary {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.iss-link-status {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  text-transform: capitalize;
+}
+.iss-link-status--resolved { background: rgba(82,168,112,0.12); color: #52A870; border-color: rgba(82,168,112,0.25); }
+.iss-link-status--closed   { background: rgba(100,100,120,0.12); color: #9CA3AF; border-color: rgba(100,100,120,0.25); }
+.iss-link-status--open     { background: rgba(212,150,50,0.12); color: var(--warning); border-color: rgba(212,150,50,0.25); }
+.iss-link-status--in-progress { background: rgba(59,130,246,0.12); color: #60A5FA; border-color: rgba(59,130,246,0.25); }
+
+.iss-link-selected {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--gold-dim);
+  border: 1px solid var(--gold-border);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--gold);
+}
+.iss-link-selected svg { flex-shrink: 0; }
+.iss-link-selected > span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.iss-link-deselect {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  transition: color 0.15s;
+}
+.iss-link-deselect:hover { color: var(--error); }
+
+.btn-modal-danger {
+  background: var(--error) !important;
+  border-color: var(--error) !important;
+  box-shadow: 0 4px 18px rgba(216,88,88,0.4) !important;
+}
+
 /* ── Resolution: actions checklist ── */
 .res-actions-grid {
   display: flex;

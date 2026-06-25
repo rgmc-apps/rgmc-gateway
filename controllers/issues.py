@@ -587,6 +587,128 @@ def post_issue_comment(issue_id):
         return jsonify({"error": "Failed to save comment"}), 500
 
 
+@issues_bp.get("/api/admin/issues/search")
+def admin_search_issues():
+    _, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+    q = request.args.get("q", "").strip()
+    try:
+        params = {
+            "select": "id,ticket_number,title,description,status,site_name,employee_name",
+            "order":  "created_at.desc",
+            "limit":  "30",
+        }
+        if q:
+            safe = q.replace("*", "").replace("(", "").replace(")", "")
+            params["or"] = (
+                f"(ticket_number.ilike.*{safe}*,"
+                f"title.ilike.*{safe}*,"
+                f"description.ilike.*{safe}*,"
+                f"employee_name.ilike.*{safe}*,"
+                f"site_name.ilike.*{safe}*)"
+            )
+        rows = supabase_req("GET", "/issues", params=params)
+        return jsonify(rows or [])
+    except Exception as exc:
+        current_app.logger.error("admin_search_issues failed: %s", exc)
+        return jsonify({"error": str(exc)}), 500
+
+
+@issues_bp.post("/api/admin/issues/<issue_id>/link")
+def admin_link_issue(issue_id):
+    admin_username, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+
+    body         = request.get_json(silent=True) or {}
+    link_type    = body.get("link_type", "")       # 'issue' | 'task' | 'dev_item'
+    target_id    = (body.get("target_id") or "").strip()
+    is_duplicate = bool(body.get("is_duplicate"))
+
+    if not link_type or not target_id:
+        return jsonify({"error": "link_type and target_id are required"}), 400
+
+    # Fetch current issue
+    try:
+        rows = supabase_req("GET", "/issues", params={"id": f"eq.{issue_id}", "select": "*"})
+    except Exception as exc:
+        current_app.logger.error("admin_link_issue: fetch issue failed: %s", exc)
+        return jsonify({"error": "Failed to fetch issue"}), 500
+    if not rows:
+        return jsonify({"error": "Issue not found"}), 404
+    issue = rows[0]
+
+    patch = {}
+
+    if link_type == "issue":
+        if target_id == issue_id:
+            return jsonify({"error": "An issue cannot be linked to itself"}), 400
+        # Verify target exists
+        try:
+            t_rows = supabase_req("GET", "/issues", params={
+                "id":     f"eq.{target_id}",
+                "select": "id,ticket_number,title,description",
+            })
+        except Exception as exc:
+            return jsonify({"error": "Failed to fetch target issue"}), 500
+        if not t_rows:
+            return jsonify({"error": "Target issue not found"}), 404
+        target = t_rows[0]
+
+        patch["linked_issue_id"] = target_id
+        patch["is_duplicate"]    = is_duplicate
+
+        if is_duplicate:
+            from datetime import datetime, timezone
+            ticket = target.get("ticket_number") or target_id[:8]
+            label  = target.get("title") or (target.get("description") or "")[:80]
+            patch["status"]           = "resolved"
+            patch["resolution_notes"] = f"Duplicate of #{ticket}" + (f": {label}" if label else "")
+            patch["resolved_by"]      = admin_username
+            patch["resolved_at"]      = datetime.now(timezone.utc).isoformat()
+
+    elif link_type == "task":
+        # Verify task exists
+        try:
+            t_rows = supabase_req("GET", "/tasks", params={"id": f"eq.{target_id}", "select": "id"})
+        except Exception:
+            return jsonify({"error": "Failed to fetch target task"}), 500
+        if not t_rows:
+            return jsonify({"error": "Task not found"}), 404
+        patch["task_id"] = target_id
+
+    elif link_type == "dev_item":
+        # Verify dev item exists
+        try:
+            t_rows = supabase_req("GET", "/dev_items", params={"id": f"eq.{target_id}", "select": "id"})
+        except Exception:
+            return jsonify({"error": "Failed to fetch target dev item"}), 500
+        if not t_rows:
+            return jsonify({"error": "Dev item not found"}), 404
+        patch["dev_item_id"] = target_id
+
+    else:
+        return jsonify({"error": f"Invalid link_type: {link_type}"}), 400
+
+    try:
+        supabase_req("PATCH", "/issues", data=patch, params={"id": f"eq.{issue_id}"})
+    except Exception as exc:
+        current_app.logger.error("admin_link_issue: patch failed: %s", exc)
+        return jsonify({"error": "Failed to link issue"}), 500
+
+    # Send resolved email if marked duplicate
+    if is_duplicate and patch.get("status") == "resolved":
+        try:
+            send_issue_resolved_email(
+                issue, patch.get("resolution_notes", ""), admin_username, "resolved",
+            )
+        except Exception as exc:
+            current_app.logger.error("admin_link_issue: resolved email failed: %s", exc)
+
+    return jsonify({"success": True})
+
+
 @issues_bp.post("/api/admin/issues/<issue_id>/promote-user-task")
 def admin_promote_issue_to_user_task(issue_id):
     admin_username, err = _require_admin()
