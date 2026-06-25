@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify, render_template, current_app
-from services.supabase import supabase_req
+from services.supabase import supabase_req, resolve_action_names
 from services.guards import _require_admin
 from services.email import send_issue_resolved_email, send_task_status_email
 
@@ -124,16 +124,26 @@ def api_update_task(task_id):
         except Exception as exc:
             current_app.logger.warning("api_update_task: could not fetch linked issue: %s", exc)
 
+    task_action_ids  = patch.get("resolution_action_ids") or []
+    task_attach_urls = [u for u in (patch.get("resolution_attachment_urls") or []) if u]
+
     if new_status == "done" and old_status != "done" and issue:
         # Cascade resolve linked issue if not already terminal
         issue_status = issue.get("status", "")
         if issue_status not in ("resolved", "closed"):
             try:
-                supabase_req("PATCH", "/issues",
-                             data={"status": "resolved"},
-                             params={"id": f"eq.{issue_id}"})
+                cascade_patch = {
+                    "status":                     "resolved",
+                    "resolution_action_ids":      task_action_ids or None,
+                    "resolution_attachment_urls": task_attach_urls or None,
+                }
+                supabase_req("PATCH", "/issues", data=cascade_patch, params={"id": f"eq.{issue_id}"})
                 try:
-                    send_issue_resolved_email(issue, "", admin_username, "resolved")
+                    task_action_names = resolve_action_names(task_action_ids)
+                    send_issue_resolved_email(
+                        issue, "", admin_username, "resolved",
+                        action_names=task_action_names, attachment_urls=task_attach_urls,
+                    )
                 except Exception as email_exc:
                     current_app.logger.error("send_issue_resolved_email failed: %s", email_exc)
             except Exception as exc:
@@ -145,7 +155,11 @@ def api_update_task(task_id):
         new_order = STATUS_ORDER.get(new_status, -1)
         if new_order > old_order and issue:
             try:
-                send_task_status_email(old_task, issue, old_status, new_status, admin_username)
+                email_action_names = resolve_action_names(task_action_ids) if new_status == "done" else []
+                send_task_status_email(
+                    old_task, issue, old_status, new_status, admin_username,
+                    action_names=email_action_names, attachment_urls=task_attach_urls if new_status == "done" else [],
+                )
             except Exception as exc:
                 current_app.logger.error("send_task_status_email failed: %s", exc)
 

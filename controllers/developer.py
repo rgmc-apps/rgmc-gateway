@@ -1,7 +1,7 @@
 from datetime import datetime, timezone, timedelta
 from flask import Blueprint, request, jsonify, render_template, current_app
 
-from services.supabase import supabase_req
+from services.supabase import supabase_req, resolve_action_names
 from services.guards import _require_developer
 from services.sites import _invalidate_sites_cache
 from services.email import send_issue_resolved_email
@@ -148,14 +148,22 @@ def dev_update_item(item_id):
                     if dev_row:
                         u = dev_row[0]
                         resolver_name = f"{u.get('first_name') or ''} {u.get('last_name') or ''}".strip() or dev_username
+                    dev_action_ids   = data.get("resolution_action_ids") or []
+                    dev_attach_urls  = [u for u in (data.get("resolution_attachment_urls") or []) if u]
                     issue_patch = {
-                        "status":           "resolved",
-                        "resolution_notes": remarks or None,
-                        "resolved_by":      resolver_name or None,
-                        "resolved_at":      datetime.now(timezone.utc).isoformat(),
+                        "status":                     "resolved",
+                        "resolution_notes":           remarks or None,
+                        "resolved_by":                resolver_name or None,
+                        "resolved_at":                datetime.now(timezone.utc).isoformat(),
+                        "resolution_action_ids":      dev_action_ids or None,
+                        "resolution_attachment_urls": dev_attach_urls or None,
                     }
                     supabase_req("PATCH", "/issues", data=issue_patch, params={"id": f"eq.{issue['id']}"})
-                    send_issue_resolved_email(issue, remarks, resolver_name, "resolved")
+                    dev_action_names = resolve_action_names(dev_action_ids)
+                    send_issue_resolved_email(
+                        issue, remarks, resolver_name, "resolved",
+                        action_names=dev_action_names, attachment_urls=dev_attach_urls,
+                    )
         except Exception as exc:
             current_app.logger.error("dev_update_item issue cascade failed: %s", exc)
 

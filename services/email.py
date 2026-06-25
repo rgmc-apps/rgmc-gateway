@@ -362,7 +362,14 @@ def send_admin_granted_email(user_record: dict) -> bool:
     return _smtp_send(msg, [user_email])
 
 
-def send_issue_resolved_email(issue: dict, resolution_notes: str, resolver_name: str, new_status: str) -> bool:
+def send_issue_resolved_email(
+    issue: dict,
+    resolution_notes: str,
+    resolver_name: str,
+    new_status: str,
+    action_names: list | None = None,
+    attachment_urls: list | None = None,
+) -> bool:
     user_email = issue.get("email", "")
     if not user_email:
         logger.warning("Issue has no reporter email — skipping resolved notification")
@@ -396,6 +403,36 @@ def send_issue_resolved_email(issue: dict, resolution_notes: str, resolver_name:
         <span style="font-size:15px;font-weight:600;color:#1e293b;">{_he(resolver_name)}</span>
       </p>"""
 
+    actions_block = ""
+    if action_names:
+        pills = "".join(
+            f'<span style="display:inline-block;margin:3px 4px 3px 0;padding:4px 12px;'
+            f'background:#f0fdf4;border:1px solid rgba(21,128,61,.22);border-radius:20px;'
+            f'font-size:13px;color:#15803d;font-weight:600;">&#10003;&nbsp;{_he(n)}</span>'
+            for n in action_names
+        )
+        actions_block = f"""
+      <div style="margin-bottom:24px;">
+        <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Actions Taken</p>
+        <div style="line-height:2;">{pills}</div>
+      </div>"""
+
+    attachments_block = ""
+    valid_urls = [u for u in (attachment_urls or []) if u][:5]
+    if valid_urls:
+        thumbs = "".join(
+            f'<a href="{_he(u)}" style="display:inline-block;margin:0 6px 6px 0;vertical-align:top;">'
+            f'<img src="{_he(u)}" width="120" height="90" '
+            f'style="display:block;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;" alt="attachment">'
+            f'</a>'
+            for u in valid_urls
+        )
+        attachments_block = f"""
+      <div style="margin-bottom:24px;">
+        <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Resolution Attachments</p>
+        <div>{thumbs}</div>
+      </div>"""
+
     desc_preview = _he(raw_desc)
     if len(desc_preview) > 300:
         desc_preview = desc_preview[:300] + "…"
@@ -423,6 +460,8 @@ def send_issue_resolved_email(issue: dict, resolution_notes: str, resolver_name:
 
       {notes_block}
       {resolver_block}
+      {actions_block}
+      {attachments_block}
 
       <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">
         If the issue persists or you have further questions, please contact the IT department at
@@ -540,7 +579,15 @@ def send_issue_assigned_email(issue: dict, developer: dict, assigned_by_name: st
     return _smtp_send(msg, [dev_email])
 
 
-def send_task_status_email(task: dict, issue: dict, old_status: str, new_status: str, changed_by: str) -> bool:
+def send_task_status_email(
+    task: dict,
+    issue: dict,
+    old_status: str,
+    new_status: str,
+    changed_by: str,
+    action_names: list | None = None,
+    attachment_urls: list | None = None,
+) -> bool:
     user_email = issue.get("email", "")
     if not user_email:
         return False
@@ -574,6 +621,44 @@ def send_task_status_email(task: dict, issue: dict, old_status: str, new_status:
           <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:monospace;font-weight:700;">{_he(ticket_num)}</td>
         </tr>""" if ticket_num else ""
 
+    # Resolution fields — only shown when status becomes done
+    actions_block = ""
+    if new_status == "done" and action_names:
+        pills = "".join(
+            f'<span style="display:inline-block;margin:3px 4px 3px 0;padding:4px 12px;'
+            f'background:#f0fdf4;border:1px solid rgba(21,128,61,.22);border-radius:20px;'
+            f'font-size:13px;color:#15803d;font-weight:600;">&#10003;&nbsp;{_he(n)}</span>'
+            for n in action_names
+        )
+        actions_block = f"""
+      <div style="margin-bottom:24px;">
+        <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Actions Taken</p>
+        <div style="line-height:2;">{pills}</div>
+      </div>"""
+
+    attachments_block = ""
+    if new_status == "done":
+        valid_urls = [u for u in (attachment_urls or []) if u][:5]
+        if valid_urls:
+            thumbs = "".join(
+                f'<a href="{_he(u)}" style="display:inline-block;margin:0 6px 6px 0;vertical-align:top;">'
+                f'<img src="{_he(u)}" width="120" height="90" '
+                f'style="display:block;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;" alt="attachment">'
+                f'</a>'
+                for u in valid_urls
+            )
+            attachments_block = f"""
+      <div style="margin-bottom:24px;">
+        <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Resolution Attachments</p>
+        <div>{thumbs}</div>
+      </div>"""
+
+    footer_note = (
+        "Your issue has been resolved by the team. If the problem persists, please submit a new report."
+        if new_status == "done"
+        else "You will be notified again when the status changes further or when your issue is fully resolved."
+    )
+
     html = f"""<!DOCTYPE html>
 <html>
 <body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
@@ -605,9 +690,10 @@ def send_task_status_email(task: dict, issue: dict, old_status: str, new_status:
         </tr>
       </table>
 
-      <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">
-        You will be notified again when the status changes further or when your issue is fully resolved.
-      </p>
+      {actions_block}
+      {attachments_block}
+
+      <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">{footer_note}</p>
       {_ticket_btn_html(issue.get("id"))}
     </div>
     <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>

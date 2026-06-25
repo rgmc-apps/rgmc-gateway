@@ -3,7 +3,7 @@ import requests
 from flask import Blueprint, request, jsonify, current_app, render_template
 
 from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
-from services.supabase import supabase_req
+from services.supabase import supabase_req, resolve_action_names
 from services.guards import _require_admin
 from services.email import send_report_email, send_issue_resolved_email, send_issue_assigned_email, send_helpdesk_email, send_helpdesk_confirmation_email
 
@@ -338,8 +338,13 @@ def admin_patch_issue(issue_id):
     if notify_resolved:
         resolution_notes = (patch.get("resolution_notes") or "").strip()
         resolver_name    = (patch.get("resolved_by") or "").strip()
+        action_names     = resolve_action_names(patch.get("resolution_action_ids") or [])
+        attachment_urls  = [u for u in (patch.get("resolution_attachment_urls") or []) if u]
         try:
-            send_issue_resolved_email(issue, resolution_notes, resolver_name, new_status)
+            send_issue_resolved_email(
+                issue, resolution_notes, resolver_name, new_status,
+                action_names=action_names, attachment_urls=attachment_urls,
+            )
         except Exception as exc:
             current_app.logger.error("send_issue_resolved_email failed: %s", exc)
 
