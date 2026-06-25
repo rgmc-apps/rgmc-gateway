@@ -766,6 +766,28 @@ def admin_common_issues():
     except Exception:
         pass
 
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+
+    def _parse_dt(s):
+        if not s:
+            return None
+        try:
+            return datetime.fromisoformat(s.replace("Z", "+00:00"))
+        except Exception:
+            return None
+
+    def _age_days(created_at):
+        ct = _parse_dt(created_at)
+        return round((now - ct).total_seconds() / 86400, 1) if ct else None
+
+    def _res_days(created_at, resolved_at):
+        ct = _parse_dt(created_at)
+        rt = _parse_dt(resolved_at)
+        if ct and rt:
+            return max(0.0, round((rt - ct).total_seconds() / 86400, 1))
+        return None
+
     def _enrich(iss):
         ids = iss.get("resolution_action_ids") or []
         return {
@@ -782,10 +804,14 @@ def admin_common_issues():
             "resolution_action_names":    [action_name_map[i] for i in ids if i in action_name_map],
             "resolution_attachment_urls": [u for u in (iss.get("resolution_attachment_urls") or []) if u],
             "created_at":                 iss.get("created_at"),
+            "resolution_days":            _res_days(iss.get("created_at"), iss.get("resolved_at")),
         }
 
-    by_system   = defaultdict(lambda: {"total": 0, "open": 0, "resolved": 0, "resolutions": []})
-    by_category = defaultdict(lambda: {"total": 0, "open": 0, "resolved": 0, "resolutions": []})
+    def _new_group():
+        return {"total": 0, "open": 0, "resolved": 0, "resolutions": [], "open_ages_days": []}
+
+    by_system   = defaultdict(_new_group)
+    by_category = defaultdict(_new_group)
 
     for iss in (issues or []):
         sys_key  = (iss.get("site_name") or "").strip() or "Unknown System"
@@ -799,6 +825,13 @@ def admin_common_issues():
                 grp[key]["resolutions"].append(_enrich(iss))
             else:
                 grp[key]["open"] += 1
+                age = _age_days(iss.get("created_at"))
+                if age is not None:
+                    grp[key]["open_ages_days"].append(age)
+
+    def _avg(lst):
+        vals = [v for v in lst if v is not None]
+        return round(sum(vals) / len(vals), 1) if vals else None
 
     def _sort(d):
         return sorted(
@@ -807,7 +840,25 @@ def admin_common_issues():
             reverse=True,
         )
 
-    return jsonify({"by_system": _sort(by_system), "by_category": _sort(by_category)})
+    # Global stats across all issues
+    all_open_ages  = [a for g in by_system.values() for a in g["open_ages_days"]]
+    all_res_days   = [r["resolution_days"] for g in by_system.values()
+                      for r in g["resolutions"] if r.get("resolution_days") is not None]
+    global_stats = {
+        "total":                sum(g["total"]    for g in by_system.values()),
+        "resolved":             sum(g["resolved"] for g in by_system.values()),
+        "open":                 sum(g["open"]     for g in by_system.values()),
+        "avg_open_age_days":    _avg(all_open_ages),
+        "avg_resolution_days":  _avg(all_res_days),
+        "min_resolution_days":  min(all_res_days) if all_res_days else None,
+        "max_resolution_days":  max(all_res_days) if all_res_days else None,
+    }
+
+    return jsonify({
+        "by_system":   _sort(by_system),
+        "by_category": _sort(by_category),
+        "global_stats": global_stats,
+    })
 
 
 # ── Config: Actions ───────────────────────────────────────────────────────────

@@ -167,7 +167,11 @@
         </div>
         <div class="ci-chart-card ci-chart-bars-card">
           <div class="ci-chart-head">
-            <span class="ci-chart-label">Issue Volume</span>
+            <div class="ci-metric-toggle" id="ciMetricToggle">
+              <button class="ci-metric-btn active" data-metric="volume"   onclick="ciSetMetric('volume')">Volume</button>
+              <button class="ci-metric-btn"         data-metric="open_age" onclick="ciSetMetric('open_age')">Open Age</button>
+              <button class="ci-metric-btn"         data-metric="res_time" onclick="ciSetMetric('res_time')">Res. Time</button>
+            </div>
             <span class="ci-chart-sub" id="ciBarsSubLabel"></span>
           </div>
           <div id="ciBarsChart" class="ci-bars-body"></div>

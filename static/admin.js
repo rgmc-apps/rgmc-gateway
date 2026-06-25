@@ -2054,6 +2054,7 @@ let _ciGroupBy   = 'system';
 let _ciSearch    = '';
 let _ciExpanded  = new Set();
 let _ciShowCharts = true;
+let _ciMetric     = 'volume'; // 'volume' | 'open_age' | 'res_time'
 
 async function loadCommonIssues(force = false) {
   if (_ciData && !force) { _renderCommonIssues(); return; }
@@ -2089,12 +2090,38 @@ function ciToggleCharts() {
   if (_ciShowCharts) _renderCiCharts();
 }
 
+function ciSetMetric(m) {
+  _ciMetric = m;
+  document.querySelectorAll('.ci-metric-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.metric === m)
+  );
+  _ciDrawBars((_ciGroupBy === 'system' ? _ciData?.by_system : _ciData?.by_category) || []);
+}
+
 function _renderCiCharts() {
   if (!_ciData || !_ciShowCharts) return;
   const groups   = (_ciGroupBy === 'system' ? _ciData.by_system : _ciData.by_category) || [];
-  const total    = groups.reduce((s, g) => s + g.total,    0);
-  const resolved = groups.reduce((s, g) => s + g.resolved, 0);
-  const open     = groups.reduce((s, g) => s + g.open,     0);
+  const gs       = _ciData.global_stats || {};
+  const total    = gs.total    ?? groups.reduce((s, g) => s + g.total,    0);
+  const resolved = gs.resolved ?? groups.reduce((s, g) => s + g.resolved, 0);
+  const open     = gs.open     ?? groups.reduce((s, g) => s + g.open,     0);
+
+  // Extended stat chips
+  const avgAge = gs.avg_open_age_days != null
+    ? `<span class="ci-stat ci-stat--age"><span class="ci-stat-num">${gs.avg_open_age_days}</span> avg open days</span>`
+    : '';
+  const avgRes = gs.avg_resolution_days != null
+    ? `<span class="ci-stat ci-stat--res"><span class="ci-stat-num">${gs.avg_resolution_days}</span> avg res. days</span>`
+    : '';
+  const fastRes = gs.min_resolution_days != null
+    ? `<span class="ci-stat ci-stat--fast"><span class="ci-stat-num">${gs.min_resolution_days}</span> fastest res.</span>`
+    : '';
+  document.getElementById('ciStats').innerHTML =
+    `<span class="ci-stat"><span class="ci-stat-num">${total}</span> total</span>` +
+    `<span class="ci-stat ci-stat--resolved"><span class="ci-stat-num">${resolved}</span> resolved</span>` +
+    `<span class="ci-stat ci-stat--open"><span class="ci-stat-num">${open}</span> open</span>` +
+    avgAge + avgRes + fastRes;
+
   _ciDrawRing(resolved, open, total);
   _ciDrawBars(groups);
 }
@@ -2157,45 +2184,118 @@ function _ciDrawRing(resolved, open, total) {
   }));
 }
 
+function _ciAvg(arr) {
+  const vals = (arr || []).filter(v => v != null);
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+}
+
 function _ciDrawBars(groups) {
   const wrap     = document.getElementById('ciBarsChart');
   const subLabel = document.getElementById('ciBarsSubLabel');
   if (!wrap) return;
 
-  const top = groups.slice(0, 10);
-  const max = Math.max(...top.map(g => g.total), 1);
-
-  if (subLabel) {
-    subLabel.textContent = top.length < groups.length
-      ? `top ${top.length} of ${groups.length}`
-      : `${groups.length} group${groups.length !== 1 ? 's' : ''}`;
+  // Sort by the active metric so highest-value groups appear first
+  let sorted;
+  if (_ciMetric === 'open_age') {
+    sorted = [...groups]
+      .map(g => ({ ...g, _val: _ciAvg(g.open_ages_days) }))
+      .filter(g => g._val != null)
+      .sort((a, b) => b._val - a._val)
+      .slice(0, 10);
+  } else if (_ciMetric === 'res_time') {
+    sorted = [...groups]
+      .map(g => ({ ...g, _val: _ciAvg(g.resolutions.map(r => r.resolution_days)) }))
+      .filter(g => g._val != null)
+      .sort((a, b) => b._val - a._val)
+      .slice(0, 10);
+  } else {
+    sorted = groups.slice(0, 10).map(g => ({ ...g, _val: g.total }));
   }
 
-  if (!top.length) {
-    wrap.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:12px 0">No data</div>';
+  if (subLabel) {
+    const total = groups.length;
+    const shown = sorted.length;
+    const metricLabel = _ciMetric === 'open_age' ? 'with open issues'
+      : _ciMetric === 'res_time' ? 'with resolution data' : '';
+    subLabel.textContent = shown < total
+      ? `top ${shown} of ${total}${metricLabel ? ' · ' + metricLabel : ''}`
+      : `${total} group${total !== 1 ? 's' : ''}${metricLabel ? ' · ' + metricLabel : ''}`;
+  }
+
+  if (!sorted.length) {
+    const msg = _ciMetric === 'open_age' ? 'No open issues to show aging data.'
+      : _ciMetric === 'res_time' ? 'No resolved issues with timing data.'
+      : 'No data.';
+    wrap.innerHTML = `<div style="color:var(--text-muted);font-size:12px;padding:12px 0">${msg}</div>`;
     return;
   }
 
-  wrap.innerHTML = top.map(g => {
-    const totalW = (g.total / max) * 100;
-    const resW   = g.total > 0 ? (g.resolved / g.total) * totalW : 0;
-    const label  = escHtml(g.group.length > 22 ? g.group.slice(0, 20) + '…' : g.group);
-    const resPct = g.total > 0 ? Math.round((g.resolved / g.total) * 100) : 0;
-    return `
-      <div class="ci-bar-row">
-        <div class="ci-bar-label" title="${escHtml(g.group)}">${label}</div>
-        <div class="ci-bar-track">
-          <div class="ci-bar-total" style="width:${totalW}%"></div>
-          <div class="ci-bar-res" data-w="${resW}%" style="width:0%">
-            ${resPct > 0 ? `<span class="ci-bar-pct">${resPct}%</span>` : ''}
+  const maxVal = Math.max(...sorted.map(g => g._val), 0.1);
+
+  if (_ciMetric === 'volume') {
+    wrap.innerHTML = sorted.map(g => {
+      const totalW = (g.total / maxVal) * 100;
+      const resW   = g.total > 0 ? (g.resolved / g.total) * totalW : 0;
+      const resPct = g.total > 0 ? Math.round((g.resolved / g.total) * 100) : 0;
+      const label  = escHtml(g.group.length > 22 ? g.group.slice(0, 20) + '…' : g.group);
+      return `
+        <div class="ci-bar-row">
+          <div class="ci-bar-label" title="${escHtml(g.group)}">${label}</div>
+          <div class="ci-bar-track">
+            <div class="ci-bar-total" style="width:${totalW}%"></div>
+            <div class="ci-bar-res" data-w="${resW}%" style="width:0%">
+              ${resPct > 0 ? `<span class="ci-bar-pct">${resPct}%</span>` : ''}
+            </div>
           </div>
-        </div>
-        <div class="ci-bar-num">${g.total}</div>
-      </div>`;
-  }).join('');
+          <div class="ci-bar-num">${g.total}</div>
+        </div>`;
+    }).join('');
+
+  } else if (_ciMetric === 'open_age') {
+    wrap.innerHTML = sorted.map(g => {
+      const val    = g._val;
+      const w      = (val / maxVal) * 100;
+      const label  = escHtml(g.group.length > 22 ? g.group.slice(0, 20) + '…' : g.group);
+      // Color: green <7d, amber 7–30d, red >30d
+      const color  = val < 7 ? '#52A870' : val < 30 ? '#D49632' : '#D85858';
+      const dispVal = val < 1 ? '<1' : Math.round(val);
+      return `
+        <div class="ci-bar-row">
+          <div class="ci-bar-label" title="${escHtml(g.group)}">${label}</div>
+          <div class="ci-bar-track">
+            <div class="ci-bar-res ci-bar-age" data-w="${w}%" data-color="${color}" style="width:0%;background:${color}">
+              <span class="ci-bar-pct">${dispVal}d</span>
+            </div>
+          </div>
+          <div class="ci-bar-num ci-bar-num--days">${dispVal}<span class="ci-bar-unit">d</span></div>
+        </div>`;
+    }).join('');
+
+  } else { // res_time
+    wrap.innerHTML = sorted.map(g => {
+      const val    = g._val;
+      const w      = (val / maxVal) * 100;
+      const label  = escHtml(g.group.length > 22 ? g.group.slice(0, 20) + '…' : g.group);
+      const color  = val < 1 ? '#52A870' : val < 7 ? '#C4972A' : '#D85858';
+      const dispVal = val < 1 ? '<1' : Math.round(val);
+      const count  = g.resolutions.length;
+      return `
+        <div class="ci-bar-row">
+          <div class="ci-bar-label" title="${escHtml(g.group)}">${label}</div>
+          <div class="ci-bar-track">
+            <div class="ci-bar-res ci-bar-restime" data-w="${w}%" data-color="${color}" style="width:0%;background:${color}">
+              <span class="ci-bar-pct">${dispVal}d</span>
+            </div>
+          </div>
+          <div class="ci-bar-num ci-bar-num--days">${dispVal}<span class="ci-bar-unit">d</span>
+            <span class="ci-bar-count-sub">${count} res.</span>
+          </div>
+        </div>`;
+    }).join('');
+  }
 
   requestAnimationFrame(() => {
-    wrap.querySelectorAll('.ci-bar-res').forEach(el => { el.style.width = el.dataset.w; });
+    wrap.querySelectorAll('[data-w]').forEach(el => { el.style.width = el.dataset.w; });
   });
 }
 
