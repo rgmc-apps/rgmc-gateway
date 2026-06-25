@@ -1890,7 +1890,7 @@ function _renderCiGroup(g) {
   const resolvedPct = g.total > 0 ? Math.round((g.resolved / g.total) * 100) : 0;
 
   return `<div class="ci-group-card${expanded ? ' expanded' : ''}">
-    <div class="ci-group-header" onclick="ciToggleGroup(${JSON.stringify(g.group)})">
+    <div class="ci-group-header" onclick='ciToggleGroup(${JSON.stringify(g.group)})'>
       <div class="ci-group-title-row">
         <svg class="ci-chevron" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         <span class="ci-group-name">${key}</span>
