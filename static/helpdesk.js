@@ -388,6 +388,7 @@ async function hdSubmit(e) {
 document.addEventListener('DOMContentLoaded', async () => {
   await Promise.all([_loadCompanies(), _loadCategories(), _loadDepartments()]);
   await _applyUrlParams();
+  hidePageLoader();
 
   const zone = document.getElementById('hdDropZone');
   if (zone) {

@@ -355,6 +355,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       saveSession(session);
     }
   } catch { /* use session data as fallback */ }
+  hidePageLoader();
 
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeProfileMenu(); });
   document.addEventListener('click',   () => closeProfileMenu());

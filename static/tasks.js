@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   initColArcs();
   initPhysicsDrag();
-  loadTaskMembers().then(() => loadTasks());
+  loadTaskMembers().then(() => loadTasks()).then(() => hidePageLoader());
 
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeTaskDoneRemarksModal(); closeTaskDetailModal(); closeProfileMenu(); }
@@ -627,7 +627,7 @@ async function _onDragRelease() {
 async function deleteTask(id) {
   const task = _tasks.find(t => t.id === id);
   const name = task?.task_name || id;
-  if (!confirm(`Delete "${name}"? This also removes all activity logs and cannot be undone.`)) return;
+  if (!await showConfirm({ title: 'Delete Task', message: `Delete "${name}"?`, detail: 'This also removes all activity logs and cannot be undone.', confirmText: 'Delete', danger: true })) return;
   try {
     const res = await fetch(`/api/tasks/${encodeURIComponent(id)}`, {
       method:  'DELETE',

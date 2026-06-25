@@ -186,9 +186,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   _loadAdminCompanies();
   _loadAdminDepartments();
+  setTimeout(hidePageLoader, 600);
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape')      { closeLightbox(); closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); closeCfgCompanyModal(); closeCfgCategoryModal(); closeCfgTypeModal(); closeCfgNsiModal(); closeCfgBrandModal(); closeCfgDeptModal(); closeAddUserModal(); closeAllUserDropdowns(); _closeIssActionsMenu(); }
+    if (e.key === 'Escape')      { closeLinkedItemModal(); closeLightbox(); closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); closeCfgCompanyModal(); closeCfgCategoryModal(); closeCfgTypeModal(); closeCfgNsiModal(); closeCfgBrandModal(); closeCfgDeptModal(); closeAddUserModal(); closeAllUserDropdowns(); _closeIssActionsMenu(); }
     if (e.key === 'ArrowLeft')   lightboxNav(-1);
     if (e.key === 'ArrowRight')  lightboxNav(1);
   });
@@ -317,7 +318,7 @@ function renderRequestRow(r, status) {
 async function approveRequest(id) {
   const r = _requestsCache.find(x => x.id === id);
   const name = r ? `${r.first_name} ${r.last_name}`.trim() : id;
-  if (!confirm(`Approve the access request from ${name}?\n\nThis will generate a username and send a notification email.`)) return;
+  if (!await showConfirm({ title: 'Approve Request', message: `Approve the access request from ${name}?`, detail: 'This will generate a username and send a notification email.', confirmText: 'Approve' })) return;
 
   try {
     const res = await fetch(`/api/admin/requests/${encodeURIComponent(id)}/approve`, {
@@ -521,7 +522,7 @@ function closeAllUserDropdowns() {
 async function toggleAdmin(username, currentIsAdmin) {
   const newVal = !currentIsAdmin;
   const label  = newVal ? 'grant admin to' : 'revoke admin from';
-  if (!confirm(`Are you sure you want to ${label} "${username}"?`)) return;
+  if (!await showConfirm({ title: 'Change Role', message: `Are you sure you want to ${label} "${username}"?`, confirmText: 'Confirm', danger: !newVal })) return;
 
   try {
     const res = await fetch(`/api/admin/users/${encodeURIComponent(username)}`, {
@@ -540,7 +541,7 @@ async function toggleAdmin(username, currentIsAdmin) {
 async function toggleDeveloper(username, currentIsDev) {
   const newVal = !currentIsDev;
   const label  = newVal ? 'grant developer access to' : 'revoke developer access from';
-  if (!confirm(`Are you sure you want to ${label} "${username}"?`)) return;
+  if (!await showConfirm({ title: 'Change Role', message: `Are you sure you want to ${label} "${username}"?`, confirmText: 'Confirm', danger: !newVal })) return;
 
   try {
     const res = await fetch(`/api/admin/users/${encodeURIComponent(username)}`, {
@@ -559,7 +560,7 @@ async function toggleDeveloper(username, currentIsDev) {
 async function toggleManagement(username, currentIsMgmt) {
   const newVal = !currentIsMgmt;
   const label  = newVal ? 'grant management access to' : 'revoke management access from';
-  if (!confirm(`Are you sure you want to ${label} "${username}"?`)) return;
+  if (!await showConfirm({ title: 'Change Role', message: `Are you sure you want to ${label} "${username}"?`, confirmText: 'Confirm', danger: !newVal })) return;
 
   try {
     const res = await fetch(`/api/admin/users/${encodeURIComponent(username)}`, {
@@ -578,7 +579,7 @@ async function toggleManagement(username, currentIsMgmt) {
 async function toggleDeptHead(username, currentIsDeptHead) {
   const newVal = !currentIsDeptHead;
   const label  = newVal ? 'grant department head access to' : 'revoke department head access from';
-  if (!confirm(`Are you sure you want to ${label} "${username}"?`)) return;
+  if (!await showConfirm({ title: 'Change Role', message: `Are you sure you want to ${label} "${username}"?`, confirmText: 'Confirm', danger: !newVal })) return;
 
   try {
     const res = await fetch(`/api/admin/users/${encodeURIComponent(username)}`, {
@@ -595,7 +596,7 @@ async function toggleDeptHead(username, currentIsDeptHead) {
 }
 
 async function deleteUser(username) {
-  if (!confirm(`Delete user "${username}"? This cannot be undone. They will lose portal access.`)) return;
+  if (!await showConfirm({ title: 'Delete User', message: `Delete user "${username}"?`, detail: 'This cannot be undone. They will lose portal access.', confirmText: 'Delete', danger: true })) return;
   try {
     const res = await fetch(`/api/admin/users/${encodeURIComponent(username)}`, {
       method:  'DELETE',
@@ -1012,7 +1013,7 @@ function showSysError(msg) {
 }
 
 async function deleteSystem(id) {
-  if (!confirm(`Delete system "${id}"? Users will lose access to it on next sign-in.`)) return;
+  if (!await showConfirm({ title: 'Delete System', message: `Delete system "${id}"?`, detail: 'Users will lose access to it on next sign-in.', confirmText: 'Delete', danger: true })) return;
   try {
     const res = await fetch(`/api/admin/systems/${encodeURIComponent(id)}`, {
       method:  'DELETE',
@@ -1520,7 +1521,9 @@ async function openIssueModal(id) {
   const devGroup = document.getElementById('issueDevItemGroup');
   if (issue.dev_item_id) {
     devGroup.style.display = '';
-    document.getElementById('issueDevItemId').textContent = issue.dev_item_id;
+    document.getElementById('issueDevItemId').textContent = issue.dev_item_id.slice(0, 8) + '…';
+    const devBtn = document.getElementById('issueDevItemBtn');
+    devBtn.onclick = () => openLinkedItemModal('dev_item', issue.dev_item_id);
   } else {
     devGroup.style.display = 'none';
   }
@@ -1529,7 +1532,9 @@ async function openIssueModal(id) {
   const taskGroup = document.getElementById('issueTaskGroup');
   if (issue.task_id) {
     taskGroup.style.display = '';
-    document.getElementById('issueTaskId').textContent = issue.task_id;
+    document.getElementById('issueTaskId').textContent = issue.task_id.slice(0, 8) + '…';
+    const taskBtn = document.getElementById('issueTaskBtn');
+    taskBtn.onclick = () => openLinkedItemModal('task', issue.task_id);
   } else {
     taskGroup.style.display = 'none';
   }
@@ -1538,7 +1543,9 @@ async function openIssueModal(id) {
   const userTaskGroup = document.getElementById('issueUserTaskGroup');
   if (issue.user_task_id) {
     userTaskGroup.style.display = '';
-    document.getElementById('issueUserTaskId').textContent = issue.user_task_id;
+    document.getElementById('issueUserTaskId').textContent = issue.user_task_id.slice(0, 8) + '…';
+    const userTaskBtn = document.getElementById('issueUserTaskBtn');
+    userTaskBtn.onclick = () => openLinkedItemModal('user_task', issue.user_task_id);
   } else {
     userTaskGroup.style.display = 'none';
   }
@@ -1617,6 +1624,138 @@ function closeIssueModal() {
 
 function overlayCloseIssue(e) {
   if (e.target === document.getElementById('issueModal')) closeIssueModal();
+}
+
+/* ── Linked item preview modal ── */
+const _linkedItemTypeLabels = {
+  dev_item:  { title: 'Dev Board Item',  endpoint: id => `/api/admin/linked/dev-item/${id}`  },
+  task:      { title: 'Task Board Item', endpoint: id => `/api/admin/linked/task/${id}`       },
+  user_task: { title: 'User Task',       endpoint: id => `/api/admin/linked/user-task/${id}`  },
+};
+
+async function openLinkedItemModal(type, id) {
+  const meta  = _linkedItemTypeLabels[type];
+  document.getElementById('linkedItemModalTitle').textContent = meta?.title || 'Linked Item';
+  document.getElementById('linkedItemModalMeta').textContent  = '';
+  document.getElementById('linkedItemModalBody').innerHTML    =
+    '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  document.getElementById('linkedItemModal').classList.add('open');
+
+  try {
+    const res = await fetch(meta.endpoint(id), { headers: authHeaders() });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed to load');
+    const item = await res.json();
+    document.getElementById('linkedItemModalBody').innerHTML = _renderLinkedItemBody(type, item);
+    document.getElementById('linkedItemModalMeta').textContent = _linkedItemCode(type, item);
+  } catch (err) {
+    document.getElementById('linkedItemModalBody').innerHTML =
+      `<div class="admin-error">${escHtml(err.message)}</div>`;
+  }
+}
+
+function _linkedItemCode(type, item) {
+  if (type === 'dev_item') return item.dev_item_code || '';
+  if (type === 'task')     return item.task_code     || '';
+  return '';
+}
+
+function _linkedItemStatusCls(status) {
+  const map = {
+    pending: 'status-pending', ongoing: 'status-ongoing', coding: 'status-coding',
+    testing: 'status-testing', done: 'status-done',
+    open: 'status-open', in_progress: 'status-in-progress',
+    resolved: 'status-resolved', closed: 'status-closed',
+  };
+  return map[status] || '';
+}
+
+function _fmtLinkedDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function _renderLinkedItemBody(type, item) {
+  const rows = [];
+
+  const statusHtml = item.status
+    ? `<span class="linked-status-badge linked-status-${escHtml(item.status.replace('_','-'))}">${escHtml(item.status.replace('_',' '))}</span>`
+    : '—';
+
+  if (type === 'dev_item') {
+    const name = escHtml(item.title || '—');
+    const desc = item.description ? escHtml(item.description) : '';
+    rows.push(
+      `<div class="form-group form-group-full"><label class="form-label">Title</label><p class="modal-detail-val">${name}</p></div>`,
+      `<div class="form-row">` +
+        `<div class="form-group"><label class="form-label">Status</label><p class="modal-detail-val">${statusHtml}</p></div>` +
+        `<div class="form-group"><label class="form-label">Type</label><p class="modal-detail-val">${escHtml(item.dev_item_type || '—')}</p></div>` +
+      `</div>`,
+      `<div class="form-row">` +
+        `<div class="form-group"><label class="form-label">Start Date</label><p class="modal-detail-val">${_fmtLinkedDate(item.start_date)}</p></div>` +
+        `<div class="form-group"><label class="form-label">Est. End Date</label><p class="modal-detail-val">${_fmtLinkedDate(item.estimated_end_date)}</p></div>` +
+      `</div>`,
+    );
+    if (item.actual_end_date) rows.push(
+      `<div class="form-group"><label class="form-label">Completed</label><p class="modal-detail-val">${_fmtLinkedDate(item.actual_end_date)}</p></div>`
+    );
+    if (item.created_by) rows.push(
+      `<div class="form-group"><label class="form-label">Created by</label><p class="modal-detail-val">${escHtml(item.created_by)}</p></div>`
+    );
+    if (desc) rows.push(
+      `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${desc.replace(/\n/g,'<br>')}</p></div>`
+    );
+
+  } else if (type === 'task') {
+    const name = escHtml(item.task_name || '—');
+    const desc = item.description ? escHtml(item.description) : '';
+    rows.push(
+      `<div class="form-group form-group-full"><label class="form-label">Task Name</label><p class="modal-detail-val">${name}</p></div>`,
+      `<div class="form-row">` +
+        `<div class="form-group"><label class="form-label">Status</label><p class="modal-detail-val">${statusHtml}</p></div>` +
+        `<div class="form-group"><label class="form-label">Type</label><p class="modal-detail-val">${escHtml(item.task_type || '—')}</p></div>` +
+      `</div>`,
+      `<div class="form-row">` +
+        `<div class="form-group"><label class="form-label">Start Date</label><p class="modal-detail-val">${_fmtLinkedDate(item.start_date)}</p></div>` +
+        `<div class="form-group"><label class="form-label">Est. End Date</label><p class="modal-detail-val">${_fmtLinkedDate(item.estimated_end_date)}</p></div>` +
+      `</div>`,
+    );
+    if (item.assigned_to) rows.push(
+      `<div class="form-group"><label class="form-label">Assigned To</label><p class="modal-detail-val">${escHtml(item.assigned_to)}</p></div>`
+    );
+    if (item.created_by) rows.push(
+      `<div class="form-group"><label class="form-label">Created by</label><p class="modal-detail-val">${escHtml(item.created_by)}</p></div>`
+    );
+    if (desc) rows.push(
+      `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${desc.replace(/\n/g,'<br>')}</p></div>`
+    );
+
+  } else { // user_task
+    const name = escHtml(item.title || '—');
+    const desc = item.description ? escHtml(item.description) : '';
+    rows.push(
+      `<div class="form-group form-group-full"><label class="form-label">Title</label><p class="modal-detail-val">${name}</p></div>`,
+      `<div class="form-row">` +
+        `<div class="form-group"><label class="form-label">Status</label><p class="modal-detail-val">${statusHtml}</p></div>` +
+        (item.department_name ? `<div class="form-group"><label class="form-label">Department</label><p class="modal-detail-val">${escHtml(item.department_name)}</p></div>` : '') +
+      `</div>`,
+    );
+    if (item.created_by) rows.push(
+      `<div class="form-group"><label class="form-label">Created by</label><p class="modal-detail-val">${escHtml(item.created_by)}</p></div>`
+    );
+    if (desc) rows.push(
+      `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${desc.replace(/\n/g,'<br>')}</p></div>`
+    );
+  }
+
+  return rows.join('');
+}
+
+function closeLinkedItemModal() {
+  document.getElementById('linkedItemModal').classList.remove('open');
+}
+
+function overlayCloseLinkedItem(e) {
+  if (e.target === document.getElementById('linkedItemModal')) closeLinkedItemModal();
 }
 
 function _toggleIssueResolution(status) {
@@ -1754,7 +1893,7 @@ async function saveIssuePatch() {
 async function promoteIssueToDevItem() {
   if (!_editingIssueId) return;
   _closeIssActionsMenu();
-  if (!confirm('Create a dev board item from this issue?')) return;
+  if (!await showConfirm({ title: 'Promote to Dev Item', message: 'Create a dev board item from this issue?', confirmText: 'Promote' })) return;
 
   document.getElementById('issueModalActions').style.display = 'none';
   document.getElementById('issueModalLoading').style.display = '';
@@ -1781,7 +1920,7 @@ async function promoteIssueToDevItem() {
 async function promoteIssueToTask() {
   if (!_editingIssueId) return;
   _closeIssActionsMenu();
-  if (!confirm('Create a task from this issue?')) return;
+  if (!await showConfirm({ title: 'Promote to Task', message: 'Create a task from this issue?', confirmText: 'Promote' })) return;
   document.getElementById('issueModalActions').style.display = 'none';
   document.getElementById('issueModalLoading').style.display = '';
   document.getElementById('issueModalError').style.display   = 'none';
@@ -1806,7 +1945,7 @@ async function promoteIssueToTask() {
 async function promoteIssueToUserTask() {
   if (!_editingIssueId) return;
   _closeIssActionsMenu();
-  if (!confirm('Create a user task from this issue?')) return;
+  if (!await showConfirm({ title: 'Promote to User Task', message: 'Create a user task from this issue?', confirmText: 'Promote' })) return;
   document.getElementById('issueModalActions').style.display = 'none';
   document.getElementById('issueModalLoading').style.display = '';
   document.getElementById('issueModalError').style.display   = 'none';
@@ -2055,6 +2194,7 @@ let _ciSearch    = '';
 let _ciExpanded  = new Set();
 let _ciShowCharts = true;
 let _ciMetric     = 'volume'; // 'volume' | 'open_age' | 'res_time'
+let _ciFilter     = 'all';    // 'all' | 'dev_item' | 'task' | 'quick' | 'duplicate'
 
 async function loadCommonIssues(force = false) {
   if (_ciData && !force) { _renderCommonIssues(); return; }
@@ -2078,7 +2218,15 @@ function ciSetGroupBy(mode) {
   document.getElementById('ciToggleSystem').classList.toggle('active', mode === 'system');
   document.getElementById('ciToggleCategory').classList.toggle('active', mode === 'category');
   _renderCommonIssues();
-  _renderCiCharts();
+}
+
+function ciSetFilter(f) {
+  _ciFilter = f;
+  _ciExpanded.clear();
+  document.querySelectorAll('.ci-filter-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.filter === f)
+  );
+  _renderCommonIssues();
 }
 
 function ciToggleCharts() {
@@ -2107,6 +2255,10 @@ function _renderCiCharts() {
   const open     = gs.open     ?? groups.reduce((s, g) => s + g.open,     0);
 
   // Extended stat chips
+  const devCount   = gs.via_dev_item   ?? 0;
+  const taskCount  = gs.via_task       ?? 0;
+  const quickCount = gs.quick_resolved ?? 0;
+  const dupCount   = gs.duplicates     ?? 0;
   const avgAge = gs.avg_open_age_days != null
     ? `<span class="ci-stat ci-stat--age"><span class="ci-stat-num">${gs.avg_open_age_days}</span> avg open days</span>`
     : '';
@@ -2120,6 +2272,11 @@ function _renderCiCharts() {
     `<span class="ci-stat"><span class="ci-stat-num">${total}</span> total</span>` +
     `<span class="ci-stat ci-stat--resolved"><span class="ci-stat-num">${resolved}</span> resolved</span>` +
     `<span class="ci-stat ci-stat--open"><span class="ci-stat-num">${open}</span> open</span>` +
+    `<span class="ci-stat ci-stat-sep"></span>` +
+    `<span class="ci-stat ci-stat--dev" title="Resolved by creating a dev item"><span class="ci-stat-num">${devCount}</span> via dev item</span>` +
+    `<span class="ci-stat ci-stat--task" title="Resolved by creating a task"><span class="ci-stat-num">${taskCount}</span> via task</span>` +
+    `<span class="ci-stat ci-stat--quick" title="Resolved immediately without a dev item or task"><span class="ci-stat-num">${quickCount}</span> quick fix</span>` +
+    `<span class="ci-stat ci-stat--dup" title="Marked as duplicate"><span class="ci-stat-num">${dupCount}</span> duplicate</span>` +
     avgAge + avgRes + fastRes;
 
   _ciDrawRing(resolved, open, total);
@@ -2318,28 +2475,31 @@ function ciToggleGroup(groupKey) {
 
 function _renderCommonIssues() {
   if (!_ciData) return;
-  const groups = (_ciGroupBy === 'system' ? _ciData.by_system : _ciData.by_category) || [];
-  const filtered = _ciSearch
-    ? groups.filter(g => g.group.toLowerCase().includes(_ciSearch))
-    : groups;
+  let groups = (_ciGroupBy === 'system' ? _ciData.by_system : _ciData.by_category) || [];
 
-  // Stats
-  const totalIssues   = groups.reduce((s, g) => s + g.total, 0);
-  const totalResolved = groups.reduce((s, g) => s + g.resolved, 0);
-  const totalOpen     = groups.reduce((s, g) => s + g.open, 0);
-  document.getElementById('ciStats').innerHTML =
-    `<span class="ci-stat"><span class="ci-stat-num">${totalIssues}</span> total</span>` +
-    `<span class="ci-stat ci-stat--resolved"><span class="ci-stat-num">${totalResolved}</span> resolved</span>` +
-    `<span class="ci-stat ci-stat--open"><span class="ci-stat-num">${totalOpen}</span> open</span>`;
+  // Apply search filter on group names
+  if (_ciSearch) groups = groups.filter(g => g.group.toLowerCase().includes(_ciSearch));
 
-  if (!filtered.length) {
+  // Apply resolution type filter — narrows the resolutions shown per group
+  let displayGroups = groups;
+  if (_ciFilter !== 'all') {
+    displayGroups = groups.map(g => {
+      const filteredRes = (g.resolutions || []).filter(r => r.res_type === _ciFilter);
+      if (!filteredRes.length) return null;
+      return { ...g, resolutions: filteredRes };
+    }).filter(Boolean);
+  }
+
+  // Always show global stats (not filtered so numbers stay consistent)
+  _renderCiCharts();
+
+  if (!displayGroups.length) {
     document.getElementById('ci-body').innerHTML =
       '<div class="admin-empty">No groups found.</div>';
     return;
   }
 
-  document.getElementById('ci-body').innerHTML = filtered.map(g => _renderCiGroup(g)).join('');
-  _renderCiCharts();
+  document.getElementById('ci-body').innerHTML = displayGroups.map(g => _renderCiGroup(g)).join('');
 }
 
 function _renderCiGroup(g) {
@@ -2368,6 +2528,13 @@ function _renderCiGroup(g) {
   </div>`;
 }
 
+const _ciResTypeLabels = {
+  dev_item:  { label: 'Dev Item',  cls: 'ci-res-type--dev_item'  },
+  task:      { label: 'Task',      cls: 'ci-res-type--task'      },
+  quick:     { label: 'Quick Fix', cls: 'ci-res-type--quick'     },
+  duplicate: { label: 'Duplicate', cls: 'ci-res-type--duplicate' },
+};
+
 function _renderCiResolution(r) {
   const title    = escHtml(r.title || (r.description || '').slice(0, 80) + ((r.description || '').length > 80 ? '…' : ''));
   const desc     = r.description ? escHtml(r.description.slice(0, 160)) + (r.description.length > 160 ? '…' : '') : '';
@@ -2375,6 +2542,11 @@ function _renderCiResolution(r) {
   const resolver = r.resolved_by ? `<span class="ci-res-by">by ${escHtml(r.resolved_by)}</span>` : '';
   const ticket   = r.ticket_number ? `<span class="ci-res-ticket">${escHtml(r.ticket_number)}</span>` : '';
   const reporter = r.employee_name ? `<span class="ci-res-reporter">${escHtml(r.employee_name)}${r.company_name ? ` · ${escHtml(r.company_name)}` : ''}</span>` : '';
+
+  const rtMeta   = _ciResTypeLabels[r.res_type];
+  const typeBadge = rtMeta
+    ? `<span class="ci-res-type ${rtMeta.cls}">${rtMeta.label}</span>`
+    : '';
 
   const noteHtml = r.resolution_notes
     ? `<div class="ci-res-notes">${escHtml(r.resolution_notes).replace(/\n/g, '<br>')}</div>`
@@ -2398,6 +2570,7 @@ function _renderCiResolution(r) {
       <div class="ci-res-title-row">
         ${ticket}
         <span class="ci-res-title">${title}</span>
+        ${typeBadge}
         <span class="ci-res-status ${statusCls}">${r.status}</span>
       </div>
       <div class="ci-res-meta">${reporter}${date ? `<span class="ci-res-date">${date}</span>` : ''}${resolver}</div>
@@ -2525,7 +2698,7 @@ function _closeIssActionsMenu() {
 async function quickResolveIssue() {
   if (!_editingIssueId) return;
   _closeIssActionsMenu();
-  if (!confirm('Mark this issue as resolved?')) return;
+  if (!await showConfirm({ title: 'Resolve Issue', message: 'Mark this issue as resolved?', confirmText: 'Resolve' })) return;
   document.getElementById('issueModalActions').style.display = 'none';
   document.getElementById('issueModalLoading').style.display = '';
   document.getElementById('issueModalError').style.display   = 'none';
@@ -2918,7 +3091,7 @@ async function saveCfgCompany(e) {
 }
 
 async function deleteCfgCompany(code) {
-  if (!confirm(`Delete company "${code}"? This cannot be undone.`)) return;
+  if (!await showConfirm({ title: 'Delete Company', message: `Delete company "${code}"?`, detail: 'This cannot be undone.', confirmText: 'Delete', danger: true })) return;
   try {
     const res = await fetch(`/api/admin/config/companies/${encodeURIComponent(code)}`, {
       method: 'DELETE', headers: authHeaders(),
@@ -3046,7 +3219,7 @@ async function saveCfgCategory(e) {
 }
 
 async function deleteCfgCategory(id) {
-  if (!confirm('Delete this category? Request types that reference it may be affected.')) return;
+  if (!await showConfirm({ title: 'Delete Category', message: 'Delete this category?', detail: 'Request types that reference it may be affected.', confirmText: 'Delete', danger: true })) return;
   try {
     const res = await fetch(`/api/admin/config/request-categories/${id}`, {
       method: 'DELETE', headers: authHeaders(),
@@ -3164,7 +3337,7 @@ async function saveCfgType(e) {
 }
 
 async function deleteCfgType(id) {
-  if (!confirm('Delete this request type?')) return;
+  if (!await showConfirm({ title: 'Delete Request Type', message: 'Delete this request type?', confirmText: 'Delete', danger: true })) return;
   try {
     const res = await fetch(`/api/admin/config/request-types/${id}`, {
       method: 'DELETE', headers: authHeaders(),
@@ -3269,7 +3442,7 @@ async function saveCfgNsi(e) {
 }
 
 async function deleteCfgNsi(id) {
-  if (!confirm('Delete this item?')) return;
+  if (!await showConfirm({ title: 'Delete Item', message: 'Delete this item?', confirmText: 'Delete', danger: true })) return;
   try {
     const res = await fetch(`/api/admin/config/non-software-items/${id}`, {
       method: 'DELETE', headers: authHeaders(),
@@ -3380,7 +3553,7 @@ async function saveCfgBrand(e) {
 }
 
 async function deleteCfgBrand(code) {
-  if (!confirm(`Delete brand "${code}"? This cannot be undone.`)) return;
+  if (!await showConfirm({ title: 'Delete Brand', message: `Delete brand "${code}"?`, detail: 'This cannot be undone.', confirmText: 'Delete', danger: true })) return;
   try {
     const res = await fetch(`/api/admin/config/brands/${encodeURIComponent(code)}`, {
       method: 'DELETE', headers: authHeaders(),
@@ -3495,7 +3668,7 @@ async function saveCfgDept(e) {
 }
 
 async function deleteCfgDept(id) {
-  if (!confirm('Delete this department? Users with this department assigned may be affected.')) return;
+  if (!await showConfirm({ title: 'Delete Department', message: 'Delete this department?', detail: 'Users with this department assigned may be affected.', confirmText: 'Delete', danger: true })) return;
   try {
     const res = await fetch(`/api/admin/config/departments/${id}`, {
       method: 'DELETE', headers: authHeaders(),
@@ -3606,7 +3779,7 @@ async function saveCfgAction(e) {
 }
 
 async function deleteCfgAction(id) {
-  if (!confirm('Delete this action? It will no longer appear in resolution checklists.')) return;
+  if (!await showConfirm({ title: 'Delete Action', message: 'Delete this action?', detail: 'It will no longer appear in resolution checklists.', confirmText: 'Delete', danger: true })) return;
   try {
     const res = await fetch(`/api/admin/config/actions/${id}`, {
       method: 'DELETE', headers: authHeaders(),

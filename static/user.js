@@ -552,10 +552,16 @@ async function openUtModal(idOrNull) {
   await _ensureTeamMembersLoaded();
   _setUtAssigneeDropdown(task?.assigned_to ?? '');
   document.getElementById('ut-delete-btn').style.display = task ? '' : 'none';
+
+  const actSection = document.getElementById('ut-activity-section');
+  if (actSection) actSection.style.display = task ? '' : 'none';
+
   _resetUtModalState();
   document.getElementById('utTaskModal').classList.add('open');
   document.body.style.overflow = 'hidden';
   setTimeout(() => document.getElementById('ut-task-title').focus(), 50);
+
+  if (task) loadUtTaskActivity(task.id);
 }
 
 function closeUtModal() {
@@ -672,12 +678,17 @@ function utAssigneeSelect(username, label, avatarUrl) {
 }
 
 function _setUtAssigneeDropdown(username) {
-  const member = (username && _teamMembers) ? _teamMembers.find(m => m.username === username) : null;
-  if (!username || !member) {
+  if (!username) {
     utAssigneeSelect('', 'Unassigned', '');
-  } else {
+    return;
+  }
+  const member = _teamMembers ? _teamMembers.find(m => m.username === username) : null;
+  if (member) {
     const name = member.display_name || `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.username;
     utAssigneeSelect(member.username, name, member.avatar_url || '');
+  } else {
+    // Assigned to a user outside this team — show their username as-is
+    utAssigneeSelect(username, username, '');
   }
 }
 
@@ -747,7 +758,7 @@ async function deleteUtTaskCard(id) {
 
 async function _doDeleteUtTask(id) {
   const task = _tasks.find(t => t.id === id);
-  if (!confirm(`Delete "${task?.title || 'this task'}"? This cannot be undone.`)) return;
+  if (!await showConfirm({ title: 'Delete Task', message: `Delete "${task?.title || 'this task'}"?`, detail: 'This cannot be undone.', confirmText: 'Delete', danger: true })) return;
   try {
     const res = await fetch(`/api/user/tasks/${encodeURIComponent(id)}`, {
       method:  'DELETE',
@@ -759,6 +770,184 @@ async function _doDeleteUtTask(id) {
     showToast('Task deleted.');
   } catch (err) {
     showToast(`Error: ${err.message}`);
+  }
+}
+
+/* ── User Task Activity Log ── */
+async function loadUtTaskActivity(taskId) {
+  const list = document.getElementById('ut-activity-list');
+  if (!list || !taskId) return;
+  list.innerHTML = '<div class="iss-activity-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  try {
+    const res  = await fetch(`/api/user/tasks/${encodeURIComponent(taskId)}/activity`, { headers: authHeaders() });
+    const data = res.ok ? await res.json() : [];
+    _renderUtActivityEntries(data);
+  } catch {
+    list.innerHTML = '<div class="iss-activity-empty">Failed to load activity.</div>';
+  }
+}
+
+const _UT_ACT_ICONS = {
+  status:   `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
+  assignee: `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+  edit:     `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+};
+
+function _inferUtActType(message) {
+  const m = (message || '').toLowerCase();
+  if (m.startsWith('moved status'))  return 'status';
+  if (m.startsWith('set assignee'))  return 'assignee';
+  return 'edit';
+}
+
+function _renderUtActivityEntries(entries) {
+  const list = document.getElementById('ut-activity-list');
+  if (!list) return;
+  if (!entries || entries.length === 0) {
+    list.innerHTML = '<div class="iss-activity-empty">No activity yet.</div>';
+    return;
+  }
+  list.innerHTML = entries.map(e => {
+    const time  = fmtDateTime(e.created_at);
+    const user  = escHtml(e.username || '?');
+    const msg   = escHtml(e.message  || '');
+    const type  = _inferUtActType(e.message);
+    const icon  = _UT_ACT_ICONS[type] || _UT_ACT_ICONS.edit;
+    const tagCls   = { status: 'iss-act-tag--moved', assignee: 'iss-act-tag--comment', edit: 'iss-act-tag--note' }[type] || 'iss-act-tag--note';
+    const tagLabel = { status: 'Status', assignee: 'Assignee', edit: 'Edit' }[type] || 'Update';
+    return `<div class="iss-act-entry">
+      <div class="iss-act-meta">
+        <span class="iss-act-tag ${tagCls}" style="display:inline-flex;align-items:center;gap:4px;">${icon}${tagLabel}</span>
+        <span class="iss-act-user">${user}</span>
+        <span class="iss-act-time">${time}</span>
+      </div>
+      <div class="iss-act-text">${msg}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ── User Task Physics Drag ── */
+const _utRm   = window.matchMedia('(prefers-reduced-motion: reduce)');
+const UT_SPRING_K    = 0.16;
+const UT_SPRING_D    = 0.70;
+const UT_MAX_TILT    = 8;
+const UT_TILT_FACTOR = 0.55;
+
+let _utDrag = null;
+
+function initUtPhysicsDrag() {
+  const board = document.getElementById('ut-kanban');
+  if (!board) return;
+  board.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    const card = e.target.closest('.ut-card');
+    if (!card || e.target.closest('button, a')) return;
+    e.preventDefault();
+    _utStartDrag(e, card);
+  });
+}
+
+function _utStartDrag(e, card) {
+  const rect = card.getBoundingClientRect();
+  const offX = e.clientX - rect.left;
+  const offY = e.clientY - rect.top;
+  const id   = card.id.replace('utc-', '');
+
+  const ghost = document.createElement('div');
+  ghost.className    = 'drag-ghost';
+  ghost.style.width  = rect.width  + 'px';
+  ghost.style.height = rect.height + 'px';
+  card.parentNode.insertBefore(ghost, card);
+
+  card.classList.add('dragging-physics');
+  card.style.width = rect.width + 'px';
+  document.body.appendChild(card);
+  document.body.classList.add('is-dragging');
+
+  const initX = rect.left;
+  const initY = rect.top;
+  card.style.transform = `translate(${initX}px,${initY}px) scale(1.03)`;
+
+  _utDrag = { id, el: card, ghost, x: initX, y: initY, vx: 0, vy: 0,
+              tx: initX, ty: initY, offX, offY, activeCol: null, raf: null };
+
+  document.addEventListener('pointermove',   _utOnDragMove);
+  document.addEventListener('pointerup',     _utOnDragRelease);
+  document.addEventListener('pointercancel', _utOnDragRelease);
+  _utDrag.raf = requestAnimationFrame(_utPhysicsLoop);
+}
+
+function _utOnDragMove(e) {
+  if (!_utDrag) return;
+  e.preventDefault();
+  _utDrag.tx = e.clientX - _utDrag.offX;
+  _utDrag.ty = e.clientY - _utDrag.offY;
+  const col = _utGetColAt(e.clientX, e.clientY);
+  if (col !== _utDrag.activeCol) {
+    document.querySelectorAll('#ut-kanban .kanban-col').forEach(c => c.classList.remove('drag-over'));
+    if (col) col.classList.add('drag-over');
+    _utDrag.activeCol = col;
+  }
+}
+
+function _utPhysicsLoop() {
+  if (!_utDrag) return;
+  if (_utRm.matches) {
+    _utDrag.x = _utDrag.tx; _utDrag.y = _utDrag.ty;
+    _utDrag.el.style.transform = `translate(${_utDrag.x}px,${_utDrag.y}px) scale(1.02)`;
+  } else {
+    const ax = (_utDrag.tx - _utDrag.x) * UT_SPRING_K;
+    const ay = (_utDrag.ty - _utDrag.y) * UT_SPRING_K;
+    _utDrag.vx = (_utDrag.vx + ax) * UT_SPRING_D;
+    _utDrag.vy = (_utDrag.vy + ay) * UT_SPRING_D;
+    _utDrag.x += _utDrag.vx;
+    _utDrag.y += _utDrag.vy;
+    const tilt = Math.max(-UT_MAX_TILT, Math.min(UT_MAX_TILT, _utDrag.vx * UT_TILT_FACTOR));
+    _utDrag.el.style.transform = `translate(${_utDrag.x}px,${_utDrag.y}px) rotate(${tilt.toFixed(2)}deg) scale(1.03)`;
+  }
+  _utDrag.raf = requestAnimationFrame(_utPhysicsLoop);
+}
+
+function _utGetColAt(x, y) {
+  for (const col of document.querySelectorAll('#ut-kanban .kanban-col')) {
+    const r = col.getBoundingClientRect();
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return col;
+  }
+  return null;
+}
+
+async function _utOnDragRelease() {
+  if (!_utDrag) return;
+  cancelAnimationFrame(_utDrag.raf);
+  document.removeEventListener('pointermove',   _utOnDragMove);
+  document.removeEventListener('pointerup',     _utOnDragRelease);
+  document.removeEventListener('pointercancel', _utOnDragRelease);
+  document.querySelectorAll('#ut-kanban .kanban-col').forEach(c => c.classList.remove('drag-over'));
+  document.body.classList.remove('is-dragging');
+
+  const { el, ghost, id, activeCol } = _utDrag;
+  _utDrag = null;
+
+  const task      = _tasks.find(t => t.id === id);
+  const newStatus = activeCol?.dataset.status;
+
+  const gr = ghost.getBoundingClientRect();
+  if (!_utRm.matches) {
+    el.style.transition = 'transform 0.28s cubic-bezier(0.16,1,0.3,1), box-shadow 0.28s ease';
+    el.style.boxShadow  = '';
+  }
+  el.style.transform = `translate(${gr.left}px,${gr.top}px) rotate(0deg) scale(1)`;
+  await new Promise(r => setTimeout(r, _utRm.matches ? 0 : 260));
+
+  el.classList.remove('dragging-physics');
+  el.style.cssText = '';
+  el.remove();
+  ghost.remove();
+
+  if (task && newStatus && newStatus !== task.status) {
+    await moveUtTask(id, newStatus);
+  } else {
+    renderTaskBoard();
   }
 }
 
@@ -856,7 +1045,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* Load initial data */
-  loadIssues('team');
+  loadIssues('team').then(() => hidePageLoader());
+  initUtPhysicsDrag();
 
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeIssueDetail(); closeUtModal(); closeProfileMenu(); }

@@ -375,6 +375,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   await Promise.all([_loadCompanies(), _loadCategories(), _loadDepartments()]);
+  hidePageLoader();
 
   const zone = document.getElementById('ghDropZone');
   if (zone) {

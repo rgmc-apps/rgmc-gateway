@@ -191,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   initColArcs();
   initPhysicsDrag();
-  loadMembers().then(() => loadSystems()).then(() => loadItems());
+  loadMembers().then(() => loadSystems()).then(() => loadItems()).then(() => hidePageLoader());
 
   const doneWeeksInput = document.getElementById('doneWeeksInput');
   if (doneWeeksInput) doneWeeksInput.value = _doneWeeks;
@@ -682,7 +682,7 @@ async function _onDragRelease() {
 async function deleteItem(id) {
   const item = _items.find(i => i.id === id);
   const title = item?.title || id;
-  if (!confirm(`Delete "${title}"? This also removes all activity logs and cannot be undone.`)) return;
+  if (!await showConfirm({ title: 'Delete Item', message: `Delete "${title}"?`, detail: 'This also removes all activity logs and cannot be undone.', confirmText: 'Delete', danger: true })) return;
   try {
     const res = await fetch(`/api/dev/items/${encodeURIComponent(id)}`, {
       method:  'DELETE',
@@ -746,14 +746,22 @@ function openDetailModal(idOrNull) {
   }
 
   resetItemForm();
-  document.getElementById('itemDetailModal').classList.add('open');
+  const detailModal = document.getElementById('itemDetailModal');
+  // If archive modal is open, elevate detail modal above it (archive is later in DOM)
+  const archiveOpen = document.getElementById('archiveModal').classList.contains('open');
+  detailModal.style.zIndex = archiveOpen ? '1100' : '';
+  detailModal.classList.add('open');
   document.body.style.overflow = 'hidden';
   setTimeout(() => document.getElementById('itemTitle').focus(), 60);
 }
 
 function closeDetailModal() {
-  document.getElementById('itemDetailModal').classList.remove('open');
-  document.body.style.overflow = '';
+  const detailModal = document.getElementById('itemDetailModal');
+  detailModal.classList.remove('open');
+  detailModal.style.zIndex = '';
+  // Only restore scroll if no other modal is still open
+  const anyOpen = document.querySelector('.modal-overlay.open:not(#itemDetailModal)');
+  if (!anyOpen) document.body.style.overflow = '';
   _editingId = null;
 }
 

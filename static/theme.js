@@ -31,6 +31,84 @@ function toggleTheme() {
   _applyTheme(_getTheme() === 'dark' ? 'light' : 'dark');
 }
 
+/* ── Page Loader ── */
+function hidePageLoader() {
+  const el = document.getElementById('pageLoader');
+  if (!el) return;
+  el.classList.add('page-loader--done');
+  el.addEventListener('transitionend', () => { if (el.parentNode) el.remove(); }, { once: true });
+  setTimeout(() => { if (el.parentNode) el.remove(); }, 700);
+}
+
+/* ── Global Confirm Modal ── */
+function showConfirm({ title = 'Confirm', message = '', detail = '', confirmText = 'Confirm', cancelText = 'Cancel', danger = false } = {}) {
+  return new Promise(resolve => {
+    let overlay = document.getElementById('_gcmOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = '_gcmOverlay';
+      overlay.className = 'gcm-overlay';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+      overlay.innerHTML = `
+        <div class="gcm-panel">
+          <div class="gcm-head">
+            <div class="gcm-icon-wrap" id="_gcmIcon"></div>
+            <button class="gcm-dismiss" id="_gcmDismiss" aria-label="Close">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <h3 class="gcm-title" id="_gcmTitle"></h3>
+          <p class="gcm-message" id="_gcmMessage"></p>
+          <p class="gcm-detail" id="_gcmDetail" style="display:none;"></p>
+          <div class="gcm-actions">
+            <button class="gcm-btn gcm-btn-cancel" id="_gcmCancel"></button>
+            <button class="gcm-btn gcm-btn-confirm" id="_gcmConfirm"></button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+    }
+
+    const titleEl    = document.getElementById('_gcmTitle');
+    const msgEl      = document.getElementById('_gcmMessage');
+    const detailEl   = document.getElementById('_gcmDetail');
+    const iconEl     = document.getElementById('_gcmIcon');
+    const cancelBtn  = document.getElementById('_gcmCancel');
+    const confirmBtn = document.getElementById('_gcmConfirm');
+    const dismissBtn = document.getElementById('_gcmDismiss');
+
+    titleEl.textContent    = title;
+    msgEl.textContent      = message;
+    detailEl.textContent   = detail;
+    detailEl.style.display = detail ? '' : 'none';
+    cancelBtn.textContent  = cancelText;
+    confirmBtn.textContent = confirmText;
+    confirmBtn.className   = `gcm-btn ${danger ? 'gcm-btn-danger' : 'gcm-btn-confirm'}`;
+    iconEl.className       = `gcm-icon-wrap ${danger ? 'gcm-icon--danger' : 'gcm-icon--info'}`;
+    iconEl.innerHTML       = danger
+      ? `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`
+      : `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+
+    overlay.classList.add('gcm-open');
+    setTimeout(() => confirmBtn.focus(), 50);
+
+    function dismiss(result) {
+      overlay.classList.remove('gcm-open');
+      resolve(result);
+    }
+
+    const onConfirm = () => dismiss(true);
+    const onCancel  = () => dismiss(false);
+    const onKey     = e => { if (e.key === 'Escape') { document.removeEventListener('keydown', onKey); dismiss(false); } };
+
+    overlay.onclick = e => { if (e.target === overlay) { document.removeEventListener('keydown', onKey); dismiss(false); } };
+    confirmBtn.onclick = () => { document.removeEventListener('keydown', onKey); onConfirm(); };
+    cancelBtn.onclick  = () => { document.removeEventListener('keydown', onKey); onCancel();  };
+    dismissBtn.onclick = () => { document.removeEventListener('keydown', onKey); onCancel();  };
+    document.addEventListener('keydown', onKey);
+  });
+}
+
 /* Inject the toggle button into the floating nav pill */
 (function () {
   const inner = document.querySelector('.header-inner');

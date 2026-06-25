@@ -748,7 +748,8 @@ def admin_common_issues():
         issues = supabase_req("GET", "/issues", params={
             "select": "id,ticket_number,title,description,status,site_name,request_category,"
                       "employee_name,company_name,resolved_by,resolved_at,resolution_notes,"
-                      "resolution_action_ids,resolution_attachment_urls,created_at",
+                      "resolution_action_ids,resolution_attachment_urls,created_at,"
+                      "dev_item_id,task_id,user_task_id,is_duplicate",
             "order":  "created_at.desc",
         })
     except Exception as exc:
@@ -789,7 +790,19 @@ def admin_common_issues():
         return None
 
     def _enrich(iss):
-        ids = iss.get("resolution_action_ids") or []
+        ids          = iss.get("resolution_action_ids") or []
+        dev_item_id  = iss.get("dev_item_id")
+        task_id      = iss.get("task_id")
+        user_task_id = iss.get("user_task_id")
+        is_dup       = bool(iss.get("is_duplicate"))
+        if is_dup:
+            res_type = "duplicate"
+        elif dev_item_id:
+            res_type = "dev_item"
+        elif task_id or user_task_id:
+            res_type = "task"
+        else:
+            res_type = "quick"
         return {
             "id":                         iss.get("id"),
             "ticket_number":              iss.get("ticket_number"),
@@ -805,10 +818,19 @@ def admin_common_issues():
             "resolution_attachment_urls": [u for u in (iss.get("resolution_attachment_urls") or []) if u],
             "created_at":                 iss.get("created_at"),
             "resolution_days":            _res_days(iss.get("created_at"), iss.get("resolved_at")),
+            "dev_item_id":                dev_item_id,
+            "task_id":                    task_id,
+            "user_task_id":               user_task_id,
+            "is_duplicate":               is_dup,
+            "res_type":                   res_type,
         }
 
     def _new_group():
-        return {"total": 0, "open": 0, "resolved": 0, "resolutions": [], "open_ages_days": []}
+        return {
+            "total": 0, "open": 0, "resolved": 0,
+            "resolutions": [], "open_ages_days": [],
+            "via_dev_item": 0, "via_task": 0, "quick_resolved": 0, "duplicates": 0,
+        }
 
     by_system   = defaultdict(_new_group)
     by_category = defaultdict(_new_group)
@@ -822,7 +844,17 @@ def admin_common_issues():
             grp[key]["total"] += 1
             if terminal:
                 grp[key]["resolved"] += 1
-                grp[key]["resolutions"].append(_enrich(iss))
+                enriched = _enrich(iss)
+                grp[key]["resolutions"].append(enriched)
+                rt = enriched["res_type"]
+                if rt == "duplicate":
+                    grp[key]["duplicates"] += 1
+                elif rt == "dev_item":
+                    grp[key]["via_dev_item"] += 1
+                elif rt == "task":
+                    grp[key]["via_task"] += 1
+                else:
+                    grp[key]["quick_resolved"] += 1
             else:
                 grp[key]["open"] += 1
                 age = _age_days(iss.get("created_at"))
@@ -845,9 +877,13 @@ def admin_common_issues():
     all_res_days   = [r["resolution_days"] for g in by_system.values()
                       for r in g["resolutions"] if r.get("resolution_days") is not None]
     global_stats = {
-        "total":                sum(g["total"]    for g in by_system.values()),
-        "resolved":             sum(g["resolved"] for g in by_system.values()),
-        "open":                 sum(g["open"]     for g in by_system.values()),
+        "total":                sum(g["total"]          for g in by_system.values()),
+        "resolved":             sum(g["resolved"]       for g in by_system.values()),
+        "open":                 sum(g["open"]           for g in by_system.values()),
+        "via_dev_item":         sum(g["via_dev_item"]   for g in by_system.values()),
+        "via_task":             sum(g["via_task"]       for g in by_system.values()),
+        "quick_resolved":       sum(g["quick_resolved"] for g in by_system.values()),
+        "duplicates":           sum(g["duplicates"]     for g in by_system.values()),
         "avg_open_age_days":    _avg(all_open_ages),
         "avg_resolution_days":  _avg(all_res_days),
         "min_resolution_days":  min(all_res_days) if all_res_days else None,
@@ -859,6 +895,44 @@ def admin_common_issues():
         "by_category": _sort(by_category),
         "global_stats": global_stats,
     })
+
+
+# ── Linked-item preview (dev item / task / user task) ────────────────────────
+
+@admin_bp.get("/api/admin/linked/dev-item/<item_id>")
+def admin_get_linked_dev_item(item_id):
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/dev_items", params={"id": f"eq.{item_id}", "select": "*"})
+        if not rows: return jsonify({"error": "Not found"}), 404
+        return jsonify(rows[0])
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.get("/api/admin/linked/task/<task_id>")
+def admin_get_linked_task(task_id):
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/tasks", params={"id": f"eq.{task_id}", "select": "*"})
+        if not rows: return jsonify({"error": "Not found"}), 404
+        return jsonify(rows[0])
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.get("/api/admin/linked/user-task/<task_id>")
+def admin_get_linked_user_task(task_id):
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/user_tasks", params={"id": f"eq.{task_id}", "select": "*"})
+        if not rows: return jsonify({"error": "Not found"}), 404
+        return jsonify(rows[0])
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
 
 
 # ── Config: Actions ───────────────────────────────────────────────────────────

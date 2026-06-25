@@ -275,10 +275,35 @@ def user_update_task(task_id):
             supabase_req("POST", "/task_activity_logs", data={
                 "task_id":  task_id,
                 "username": username,
-                "message":  f"{username} moved this from {from_lbl} to {to_lbl}",
+                "message":  f"moved status from {from_lbl} to {to_lbl}",
             })
         except Exception as exc:
             current_app.logger.warning("user_update_task: activity log failed: %s", exc)
+
+    if "assigned_to" in patch:
+        try:
+            assignee = patch["assigned_to"] or "unassigned"
+            supabase_req("POST", "/task_activity_logs", data={
+                "task_id":  task_id,
+                "username": username,
+                "message":  f"set assignee to {assignee}",
+            })
+        except Exception as exc:
+            current_app.logger.warning("user_update_task: assignee log failed: %s", exc)
+
+    if "title" in patch or "description" in patch or "due_date" in patch:
+        try:
+            changed = []
+            if "title"       in patch: changed.append("title")
+            if "description" in patch: changed.append("description")
+            if "due_date"    in patch: changed.append("due date")
+            supabase_req("POST", "/task_activity_logs", data={
+                "task_id":  task_id,
+                "username": username,
+                "message":  f"updated {', '.join(changed)}",
+            })
+        except Exception as exc:
+            current_app.logger.warning("user_update_task: edit log failed: %s", exc)
 
     # Cascade status and assignee changes to the linked issue
     new_status          = patch.get("status")
@@ -372,6 +397,23 @@ def user_update_team_issue(issue_id):
             current_app.logger.warning("user_update_team_issue: user_task sync failed: %s", exc)
 
     return jsonify({"success": True})
+
+
+@user_page_bp.get("/api/user/tasks/<task_id>/activity")
+def user_task_activity(task_id):
+    username, err = _require_user()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/task_activity_logs", params={
+            "task_id": f"eq.{task_id}",
+            "order":   "created_at.desc",
+            "select":  "*",
+        })
+        return jsonify(rows or [])
+    except Exception as exc:
+        current_app.logger.error("user_task_activity: %s", exc)
+        return jsonify([])
 
 
 @user_page_bp.delete("/api/user/tasks/<task_id>")
