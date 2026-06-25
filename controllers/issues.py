@@ -286,7 +286,7 @@ def admin_patch_issue(issue_id):
     if err:
         return jsonify(err[0]), err[1]
     body    = request.get_json(silent=True) or {}
-    allowed = {"status", "assigned_to", "title", "resolution_notes", "resolved_by", "request_to_department_id"}
+    allowed = {"status", "assigned_to", "title", "resolution_notes", "resolved_by", "request_to_department_id", "resolution_action_ids", "resolution_attachment_urls"}
     patch   = {k: v for k, v in body.items() if k in allowed}
     if not patch:
         return jsonify({"error": "Nothing to update"}), 400

@@ -615,6 +615,31 @@
           <input class="form-input" type="text" id="issueResolvedBy" placeholder="Developer name">
         </div>
 
+        <!-- Actions taken checklist -->
+        <div class="form-group form-group-full" id="issueActionsGroup" style="display:none;">
+          <label class="form-label">Actions Taken
+            <span class="form-label-hint">(select all that apply)</span>
+          </label>
+          <div class="res-actions-grid" id="issueActionsGrid">
+            <span class="res-actions-loading">Loading…</span>
+          </div>
+        </div>
+
+        <!-- Resolution image attachments -->
+        <div class="form-group form-group-full" id="issueResAttachGroup" style="display:none;">
+          <label class="form-label">Resolution Attachments
+            <span class="form-label-hint">(screenshots or photos — max 5)</span>
+          </label>
+          <div class="res-attach-wrap">
+            <div class="res-attach-previews" id="issueResAttachPreviews"></div>
+            <label class="res-attach-add" id="issueResAttachAddBtn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Image
+              <input type="file" id="issueResAttachInput" accept="image/*" multiple style="display:none;" onchange="issResAttachChange(this)">
+            </label>
+          </div>
+        </div>
+
         <!-- Dev item link -->
         <div class="form-group form-group-full" id="issueDevItemGroup" style="display:none;">
           <label class="form-label">Dev Board Item</label>

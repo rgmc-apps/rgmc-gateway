@@ -83,7 +83,7 @@ def dev_update_item(item_id):
         return jsonify(err[0]), err[1]
     data    = request.get_json(silent=True) or {}
     remarks = (data.get("remarks") or "").strip()
-    allowed = {"title", "description", "status", "system_id", "start_date", "estimated_end_date", "actual_end_date", "dev_item_type"}
+    allowed = {"title", "description", "status", "system_id", "start_date", "estimated_end_date", "actual_end_date", "dev_item_type", "resolution_action_ids", "resolution_attachment_urls"}
     patch   = {k: v for k, v in data.items() if k in allowed}
     if "status" in patch and patch["status"] not in ("pending", "ongoing", "coding", "testing", "done"):
         return jsonify({"error": "Invalid status"}), 400

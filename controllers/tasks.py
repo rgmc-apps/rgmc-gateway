@@ -75,6 +75,7 @@ def api_update_task(task_id):
     allowed = {
         "task_name", "task_type", "description", "status",
         "is_active", "start_date", "estimated_end_date", "actual_end_date",
+        "resolution_action_ids", "resolution_attachment_urls",
     }
     patch = {k: v for k, v in body.items() if k in allowed}
     if not patch:

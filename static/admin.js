@@ -1573,6 +1573,14 @@ async function openIssueModal(id) {
   document.getElementById('issueResolutionNotes').value = issue.resolution_notes || '';
   document.getElementById('issueResolvedBy').value      = issue.resolved_by      || '';
 
+  // Resolution actions + attachments
+  _issResExistingUrls = Array.isArray(issue.resolution_attachment_urls) ? issue.resolution_attachment_urls.filter(Boolean) : [];
+  _issResPendingFiles = [];
+  await _loadActionsCache();
+  const selectedActionIds = Array.isArray(issue.resolution_action_ids) ? issue.resolution_action_ids : [];
+  _renderActionsGrid('issueActionsGrid', selectedActionIds);
+  _renderResAttachPreviews('issueResAttachPreviews', _issResExistingUrls, _issResPendingFiles);
+
   resetIssueModal();
   document.getElementById('issueCommentInput').value = '';
   document.getElementById('issueModal').classList.add('open');
@@ -1592,8 +1600,10 @@ function overlayCloseIssue(e) {
 
 function _toggleIssueResolution(status) {
   const isTerminal = status === 'resolved' || status === 'closed';
-  document.getElementById('issueResolutionGroup').style.display = isTerminal ? '' : 'none';
-  document.getElementById('issueResolvedByGroup').style.display = isTerminal ? '' : 'none';
+  ['issueResolutionGroup', 'issueResolvedByGroup', 'issueActionsGroup', 'issueResAttachGroup'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = isTerminal ? '' : 'none';
+  });
 }
 
 function resetIssueModal() {
@@ -1683,13 +1693,22 @@ async function saveIssuePatch() {
   try {
     const isTerminal  = status === 'resolved' || status === 'closed';
     const reqDeptRaw  = document.getElementById('issueReqDept').value;
+
+    // Upload pending resolution attachments before patching
+    let resAttachUrls = undefined;
+    if (isTerminal) {
+      resAttachUrls = await _uploadIssResFiles(_editingIssueId);
+    }
+
     const body = {
       status,
       assigned_to:              assignedTo,
       title:                    document.getElementById('issueTitleInput').value.trim() || null,
       request_to_department_id: reqDeptRaw ? parseInt(reqDeptRaw, 10) : null,
-      resolution_notes: isTerminal ? (document.getElementById('issueResolutionNotes').value.trim() || null) : undefined,
-      resolved_by:      isTerminal ? (document.getElementById('issueResolvedBy').value.trim() || null)      : undefined,
+      resolution_notes:           isTerminal ? (document.getElementById('issueResolutionNotes').value.trim() || null) : undefined,
+      resolved_by:                isTerminal ? (document.getElementById('issueResolvedBy').value.trim() || null)      : undefined,
+      resolution_action_ids:      isTerminal ? _getCheckedActionIds('issueActionsGrid')                               : undefined,
+      resolution_attachment_urls: isTerminal ? resAttachUrls                                                          : undefined,
     };
     // Strip undefined keys so they don't get sent as "undefined"
     Object.keys(body).forEach(k => body[k] === undefined && delete body[k]);
@@ -1786,6 +1805,99 @@ async function promoteIssueToUserTask() {
     document.getElementById('issueModalError').style.display   = '';
     document.getElementById('issueModalErrorMsg').textContent  = err.message;
   }
+}
+
+/* ── Resolution: actions checklist + image attachments ── */
+let _actionsCache        = null;
+let _issResExistingUrls  = [];
+let _issResPendingFiles  = [];
+
+async function _loadActionsCache() {
+  if (_actionsCache) return _actionsCache;
+  try {
+    const r = await fetch('/api/actions');
+    _actionsCache = r.ok ? await r.json() : [];
+  } catch { _actionsCache = []; }
+  return _actionsCache;
+}
+
+function _renderActionsGrid(gridId, selectedIds = []) {
+  const grid = document.getElementById(gridId);
+  if (!grid) return;
+  const actions = _actionsCache || [];
+  if (!actions.length) {
+    grid.innerHTML = '<span class="res-actions-empty">No actions configured.</span>';
+    return;
+  }
+  grid.innerHTML = actions.map(a => {
+    const checked = selectedIds.includes(a.action_id) ? ' checked' : '';
+    const cls     = selectedIds.includes(a.action_id) ? ' checked' : '';
+    return `<label class="res-action-item${cls}" title="${escHtml(a.action_desc || '')}">
+      <input type="checkbox" value="${a.action_id}"${checked} onchange="this.closest('.res-action-item').classList.toggle('checked',this.checked)">
+      ${escHtml(a.action_name)}
+    </label>`;
+  }).join('');
+}
+
+function _getCheckedActionIds(gridId) {
+  const grid = document.getElementById(gridId);
+  if (!grid) return [];
+  return Array.from(grid.querySelectorAll('input[type="checkbox"]:checked'))
+    .map(cb => parseInt(cb.value, 10));
+}
+
+function _renderResAttachPreviews(previewsId, existingUrls, pendingFiles) {
+  const wrap = document.getElementById(previewsId);
+  if (!wrap) return;
+  const totalCount = existingUrls.length + pendingFiles.length;
+  const addBtn = document.getElementById(previewsId.replace('Previews', 'AddBtn'));
+  if (addBtn) addBtn.style.display = totalCount >= 5 ? 'none' : '';
+
+  let html = existingUrls.map((url, i) => `
+    <div class="res-attach-thumb" data-index="${i}" data-type="existing">
+      <img src="${escHtml(url)}" alt="attachment">
+      <button type="button" class="res-attach-remove" onclick="issResRemoveExisting(${i})" title="Remove">&times;</button>
+    </div>`).join('');
+  html += pendingFiles.map((f, i) => `
+    <div class="res-attach-thumb" data-index="${i}" data-type="pending">
+      <img src="${escHtml(URL.createObjectURL(f))}" alt="${escHtml(f.name)}">
+      <button type="button" class="res-attach-remove" onclick="issResRemovePending(${i})" title="Remove">&times;</button>
+    </div>`).join('');
+  wrap.innerHTML = html;
+}
+
+function issResAttachChange(input) {
+  const remaining = 5 - _issResExistingUrls.length - _issResPendingFiles.length;
+  const files = Array.from(input.files).slice(0, remaining);
+  _issResPendingFiles.push(...files);
+  input.value = '';
+  _renderResAttachPreviews('issueResAttachPreviews', _issResExistingUrls, _issResPendingFiles);
+}
+
+function issResRemoveExisting(i) {
+  _issResExistingUrls.splice(i, 1);
+  _renderResAttachPreviews('issueResAttachPreviews', _issResExistingUrls, _issResPendingFiles);
+}
+
+function issResRemovePending(i) {
+  _issResPendingFiles.splice(i, 1);
+  _renderResAttachPreviews('issueResAttachPreviews', _issResExistingUrls, _issResPendingFiles);
+}
+
+async function _uploadIssResFiles(issueId) {
+  const urls = [];
+  for (const file of _issResPendingFiles) {
+    const fd = new FormData();
+    fd.append('entity_type', 'issue');
+    fd.append('entity_id',   issueId);
+    fd.append('file',        file);
+    try {
+      const r = await fetch('/api/upload/resolution', { method: 'POST', headers: authHeaders(), body: fd });
+      const d = await r.json();
+      if (d.url) urls.push(d.url);
+    } catch {}
+  }
+  return [..._issResExistingUrls, ...urls];
 }
 
 /* ── Issue Actions submenu ── */

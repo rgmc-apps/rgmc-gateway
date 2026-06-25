@@ -63,6 +63,8 @@ let _members             = {};   // username → { displayName, avatarUrl }
 let _editingId           = null;
 let _filter              = 'all'; // 'all' | 'mine'
 let _doneRemarksCallback = null;
+let _devActionsCache     = null;
+let _devResPendingFiles  = [];
 
 const DONE_WEEKS_KEY = 'dev-done-weeks';
 let _doneWeeks = Math.max(1, parseInt(localStorage.getItem(DONE_WEEKS_KEY) || '2', 10));
@@ -505,13 +507,13 @@ async function moveItem(id, newStatus) {
   const item = _items.find(i => i.id === id);
   if (!item) return;
   if (newStatus === 'done' && item.status !== 'done') {
-    openDoneRemarksModal(remarks => _execMoveItem(id, newStatus, remarks));
+    openDoneRemarksModal((remarks, actionIds, files) => _execMoveItem(id, newStatus, remarks, actionIds, files));
     return;
   }
-  await _execMoveItem(id, newStatus, null);
+  await _execMoveItem(id, newStatus, null, [], []);
 }
 
-async function _execMoveItem(id, newStatus, remarks) {
+async function _execMoveItem(id, newStatus, remarks, actionIds = [], files = []) {
   const item = _items.find(i => i.id === id);
   if (!item) return;
   const patch = { status: newStatus };
@@ -522,6 +524,24 @@ async function _execMoveItem(id, newStatus, remarks) {
     patch.actual_end_date = null;
   }
   if (remarks) patch.remarks = remarks;
+  if (newStatus === 'done') {
+    if (actionIds.length) patch.resolution_action_ids = actionIds;
+    if (files.length) {
+      const urls = [];
+      for (const file of files) {
+        const fd = new FormData();
+        fd.append('entity_type', 'dev_item');
+        fd.append('entity_id',   id);
+        fd.append('file',        file);
+        try {
+          const r = await fetch('/api/upload/resolution', { method: 'POST', headers: authHeaders(), body: fd });
+          const d = await r.json();
+          if (d.url) urls.push(d.url);
+        } catch {}
+      }
+      if (urls.length) patch.resolution_attachment_urls = urls;
+    }
+  }
   try {
     await fetch(`/api/dev/items/${encodeURIComponent(id)}`, {
       method:  'PATCH',
@@ -741,10 +761,71 @@ function overlayCloseDetail(e) {
   if (e.target === document.getElementById('itemDetailModal')) closeDetailModal();
 }
 
+/* ── Resolution helpers (actions checklist + image attachments) ── */
+async function _devLoadActions() {
+  if (_devActionsCache) return;
+  try {
+    const r = await fetch('/api/actions');
+    _devActionsCache = r.ok ? await r.json() : [];
+  } catch { _devActionsCache = []; }
+}
+
+function _devRenderActionsGrid() {
+  const grid = document.getElementById('devActionsGrid');
+  if (!grid) return;
+  const actions = _devActionsCache || [];
+  if (!actions.length) {
+    grid.innerHTML = '<span class="res-actions-empty">No actions configured.</span>';
+    return;
+  }
+  grid.innerHTML = actions.map(a =>
+    `<label class="res-action-item" title="${escHtml(a.action_desc || '')}">
+      <input type="checkbox" value="${a.action_id}" onchange="this.closest('.res-action-item').classList.toggle('checked',this.checked)">
+      ${escHtml(a.action_name)}
+    </label>`
+  ).join('');
+}
+
+function _devGetCheckedActionIds() {
+  const grid = document.getElementById('devActionsGrid');
+  if (!grid) return [];
+  return Array.from(grid.querySelectorAll('input[type="checkbox"]:checked'))
+    .map(cb => parseInt(cb.value, 10));
+}
+
+function devResAttachChange(input) {
+  const remaining = 5 - _devResPendingFiles.length;
+  _devResPendingFiles.push(...Array.from(input.files).slice(0, remaining));
+  input.value = '';
+  _devRenderResAttachPreviews();
+}
+
+function _devRenderResAttachPreviews() {
+  const wrap   = document.getElementById('devResAttachPreviews');
+  const addBtn = document.getElementById('devResAttachAddBtn');
+  if (!wrap) return;
+  if (addBtn) addBtn.style.display = _devResPendingFiles.length >= 5 ? 'none' : '';
+  wrap.innerHTML = _devResPendingFiles.map((f, i) =>
+    `<div class="res-attach-thumb">
+      <img src="${URL.createObjectURL(f)}" alt="${escHtml(f.name)}">
+      <button type="button" class="res-attach-remove" onclick="devResRemovePending(${i})" title="Remove">&times;</button>
+    </div>`
+  ).join('');
+}
+
+function devResRemovePending(i) {
+  _devResPendingFiles.splice(i, 1);
+  _devRenderResAttachPreviews();
+}
+
 /* ── Mark-Done remarks modal ── */
-function openDoneRemarksModal(onConfirm) {
+async function openDoneRemarksModal(onConfirm) {
   _doneRemarksCallback = onConfirm;
+  _devResPendingFiles  = [];
   document.getElementById('doneRemarksText').value = '';
+  await _devLoadActions();
+  _devRenderActionsGrid();
+  _devRenderResAttachPreviews();
   document.getElementById('doneRemarksModal').classList.add('open');
   document.body.style.overflow = 'hidden';
   setTimeout(() => document.getElementById('doneRemarksText').focus(), 60);
@@ -762,10 +843,12 @@ function overlayCloseDoneRemarks(e) {
 }
 
 function confirmMarkDone() {
-  const remarks = document.getElementById('doneRemarksText').value.trim();
+  const remarks    = document.getElementById('doneRemarksText').value.trim();
+  const actionIds  = _devGetCheckedActionIds();
+  const files      = _devResPendingFiles.slice();
   const cb = _doneRemarksCallback;
   closeDoneRemarksModal();
-  if (cb) cb(remarks);
+  if (cb) cb(remarks, actionIds, files);
 }
 
 async function deleteItemFromDetail() {
@@ -795,13 +878,13 @@ async function saveItem(e) {
   const prevItem  = _editingId ? _items.find(i => i.id === _editingId) : null;
 
   if (newStatus === 'done' && prevItem?.status !== 'done') {
-    openDoneRemarksModal(remarks => _execSaveItem(remarks));
+    openDoneRemarksModal((remarks, actionIds, files) => _execSaveItem(remarks, actionIds, files));
     return;
   }
-  await _execSaveItem(null);
+  await _execSaveItem(null, [], []);
 }
 
-async function _execSaveItem(remarks) {
+async function _execSaveItem(remarks, actionIds = [], files = []) {
   const title = document.getElementById('itemTitle').value.trim();
   if (!title) return;
 
@@ -832,6 +915,25 @@ async function _execSaveItem(remarks) {
     dev_item_type:      devItemType,
   };
   if (remarks) payload.remarks = remarks;
+  if (newStatus === 'done') {
+    if (actionIds.length) payload.resolution_action_ids = actionIds;
+    if (files.length && (_editingId || true)) {
+      const entityId = _editingId || 'new';
+      const urls = [];
+      for (const file of files) {
+        const fd = new FormData();
+        fd.append('entity_type', 'dev_item');
+        fd.append('entity_id',   entityId);
+        fd.append('file',        file);
+        try {
+          const r = await fetch('/api/upload/resolution', { method: 'POST', headers: authHeaders(), body: fd });
+          const d = await r.json();
+          if (d.url) urls.push(d.url);
+        } catch {}
+      }
+      if (urls.length) payload.resolution_attachment_urls = urls;
+    }
+  }
 
   document.getElementById('itemFormActions').style.display = 'none';
   document.getElementById('itemFormLoading').style.display = '';

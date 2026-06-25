@@ -66,6 +66,8 @@ let _members            = {};
 let _taskEditingId      = null;
 let _taskFilter         = 'all';
 let _taskDoneRemarksCallback = null;
+let _taskActionsCache        = null;
+let _taskResPendingFiles     = [];
 
 function setTaskFilter(f) {
   _taskFilter = f;
@@ -449,13 +451,13 @@ async function moveTask(id, newStatus) {
   const task = _tasks.find(t => t.id === id);
   if (!task) return;
   if (newStatus === 'done' && task.status !== 'done') {
-    openTaskDoneRemarksModal(remarks => _execMoveTask(id, newStatus, remarks));
+    openTaskDoneRemarksModal((remarks, actionIds, files) => _execMoveTask(id, newStatus, remarks, actionIds, files));
     return;
   }
-  await _execMoveTask(id, newStatus, null);
+  await _execMoveTask(id, newStatus, null, [], []);
 }
 
-async function _execMoveTask(id, newStatus, remarks) {
+async function _execMoveTask(id, newStatus, remarks, actionIds = [], files = []) {
   const task = _tasks.find(t => t.id === id);
   if (!task) return;
   const patch = { status: newStatus };
@@ -464,6 +466,24 @@ async function _execMoveTask(id, newStatus, remarks) {
   }
   if (newStatus !== 'done') {
     patch.actual_end_date = null;
+  }
+  if (newStatus === 'done') {
+    if (actionIds.length) patch.resolution_action_ids = actionIds;
+    if (files.length) {
+      const urls = [];
+      for (const file of files) {
+        const fd = new FormData();
+        fd.append('entity_type', 'task');
+        fd.append('entity_id',   id);
+        fd.append('file',        file);
+        try {
+          const r = await fetch('/api/upload/resolution', { method: 'POST', headers: authHeaders(), body: fd });
+          const d = await r.json();
+          if (d.url) urls.push(d.url);
+        } catch {}
+      }
+      if (urls.length) patch.resolution_attachment_urls = urls;
+    }
   }
   try {
     const res = await fetch(`/api/tasks/${encodeURIComponent(id)}`, {
@@ -686,10 +706,71 @@ function overlayCloseTaskDetail(e) {
   if (e.target === document.getElementById('taskDetailModal')) closeTaskDetailModal();
 }
 
+/* ── Resolution helpers (actions checklist + image attachments) ── */
+async function _taskLoadActions() {
+  if (_taskActionsCache) return;
+  try {
+    const r = await fetch('/api/actions');
+    _taskActionsCache = r.ok ? await r.json() : [];
+  } catch { _taskActionsCache = []; }
+}
+
+function _taskRenderActionsGrid() {
+  const grid = document.getElementById('taskActionsGrid');
+  if (!grid) return;
+  const actions = _taskActionsCache || [];
+  if (!actions.length) {
+    grid.innerHTML = '<span class="res-actions-empty">No actions configured.</span>';
+    return;
+  }
+  grid.innerHTML = actions.map(a =>
+    `<label class="res-action-item" title="${escHtml(a.action_desc || '')}">
+      <input type="checkbox" value="${a.action_id}" onchange="this.closest('.res-action-item').classList.toggle('checked',this.checked)">
+      ${escHtml(a.action_name)}
+    </label>`
+  ).join('');
+}
+
+function _taskGetCheckedActionIds() {
+  const grid = document.getElementById('taskActionsGrid');
+  if (!grid) return [];
+  return Array.from(grid.querySelectorAll('input[type="checkbox"]:checked'))
+    .map(cb => parseInt(cb.value, 10));
+}
+
+function taskResAttachChange(input) {
+  const remaining = 5 - _taskResPendingFiles.length;
+  _taskResPendingFiles.push(...Array.from(input.files).slice(0, remaining));
+  input.value = '';
+  _taskRenderResAttachPreviews();
+}
+
+function _taskRenderResAttachPreviews() {
+  const wrap   = document.getElementById('taskResAttachPreviews');
+  const addBtn = document.getElementById('taskResAttachAddBtn');
+  if (!wrap) return;
+  if (addBtn) addBtn.style.display = _taskResPendingFiles.length >= 5 ? 'none' : '';
+  wrap.innerHTML = _taskResPendingFiles.map((f, i) =>
+    `<div class="res-attach-thumb">
+      <img src="${URL.createObjectURL(f)}" alt="${escHtml(f.name)}">
+      <button type="button" class="res-attach-remove" onclick="taskResRemovePending(${i})" title="Remove">&times;</button>
+    </div>`
+  ).join('');
+}
+
+function taskResRemovePending(i) {
+  _taskResPendingFiles.splice(i, 1);
+  _taskRenderResAttachPreviews();
+}
+
 /* ── Mark-Done remarks modal ── */
-function openTaskDoneRemarksModal(onConfirm) {
+async function openTaskDoneRemarksModal(onConfirm) {
   _taskDoneRemarksCallback = onConfirm;
+  _taskResPendingFiles     = [];
   document.getElementById('taskDoneRemarksText').value = '';
+  await _taskLoadActions();
+  _taskRenderActionsGrid();
+  _taskRenderResAttachPreviews();
   document.getElementById('taskDoneRemarksModal').classList.add('open');
   document.body.style.overflow = 'hidden';
   setTimeout(() => document.getElementById('taskDoneRemarksText').focus(), 60);
@@ -707,9 +788,12 @@ function overlayCloseTaskDoneRemarks(e) {
 }
 
 function confirmTaskMarkDone() {
+  const remarks   = document.getElementById('taskDoneRemarksText').value.trim();
+  const actionIds = _taskGetCheckedActionIds();
+  const files     = _taskResPendingFiles.slice();
   const cb = _taskDoneRemarksCallback;
   closeTaskDoneRemarksModal();
-  if (cb) cb();
+  if (cb) cb(remarks, actionIds, files);
 }
 
 async function deleteTaskFromDetail() {
@@ -739,13 +823,13 @@ async function saveTask(e) {
   const prevTask  = _taskEditingId ? _tasks.find(t => t.id === _taskEditingId) : null;
 
   if (newStatus === 'done' && prevTask?.status !== 'done') {
-    openTaskDoneRemarksModal(() => _execSaveTask());
+    openTaskDoneRemarksModal((remarks, actionIds, files) => _execSaveTask(remarks, actionIds, files));
     return;
   }
-  await _execSaveTask();
+  await _execSaveTask(null, [], []);
 }
 
-async function _execSaveTask() {
+async function _execSaveTask(remarks, actionIds = [], files = []) {
   const taskName = document.getElementById('taskName').value.trim();
   if (!taskName) return;
 
@@ -775,6 +859,25 @@ async function _execSaveTask() {
     estimated_end_date: document.getElementById('taskEstEnd').value || null,
     actual_end_date,
   };
+  if (newStatus === 'done') {
+    if (actionIds.length) payload.resolution_action_ids = actionIds;
+    if (files.length) {
+      const entityId = _taskEditingId || 'new';
+      const urls = [];
+      for (const file of files) {
+        const fd = new FormData();
+        fd.append('entity_type', 'task');
+        fd.append('entity_id',   entityId);
+        fd.append('file',        file);
+        try {
+          const r = await fetch('/api/upload/resolution', { method: 'POST', headers: authHeaders(), body: fd });
+          const d = await r.json();
+          if (d.url) urls.push(d.url);
+        } catch {}
+      }
+      if (urls.length) payload.resolution_attachment_urls = urls;
+    }
+  }
 
   document.getElementById('taskFormActions').style.display = 'none';
   document.getElementById('taskFormLoading').style.display = '';
