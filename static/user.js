@@ -50,7 +50,7 @@ let _issueMap           = {};
 let _teamMembers        = null;
 let _taskFilter         = 'team';
 let _issueSubtab        = 'team';
-let _issueStatusFilter  = 'open_unassigned';
+let _issueStatusFilter  = 'all';
 let _taskEditId         = null;
 let _activeTab          = 'issues';
 let _currentIssue       = null;
@@ -214,7 +214,7 @@ function openIssueDetailById(id) {
   if (iss) openIssueDetail(iss);
 }
 
-function openIssueDetail(iss) {
+async function openIssueDetail(iss) {
   _currentIssue = iss;
   const status = iss.status || 'new';
   const label  = ISSUE_STATUS_LABELS[status] || status.replace('_', ' ');
@@ -243,21 +243,52 @@ function openIssueDetail(iss) {
     dhPanel.style.display = '';
     document.getElementById('iss-dh-status').value = status;
     document.getElementById('iss-dh-error').style.display = 'none';
+
+    // Show loading state immediately — members may not be loaded yet
+    const sel = document.getElementById('iss-dh-assignee');
+    sel.innerHTML = '<option value="">Loading members…</option>';
+    sel.disabled  = true;
+
+    // Open the modal now so the user doesn't wait on the fetch
+    document.getElementById('issCommentInput').value = '';
+    document.getElementById('issueDetailModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    loadIssActivity(iss.id);
+
+    // Fetch members if not already loaded, then populate
+    await _ensureTeamMembersLoaded();
     _populateIssueAssigneeSelect(iss.assigned_to || '');
+    sel.disabled = false;
   } else {
     dhPanel.style.display = 'none';
+    document.getElementById('issCommentInput').value = '';
+    document.getElementById('issueDetailModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    loadIssActivity(iss.id);
   }
-
-  document.getElementById('issCommentInput').value = '';
-  document.getElementById('issueDetailModal').classList.add('open');
-  document.body.style.overflow = 'hidden';
-  loadIssActivity(iss.id);
 }
 
 function _populateIssueAssigneeSelect(currentAssignee) {
-  const sel = document.getElementById('iss-dh-assignee');
-  sel.innerHTML = '<option value="">— Unassigned —</option>';
+  const sel     = document.getElementById('iss-dh-assignee');
   const members = _teamMembers || [];
+  sel.innerHTML = '';
+
+  const unassigned = document.createElement('option');
+  unassigned.value       = '';
+  unassigned.textContent = '— Unassigned —';
+  if (!currentAssignee) unassigned.selected = true;
+  sel.appendChild(unassigned);
+
+  // If the currently assigned user isn't in our team list, still show them
+  const inTeam = members.some(m => m.username === currentAssignee);
+  if (currentAssignee && !inTeam) {
+    const opt = document.createElement('option');
+    opt.value       = currentAssignee;
+    opt.textContent = currentAssignee;
+    opt.selected    = true;
+    sel.appendChild(opt);
+  }
+
   members.forEach(m => {
     const name = m.display_name || `${m.first_name || ''} ${m.last_name || ''}`.trim() || m.username;
     const opt  = document.createElement('option');
@@ -1046,6 +1077,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* Load initial data */
   loadIssues('team').then(() => hidePageLoader());
+  _ensureTeamMembersLoaded(); // pre-fetch so assignee dropdowns open instantly
   initUtPhysicsDrag();
 
   document.addEventListener('keydown', e => {

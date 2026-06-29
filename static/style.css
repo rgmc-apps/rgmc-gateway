@@ -705,6 +705,11 @@ select.form-input option:checked {
 select.form-input option:hover {
   background-color: #1c1508;
 }
+select.form-input:disabled {
+  opacity: 0.55;
+  cursor: default;
+  color: var(--text-muted);
+}
 
 /* File drop zone */
 .file-drop-zone {
