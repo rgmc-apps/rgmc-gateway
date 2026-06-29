@@ -2909,6 +2909,31 @@ function _renderDevPerfRow(dev) {
   </tr>`;
 }
 
+function setDpPdfPreset(preset) {
+  const today   = new Date();
+  const fmt     = d => d.toISOString().slice(0, 10);
+  const fromEl  = document.getElementById('dpPdfFrom');
+  const toEl    = document.getElementById('dpPdfTo');
+
+  if (preset === '30d') {
+    const from = new Date(today); from.setDate(from.getDate() - 30);
+    if (fromEl) fromEl.value = fmt(from);
+    if (toEl)   toEl.value   = fmt(today);
+  } else if (preset === '90d') {
+    const from = new Date(today); from.setDate(from.getDate() - 90);
+    if (fromEl) fromEl.value = fmt(from);
+    if (toEl)   toEl.value   = fmt(today);
+  } else if (preset === 'year') {
+    if (fromEl) fromEl.value = `${today.getFullYear()}-01-01`;
+    if (toEl)   toEl.value   = fmt(today);
+  }
+  // 'custom' keeps whatever the inputs currently hold
+
+  document.querySelectorAll('.dp-pdf-preset').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.preset === preset)
+  );
+}
+
 function openDevPerfModal(username) {
   const dev = _devPerfCache.find(d => d.username === username);
   if (!dev) return;
@@ -2921,6 +2946,8 @@ function openDevPerfModal(username) {
 
   document.getElementById('devPerfModalContent').innerHTML =
     _buildDevPerfModalHtml(dev, av, initial, displayName);
+
+  setDpPdfPreset('year');
 
   const overlay = document.getElementById('devPerfModal');
   overlay.style.display = 'flex';

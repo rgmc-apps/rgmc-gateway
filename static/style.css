@@ -4758,6 +4758,40 @@ kbd {
   cursor: pointer;
 }
 .dp-pdf-date-input:focus { border-color: var(--gold-border-h); }
+.dp-pdf-group-date {
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+}
+.dp-pdf-presets {
+  display: inline-flex;
+  background: rgba(196,151,42,0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 2px;
+  gap: 1px;
+}
+.dp-pdf-preset {
+  padding: 3px 11px;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  line-height: 1;
+}
+.dp-pdf-preset:hover { color: var(--text-secondary); }
+.dp-pdf-preset.active {
+  background: var(--gold-dim);
+  color: var(--gold-light);
+  border-color: var(--gold-border);
+  box-shadow: 0 1px 4px rgba(196,151,42,0.12);
+}
 .dp-pdf-date-sep {
   color: var(--text-muted);
   font-size: 13px;

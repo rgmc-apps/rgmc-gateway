@@ -342,12 +342,18 @@
       <!-- PDF Options Bar -->
       <div class="dp-pdf-bar">
         <div class="dp-pdf-bar-row">
-          <div class="dp-pdf-group">
+          <div class="dp-pdf-group dp-pdf-group-date">
             <span class="dp-pdf-group-label">Date Range</span>
+            <div class="dp-pdf-presets" role="group" aria-label="Date range presets">
+              <button class="dp-pdf-preset" data-preset="30d"    onclick="setDpPdfPreset('30d')">30 Days</button>
+              <button class="dp-pdf-preset" data-preset="90d"    onclick="setDpPdfPreset('90d')">90 Days</button>
+              <button class="dp-pdf-preset" data-preset="year"   onclick="setDpPdfPreset('year')">This Year</button>
+              <button class="dp-pdf-preset" data-preset="custom" onclick="setDpPdfPreset('custom')">Custom</button>
+            </div>
             <div class="dp-pdf-date-row">
-              <input type="date" id="dpPdfFrom" class="dp-pdf-date-input" title="From date">
+              <input type="date" id="dpPdfFrom" class="dp-pdf-date-input" oninput="setDpPdfPreset('custom')" title="From date">
               <span class="dp-pdf-date-sep">—</span>
-              <input type="date" id="dpPdfTo" class="dp-pdf-date-input" title="To date">
+              <input type="date" id="dpPdfTo" class="dp-pdf-date-input" oninput="setDpPdfPreset('custom')" title="To date">
             </div>
           </div>
           <div class="dp-pdf-group">
