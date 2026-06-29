@@ -219,6 +219,19 @@
         </div>
       </div>
 
+      <!-- Reopen section — shown for resolved / closed issues -->
+      <div id="iss-reopen-section" style="display:none;padding:0 28px 20px;">
+        <div style="border-top:1px solid var(--border);padding-top:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <p style="margin:0;font-size:13px;color:var(--text-secondary);flex:1;min-width:180px;line-height:1.5;">
+            Issue not fully resolved? File a follow-up ticket linked to this one.
+          </p>
+          <button class="btn-reopen-issue" onclick="openReopenModal()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.62"/></svg>
+            Reopen Issue
+          </button>
+        </div>
+      </div>
+
       <!-- Dept head actions — shown only to department heads and admins -->
       <div id="iss-dh-actions" style="display:none;padding:0 28px 24px;">
         <div style="border-top:1px solid var(--border);padding-top:18px;display:flex;flex-direction:column;gap:12px;">
@@ -271,6 +284,41 @@
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       REOPEN ISSUE MODAL
+  ══════════════════════════════════════════ -->
+  <div id="reopenIssueModal" class="modal-overlay" onclick="overlayCloseReopen(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">File Follow-up Issue</h3>
+          <p class="modal-site-name" id="reopen-modal-ref"></p>
+        </div>
+        <button class="modal-close" onclick="closeReopenModal()" aria-label="Close">&times;</button>
+      </div>
+      <div style="padding:0 28px 12px;">
+        <p style="margin:0;font-size:13px;color:var(--text-secondary);line-height:1.6;">
+          Describe what was not resolved or what new problem appeared. A new ticket will be created and automatically linked to the original.
+        </p>
+      </div>
+      <div style="padding:0 28px 0;">
+        <label class="form-label" for="reopen-reason">Reason <span class="required">*</span></label>
+        <textarea class="form-input form-textarea" id="reopen-reason" rows="4" placeholder="e.g. The issue came back after the fix, the solution only worked temporarily, a new related problem appeared…"></textarea>
+      </div>
+      <div id="reopen-error" class="form-state form-error" style="display:none;margin:8px 28px 0;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="reopen-error-msg"></span>
+      </div>
+      <div class="modal-actions" id="reopen-form-actions" style="margin-top:16px;">
+        <button type="button" class="btn-modal-cancel" onclick="closeReopenModal()">Cancel</button>
+        <button type="button" class="btn-modal-submit" id="reopen-submit-btn" onclick="submitReopen()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.62"/></svg>
+          Submit Follow-up
+        </button>
+      </div>
     </div>
   </div>
 

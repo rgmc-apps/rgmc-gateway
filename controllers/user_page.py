@@ -427,3 +427,97 @@ def user_delete_task(task_id):
     except Exception as exc:
         current_app.logger.error("user_delete_task: %s", exc)
         return jsonify({"error": "Failed to delete task"}), 500
+
+
+@user_page_bp.post("/api/user/issues/<issue_id>/reopen")
+def user_reopen_issue(issue_id):
+    username, err = _require_user()
+    if err:
+        return jsonify(err[0]), err[1]
+
+    body   = request.get_json(silent=True) or {}
+    reason = (body.get("reason") or "").strip()
+    if not reason:
+        return jsonify({"error": "Reason is required"}), 400
+
+    # Fetch original issue with all fields needed to create the follow-up
+    try:
+        rows = supabase_req("GET", "/issues", params={
+            "id":     f"eq.{issue_id}",
+            "select": "id,ticket_number,title,description,status,employee_name,company_name,"
+                      "viber_number,email,department,site_name,request_to_department_id,"
+                      "ticket_type,request_category,from_helpdesk,urgency,priority",
+        })
+    except Exception as exc:
+        current_app.logger.error("user_reopen_issue: fetch failed: %s", exc)
+        return jsonify({"error": "Failed to fetch issue"}), 500
+
+    if not rows:
+        return jsonify({"error": "Issue not found"}), 404
+
+    original = rows[0]
+    if original.get("status") not in ("resolved", "closed"):
+        return jsonify({"error": "Only resolved or closed issues can be reopened"}), 400
+
+    orig_ticket = original.get("ticket_number") or issue_id[:8]
+    orig_title  = (original.get("title") or original.get("description") or "")[:80].strip()
+
+    new_issue = {
+        "employee_name":   original.get("employee_name") or "",
+        "company_name":    original.get("company_name")  or "",
+        "viber_number":    original.get("viber_number")  or "",
+        "email":           original.get("email")         or "",
+        "department":      original.get("department")    or "",
+        "site_name":       original.get("site_name")     or "",
+        "title":           f"RE: {orig_title}" if orig_title else f"Follow-up for {orig_ticket}",
+        "description":     reason,
+        "linked_issue_id": issue_id,
+        "from_helpdesk":   bool(original.get("from_helpdesk")),
+    }
+    if original.get("request_to_department_id"):
+        new_issue["request_to_department_id"] = original["request_to_department_id"]
+    if original.get("ticket_type"):
+        new_issue["ticket_type"] = original["ticket_type"]
+    if original.get("request_category"):
+        new_issue["request_category"] = original["request_category"]
+    if original.get("urgency"):
+        new_issue["urgency"] = original["urgency"]
+    if original.get("priority"):
+        new_issue["priority"] = original["priority"]
+
+    try:
+        created = supabase_req("POST", "/issues", data=new_issue,
+                               extra_headers={"Prefer": "return=representation"})
+    except Exception as exc:
+        current_app.logger.error("user_reopen_issue: create failed: %s", exc)
+        return jsonify({"error": "Failed to create follow-up issue"}), 500
+
+    if not created:
+        return jsonify({"error": "Issue creation returned no data"}), 500
+
+    new_issue_data = created[0]
+    new_ticket     = new_issue_data.get("ticket_number")
+
+    # Log a comment on the original issue so its activity feed shows the reopen
+    try:
+        note = f"Follow-up ticket {new_ticket} opened by {username}: {reason[:200]}"
+        supabase_req("POST", "/issue_comments", data={
+            "issue_id": issue_id,
+            "username": username,
+            "comment":  note,
+        })
+    except Exception as exc:
+        current_app.logger.warning("user_reopen_issue: comment log failed: %s", exc)
+
+    # Notify IT bot
+    try:
+        from services.it_bot import notify_ticket_created
+        notify_ticket_created(new_issue_data)
+    except Exception as exc:
+        current_app.logger.warning("user_reopen_issue: it_bot notify failed: %s", exc)
+
+    return jsonify({
+        "success":       True,
+        "ticket_number": new_ticket,
+        "issue_id":      new_issue_data.get("id"),
+    }), 201

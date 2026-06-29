@@ -236,6 +236,10 @@ async function openIssueDetail(iss) {
   document.getElementById('iss-modal-urgency').textContent       = iss.urgency       || '—';
   document.getElementById('iss-modal-date').textContent          = fmtDateTime(iss.created_at);
 
+  // Show reopen section only for resolved / closed issues
+  const reopenSection = document.getElementById('iss-reopen-section');
+  if (reopenSection) reopenSection.style.display = ['resolved', 'closed'].includes(status) ? '' : 'none';
+
   // Show dept head action panel
   const session = loadSession();
   const dhPanel = document.getElementById('iss-dh-actions');
@@ -982,6 +986,66 @@ async function _utOnDragRelease() {
   }
 }
 
+/* ── Reopen Issue ── */
+function openReopenModal() {
+  if (!_currentIssue) return;
+  const ticket = _currentIssue.ticket_number || '';
+  document.getElementById('reopen-modal-ref').textContent = ticket ? `Follow-up for ${ticket}` : 'Follow-up for this issue';
+  document.getElementById('reopen-reason').value          = '';
+  document.getElementById('reopen-error').style.display   = 'none';
+  const btn = document.getElementById('reopen-submit-btn');
+  btn.disabled   = false;
+  btn.innerHTML  = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.62"/></svg> Submit Follow-up`;
+  document.getElementById('reopenIssueModal').classList.add('open');
+}
+
+function closeReopenModal() {
+  document.getElementById('reopenIssueModal').classList.remove('open');
+}
+
+function overlayCloseReopen(e) {
+  if (e.target === document.getElementById('reopenIssueModal')) closeReopenModal();
+}
+
+async function submitReopen() {
+  if (!_currentIssue) return;
+  const reason = (document.getElementById('reopen-reason').value || '').trim();
+  if (!reason) {
+    document.getElementById('reopen-error-msg').textContent = 'Please describe the reason for reopening.';
+    document.getElementById('reopen-error').style.display   = 'flex';
+    return;
+  }
+
+  const btn = document.getElementById('reopen-submit-btn');
+  btn.disabled  = true;
+  btn.textContent = 'Submitting…';
+  document.getElementById('reopen-error').style.display = 'none';
+
+  try {
+    const res = await fetch(`/api/user/issues/${encodeURIComponent(_currentIssue.id)}/reopen`, {
+      method:  'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ reason }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed to submit follow-up');
+    const data = await res.json();
+    closeReopenModal();
+    closeIssueDetail();
+    const ticketRef = data.ticket_number ? ` (${data.ticket_number})` : '';
+    showToast(`Follow-up ticket${ticketRef} submitted successfully.`);
+    // Invalidate caches so the new issue appears on the next load
+    _issues.team  = null;
+    _issues.mine  = null;
+    _issues.filed = null;
+    if (_activeTab === 'issues') loadIssues(_issueSubtab);
+  } catch (err) {
+    document.getElementById('reopen-error-msg').textContent = err.message;
+    document.getElementById('reopen-error').style.display   = 'flex';
+    btn.disabled  = false;
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.62"/></svg> Submit Follow-up`;
+  }
+}
+
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', () => {
   const session = loadSession();
@@ -1081,7 +1145,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initUtPhysicsDrag();
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeIssueDetail(); closeUtModal(); closeProfileMenu(); }
+    if (e.key === 'Escape') { closeReopenModal(); closeIssueDetail(); closeUtModal(); closeProfileMenu(); }
   });
   document.addEventListener('click', e => {
     closeProfileMenu();
