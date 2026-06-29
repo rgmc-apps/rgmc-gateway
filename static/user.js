@@ -71,7 +71,7 @@ function switchTab(tab) {
     panel.style.display = '';
   });
   if (tab === 'issues' && _issues[_issueSubtab] === null) loadIssues(_issueSubtab);
-  if (tab === 'team'   && _teamMembers === null)           loadTeam();
+  if (tab === 'team') { if (_teamMembers !== null) renderTeam(_teamMembers); else loadTeam(); }
   if (tab === 'tasks') { if (_tasks.length === 0) loadTasks(); if (_teamMembers === null) _ensureTeamMembersLoaded(); }
 }
 
