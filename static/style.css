@@ -5155,6 +5155,20 @@ kbd {
   border: 1px solid var(--gold-border-h);
 }
 
+.st-win-launch {
+  background: rgba(14,165,233,0.12);
+  color: #38bdf8;
+  border: 1px solid rgba(14,165,233,0.35);
+}
+.st-win-launch:hover { background: rgba(14,165,233,0.22); border-color: #38bdf8; transform: translateY(-1px); }
+
+.st-win-manifest {
+  background: rgba(14,165,233,0.04);
+  color: oklch(68% 0.07 210);
+  border: 1px solid rgba(14,165,233,0.2);
+}
+.st-win-manifest:hover { background: rgba(14,165,233,0.12); border-color: rgba(14,165,233,0.45); color: #38bdf8; transform: translateY(-1px); }
+
 /* ════════════════════════════════════════════════════════════════════
    WORKSPACE PAGE
    ════════════════════════════════════════════════════════════════════ */

@@ -752,39 +752,67 @@ const VIEW_KEY = 'rgmc-view-mode';
 let _compactBuilt = false;
 
 function buildCompactTables(approvedSet) {
+  const allSites = typeof ALL_SITES !== 'undefined' ? ALL_SITES : [];
   const svgExt  = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
   const svgWarn = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+  const svgWin  = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5L10.5 4v7H3z"/><path d="M21 3.5L10.5 5v6H21z"/><path d="M3 18.5L10.5 20V13H3z"/><path d="M21 20.5L10.5 19V13H21z"/></svg>`;
+  const svgFile = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`;
 
   document.querySelectorAll('.section:not(.health-section)').forEach(section => {
     if (section.querySelector('.systems-table-wrap')) return;
 
-    const badgeText = (section.querySelector('.label-badge')?.textContent || '').trim().toUpperCase();
-    const catKey = badgeText === 'RGMC' ? 'RGMC' : badgeText === 'SBIC' ? 'SBIC' : 'NAV Sites';
+    const badge = (section.querySelector('.label-badge')?.textContent || '').trim().toUpperCase();
 
-    const sites = (typeof ALL_SITES !== 'undefined' ? ALL_SITES : []).filter(s => s.category === catKey);
+    let sites, isWindows = false, isTask = false, headers;
+
+    if (badge === 'WIN') {
+      sites = allSites.filter(s => s.is_windows_based && !s.is_task);
+      isWindows = true;
+      headers = '<th>App</th><th>Launcher</th><th>Manifest</th><th></th>';
+    } else if (badge === 'TASK') {
+      sites = allSites.filter(s => s.is_task);
+      isTask = true;
+      headers = '<th>Tool</th><th>Link</th><th></th><th></th>';
+    } else {
+      const catMap = { RGMC: 'RGMC', SBIC: 'SBIC', NAV: 'NAV Sites' };
+      const catKey = catMap[badge] || badge;
+      sites = allSites.filter(s => s.category === catKey && !s.is_windows_based && !s.is_task);
+      headers = '<th>System</th><th>Primary Link</th><th>Backup</th><th></th>';
+    }
 
     const rows = sites.map(site => {
-      const visible   = !approvedSet || approvedSet.has((site.name || '').toLowerCase());
-      const name      = escapeHtml(site.name || '');
-      const safeCall  = escapeAttr((site.name || '').replace(/'/g, "\\'"));
-      const primaryLbl = escapeHtml(site.primary_label || 'Open');
-      const backupCell = site.backup_url
-        ? `<a href="${escapeAttr(site.backup_url)}" target="_blank" rel="noopener" class="st-link st-backup">${svgExt} ${escapeHtml(site.backup_label || 'Backup')}</a>`
-        : `<span class="st-none">—</span>`;
+      const visible  = !approvedSet || approvedSet.has((site.name || '').toLowerCase());
+      const name     = escapeHtml(site.name || '');
+      const safeCall = escapeAttr((site.name || '').replace(/'/g, "\\'"));
+
+      let col2, col3;
+      if (isWindows) {
+        col2 = site.windows_launcher_url
+          ? `<a href="${escapeAttr(site.windows_launcher_url)}" download class="st-link st-win-launch">${svgWin} Launcher</a>`
+          : `<span class="st-none">—</span>`;
+        col3 = site.windows_manifest_url
+          ? `<a href="${escapeAttr(site.windows_manifest_url)}" download class="st-link st-win-manifest">${svgFile} Manifest</a>`
+          : `<span class="st-none">—</span>`;
+      } else {
+        col2 = site.primary_url
+          ? `<a href="${escapeAttr(site.primary_url)}" target="_blank" rel="noopener" class="st-link st-primary">${svgExt} ${escapeHtml(site.primary_label || 'Open')}</a>`
+          : `<span class="st-none">—</span>`;
+        col3 = site.backup_url
+          ? `<a href="${escapeAttr(site.backup_url)}" target="_blank" rel="noopener" class="st-link st-backup">${svgExt} ${escapeHtml(site.backup_label || 'Backup')}</a>`
+          : `<span class="st-none">—</span>`;
+      }
+
       return `<tr class="st-row"${visible ? '' : ' style="display:none"'}>
         <td class="st-name">${name}</td>
-        <td><a href="${escapeAttr(site.primary_url || '#')}" target="_blank" rel="noopener" class="st-link st-primary">${svgExt} ${primaryLbl}</a></td>
-        <td>${backupCell}</td>
+        <td>${col2}</td>
+        <td>${col3}</td>
         <td class="st-actions"><button class="btn btn-report" onclick="openReport('${safeCall}')">${svgWarn} Report</button></td>
       </tr>`;
     }).join('');
 
     const wrap = document.createElement('div');
     wrap.className = 'systems-table-wrap';
-    wrap.innerHTML = `<table class="systems-table">
-      <thead><tr><th>System</th><th>Primary Link</th><th>Backup</th><th></th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
+    wrap.innerHTML = `<table class="systems-table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
     section.querySelector('.systems-grid')?.after(wrap);
   });
 
