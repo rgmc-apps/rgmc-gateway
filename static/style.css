@@ -209,7 +209,9 @@ body::before {
 .label-rgmc   { background: var(--gold-dim);             color: var(--gold-light); border: 1px solid var(--gold-border); }
 .label-sbic   { background: rgba(196,151,42,0.08);       color: #C4B27A;           border: 1px solid rgba(196,151,42,0.18); }
 .label-nav    { background: rgba(56,189,193,0.1);        color: #38BDC1;           border: 1px solid rgba(56,189,193,0.25); }
+.label-win    { background: rgba(14,165,233,0.10);       color: #38bdf8;           border: 1px solid rgba(14,165,233,0.28); }
 .label-health { background: rgba(82,168,112,0.1);        color: #52A870;           border: 1px solid rgba(82,168,112,0.25); }
+.label-task   { background: rgba(139,92,246,0.10);       color: #a78bfa;           border: 1px solid rgba(139,92,246,0.28); }
 
 /* ── Site Cards — Double-Bezel Architecture ── */
 .systems-grid {
