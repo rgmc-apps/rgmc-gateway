@@ -165,19 +165,13 @@
               {% if site.windows_launcher_url %}
               <a href="{{ site.windows_launcher_url }}" download class="btn btn-win-launch">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5L10.5 4v7H3z"/><path d="M21 3.5L10.5 5v6H21z"/><path d="M3 18.5L10.5 20V13H3z"/><path d="M21 20.5L10.5 19V13H21z"/></svg>
-                Launch App
+                Launcher
               </a>
               {% endif %}
-              {% if site.primary_url %}
-              <a href="{{ site.primary_url }}" target="_blank" rel="noopener" class="btn btn-backup">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                {{ site.primary_label }}
-              </a>
-              {% endif %}
-              {% if site.backup_url %}
-              <a href="{{ site.backup_url }}" target="_blank" rel="noopener" class="btn btn-backup">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                {{ site.backup_label }}
+              {% if site.windows_manifest_url %}
+              <a href="{{ site.windows_manifest_url }}" download class="btn btn-win-manifest">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                Manifest
               </a>
               {% endif %}
               <button class="btn btn-report" onclick="openReport('{{ site.name }}')">

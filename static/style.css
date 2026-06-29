@@ -335,6 +335,14 @@ body::before {
 .btn-win-launch:hover { background: rgba(14,165,233,0.22); border-color: #38bdf8; transform: translateY(-1px); }
 .btn-win-launch:active { transform: scale(0.98); }
 
+.btn-win-manifest {
+  background: rgba(14,165,233,0.05);
+  color: oklch(68% 0.07 210);
+  border: 1.5px solid rgba(14,165,233,0.2);
+}
+.btn-win-manifest:hover { background: rgba(14,165,233,0.12); border-color: rgba(14,165,233,0.45); color: #38bdf8; transform: translateY(-1px); }
+.btn-win-manifest:active { transform: scale(0.98); }
+
 /* Windows App badge on site cards */
 .site-card-name { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .site-win-badge {
