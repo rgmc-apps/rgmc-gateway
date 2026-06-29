@@ -341,7 +341,7 @@ function _showSkeletons() {
     col.innerHTML = Array.from({ length: n }, (_, i) => {
       const [w1, w2, hasTag] = shapes[(colIdx * 2 + i) % shapes.length];
       const delay = colIdx * 50 + i * 85;
-      return `<div class="kanban-skel" style="animation-delay:${delay}ms;border-left-color:${clr}">
+      return `<div class="kanban-skel" style="animation-delay:${delay}ms;border-top-color:${clr}">
         ${hasTag ? '<div class="skel-bar skel-tag"></div>' : ''}
         <div class="skel-bar skel-title" style="--sw:${w1}"></div>
         ${w2 ? `<div class="skel-bar skel-title" style="--sw:${w2}"></div>` : ''}

@@ -51,6 +51,12 @@
   --json-str:  #86efac;
   --json-num:  #7dd3fc;
   --json-bool: #f9a8d4;
+
+  /* Aliases for legacy references */
+  --text:        var(--text-primary);
+  --text-dim:    var(--text-muted);
+  --bg-inner:    var(--bg-card-inner);
+  --radius-card: var(--radius);
 }
 
 /* ── Reset ── */
@@ -1702,7 +1708,7 @@ select.form-input:disabled {
   background: var(--error);
   border: none;
   border-radius: var(--radius-sm);
-  color: #fff;
+  color: #fef8ef;
   font-family: var(--font-ui);
   font-size: 14px;
   font-weight: 700;
@@ -4218,11 +4224,8 @@ kbd {
   gap: 0;
   padding: 16px 18px 14px;
   min-width: 0;
-  border-left-width: 3px;
-  border-left-style: solid;
-  border-top: 1px solid var(--border-subtle);
-  border-right: 1px solid var(--border-subtle);
-  border-bottom: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-subtle);
+  border-top: 2px solid transparent;
   border-radius: var(--radius-sm);
 }
 .dev-stat-dot { display: none; }
@@ -4240,12 +4243,17 @@ kbd {
   letter-spacing: 0.08em;
 }
 
-/* Status left-border accent colors */
-.dev-stat-pill.stat-pending { border-left-color: #6b7280; }
-.dev-stat-pill.stat-ongoing { border-left-color: #a855f7; }
-.dev-stat-pill.stat-coding  { border-left-color: #3b82f6; }
-.dev-stat-pill.stat-testing { border-left-color: #f59e0b; }
-.dev-stat-pill.stat-done    { border-left-color: #22c55e; }
+/* Status top-border accent colors */
+.dev-stat-pill.stat-pending { border-top-color: #6b7280; }
+.dev-stat-pill.stat-ongoing { border-top-color: #a855f7; }
+.dev-stat-pill.stat-coding  { border-top-color: #3b82f6; }
+.dev-stat-pill.stat-testing { border-top-color: #f59e0b; }
+.dev-stat-pill.stat-done    { border-top-color: #22c55e; }
+
+/* Tasks board stat pills — top accent */
+.dev-stat-pill.stat-open        { border-top-color: #6b7280; }
+.dev-stat-pill.stat-in_progress { border-top-color: #3b82f6; }
+.dev-stat-pill.stat-for_review  { border-top-color: #f59e0b; }
 
 /* Status-specific count colors */
 .dev-stat-pill.stat-pending .dev-stat-count { color: #9ca3af; }
@@ -4263,10 +4271,10 @@ kbd {
   .dev-stat-count { font-size: 22px; }
 }
 
-/* ── 3. Kanban cards — left-border accent + refined hover ── */
+/* ── 3. Kanban cards — top-border accent by developer + refined hover ── */
 .kanban-card {
   border: 1px solid rgba(255,255,255,0.05);
-  border-left: 3px solid var(--dev-clr, rgba(196,151,42,0.35));
+  border-top: 2px solid var(--dev-clr, rgba(196,151,42,0.35));
 }
 .kanban-card:hover {
   box-shadow: 0 8px 32px rgba(0,0,0,0.48), 0 0 0 1px var(--dev-clr, var(--border));
@@ -4478,8 +4486,8 @@ kbd {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.dp-badge-admin { background: #fef2f2; color: #dc2626; }
-.dp-badge-dev   { background: #eff6ff; color: #2563eb; }
+.dp-badge-admin { background: rgba(216,88,88,0.12);   color: #f87171; }
+.dp-badge-dev   { background: rgba(59,130,246,0.12);  color: #60a5fa; }
 .dp-org {
   font-size: 11.5px;
   color: var(--text-dim);
@@ -4697,20 +4705,21 @@ kbd {
   white-space: nowrap;
   text-transform: capitalize;
 }
-.dp-s-pending          { background: #f3f4f6; color: #6b7280; }
-.dp-s-ongoing          { background: #f3e8ff; color: #a855f7; }
-.dp-s-coding           { background: #eff6ff; color: #3b82f6; }
-.dp-s-testing          { background: #fffbeb; color: #f59e0b; }
-.dp-s-done             { background: #f0fdf4; color: #22c55e; }
+/* Dev item statuses — dark-mode compatible */
+.dp-s-pending          { background: rgba(107,114,128,0.12); color: #9ca3af; }
+.dp-s-ongoing          { background: rgba(168,85,247,0.12);  color: #c084fc; }
+.dp-s-coding           { background: rgba(59,130,246,0.12);  color: #60a5fa; }
+.dp-s-testing          { background: rgba(245,158,11,0.12);  color: #fbbf24; }
+.dp-s-done             { background: rgba(34,197,94,0.10);   color: #4ade80; }
 /* task statuses */
-.dp-status-done        { background: #f0fdf4; color: #16a34a; }
-.dp-status-ongoing     { background: #eff6ff; color: #2563eb; }
-.dp-status-pending     { background: #fffbeb; color: #d97706; }
-.dp-status-cancelled   { background: #fef2f2; color: #dc2626; }
+.dp-status-done        { background: rgba(34,197,94,0.10);   color: #4ade80; }
+.dp-status-ongoing     { background: rgba(59,130,246,0.12);  color: #60a5fa; }
+.dp-status-pending     { background: rgba(245,158,11,0.12);  color: #fbbf24; }
+.dp-status-cancelled   { background: rgba(216,88,88,0.12);   color: #f87171; }
 /* issue priorities */
-.dp-prio-high          { background: #fef2f2; color: #dc2626; }
-.dp-prio-medium        { background: #fffbeb; color: #d97706; }
-.dp-prio-low           { background: #eff6ff; color: #2563eb; }
+.dp-prio-high          { background: rgba(216,88,88,0.12);   color: #f87171; }
+.dp-prio-medium        { background: rgba(245,158,11,0.12);  color: #fbbf24; }
+.dp-prio-low           { background: rgba(59,130,246,0.12);  color: #60a5fa; }
 
 /* PDF options bar */
 .dp-pdf-bar {
@@ -4785,7 +4794,7 @@ kbd {
   white-space: nowrap;
   line-height: 1;
 }
-.dp-pdf-preset:hover { color: var(--text-secondary); }
+.dp-pdf-preset:hover { color: var(--text-secondary); background: rgba(196,151,42,0.07); }
 .dp-pdf-preset.active {
   background: var(--gold-dim);
   color: var(--gold-light);
@@ -4821,7 +4830,7 @@ kbd {
   background: var(--gold);
   color: #0a0700;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-pill);
   padding: 8px 18px;
   font-size: 13px;
   font-weight: 700;
@@ -4829,9 +4838,13 @@ kbd {
   display: flex;
   align-items: center;
   gap: 6px;
-  transition: background 0.15s;
+  letter-spacing: 0.02em;
+  transition: background 0.2s var(--ease), box-shadow 0.2s var(--ease), transform 0.2s var(--ease);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
-.btn-dp-pdf:hover { background: var(--gold-light); }
+.btn-dp-pdf:hover  { background: var(--gold-light); box-shadow: var(--shadow-btn); transform: translateY(-1px); }
+.btn-dp-pdf:active { transform: scale(0.98); }
 
 /* Print styles */
 @media print {
@@ -4858,6 +4871,22 @@ kbd {
     width: 100%;
     background: #fff;
   }
+
+  /* Restore legible light-mode badge colors for print output */
+  .dp-s-pending        { background: #f3f4f6 !important; color: #6b7280 !important; }
+  .dp-s-ongoing        { background: #f3e8ff !important; color: #a855f7 !important; }
+  .dp-s-coding         { background: #eff6ff !important; color: #3b82f6 !important; }
+  .dp-s-testing        { background: #fffbeb !important; color: #f59e0b !important; }
+  .dp-s-done           { background: #f0fdf4 !important; color: #22c55e !important; }
+  .dp-status-done      { background: #f0fdf4 !important; color: #16a34a !important; }
+  .dp-status-ongoing   { background: #eff6ff !important; color: #2563eb !important; }
+  .dp-status-pending   { background: #fffbeb !important; color: #d97706 !important; }
+  .dp-status-cancelled { background: #fef2f2 !important; color: #dc2626 !important; }
+  .dp-prio-high        { background: #fef2f2 !important; color: #dc2626 !important; }
+  .dp-prio-medium      { background: #fffbeb !important; color: #d97706 !important; }
+  .dp-prio-low         { background: #eff6ff !important; color: #2563eb !important; }
+  .dp-badge-admin      { background: #fef2f2 !important; color: #dc2626 !important; }
+  .dp-badge-dev        { background: #eff6ff !important; color: #2563eb !important; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -4878,7 +4907,7 @@ kbd {
 .kanban-skel {
   background: var(--bg-card);
   border: 1px solid rgba(255,255,255,0.04);
-  border-left: 3px solid rgba(196,151,42,0.10); /* overridden per-status via inline style */
+  border-top: 2px solid rgba(196,151,42,0.10); /* overridden per-status via inline style */
   border-radius: var(--radius-sm);
   padding: 13px 13px 12px;
   display: flex;
@@ -7031,9 +7060,9 @@ kbd {
   color: var(--text-secondary, var(--text-muted));
   line-height: 1.5;
   padding: 8px 10px;
-  background: var(--card-bg-hover, rgba(255,255,255,0.03));
-  border-left: 3px solid var(--gold);
-  border-radius: 0 4px 4px 0;
+  background: rgba(196,151,42,0.06);
+  border: 1px solid rgba(196,151,42,0.18);
+  border-radius: 4px;
 }
 
 .ci-res-actions {
@@ -7289,8 +7318,8 @@ kbd {
   margin: 6px 0 0;
   padding: 8px 12px;
   background: var(--border-subtle);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  border-left: 2px solid var(--border);
   line-height: 1.5;
 }
 .gcm-actions {
