@@ -735,10 +735,11 @@ document.addEventListener('click', e => {
 });
 
 /* ── Systems ── */
-let _editingSystemId = null;
-let _sysTagsList     = [];
-let _pingResults     = {};
-let _sysSearchQuery  = '';
+let _editingSystemId  = null;
+let _sysTagsList      = [];
+let _pingResults      = {};
+let _sysSearchQuery   = '';
+let _winPendingFiles  = { launcher: null, manifest: null };
 
 async function loadSystems() {
   const wrap = document.getElementById('systems-body');
@@ -813,7 +814,9 @@ function renderSystemRow(s) {
     : '<span class="badge-hidden">Hidden</span>';
   const typeBadge = s.is_task
     ? '<span class="badge-item-task">Task</span>'
-    : '<span class="badge-item-system">System</span>';
+    : s.is_windows_based
+      ? '<span class="badge-item-windows">Windows</span>'
+      : '<span class="badge-item-system">System</span>';
   const primaryUrlCell = s.primary_url
     ? `<a href="${escHtml(s.primary_url)}" target="_blank" rel="noopener" class="tbl-link url-cell" title="${escHtml(s.primary_url)}">${escHtml(truncUrl(s.primary_url))}</a>`
     : '<span class="text-muted">—</span>';
@@ -847,7 +850,8 @@ function truncUrl(url) {
 
 function openSystemModal(system) {
   _editingSystemId = system ? system.id : null;
-  const isTask = system ? !!system.is_task : false;
+  const isTask    = system ? !!system.is_task : false;
+  const isWindows = system ? (!!system.is_windows_based && !isTask) : false;
 
   document.getElementById('systemModalTitle').textContent = system ? `Edit ${isTask ? 'Task' : 'System'}` : 'Add System / Task';
 
@@ -855,10 +859,11 @@ function openSystemModal(system) {
   idField.value    = system?.id ?? '';
   idField.disabled = !!system;
 
-  document.getElementById('sysTypeSystem').checked = !isTask;
-  document.getElementById('sysTypeTask').checked   = isTask;
-  document.getElementById('sysName').value         = system?.name          ?? '';
-  document.getElementById('sysCategory').value     = system?.category      ?? 'RGMC';
+  document.getElementById('sysTypeSystem').checked  = !isTask && !isWindows;
+  document.getElementById('sysTypeWindows').checked = isWindows;
+  document.getElementById('sysTypeTask').checked    = isTask;
+  document.getElementById('sysName').value          = system?.name          ?? '';
+  document.getElementById('sysCategory').value      = system?.category      ?? 'RGMC';
   document.getElementById('sysPrimaryUrl').value   = system?.primary_url   ?? '';
   document.getElementById('sysPrimaryLabel').value = system?.primary_label ?? 'Open';
   document.getElementById('sysBackupUrl').value    = system?.backup_url    ?? '';
@@ -870,19 +875,34 @@ function openSystemModal(system) {
   _renderSysTags();
   document.getElementById('sysTagsField').value = '';
 
-  _applySysTypeUi(isTask);
+  // Reset Windows file state
+  _winPendingFiles = { launcher: null, manifest: null };
+  document.getElementById('sysWinLauncherInput').value = '';
+  document.getElementById('sysWinManifestInput').value = '';
+  document.getElementById('sysWinLauncherLabel').textContent = 'Choose launcher file…';
+  document.getElementById('sysWinManifestLabel').textContent = 'Choose manifest file…';
+  document.getElementById('sysWinLauncherZone').classList.remove('has-file');
+  document.getElementById('sysWinManifestZone').classList.remove('has-file');
+  _renderWinCurrentFile('launcher', system?.windows_launcher_url);
+  _renderWinCurrentFile('manifest', system?.windows_manifest_url);
+
+  _applySysTypeUi(isTask, isWindows);
   resetSysForm();
   document.getElementById('systemModal').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
 
 function onSysTypeChange() {
-  _applySysTypeUi(document.getElementById('sysTypeTask').checked);
+  const isTask    = document.getElementById('sysTypeTask').checked;
+  const isWindows = document.getElementById('sysTypeWindows').checked;
+  _applySysTypeUi(isTask, isWindows);
 }
 
-function _applySysTypeUi(isTask) {
-  document.getElementById('sysUrlSection').style.display = isTask ? 'none' : '';
-  document.getElementById('sysTypeSystemOpt').classList.toggle('active', !isTask);
+function _applySysTypeUi(isTask, isWindows) {
+  document.getElementById('sysUrlSection').style.display     = isTask ? 'none' : '';
+  document.getElementById('sysWindowsSection').style.display = isWindows ? '' : 'none';
+  document.getElementById('sysTypeSystemOpt').classList.toggle('active', !isTask && !isWindows);
+  document.getElementById('sysTypeWindowsOpt').classList.toggle('active', !!isWindows);
   document.getElementById('sysTypeTaskOpt').classList.toggle('active', isTask);
   if (isTask) {
     document.getElementById('sysPrimaryUrl').value   = '';
@@ -890,6 +910,44 @@ function _applySysTypeUi(isTask) {
     document.getElementById('sysBackupUrl').value    = '';
     document.getElementById('sysBackupLabel').value  = '';
   }
+}
+
+function _renderWinCurrentFile(type, url) {
+  const cap = type.charAt(0).toUpperCase() + type.slice(1);
+  const el  = document.getElementById(`sysWin${cap}Current`);
+  if (!el) return;
+  if (!url) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  const filename = url.split('/').pop().replace(/^[a-f0-9]{8}_/, '');
+  el.style.display = '';
+  el.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    Current: <a href="${escHtml(url)}" target="_blank" rel="noopener" class="win-file-link" title="${escHtml(url)}">${escHtml(filename)}</a>`;
+}
+
+function onWinFileSelect(input, type) {
+  const file = input.files[0];
+  if (!file) return;
+  _winPendingFiles[type] = file;
+  const cap     = type.charAt(0).toUpperCase() + type.slice(1);
+  const labelEl = document.getElementById(`sysWin${cap}Label`);
+  const zoneEl  = document.getElementById(`sysWin${cap}Zone`);
+  if (labelEl) labelEl.textContent = file.name;
+  if (zoneEl)  zoneEl.classList.add('has-file');
+}
+
+async function _uploadWinFile(systemId, type, file) {
+  const fd = new FormData();
+  fd.append('file_type', type);
+  fd.append('file', file);
+  const res = await fetch(`/api/admin/systems/${encodeURIComponent(systemId)}/upload`, {
+    method:  'POST',
+    headers: authHeaders(),
+    body:    fd,
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || `${type} upload failed`);
+  }
+  return res.json();
 }
 
 function closeSystemModal() {
@@ -947,7 +1005,8 @@ function resetSysForm() {
 async function saveSystem(e) {
   e.preventDefault();
 
-  const isTask      = document.getElementById('sysTypeTask').checked;
+  const isTask    = document.getElementById('sysTypeTask').checked;
+  const isWindows = document.getElementById('sysTypeWindows').checked;
   const id          = document.getElementById('sysId').value.trim();
   const name        = document.getElementById('sysName').value.trim();
   const category    = document.getElementById('sysCategory').value;
@@ -967,7 +1026,7 @@ async function saveSystem(e) {
     showSysError('Name is required.');
     return;
   }
-  if (!isTask && (!primaryUrl || !primaryLabel)) {
+  if (!isTask && !isWindows && (!primaryUrl || !primaryLabel)) {
     showSysError('Primary URL and Primary Label are required for systems.');
     return;
   }
@@ -975,28 +1034,43 @@ async function saveSystem(e) {
   document.getElementById('sysFormActions').style.display = 'none';
   document.getElementById('sysFormLoading').style.display = '';
 
-  const payload = { name, category, is_task: isTask, primary_url: primaryUrl, primary_label: primaryLabel, backup_url: backupUrl, backup_label: backupLabel, sort_order: sortOrder, is_visible: isVisible, tags };
+  const payload = { name, category, is_task: isTask, is_windows_based: isWindows, primary_url: primaryUrl, primary_label: primaryLabel, backup_url: backupUrl, backup_label: backupLabel, sort_order: sortOrder, is_visible: isVisible, tags };
 
   try {
-    let res;
+    let res, savedId;
     if (_editingSystemId) {
       res = await fetch(`/api/admin/systems/${encodeURIComponent(_editingSystemId)}`, {
         method:  'PATCH',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body:    JSON.stringify(payload),
       });
+      savedId = _editingSystemId;
     } else {
       res = await fetch('/api/admin/systems', {
         method:  'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body:    JSON.stringify({ id, ...payload }),
       });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Save failed');
+      }
+      const d = await res.json();
+      savedId = d.id || id;
+      res = { ok: true };
     }
     if (!res.ok) {
       const err = await res.json();
       throw new Error(err.error || 'Save failed');
     }
-    const kind = isTask ? 'Task' : 'System';
+    // Upload Windows files if selected
+    if (isWindows && savedId) {
+      const uploads = [];
+      if (_winPendingFiles.launcher) uploads.push(_uploadWinFile(savedId, 'launcher', _winPendingFiles.launcher));
+      if (_winPendingFiles.manifest) uploads.push(_uploadWinFile(savedId, 'manifest', _winPendingFiles.manifest));
+      if (uploads.length) await Promise.all(uploads);
+    }
+    const kind = isTask ? 'Task' : isWindows ? 'Windows App' : 'System';
     closeSystemModal();
     showToast(`${kind} ${_editingSystemId ? 'updated' : 'added'} successfully.`);
     loadSystems();

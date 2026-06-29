@@ -672,7 +672,31 @@ async function _onDragRelease() {
   ghost.remove();
 
   if (item && newStatus && newStatus !== item.status) {
-    await moveItem(id, newStatus);
+    if (newStatus === 'done') {
+      // Re-render so the card stays visible in its current column while the remarks modal is open
+      renderBoard();
+      await moveItem(id, newStatus);
+    } else {
+      // Optimistic update: show card in the new column immediately
+      const rollback = { status: item.status, actual_end_date: item.actual_end_date };
+      item.status = newStatus;
+      item.actual_end_date = null;
+      renderBoard();
+      document.getElementById(`card-${id}`)?.classList.add('kcard-saving');
+      try {
+        const res = await fetch(`/api/dev/items/${encodeURIComponent(id)}`, {
+          method:  'PATCH',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ status: newStatus, actual_end_date: null }),
+        });
+        if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      } catch (err) {
+        Object.assign(item, rollback);
+        showToast(`Could not move card: ${err.message}`);
+      } finally {
+        renderBoard();
+      }
+    }
   } else {
     renderBoard();
   }

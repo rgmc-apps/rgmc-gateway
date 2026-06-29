@@ -325,6 +325,30 @@ body::before {
 .btn-backup:hover { background: var(--gold-dim); border-color: var(--gold); transform: translateY(-1px); }
 .btn-backup:active { transform: scale(0.98); }
 
+.btn-win-launch {
+  background: rgba(14,165,233,0.12);
+  color: #38bdf8;
+  border: 1.5px solid rgba(14,165,233,0.35);
+}
+.btn-win-launch:hover { background: rgba(14,165,233,0.22); border-color: #38bdf8; transform: translateY(-1px); }
+.btn-win-launch:active { transform: scale(0.98); }
+
+/* Windows App badge on site cards */
+.site-card-name { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.site-win-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  background: rgba(14,165,233,0.12);
+  border: 1px solid rgba(14,165,233,0.28);
+  border-radius: var(--radius-pill);
+  color: #38bdf8;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+
 .btn-report {
   background: transparent;
   color: var(--error);
@@ -2101,6 +2125,29 @@ select.form-input:disabled {
 /* Cursor during drag */
 body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
 
+/* Card saving state: optimistic move confirmed in background */
+.kcard-saving {
+  opacity: 0.6;
+  pointer-events: none;
+  animation: none !important;
+}
+.kcard-saving::after {
+  content: '';
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid oklch(70% 0.08 80 / 0.3);
+  border-top-color: oklch(72% 0.13 80);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kcard-saving::after { animation: none; opacity: 0.6; }
+}
+
 /* Status-tinted card backgrounds (no side-stripe) */
 #col-pending .kanban-card { background: rgba(107,114,128,0.04); }
 #col-ongoing .kanban-card { background: rgba(168,85,247,0.04);  }
@@ -2569,6 +2616,20 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
   letter-spacing: 0.04em;
 }
 
+/* Windows App type badge in systems table */
+.badge-item-windows {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  background: rgba(14,165,233,0.10);
+  border: 1px solid rgba(14,165,233,0.28);
+  border-radius: var(--radius-pill);
+  color: #38bdf8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
 /* ── System ping/health status badges ── */
 .badge-ping-ok      { display:inline-flex;align-items:center;gap:5px;padding:3px 9px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.28);border-radius:var(--radius-pill);color:#4ade80;font-size:11px;font-weight:700;white-space:nowrap; }
 .badge-ping-error   { display:inline-flex;align-items:center;gap:5px;padding:3px 9px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.22);border-radius:var(--radius-pill);color:#f87171;font-size:11px;font-weight:700;white-space:nowrap; }
@@ -2612,6 +2673,72 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
   background: rgba(196,151,42,0.1);
   color: var(--gold);
 }
+
+/* ── Windows App section in system modal ── */
+.win-section-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #38bdf8;
+  padding: 4px 0 12px;
+  border-top: 1px solid rgba(14,165,233,0.18);
+  margin-top: 4px;
+}
+.win-info-box {
+  background: rgba(14,165,233,0.07);
+  border: 1px solid rgba(14,165,233,0.22);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 14px;
+}
+.win-info-box strong { color: #38bdf8; }
+.win-upload-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 18px 14px;
+  border: 1.5px dashed rgba(14,165,233,0.3);
+  border-radius: var(--radius-sm);
+  background: rgba(14,165,233,0.04);
+  cursor: pointer;
+  transition: border-color 0.18s var(--ease), background 0.18s var(--ease);
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.win-upload-zone:hover {
+  border-color: rgba(14,165,233,0.6);
+  background: rgba(14,165,233,0.08);
+  color: #38bdf8;
+}
+.win-upload-zone.has-file {
+  border-color: rgba(14,165,233,0.55);
+  background: rgba(14,165,233,0.08);
+  color: #38bdf8;
+}
+.win-current-file {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+.win-current-file svg { color: #4ade80; flex-shrink: 0; }
+.win-file-link {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+}
+.win-file-link:hover { color: #38bdf8; }
 
 /* System Tags Input */
 .sys-tags-wrap {

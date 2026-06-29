@@ -1,9 +1,13 @@
+import os
+import re
 import time
+import uuid
 from collections import defaultdict
 import requests as http_requests
 
 from flask import Blueprint, request, jsonify, render_template, current_app
 
+from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
 from services.supabase import supabase_req
 from services.guards import _require_admin
 from services.sites import _invalidate_sites_cache
@@ -249,9 +253,10 @@ def admin_create_system():
     _, err = _require_admin()
     if err:
         return jsonify(err[0]), err[1]
-    data    = request.get_json(silent=True) or {}
-    is_task = bool(data.get("is_task", False))
-    required = ["id", "name", "category"] if is_task else ["id", "name", "category", "primary_url", "primary_label"]
+    data       = request.get_json(silent=True) or {}
+    is_task    = bool(data.get("is_task", False))
+    is_windows = bool(data.get("is_windows_based", False))
+    required   = ["id", "name", "category"] if (is_task or is_windows) else ["id", "name", "category", "primary_url", "primary_label"]
     missing  = [f for f in required if not str(data.get(f, "")).strip()]
     if missing:
         return jsonify({"error": f"Missing: {', '.join(missing)}"}), 400
@@ -280,7 +285,7 @@ def admin_update_system(system_id):
             return jsonify({"error": str(exc)}), 500
 
     data    = request.get_json(silent=True) or {}
-    allowed = {"name", "category", "primary_url", "primary_label", "backup_url", "backup_label", "sort_order", "is_visible", "is_task", "tags"}
+    allowed = {"name", "category", "primary_url", "primary_label", "backup_url", "backup_label", "sort_order", "is_visible", "is_task", "tags", "is_windows_based", "windows_launcher_url", "windows_manifest_url"}
     patch   = {k: v for k, v in data.items() if k in allowed}
     if not patch:
         return jsonify({"error": "No valid fields"}), 400
@@ -332,6 +337,74 @@ def ping_system(system_id):
     except Exception as exc:
         latency_ms = round((time.monotonic() - t0) * 1000)
         return jsonify({"id": system_id, "name": system.get("name"), "url": url, "status": "down", "latency_ms": latency_ms, "error": str(exc)})
+
+
+_WIN_BUCKET      = "system-files"
+_WIN_MAX_BYTES   = 150 * 1024 * 1024  # 150 MB
+_WIN_ALLOWED_EXT = {".exe", ".appref-ms", ".application", ".manifest", ".msi", ".xml"}
+_WIN_CONTENT_TYPES = {
+    ".exe":         "application/vnd.microsoft.portable-executable",
+    ".appref-ms":   "application/x-ms-application",
+    ".application": "application/x-ms-application",
+    ".manifest":    "text/xml",
+    ".msi":         "application/x-msi",
+    ".xml":         "text/xml",
+}
+
+
+@admin_bp.post("/api/admin/systems/<string:system_id>/upload")
+def admin_upload_system_file(system_id):
+    _, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+
+    file_type = request.form.get("file_type", "").strip()
+    if file_type not in ("launcher", "manifest"):
+        return jsonify({"error": "file_type must be 'launcher' or 'manifest'"}), 400
+
+    f = request.files.get("file")
+    if not f or not f.filename:
+        return jsonify({"error": "No file provided"}), 400
+
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in _WIN_ALLOWED_EXT:
+        return jsonify({"error": f"Unsupported file type. Allowed: {', '.join(sorted(_WIN_ALLOWED_EXT))}"}), 400
+
+    data = f.read()
+    if len(data) > _WIN_MAX_BYTES:
+        return jsonify({"error": "File too large (max 150 MB)"}), 400
+
+    safe_name  = re.sub(r"[^a-zA-Z0-9.\-_]", "_", f.filename)
+    uid        = str(uuid.uuid4())[:8]
+    path       = f"{system_id}/{file_type}/{uid}_{safe_name}"
+    content_type = _WIN_CONTENT_TYPES.get(ext, "application/octet-stream")
+
+    upload_url = f"{SUPABASE_URL.rstrip('/')}/storage/v1/object/{_WIN_BUCKET}/{path}"
+    try:
+        resp = http_requests.put(
+            upload_url,
+            headers={
+                "apikey":        SUPABASE_SERVICE_KEY,
+                "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                "Content-Type":  content_type,
+            },
+            data=data,
+            timeout=60,
+        )
+        resp.raise_for_status()
+    except Exception as exc:
+        current_app.logger.error("Windows system file upload failed: %s", exc)
+        return jsonify({"error": "Upload failed"}), 500
+
+    public_url = f"{SUPABASE_URL.rstrip('/')}/storage/v1/object/public/{_WIN_BUCKET}/{path}"
+    db_field   = "windows_launcher_url" if file_type == "launcher" else "windows_manifest_url"
+    try:
+        supabase_req("PATCH", "/systems", data={db_field: public_url}, params={"id": f"eq.{system_id}"})
+        _invalidate_sites_cache()
+    except Exception as exc:
+        current_app.logger.warning("Failed to update system %s with %s URL: %s", system_id, file_type, exc)
+
+    return jsonify({"url": public_url, "field": db_field})
 
 
 @admin_bp.post("/api/admin/requests/<string:request_id>/approve")

@@ -19,7 +19,7 @@ def get_sites() -> list:
     if SUPABASE_URL and SUPABASE_SERVICE_KEY:
         try:
             rows = supabase_req("GET", "/systems", params={
-                "select":     "id,name,category,primary_url,primary_label,backup_url,backup_label",
+                "select":     "id,name,category,primary_url,primary_label,backup_url,backup_label,is_windows_based,windows_launcher_url,windows_manifest_url",
                 "is_visible": "eq.true",
                 "order":      "sort_order.asc,name.asc",
             })

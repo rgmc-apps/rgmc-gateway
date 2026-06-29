@@ -220,7 +220,7 @@ def dev_get_movement_logs(item_id):
         return jsonify(rows or [])
     except Exception as exc:
         current_app.logger.error("dev_get_movement_logs failed: %s", exc)
-        return jsonify({"error": "Failed to fetch movement logs"}), 500
+        return jsonify([]), 200
 
 
 @developer_bp.get("/api/dev/items/<string:item_id>/logs")

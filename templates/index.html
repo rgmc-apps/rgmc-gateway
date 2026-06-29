@@ -54,12 +54,23 @@
         {% for site in sites if site.category == 'RGMC' %}
         <div class="site-card">
           <div class="site-card-inner">
-            <div class="site-card-name">{{ site.name }}</div>
+            <div class="site-card-name">
+              {{ site.name }}
+              {% if site.is_windows_based %}<span class="site-win-badge">Windows App</span>{% endif %}
+            </div>
             <div class="site-card-actions">
+              {% if site.is_windows_based and site.windows_launcher_url %}
+              <a href="{{ site.windows_launcher_url }}" download class="btn btn-win-launch">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5L10.5 4v7H3z"/><path d="M21 3.5L10.5 5v6H21z"/><path d="M3 18.5L10.5 20V13H3z"/><path d="M21 20.5L10.5 19V13H21z"/></svg>
+                Launch App
+              </a>
+              {% endif %}
+              {% if site.primary_url %}
               <a href="{{ site.primary_url }}" target="_blank" rel="noopener" class="btn btn-primary">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                 {{ site.primary_label }}
               </a>
+              {% endif %}
               {% if site.backup_url %}
               <a href="{{ site.backup_url }}" target="_blank" rel="noopener" class="btn btn-backup">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
@@ -87,12 +98,23 @@
         {% for site in sites if site.category == 'SBIC' %}
         <div class="site-card">
           <div class="site-card-inner">
-            <div class="site-card-name">{{ site.name }}</div>
+            <div class="site-card-name">
+              {{ site.name }}
+              {% if site.is_windows_based %}<span class="site-win-badge">Windows App</span>{% endif %}
+            </div>
             <div class="site-card-actions">
+              {% if site.is_windows_based and site.windows_launcher_url %}
+              <a href="{{ site.windows_launcher_url }}" download class="btn btn-win-launch">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5L10.5 4v7H3z"/><path d="M21 3.5L10.5 5v6H21z"/><path d="M3 18.5L10.5 20V13H3z"/><path d="M21 20.5L10.5 19V13H21z"/></svg>
+                Launch App
+              </a>
+              {% endif %}
+              {% if site.primary_url %}
               <a href="{{ site.primary_url }}" target="_blank" rel="noopener" class="btn btn-primary">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                 {{ site.primary_label }}
               </a>
+              {% endif %}
               {% if site.backup_url %}
               <a href="{{ site.backup_url }}" target="_blank" rel="noopener" class="btn btn-backup">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
@@ -120,12 +142,23 @@
         {% for site in sites if site.category == 'NAV Sites' %}
         <div class="site-card">
           <div class="site-card-inner">
-            <div class="site-card-name">{{ site.name }}</div>
+            <div class="site-card-name">
+              {{ site.name }}
+              {% if site.is_windows_based %}<span class="site-win-badge">Windows App</span>{% endif %}
+            </div>
             <div class="site-card-actions">
+              {% if site.is_windows_based and site.windows_launcher_url %}
+              <a href="{{ site.windows_launcher_url }}" download class="btn btn-win-launch">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5L10.5 4v7H3z"/><path d="M21 3.5L10.5 5v6H21z"/><path d="M3 18.5L10.5 20V13H3z"/><path d="M21 20.5L10.5 19V13H21z"/></svg>
+                Launch App
+              </a>
+              {% endif %}
+              {% if site.primary_url %}
               <a href="{{ site.primary_url }}" target="_blank" rel="noopener" class="btn btn-primary">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                 {{ site.primary_label }}
               </a>
+              {% endif %}
               {% if site.backup_url %}
               <a href="{{ site.backup_url }}" target="_blank" rel="noopener" class="btn btn-backup">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
