@@ -3021,9 +3021,61 @@ function _buildDevPerfModalHtml(dev, av, initial, displayName) {
         <div class="dp-systems">${systemsHtml}</div>
       </div>
 
-      <div class="dp-section dp-section-last">
+      <div class="dp-section">
         <div class="dp-section-title">Dev Items <span class="dp-section-count">${dev.items.length}</span></div>
         ${itemsHtml}
+      </div>
+
+      <div class="dp-section">
+        <div class="dp-section-title">Tasks <span class="dp-section-count">${(dev.tasks || []).length}</span></div>
+        ${(dev.tasks || []).length ? `
+        <div class="dp-items-wrap">
+          <table class="dp-items-table">
+            <thead><tr>
+              <th>#</th><th>Task Name</th><th>Type</th>
+              <th>Status</th><th>Started</th><th>Est. End</th><th>Actual End</th>
+            </tr></thead>
+            <tbody>${(dev.tasks || []).map((t, i) => {
+              const fmtDate = d => d ? String(d).slice(0, 10) : '—';
+              const TASK_CLS = { completed: 'dp-status-done', 'in-progress': 'dp-status-ongoing', pending: 'dp-status-pending', cancelled: 'dp-status-cancelled' };
+              return `<tr>
+                <td class="dp-item-num">${i + 1}</td>
+                <td class="dp-item-title">${escHtml(t.task_name || '—')}</td>
+                <td>${escHtml(t.task_type || '—')}</td>
+                <td><span class="dp-item-status ${TASK_CLS[t.status] || ''}">${escHtml(t.status || '—')}</span></td>
+                <td>${fmtDate(t.start_date)}</td>
+                <td>${fmtDate(t.estimated_end_date)}</td>
+                <td>${fmtDate(t.actual_end_date)}</td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table>
+        </div>` : '<span class="dp-no-data">No tasks assigned.</span>'}
+      </div>
+
+      <div class="dp-section dp-section-last">
+        <div class="dp-section-title">Issues <span class="dp-section-count">${(dev.issues || []).length}</span></div>
+        ${(dev.issues || []).length ? `
+        <div class="dp-items-wrap">
+          <table class="dp-items-table">
+            <thead><tr>
+              <th>#</th><th>Ticket #</th><th>Title</th><th>System</th>
+              <th>Category</th><th>Priority</th><th>Status</th>
+            </tr></thead>
+            <tbody>${(dev.issues || []).map((iss, i) => {
+              const PRIO_CLS = { high: 'dp-prio-high', medium: 'dp-prio-medium', low: 'dp-prio-low' };
+              const STAT_CLS = { resolved: 'dp-status-done', open: 'dp-status-pending', 'in-progress': 'dp-status-ongoing', closed: 'dp-status-cancelled' };
+              return `<tr>
+                <td class="dp-item-num">${i + 1}</td>
+                <td style="white-space:nowrap">${escHtml(iss.ticket_number || '—')}</td>
+                <td class="dp-item-title">${escHtml(iss.title || '—')}</td>
+                <td>${escHtml(iss.site_name || '—')}</td>
+                <td>${escHtml(iss.request_category || '—')}</td>
+                <td><span class="dp-item-status ${PRIO_CLS[(iss.priority || '').toLowerCase()] || ''}">${escHtml(iss.priority || '—')}</span></td>
+                <td><span class="dp-item-status ${STAT_CLS[(iss.status || '').toLowerCase()] || ''}">${escHtml(iss.status || '—')}</span></td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table>
+        </div>` : '<span class="dp-no-data">No issues assigned.</span>'}
       </div>`;
 }
 
@@ -3896,19 +3948,63 @@ function _buildPrintHtml(dev) {
     ? dev.systems.map(s => `<span style="display:inline-block;background:#eff6ff;color:#2563eb;border-radius:4px;padding:2px 8px;margin:2px;font-size:12px">${escHtml(s)}</span>`).join('')
     : '<span style="color:#94a3b8">None recorded</span>';
 
+  const fmtDate = d => d ? String(d).slice(0, 10) : '—';
+
+  const _pBadge = (color, bg, text) =>
+    `<span style="background:${bg};color:${color};padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap">${escHtml(text)}</span>`;
+
   const itemRows = dev.items.map((it, i) => {
-    const fmtDate = d => d ? d.slice(0, 10) : '—';
-    const typeLabel = it.dev_item_type || '—';
     const clr = DP_STAT_COLOR[it.status] || '#6b7280';
     return `<tr style="border-bottom:1px solid #f1f5f9">
       <td style="padding:5px 8px;color:#94a3b8;font-size:12px">${i + 1}</td>
       <td style="padding:5px 8px;font-weight:500">${escHtml(it.title || '—')}</td>
-      <td style="padding:5px 8px;color:#64748b;font-size:12px">${escHtml(typeLabel)}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${escHtml(it.dev_item_type || '—')}</td>
       <td style="padding:5px 8px;color:#64748b;font-size:12px">${escHtml(it.system_name || '—')}</td>
-      <td style="padding:5px 8px"><span style="background:${DP_STAT_BG[it.status]||'#f3f4f6'};color:${clr};padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap">${escHtml(it.status || '—')}</span></td>
+      <td style="padding:5px 8px">${_pBadge(clr, DP_STAT_BG[it.status] || '#f3f4f6', it.status || '—')}</td>
       <td style="padding:5px 8px;color:#64748b;font-size:12px">${fmtDate(it.start_date)}</td>
       <td style="padding:5px 8px;color:#64748b;font-size:12px">${fmtDate(it.estimated_end_date)}</td>
       <td style="padding:5px 8px;color:#64748b;font-size:12px">${fmtDate(it.actual_end_date)}</td>
+    </tr>`;
+  }).join('');
+
+  const TASK_STATUS_COLOR = { completed: '#16a34a', 'in-progress': '#2563eb', pending: '#d97706', cancelled: '#dc2626' };
+  const TASK_STATUS_BG    = { completed: '#f0fdf4', 'in-progress': '#eff6ff', pending: '#fffbeb', cancelled: '#fef2f2' };
+
+  const taskRows = (dev.tasks || []).map((t, i) => {
+    const clr = TASK_STATUS_COLOR[t.status] || '#6b7280';
+    const bg  = TASK_STATUS_BG[t.status]    || '#f3f4f6';
+    return `<tr style="border-bottom:1px solid #f1f5f9">
+      <td style="padding:5px 8px;color:#94a3b8;font-size:12px">${i + 1}</td>
+      <td style="padding:5px 8px;font-weight:500">${escHtml(t.task_name || '—')}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${escHtml(t.task_type || '—')}</td>
+      <td style="padding:5px 8px">${_pBadge(clr, bg, t.status || '—')}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${fmtDate(t.start_date)}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${fmtDate(t.estimated_end_date)}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${fmtDate(t.actual_end_date)}</td>
+    </tr>`;
+  }).join('');
+
+  const PRIORITY_COLOR = { high: '#dc2626', medium: '#d97706', low: '#2563eb' };
+  const PRIORITY_BG    = { high: '#fef2f2', medium: '#fffbeb', low: '#eff6ff' };
+  const ISSUE_STATUS_COLOR = { resolved: '#16a34a', open: '#d97706', closed: '#6b7280', 'in-progress': '#2563eb' };
+  const ISSUE_STATUS_BG    = { resolved: '#f0fdf4', open: '#fffbeb', closed: '#f3f4f6', 'in-progress': '#eff6ff' };
+
+  const issueRows = (dev.issues || []).map((iss, i) => {
+    const pKey  = (iss.priority || '').toLowerCase();
+    const sKey  = (iss.status   || '').toLowerCase();
+    const pClr  = PRIORITY_COLOR[pKey]    || '#6b7280';
+    const pBg   = PRIORITY_BG[pKey]       || '#f3f4f6';
+    const sClr  = ISSUE_STATUS_COLOR[sKey] || '#6b7280';
+    const sBg   = ISSUE_STATUS_BG[sKey]    || '#f3f4f6';
+    return `<tr style="border-bottom:1px solid #f1f5f9">
+      <td style="padding:5px 8px;color:#94a3b8;font-size:12px">${i + 1}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px;white-space:nowrap">${escHtml(iss.ticket_number || '—')}</td>
+      <td style="padding:5px 8px;font-weight:500">${escHtml(iss.title || '—')}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${escHtml(iss.site_name || '—')}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${escHtml(iss.request_category || '—')}</td>
+      <td style="padding:5px 8px">${_pBadge(pClr, pBg, iss.priority || '—')}</td>
+      <td style="padding:5px 8px">${_pBadge(sClr, sBg, iss.status   || '—')}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${fmtDate(iss.created_at)}</td>
     </tr>`;
   }).join('');
 
@@ -3941,7 +4037,7 @@ function _buildPrintHtml(dev) {
       <div>${systemsHtml}</div>
     </div>
 
-    <div>
+    <div style="margin-bottom:24px">
       <div style="font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Dev Items (${dev.items.length})</div>
       ${dev.items.length ? `<table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead><tr style="border-bottom:2px solid #e2e8f0">
@@ -3956,6 +4052,39 @@ function _buildPrintHtml(dev) {
         </tr></thead>
         <tbody>${itemRows}</tbody>
       </table>` : '<span style="color:#94a3b8">No items assigned.</span>'}
+    </div>
+
+    <div style="margin-bottom:24px">
+      <div style="font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Tasks (${(dev.tasks || []).length})</div>
+      ${(dev.tasks || []).length ? `<table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="border-bottom:2px solid #e2e8f0">
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">#</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Task Name</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Type</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Status</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Started</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Est. End</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Actual End</th>
+        </tr></thead>
+        <tbody>${taskRows}</tbody>
+      </table>` : '<span style="color:#94a3b8">No tasks assigned.</span>'}
+    </div>
+
+    <div>
+      <div style="font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Issues (${(dev.issues || []).length})</div>
+      ${(dev.issues || []).length ? `<table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="border-bottom:2px solid #e2e8f0">
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">#</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Ticket #</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Title</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">System</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Category</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Priority</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Status</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Created</th>
+        </tr></thead>
+        <tbody>${issueRows}</tbody>
+      </table>` : '<span style="color:#94a3b8">No issues assigned.</span>'}
     </div>
   </div>`;
 }

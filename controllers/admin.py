@@ -180,10 +180,38 @@ def admin_dev_performance():
     except Exception:
         sys_map = {}
 
+    try:
+        tasks = supabase_req("GET", "/tasks", params={
+            "select": "id,task_name,task_type,status,start_date,estimated_end_date,actual_end_date,created_by,created_at",
+            "order":  "created_at.desc",
+        })
+    except Exception as exc:
+        current_app.logger.error("admin_dev_performance tasks: %s", exc)
+        tasks = []
+
+    try:
+        issues = supabase_req("GET", "/issues", params={
+            "select": "id,title,ticket_number,status,site_name,assigned_to,request_category,priority,created_at",
+            "order":  "created_at.desc",
+        })
+    except Exception as exc:
+        current_app.logger.error("admin_dev_performance issues: %s", exc)
+        issues = []
+
     items_by_dev = {}
     for item in (items or []):
         key = item.get("created_by") or ""
         items_by_dev.setdefault(key, []).append(item)
+
+    tasks_by_dev = {}
+    for task in (tasks or []):
+        key = task.get("created_by") or ""
+        tasks_by_dev.setdefault(key, []).append(task)
+
+    issues_by_dev = {}
+    for issue in (issues or []):
+        key = issue.get("assigned_to") or ""
+        issues_by_dev.setdefault(key, []).append(issue)
 
     STATUSES = ("pending", "ongoing", "coding", "testing", "done")
     result = []
@@ -212,6 +240,28 @@ def admin_dev_performance():
             "created_at":         i.get("created_at") or "",
         } for i in user_items]
 
+        enriched_tasks = [{
+            "id":                 t["id"],
+            "task_name":          t.get("task_name") or "",
+            "task_type":          t.get("task_type") or "",
+            "status":             t.get("status") or "",
+            "start_date":         t.get("start_date") or "",
+            "estimated_end_date": t.get("estimated_end_date") or "",
+            "actual_end_date":    t.get("actual_end_date") or "",
+            "created_at":         t.get("created_at") or "",
+        } for t in tasks_by_dev.get(uname, [])]
+
+        enriched_issues = [{
+            "id":               iss["id"],
+            "title":            iss.get("title") or "",
+            "ticket_number":    iss.get("ticket_number") or "",
+            "status":           iss.get("status") or "",
+            "site_name":        iss.get("site_name") or "",
+            "request_category": iss.get("request_category") or "",
+            "priority":         iss.get("priority") or "",
+            "created_at":       iss.get("created_at") or "",
+        } for iss in issues_by_dev.get(uname, [])]
+
         result.append({
             "username":     uname,
             "first_name":   user.get("first_name") or "",
@@ -227,6 +277,8 @@ def admin_dev_performance():
             "counts":       counts,
             "systems":      sys_names,
             "items":        enriched,
+            "tasks":        enriched_tasks,
+            "issues":       enriched_issues,
         })
 
     result.sort(key=lambda u: (-u["counts"]["total"], (u["first_name"] + u["last_name"]).lower()))

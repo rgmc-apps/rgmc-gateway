@@ -4696,11 +4696,20 @@ kbd {
   white-space: nowrap;
   text-transform: capitalize;
 }
-.dp-s-pending  { background: #f3f4f6; color: #6b7280; }
-.dp-s-ongoing  { background: #f3e8ff; color: #a855f7; }
-.dp-s-coding   { background: #eff6ff; color: #3b82f6; }
-.dp-s-testing  { background: #fffbeb; color: #f59e0b; }
-.dp-s-done     { background: #f0fdf4; color: #22c55e; }
+.dp-s-pending          { background: #f3f4f6; color: #6b7280; }
+.dp-s-ongoing          { background: #f3e8ff; color: #a855f7; }
+.dp-s-coding           { background: #eff6ff; color: #3b82f6; }
+.dp-s-testing          { background: #fffbeb; color: #f59e0b; }
+.dp-s-done             { background: #f0fdf4; color: #22c55e; }
+/* task statuses */
+.dp-status-done        { background: #f0fdf4; color: #16a34a; }
+.dp-status-ongoing     { background: #eff6ff; color: #2563eb; }
+.dp-status-pending     { background: #fffbeb; color: #d97706; }
+.dp-status-cancelled   { background: #fef2f2; color: #dc2626; }
+/* issue priorities */
+.dp-prio-high          { background: #fef2f2; color: #dc2626; }
+.dp-prio-medium        { background: #fffbeb; color: #d97706; }
+.dp-prio-low           { background: #eff6ff; color: #2563eb; }
 
 /* PDF button */
 .btn-dp-pdf {
@@ -4725,12 +4734,11 @@ kbd {
   #devPerfPrintArea,
   #devPerfPrintArea * { visibility: visible; }
   #devPerfPrintArea {
-    position: fixed;
+    position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     background: #fff;
-    z-index: 99999;
   }
 }
 
