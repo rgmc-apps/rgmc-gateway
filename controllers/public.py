@@ -10,7 +10,21 @@ public_bp = Blueprint("public", __name__)
 
 @public_bp.get("/")
 def index():
-    return render_template("index.html", sites=get_sites())
+    all_sites     = get_sites()
+    rgmc_sites    = [s for s in all_sites if s.get("category") == "RGMC"       and not s.get("is_windows_based") and not s.get("is_task")]
+    sbic_sites    = [s for s in all_sites if s.get("category") == "SBIC"       and not s.get("is_windows_based") and not s.get("is_task")]
+    nav_sites     = [s for s in all_sites if s.get("category") == "NAV Sites"  and not s.get("is_windows_based") and not s.get("is_task")]
+    windows_sites = [s for s in all_sites if s.get("is_windows_based")         and not s.get("is_task")]
+    task_sites    = [s for s in all_sites if s.get("is_task")]
+    return render_template(
+        "index.html",
+        sites=all_sites,
+        rgmc_sites=rgmc_sites,
+        sbic_sites=sbic_sites,
+        nav_sites=nav_sites,
+        windows_sites=windows_sites,
+        task_sites=task_sites,
+    )
 
 
 @public_bp.get("/report-issue")

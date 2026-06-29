@@ -51,7 +51,7 @@
         <h2 class="section-title">RGMC Systems</h2>
       </div>
       <div class="systems-grid">
-        {% for site in sites if site.category == 'RGMC' and not site.is_windows_based and not site.is_task %}
+        {% for site in rgmc_sites %}
         <div class="site-card">
           <div class="site-card-inner">
             <div class="site-card-name">{{ site.name }}</div>
@@ -86,7 +86,7 @@
         <h2 class="section-title">SBIC Systems</h2>
       </div>
       <div class="systems-grid">
-        {% for site in sites if site.category == 'SBIC' and not site.is_windows_based and not site.is_task %}
+        {% for site in sbic_sites %}
         <div class="site-card">
           <div class="site-card-inner">
             <div class="site-card-name">{{ site.name }}</div>
@@ -121,7 +121,7 @@
         <h2 class="section-title">NAV Sites</h2>
       </div>
       <div class="systems-grid">
-        {% for site in sites if site.category == 'NAV Sites' and not site.is_windows_based and not site.is_task %}
+        {% for site in nav_sites %}
         <div class="site-card">
           <div class="site-card-inner">
             <div class="site-card-name">{{ site.name }}</div>
@@ -150,16 +150,14 @@
     </section>
 
     <!-- Windows Applications -->
-    {% set ns = namespace(has_win=false) %}
-    {% for site in sites %}{% if site.is_windows_based %}{% set ns.has_win = true %}{% endif %}{% endfor %}
-    {% if ns.has_win %}
+    {% if windows_sites %}
     <section class="section">
       <div class="section-label">
         <span class="label-badge label-win">WIN</span>
         <h2 class="section-title">Windows Applications</h2>
       </div>
       <div class="systems-grid">
-        {% for site in sites if site.is_windows_based and not site.is_task %}
+        {% for site in windows_sites %}
         <div class="site-card">
           <div class="site-card-inner">
             <div class="site-card-name">{{ site.name }}</div>
@@ -195,16 +193,14 @@
     {% endif %}
 
     <!-- Tasks / Internal Tools -->
-    {% set ns2 = namespace(has_task=false) %}
-    {% for site in sites %}{% if site.is_task %}{% set ns2.has_task = true %}{% endif %}{% endfor %}
-    {% if ns2.has_task %}
+    {% if task_sites %}
     <section class="section">
       <div class="section-label">
         <span class="label-badge label-task">TASK</span>
         <h2 class="section-title">Internal Tools</h2>
       </div>
       <div class="systems-grid">
-        {% for site in sites if site.is_task %}
+        {% for site in task_sites %}
         <div class="site-card">
           <div class="site-card-inner">
             <div class="site-card-name">{{ site.name }}</div>
