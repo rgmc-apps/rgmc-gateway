@@ -3081,8 +3081,32 @@ function _buildDevPerfModalHtml(dev, av, initial, displayName) {
 
 function downloadDevPerfPdf() {
   if (!_devPerfSelected) return;
+
+  const dateFrom        = document.getElementById('dpPdfFrom')?.value    || '';
+  const dateTo          = document.getElementById('dpPdfTo')?.value      || '';
+  const includeHeader   = document.getElementById('dpPdfHeader')?.checked   !== false;
+  const includeBranding = document.getElementById('dpPdfBranding')?.checked !== false;
+
+  const filterByDate = (arr, field) => {
+    if (!dateFrom && !dateTo) return arr || [];
+    return (arr || []).filter(item => {
+      const d = (item[field] || '').slice(0, 10);
+      if (!d) return true;
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo   && d > dateTo  ) return false;
+      return true;
+    });
+  };
+
+  const filtered = {
+    ..._devPerfSelected,
+    items:  filterByDate(_devPerfSelected.items,  'start_date'),
+    tasks:  filterByDate(_devPerfSelected.tasks,  'start_date'),
+    issues: filterByDate(_devPerfSelected.issues, 'created_at'),
+  };
+
   const printArea = document.getElementById('devPerfPrintArea');
-  printArea.innerHTML = _buildPrintHtml(_devPerfSelected);
+  printArea.innerHTML = _buildPrintHtml(filtered, { includeHeader, includeBranding, dateFrom, dateTo });
   window.print();
   setTimeout(() => { printArea.innerHTML = ''; }, 1000);
 }
@@ -3919,10 +3943,14 @@ async function deleteCfgAction(id) {
   }
 }
 
-function _buildPrintHtml(dev) {
+function _buildPrintHtml(dev, opts = {}) {
+  const { includeHeader = true, includeBranding = true, dateFrom = '', dateTo = '' } = opts;
   const fullName    = [dev.first_name, dev.last_name].filter(Boolean).join(' ') || dev.username;
   const displayName = dev.display_name || fullName;
   const today       = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const dateRangeLabel = (dateFrom || dateTo)
+    ? ` · ${dateFrom || '…'} to ${dateTo || '…'}`
+    : '';
 
   const infoRows = [
     ['Email',      dev.email],
@@ -4014,17 +4042,21 @@ function _buildPrintHtml(dev) {
   ].join('');
 
   return `<div style="font-family:Arial,sans-serif;max-width:900px;margin:0 auto;padding:32px 24px;color:#1e293b">
+    ${includeHeader ? `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #e2e8f0">
       <div>
         <div style="font-size:22px;font-weight:700;margin-bottom:4px">${escHtml(displayName)}</div>
         <div style="margin-bottom:6px">${badges}</div>
         ${infoRows ? `<table style="margin-top:8px">${infoRows}</table>` : ''}
       </div>
-      <div style="text-align:right;color:#94a3b8;font-size:12px">
+      ${includeBranding ? `<div style="text-align:right;color:#94a3b8;font-size:12px">
         <div style="font-size:16px;font-weight:700;color:#1e293b;margin-bottom:4px">Performance Report</div>
-        <div>Generated: ${today}</div>
+        <div>Generated: ${today}${escHtml(dateRangeLabel)}</div>
         <div>RGMC Gateway</div>
-      </div>
+      </div>` : `<div style="text-align:right;color:#94a3b8;font-size:12px">
+        <div style="font-size:14px;font-weight:600;color:#1e293b">Performance Report</div>
+        ${dateRangeLabel ? `<div>${escHtml(dateRangeLabel.replace(' · ', ''))}</div>` : ''}
+      </div>`}
     </div>
 
     <div style="margin-bottom:24px">
@@ -4035,7 +4067,11 @@ function _buildPrintHtml(dev) {
     <div style="margin-bottom:24px">
       <div style="font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Systems Handled (${dev.systems.length})</div>
       <div>${systemsHtml}</div>
-    </div>
+    </div>` : `
+    <div style="margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #e2e8f0;display:flex;justify-content:space-between;align-items:baseline">
+      <div style="font-size:18px;font-weight:700">${escHtml(displayName)}</div>
+      <div style="font-size:12px;color:#94a3b8">${dateRangeLabel ? escHtml(dateRangeLabel.replace(' · ', '')) : 'Performance Report'}</div>
+    </div>`}
 
     <div style="margin-bottom:24px">
       <div style="font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Dev Items (${dev.items.length})</div>

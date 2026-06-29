@@ -1122,6 +1122,7 @@ select.form-input:disabled {
   flex-direction: column;
 }
 .modal-xl .modal-header { flex-shrink: 0; }
+.modal-xl .dp-pdf-bar   { flex-shrink: 0; }
 
 .item-detail-body {
   display: grid;
@@ -4711,6 +4712,76 @@ kbd {
 .dp-prio-medium        { background: #fffbeb; color: #d97706; }
 .dp-prio-low           { background: #eff6ff; color: #2563eb; }
 
+/* PDF options bar */
+.dp-pdf-bar {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+  padding: 10px 20px;
+  flex-shrink: 0;
+}
+.dp-pdf-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.dp-pdf-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dp-pdf-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.dp-pdf-date-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dp-pdf-date-input {
+  height: 30px;
+  padding: 0 8px;
+  background: var(--bg-inner);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 130px;
+  cursor: pointer;
+}
+.dp-pdf-date-input:focus { border-color: var(--gold-border-h); }
+.dp-pdf-date-sep {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.dp-pdf-checks {
+  display: flex;
+  gap: 12px;
+}
+.dp-pdf-check {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+.dp-pdf-check input[type="checkbox"] {
+  width: 13px;
+  height: 13px;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
 /* PDF button */
 .btn-dp-pdf {
   background: var(--gold);
@@ -4730,6 +4801,19 @@ kbd {
 
 /* Print styles */
 @media print {
+  @page {
+    margin: 15mm 12mm;
+    @bottom-right {
+      content: "Page " counter(page) " of " counter(pages);
+      font-size: 8.5pt;
+      color: #94a3b8;
+      font-family: Arial, sans-serif;
+    }
+    @bottom-left { content: ""; }
+    @top-left    { content: ""; }
+    @top-right   { content: ""; }
+  }
+
   body * { visibility: hidden; }
   #devPerfPrintArea,
   #devPerfPrintArea * { visibility: visible; }

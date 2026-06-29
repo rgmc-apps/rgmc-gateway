@@ -335,13 +335,35 @@
           <p class="modal-site-name" id="devPerfModalMeta"></p>
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
+          <button class="modal-close" onclick="closeDevPerfModal()" aria-label="Close">&times;</button>
+        </div>
+      </div>
+
+      <!-- PDF Options Bar -->
+      <div class="dp-pdf-bar">
+        <div class="dp-pdf-bar-row">
+          <div class="dp-pdf-group">
+            <span class="dp-pdf-group-label">Date Range</span>
+            <div class="dp-pdf-date-row">
+              <input type="date" id="dpPdfFrom" class="dp-pdf-date-input" title="From date">
+              <span class="dp-pdf-date-sep">—</span>
+              <input type="date" id="dpPdfTo" class="dp-pdf-date-input" title="To date">
+            </div>
+          </div>
+          <div class="dp-pdf-group">
+            <span class="dp-pdf-group-label">Include in PDF</span>
+            <div class="dp-pdf-checks">
+              <label class="dp-pdf-check"><input type="checkbox" id="dpPdfHeader" checked> Profile header</label>
+              <label class="dp-pdf-check"><input type="checkbox" id="dpPdfBranding" checked> RGMC branding</label>
+            </div>
+          </div>
           <button class="btn-dp-pdf" onclick="downloadDevPerfPdf()">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Download PDF
           </button>
-          <button class="modal-close" onclick="closeDevPerfModal()" aria-label="Close">&times;</button>
         </div>
       </div>
+
       <div id="devPerfModalContent" class="dp-modal-scroll">
         <!-- populated by JS -->
       </div>
