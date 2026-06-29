@@ -802,7 +802,7 @@ function buildCompactTables(approvedSet) {
           : `<span class="st-none">—</span>`;
       }
 
-      return `<tr class="st-row"${visible ? '' : ' style="display:none"'}>
+      return `<tr class="st-row" data-approved="${visible}"${visible ? '' : ' style="display:none"'}>
         <td class="st-name">${name}</td>
         <td>${col2}</td>
         <td>${col3}</td>
@@ -819,6 +819,23 @@ function buildCompactTables(approvedSet) {
   _compactBuilt = true;
 }
 
+function filterCompact(query) {
+  const q = (query || '').trim().toLowerCase();
+  document.querySelectorAll('.section:not(.health-section)').forEach(section => {
+    const rows = section.querySelectorAll('.st-row');
+    if (!rows.length) return;
+    let visibleCount = 0;
+    rows.forEach(row => {
+      if (row.dataset.approved === 'false') return;
+      const name  = (row.querySelector('.st-name')?.textContent || '').toLowerCase();
+      const match = !q || name.includes(q);
+      row.style.display = match ? '' : 'none';
+      if (match) visibleCount++;
+    });
+    section.style.display = (visibleCount === 0 && q) ? 'none' : '';
+  });
+}
+
 function setViewMode(mode) {
   const main = document.getElementById('mainContent');
   if (!main) return;
@@ -833,6 +850,8 @@ function setViewMode(mode) {
     document.getElementById('vswCards')?.classList.remove('active');
     document.getElementById('vswCompact')?.classList.add('active');
   } else {
+    const searchInput = document.getElementById('compactSearchInput');
+    if (searchInput) { searchInput.value = ''; filterCompact(''); }
     main.classList.remove('is-compact');
     document.getElementById('vswCards')?.classList.add('active');
     document.getElementById('vswCompact')?.classList.remove('active');
