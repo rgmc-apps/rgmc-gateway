@@ -261,7 +261,7 @@ def api_submit_issue():
 
 @issues_bp.get("/admin/issues/<issue_id>")
 def admin_issue_detail(issue_id):
-    return render_template("admin.html", open_issue_id=issue_id)
+    return render_template("issue_view.html", issue_id=issue_id)
 
 
 @issues_bp.get("/api/admin/issues")

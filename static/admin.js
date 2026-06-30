@@ -181,6 +181,9 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>`;
   }
 
+  const _urlIssue = new URLSearchParams(window.location.search).get('issue');
+  if (_urlIssue && !window._OPEN_ISSUE_ID) window._OPEN_ISSUE_ID = _urlIssue;
+
   loadIssues();
   _loadAdminCompanies();
   _loadAdminDepartments();

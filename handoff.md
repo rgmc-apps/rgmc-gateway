@@ -84,11 +84,19 @@ Prior-session dead-ends worth knowing:
 
 ## Next Step
 
-Working tree is clean; all features are shipped. Most natural next actions:
+Most natural next actions:
 
-1. **Test reopen feature end-to-end**: Open `/workspace`, find a resolved issue, click "Reopen Issue", fill in a reason, submit. Verify: new ticket appears in issues list with "RE:" title prefix; the original issue's activity feed shows "Follow-up ticket #XXX opened by [user]: [reason]"; in the admin panel the new issue shows the "Linked" badge referencing the original.
-2. **New feature request** from the user.
-3. **Continue polish**: run `/impeccable audit` or `/impeccable polish <target>` against the admin panel or developer board screens.
+1. **Test public issue view**: Visit `http://localhost:5000/admin/issues/<some-uuid>` while **not** logged in — should show the read-only `issue_view.html`. Then visit the same URL while logged in as an admin — should immediately redirect to `/admin?issue=<uuid>` and auto-open the issue modal.
+2. **Test reopen feature end-to-end**: Open `/workspace`, find a resolved issue, click "Reopen Issue", fill in a reason, submit. Verify: new ticket appears in issues list with "RE:" title prefix; the original issue's activity feed shows "Follow-up ticket #XXX opened by [user]: [reason]"; in the admin panel the new issue shows the "Linked" badge referencing the original.
+3. **Continue polish or new feature**.
+
+### Just completed: Public issue landing page
+
+IT bot shares links as `<gateway>/admin/issues/<uuid>`. The old route rendered `admin.html` (admin-only). Changed so:
+- `GET /admin/issues/<id>` → `issue_view.html` (new template, works without auth)
+- `GET /api/public/issues/<id>` → new unauthenticated API in `public.py` (safe fields only, no email/viber/anydesk)
+- `issue_view.html` JS: checks `localStorage.rgmc_gateway_session.isAdmin/isManagement` → if true, redirects to `/admin?issue=<id>`
+- `static/admin.js` DOMContentLoaded: reads `?issue=<id>` from URL params and sets `window._OPEN_ISSUE_ID` so the existing auto-open modal logic handles it
 
 ---
 

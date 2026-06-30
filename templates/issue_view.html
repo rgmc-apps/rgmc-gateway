@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ticket View — RGMC IT Support</title>
+  <link rel="icon" type="image/png" href="/static/badge.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('rgmc-theme') || 'light');</script>
+  <style>
+    :root {
+      --gold:           #C4972A;
+      --gold-light:     #D4A83C;
+      --bg:             #F5F0E8;
+      --bg-card:        #FFFFFF;
+      --bg-section:     #F9F6F1;
+      --border:         rgba(196,151,42,0.22);
+      --border-subtle:  rgba(0,0,0,0.07);
+      --text-primary:   #1A1408;
+      --text-secondary: #7A5E35;
+      --text-muted:     #B09070;
+      --status-open:       #92620A;
+      --status-open-bg:    rgba(196,151,42,0.12);
+      --status-progress:   #1D4ED8;
+      --status-progress-bg:rgba(59,130,246,0.1);
+      --status-resolved:   #166534;
+      --status-resolved-bg:rgba(82,168,112,0.12);
+      --status-closed:     #374151;
+      --status-closed-bg:  rgba(107,114,128,0.1);
+      --prio-critical:     #991B1B;
+      --prio-critical-bg:  rgba(216,88,88,0.1);
+      --prio-high:         #92400E;
+      --prio-high-bg:      rgba(234,140,60,0.1);
+      --prio-medium:       #1E40AF;
+      --prio-medium-bg:    rgba(59,130,246,0.1);
+      --prio-low:          #166534;
+      --prio-low-bg:       rgba(82,168,112,0.1);
+      --font-display:   'Playfair Display', Georgia, serif;
+      --font-ui:        'Plus Jakarta Sans', -apple-system, sans-serif;
+      --radius:         12px;
+      --radius-sm:      8px;
+    }
+    [data-theme="dark"] {
+      --bg:             #0B0906;
+      --bg-card:        #161309;
+      --bg-section:     #1A1509;
+      --border:         rgba(196,151,42,0.16);
+      --border-subtle:  rgba(255,255,255,0.06);
+      --text-primary:   #EDE5D0;
+      --text-secondary: #A89060;
+      --text-muted:     #5C4A28;
+      --status-open:       #D4A83C;
+      --status-open-bg:    rgba(196,151,42,0.14);
+      --status-progress:   #60A5FA;
+      --status-progress-bg:rgba(59,130,246,0.12);
+      --status-resolved:   #52A870;
+      --status-resolved-bg:rgba(82,168,112,0.12);
+      --status-closed:     #9CA3AF;
+      --status-closed-bg:  rgba(107,114,128,0.12);
+      --prio-critical:     #F87171;
+      --prio-critical-bg:  rgba(216,88,88,0.14);
+      --prio-high:         #FB923C;
+      --prio-high-bg:      rgba(234,140,60,0.14);
+      --prio-medium:       #60A5FA;
+      --prio-medium-bg:    rgba(59,130,246,0.14);
+      --prio-low:          #4ADE80;
+      --prio-low-bg:       rgba(82,168,112,0.14);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font-ui);
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 16px 64px;
+    }
+
+    /* ── Brand bar ── */
+    .brand-bar {
+      width: 100%;
+      max-width: 780px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+    .brand-logo img {
+      width: 30px;
+      height: 30px;
+      object-fit: contain;
+    }
+    .brand-name {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: 0.02em;
+    }
+    .theme-toggle {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 8px;
+      cursor: pointer;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .theme-toggle:hover { color: var(--text-secondary); border-color: var(--gold); }
+    .theme-toggle svg { display: block; }
+
+    /* ── Loading / error states ── */
+    .state-card {
+      width: 100%;
+      max-width: 780px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 56px 40px;
+      text-align: center;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.06);
+    }
+    [data-theme="dark"] .state-card { box-shadow: 0 4px 32px rgba(0,0,0,0.4); }
+    .state-icon {
+      width: 48px;
+      height: 48px;
+      color: var(--gold);
+      margin: 0 auto 16px;
+    }
+    .state-title {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 700;
+      margin: 0 0 8px;
+    }
+    .state-sub {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+    .spinner-ring {
+      width: 36px;
+      height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Main ticket card ── */
+    .ticket-card {
+      width: 100%;
+      max-width: 780px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.06);
+    }
+    [data-theme="dark"] .ticket-card { box-shadow: 0 4px 40px rgba(0,0,0,0.5); }
+
+    /* top accent bar — color driven by status */
+    .ticket-card::before {
+      content: '';
+      display: block;
+      height: 3px;
+    }
+    .ticket-card[data-status="open"]        { --accent-bar: linear-gradient(90deg, var(--gold) 0%, var(--gold-light) 100%); }
+    .ticket-card[data-status="in_progress"] { --accent-bar: linear-gradient(90deg, #1D4ED8 0%, #60A5FA 100%); }
+    .ticket-card[data-status="resolved"]    { --accent-bar: linear-gradient(90deg, #15803d 0%, #52A870 100%); }
+    .ticket-card[data-status="closed"]      { --accent-bar: linear-gradient(90deg, #374151 0%, #9CA3AF 100%); }
+    .ticket-card::before { background: var(--accent-bar, linear-gradient(90deg, var(--gold) 0%, var(--gold-light) 100%)); }
+
+    /* ── Ticket header ── */
+    .ticket-header {
+      padding: 28px 32px 24px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .ticket-badges {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .badge-status-open        { background: var(--status-open-bg);        color: var(--status-open); }
+    .badge-status-in_progress { background: var(--status-progress-bg);    color: var(--status-progress); }
+    .badge-status-resolved    { background: var(--status-resolved-bg);    color: var(--status-resolved); }
+    .badge-status-closed      { background: var(--status-closed-bg);      color: var(--status-closed); }
+    .badge-prio-critical      { background: var(--prio-critical-bg);      color: var(--prio-critical); }
+    .badge-prio-high          { background: var(--prio-high-bg);          color: var(--prio-high); }
+    .badge-prio-medium        { background: var(--prio-medium-bg);        color: var(--prio-medium); }
+    .badge-prio-low           { background: var(--prio-low-bg);           color: var(--prio-low); }
+    .badge-helpdesk {
+      background: rgba(139,92,246,0.1);
+      color: #6D28D9;
+    }
+    [data-theme="dark"] .badge-helpdesk { color: #A78BFA; background: rgba(139,92,246,0.15); }
+
+    .ticket-number {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .ticket-title {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1.3;
+      color: var(--text-primary);
+      margin: 0 0 10px;
+    }
+    .ticket-meta-line {
+      font-size: 13px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .ticket-meta-line span { display: flex; align-items: center; gap: 4px; }
+    .ticket-meta-line .sep { color: var(--border); }
+
+    /* ── Details grid ── */
+    .ticket-details {
+      padding: 24px 32px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+    }
+    .detail-group {
+      padding: 12px 0;
+    }
+    .detail-group:nth-child(odd) { padding-right: 24px; border-right: 1px solid var(--border-subtle); }
+    .detail-group:nth-child(even) { padding-left: 24px; }
+    .detail-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+    }
+    .detail-value {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+    .detail-value.muted { color: var(--text-muted); font-style: italic; font-weight: 400; }
+    .detail-divider {
+      grid-column: 1 / -1;
+      height: 1px;
+      background: var(--border-subtle);
+      margin: 4px 0;
+    }
+
+    /* ── Description ── */
+    .ticket-desc-section {
+      padding: 24px 32px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 12px;
+    }
+    .desc-text {
+      font-size: 14px;
+      line-height: 1.8;
+      color: var(--text-secondary);
+      white-space: pre-wrap;
+      margin: 0;
+    }
+    .error-code-box {
+      margin-top: 14px;
+      padding: 10px 14px;
+      background: var(--bg-section);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+    }
+    .error-code-box .ec-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+    .error-code-box .ec-val {
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+
+    /* ── Resolution ── */
+    .ticket-resolution {
+      padding: 24px 32px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--status-resolved-bg);
+    }
+    .resolution-meta {
+      font-size: 12px;
+      color: var(--status-resolved);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .resolution-notes {
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+
+    /* ── Attachments ── */
+    .ticket-attachments {
+      padding: 24px 32px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .attach-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .attach-img {
+      width: 80px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      cursor: zoom-in;
+      transition: opacity 0.15s;
+    }
+    .attach-img:hover { opacity: 0.85; }
+    .attach-file {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: var(--bg-section);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .attach-file:hover { border-color: var(--gold); color: var(--gold); }
+
+    /* ── Footer ── */
+    .ticket-footer {
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .footer-text {
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+    }
+    .footer-link {
+      font-size: 11px;
+      color: var(--gold);
+      text-decoration: none;
+      font-weight: 600;
+      opacity: 0.7;
+      transition: opacity 0.15s;
+    }
+    .footer-link:hover { opacity: 1; }
+
+    /* ── Lightbox ── */
+    .lightbox-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      cursor: zoom-out;
+    }
+    .lightbox-overlay.active { display: flex; }
+    .lightbox-img {
+      max-width: 90vw;
+      max-height: 90vh;
+      object-fit: contain;
+      border-radius: var(--radius-sm);
+      cursor: default;
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(255,255,255,0.1);
+      border: none;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #fff;
+      transition: background 0.15s;
+    }
+    .lightbox-close:hover { background: rgba(255,255,255,0.2); }
+
+    /* ── Account CTA ── */
+    .account-cta {
+      width: 100%;
+      max-width: 780px;
+      margin-top: 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 13px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .cta-icon {
+      flex-shrink: 0;
+      margin-top: 1px;
+      color: var(--gold);
+      opacity: 0.7;
+    }
+    .cta-text {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+    .cta-link {
+      color: var(--gold);
+      font-weight: 600;
+      text-decoration: none;
+      transition: opacity 0.15s;
+    }
+    .cta-link:hover { opacity: 0.75; }
+
+    @media (max-width: 600px) {
+      .ticket-header { padding: 20px 20px 18px; }
+      .ticket-details { grid-template-columns: 1fr; padding: 16px 20px; }
+      .detail-group:nth-child(odd) { padding-right: 0; border-right: none; border-bottom: 1px solid var(--border-subtle); }
+      .detail-group:nth-child(even) { padding-left: 0; }
+      .detail-divider { display: none; }
+      .ticket-desc-section, .ticket-resolution, .ticket-attachments { padding: 18px 20px; }
+      .ticket-footer { padding: 14px 20px; }
+      .ticket-title { font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="brand-bar">
+    <a href="/" class="brand-logo">
+      <img src="/static/badge.png" alt="RGMC">
+      <span class="brand-name">RGMC IT Support</span>
+    </a>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+      <svg id="themeIconSun" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <svg id="themeIconMoon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+
+  <div id="loadingState" class="state-card">
+    <div class="spinner-ring"></div>
+    <p class="state-sub">Loading ticket details…</p>
+  </div>
+
+  <div id="errorState" class="state-card" style="display:none;">
+    <svg class="state-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    <h2 class="state-title" id="errorTitle">Ticket Not Found</h2>
+    <p class="state-sub" id="errorMsg">This ticket may not exist or the link may be invalid.</p>
+  </div>
+
+  <div id="ticketView" style="display:none; width:100%; max-width:780px;">
+    <div id="ticketCard" class="ticket-card">
+
+      <div class="ticket-header">
+        <div class="ticket-badges">
+          <span id="statusBadge" class="badge"></span>
+          <span id="priorityBadge" class="badge" style="display:none;"></span>
+          <span id="helpdeskBadge" class="badge badge-helpdesk" style="display:none;">Helpdesk</span>
+        </div>
+        <div id="ticketNumber" class="ticket-number"></div>
+        <h1 id="ticketTitle" class="ticket-title"></h1>
+        <div class="ticket-meta-line">
+          <span id="metaDate"></span>
+          <span class="sep" id="metaSep1" style="display:none;">·</span>
+          <span id="metaSite" style="display:none;"></span>
+        </div>
+      </div>
+
+      <div class="ticket-details" id="ticketDetails">
+        <!-- dynamically populated -->
+      </div>
+
+      <div class="ticket-desc-section">
+        <div class="section-label">Description</div>
+        <p id="descText" class="desc-text"></p>
+        <div id="errorCodeBox" class="error-code-box" style="display:none;">
+          <div class="ec-label">Error Code</div>
+          <div id="errorCodeVal" class="ec-val"></div>
+        </div>
+      </div>
+
+      <div id="resolutionSection" class="ticket-resolution" style="display:none;">
+        <div class="section-label">Resolution</div>
+        <div class="resolution-meta">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span id="resolutionMeta"></span>
+        </div>
+        <p id="resolutionNotes" class="resolution-notes"></p>
+      </div>
+
+      <div id="attachmentsSection" class="ticket-attachments" style="display:none;">
+        <div class="section-label">Attachments</div>
+        <div id="attachGrid" class="attach-grid"></div>
+      </div>
+
+      <div class="ticket-footer">
+        <span class="footer-text">RGMC Group &middot; IT Support Portal &middot; Read-only view</span>
+        <a href="/helpdesk" class="footer-link">Submit a new ticket</a>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="accountCta" class="account-cta" style="display:none;">
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="cta-icon"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    <div class="cta-body">
+      <span class="cta-text">Have an RGMC Gateway account? <a href="/" class="cta-link">Sign in</a> to view all your tickets, track updates, and report new issues directly from the portal.</span>
+    </div>
+  </div>
+
+  <!-- Lightbox -->
+  <div id="lightbox" class="lightbox-overlay" onclick="closeLightbox()">
+    <button class="lightbox-close" onclick="closeLightbox()" aria-label="Close">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <img id="lightboxImg" class="lightbox-img" src="" alt="" onclick="event.stopPropagation()">
+  </div>
+
+  <script>
+    const ISSUE_ID = {{ issue_id | tojson }};
+
+    function escHtml(s) {
+      return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function fmtDate(iso) {
+      if (!iso) return null;
+      return new Date(iso).toLocaleDateString('en-PH', { year:'numeric', month:'long', day:'numeric' });
+    }
+    function fmtDateTime(iso) {
+      if (!iso) return null;
+      return new Date(iso).toLocaleString('en-PH', { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+    }
+
+    function toggleTheme() {
+      const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('rgmc-theme', next);
+      updateThemeIcon();
+    }
+    function updateThemeIcon() {
+      const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+      document.getElementById('themeIconSun').style.display  = dark  ? 'block' : 'none';
+      document.getElementById('themeIconMoon').style.display = !dark ? 'block' : 'none';
+    }
+    updateThemeIcon();
+
+    function openLightbox(url) {
+      const lb = document.getElementById('lightbox');
+      document.getElementById('lightboxImg').src = url;
+      lb.classList.add('active');
+    }
+    function closeLightbox() {
+      document.getElementById('lightbox').classList.remove('active');
+      document.getElementById('lightboxImg').src = '';
+    }
+
+    const STATUS_LABELS = {
+      open:        'Open',
+      in_progress: 'In Progress',
+      resolved:    'Resolved',
+      closed:      'Closed',
+    };
+    const PRIO_LABELS = {
+      critical: 'Critical',
+      high:     'High',
+      medium:   'Medium',
+      low:      'Low',
+    };
+
+    function showError(title, msg) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('ticketView').style.display   = 'none';
+      document.getElementById('errorTitle').textContent     = title;
+      document.getElementById('errorMsg').textContent       = msg;
+      document.getElementById('errorState').style.display   = 'flex';
+    }
+
+    function renderTicket(issue) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('errorState').style.display   = 'none';
+
+      const card = document.getElementById('ticketCard');
+      card.setAttribute('data-status', issue.status || 'open');
+
+      // Status badge
+      const statusEl = document.getElementById('statusBadge');
+      const s = (issue.status || 'open').toLowerCase();
+      statusEl.className = `badge badge-status-${s}`;
+      statusEl.textContent = STATUS_LABELS[s] || s;
+
+      // Priority badge
+      if (issue.priority) {
+        const p = issue.priority.toLowerCase();
+        const prioEl = document.getElementById('priorityBadge');
+        prioEl.className = `badge badge-prio-${p}`;
+        prioEl.textContent = PRIO_LABELS[p] || issue.priority;
+        prioEl.style.display = '';
+      }
+
+      // Helpdesk badge
+      if (issue.from_helpdesk) {
+        document.getElementById('helpdeskBadge').style.display = '';
+      }
+
+      // Ticket number + title
+      if (issue.ticket_number) {
+        document.getElementById('ticketNumber').textContent = issue.ticket_number;
+      }
+      const title = issue.title ||
+        (issue.description.length > 80
+          ? issue.description.slice(0, 78) + '…'
+          : issue.description);
+      document.getElementById('ticketTitle').textContent = title;
+
+      // Meta line
+      const dateStr = fmtDateTime(issue.created_at);
+      if (dateStr) {
+        document.getElementById('metaDate').textContent = 'Submitted ' + dateStr;
+      }
+      if (issue.site_name) {
+        document.getElementById('metaSep1').style.display = '';
+        const siteEl = document.getElementById('metaSite');
+        siteEl.style.display = '';
+        siteEl.textContent = issue.site_name;
+      }
+
+      // Details grid
+      const pairs = [];
+
+      if (issue.employee_name) {
+        pairs.push(['Reporter', escHtml(issue.employee_name)]);
+      }
+      if (issue.company_name) {
+        pairs.push(['Company', escHtml(issue.company_name)]);
+      }
+      if (issue.department) {
+        pairs.push(['Department', escHtml(issue.department)]);
+      }
+      if (issue.ticket_type) {
+        pairs.push(['Ticket Type', escHtml(issue.ticket_type)]);
+      }
+      if (issue.request_category) {
+        pairs.push(['Category', escHtml(issue.request_category)]);
+      }
+      if (issue.request_subcategory) {
+        pairs.push(['Subcategory', escHtml(issue.request_subcategory)]);
+      }
+
+      const assignedVal = issue.assigned_to
+        ? `<span style="font-weight:600;">${escHtml(issue.assigned_to)}</span>`
+        : `<span class="muted">Unassigned</span>`;
+      pairs.push(['Assigned To', assignedVal]);
+
+      if (fmtDate(issue.created_at)) {
+        pairs.push(['Submitted', fmtDate(issue.created_at)]);
+      }
+      if (issue.resolved_at) {
+        pairs.push(['Resolved', fmtDate(issue.resolved_at)]);
+      }
+      if (issue.resolved_by) {
+        pairs.push(['Resolved By', escHtml(issue.resolved_by)]);
+      }
+
+      // Pad to even count for 2-col grid
+      if (pairs.length % 2 !== 0) pairs.push(null);
+
+      const detailsEl = document.getElementById('ticketDetails');
+      detailsEl.innerHTML = '';
+      pairs.forEach((pair, i) => {
+        if (pair === null) {
+          detailsEl.innerHTML += '<div class="detail-group"></div>';
+          return;
+        }
+        if (i > 0 && i % 2 === 0) {
+          detailsEl.innerHTML += '<div class="detail-divider"></div>';
+        }
+        detailsEl.innerHTML += `
+          <div class="detail-group">
+            <div class="detail-label">${pair[0]}</div>
+            <div class="detail-value">${pair[1]}</div>
+          </div>`;
+      });
+
+      // Description
+      document.getElementById('descText').textContent = issue.description || '';
+
+      // Error code
+      if (issue.error_code) {
+        document.getElementById('errorCodeVal').textContent = issue.error_code;
+        document.getElementById('errorCodeBox').style.display = '';
+      }
+
+      // Resolution
+      if (['resolved', 'closed'].includes(s) && (issue.resolution_notes || issue.resolved_at)) {
+        const resMeta = [
+          issue.resolved_by ? `Resolved by ${issue.resolved_by}` : 'Resolved',
+          fmtDate(issue.resolved_at),
+        ].filter(Boolean).join(' on ');
+        document.getElementById('resolutionMeta').textContent = resMeta;
+        if (issue.resolution_notes) {
+          document.getElementById('resolutionNotes').textContent = issue.resolution_notes;
+        } else {
+          document.getElementById('resolutionNotes').style.display = 'none';
+        }
+        document.getElementById('resolutionSection').style.display = '';
+      }
+
+      // Attachments
+      const urls = issue.attachment_urls || [];
+      if (urls.length > 0) {
+        const grid = document.getElementById('attachGrid');
+        grid.innerHTML = urls.map(u => {
+          const name = decodeURIComponent(u.split('/').pop().replace(/^\d+_/, ''));
+          const isImg = /\.(jpg|jpeg|png|gif|webp)$/i.test(name);
+          if (isImg) {
+            return `<img class="attach-img" src="${escHtml(u)}" alt="${escHtml(name)}" loading="lazy"
+                         onclick="openLightbox('${escHtml(u)}')" title="${escHtml(name)}">`;
+          }
+          return `<a href="${escHtml(u)}" target="_blank" rel="noopener" class="attach-file">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            ${escHtml(name)}
+          </a>`;
+        }).join('');
+        document.getElementById('attachmentsSection').style.display = '';
+      }
+
+      document.title = `${issue.ticket_number || 'Ticket'} — RGMC IT Support`;
+      document.getElementById('ticketView').style.display  = '';
+      document.getElementById('accountCta').style.display  = 'flex';
+    }
+
+    async function init() {
+      // If the viewer is an admin, send them to the admin panel
+      try {
+        const session = JSON.parse(localStorage.getItem('rgmc_gateway_session') || 'null');
+        if (session && (session.isAdmin || session.isManagement)) {
+          location.replace('/admin?issue=' + encodeURIComponent(ISSUE_ID));
+          return;
+        }
+      } catch (_) {}
+
+      try {
+        const res = await fetch('/api/public/issues/' + ISSUE_ID);
+        if (res.status === 404) {
+          showError('Ticket Not Found', 'This ticket does not exist or the link may be invalid.');
+          return;
+        }
+        if (!res.ok) throw new Error('Server error ' + res.status);
+        const issue = await res.json();
+        renderTicket(issue);
+      } catch (err) {
+        showError('Unable to Load Ticket', 'Please check your connection and try again.');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+  </script>
+</body>
+</html>

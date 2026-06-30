@@ -161,6 +161,23 @@ def system_by_tag():
     return jsonify(matches)
 
 
+@public_bp.get("/api/public/issues/<issue_id>")
+def get_public_issue(issue_id):
+    rows = supabase_req("GET", "/issues", params={
+        "id":     f"eq.{issue_id}",
+        "select": (
+            "id,ticket_number,title,description,status,priority,"
+            "site_name,employee_name,company_name,department,"
+            "ticket_type,request_category,request_subcategory,"
+            "from_helpdesk,error_code,assigned_to,resolved_by,"
+            "created_at,resolved_at,resolution_notes,attachment_urls"
+        ),
+    })
+    if not rows:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify(rows[0])
+
+
 @public_bp.get("/api/health")
 def health_check():
     results = []

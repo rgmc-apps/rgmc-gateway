@@ -178,8 +178,8 @@
         </div>
         <button class="modal-close" onclick="closeIssueDetail()" aria-label="Close">&times;</button>
       </div>
-      <div style="padding:0 28px 14px;">
-        <h2 id="iss-modal-title" style="margin:0;font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--text-primary);line-height:1.3;"></h2>
+      <div class="iss-modal-title-row">
+        <h2 id="iss-modal-title" class="iss-modal-h2"></h2>
       </div>
       <div class="iss-modal-desc">
         <p class="iss-modal-desc-text" id="iss-modal-desc"></p>
@@ -220,11 +220,9 @@
       </div>
 
       <!-- Reopen section — shown for resolved / closed issues -->
-      <div id="iss-reopen-section" style="display:none;padding:0 28px 20px;">
-        <div style="border-top:1px solid var(--border);padding-top:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-          <p style="margin:0;font-size:13px;color:var(--text-secondary);flex:1;min-width:180px;line-height:1.5;">
-            Issue not fully resolved? File a follow-up ticket linked to this one.
-          </p>
+      <div id="iss-reopen-section" class="iss-action-section" style="display:none;">
+        <div class="iss-action-border">
+          <p class="iss-action-desc">Issue not fully resolved? File a follow-up ticket linked to this one.</p>
           <button class="btn-reopen-issue" onclick="openReopenModal()">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.62"/></svg>
             Reopen Issue
@@ -233,19 +231,19 @@
       </div>
 
       <!-- Dept head actions — shown only to department heads and admins -->
-      <div id="iss-dh-actions" style="display:none;padding:0 28px 24px;">
-        <div style="border-top:1px solid var(--border);padding-top:18px;display:flex;flex-direction:column;gap:12px;">
-          <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">Update Issue</div>
-          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
-            <div style="flex:1;min-width:160px;">
-              <label class="form-label" for="iss-dh-assignee" style="font-size:12px;">Assign To</label>
-              <select class="form-input" id="iss-dh-assignee" style="height:36px;font-size:13px;">
+      <div id="iss-dh-actions" class="iss-dh-section" style="display:none;">
+        <div class="iss-dh-inner">
+          <div class="iss-dh-title">Update Issue</div>
+          <div class="iss-dh-row">
+            <div class="iss-dh-field">
+              <label class="form-label form-label-sm" for="iss-dh-assignee">Assign To</label>
+              <select class="form-input form-input-sm" id="iss-dh-assignee">
                 <option value="">— Unassigned —</option>
               </select>
             </div>
-            <div style="flex:1;min-width:160px;">
-              <label class="form-label" for="iss-dh-status" style="font-size:12px;">Status</label>
-              <select class="form-input" id="iss-dh-status" style="height:36px;font-size:13px;">
+            <div class="iss-dh-field">
+              <label class="form-label form-label-sm" for="iss-dh-status">Status</label>
+              <select class="form-input form-input-sm" id="iss-dh-status">
                 <option value="new">New</option>
                 <option value="open">Open</option>
                 <option value="in_progress">In Progress</option>
@@ -254,7 +252,7 @@
               </select>
             </div>
             <div>
-              <button class="btn-modal-submit" id="iss-dh-save-btn" onclick="updateTeamIssue()" style="height:36px;">Save</button>
+              <button class="btn-modal-submit form-input-sm" id="iss-dh-save-btn" onclick="updateTeamIssue()">Save</button>
             </div>
           </div>
           <div id="iss-dh-error" class="form-state form-error" style="display:none;">
@@ -299,16 +297,14 @@
         </div>
         <button class="modal-close" onclick="closeReopenModal()" aria-label="Close">&times;</button>
       </div>
-      <div style="padding:0 28px 12px;">
-        <p style="margin:0;font-size:13px;color:var(--text-secondary);line-height:1.6;">
-          Describe what was not resolved or what new problem appeared. A new ticket will be created and automatically linked to the original.
-        </p>
+      <div class="reopen-modal-desc">
+        <p>Describe what was not resolved or what new problem appeared. A new ticket will be created and automatically linked to the original.</p>
       </div>
-      <div style="padding:0 28px 0;">
+      <div class="reopen-modal-form">
         <label class="form-label" for="reopen-reason">Reason <span class="required">*</span></label>
         <textarea class="form-input form-textarea" id="reopen-reason" rows="4" placeholder="e.g. The issue came back after the fix, the solution only worked temporarily, a new related problem appeared…"></textarea>
       </div>
-      <div id="reopen-error" class="form-state form-error" style="display:none;margin:8px 28px 0;">
+      <div id="reopen-error" class="form-state form-error reopen-modal-error">
         <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         <span id="reopen-error-msg"></span>
       </div>
@@ -413,7 +409,7 @@
             Refresh
           </button>
         </div>
-        <div class="iss-activity-list" id="ut-activity-list" style="max-height:180px;overflow-y:auto;">
+        <div class="iss-activity-list iss-activity-list--sm" id="ut-activity-list">
           <div class="iss-activity-loading"><div class="spinner"></div><span>Loading…</span></div>
         </div>
       </div>
