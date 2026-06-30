@@ -36,48 +36,71 @@
 
   <main class="admin-main">
 
-    <div class="admin-page-header">
-      <h1 class="admin-page-title">Admin Panel</h1>
-      <p class="admin-page-sub">Manage access requests, users, systems, and developer activity.</p>
-    </div>
+    <!-- ── Sidebar Navigation ── -->
+    <nav class="admin-sidebar" id="adminSidebar">
+      <div class="admin-sb-header">
+        <img src="/static/badge.png" alt="RGMC" class="admin-sb-logo">
+        <div class="admin-sb-title-wrap">
+          <span class="admin-sb-title">Admin Panel</span>
+          <span class="admin-sb-sub">RGMC Gateway</span>
+        </div>
+      </div>
 
-    <!-- Tab Navigation -->
-    <div class="admin-tabs">
-      <button class="admin-tab active" data-tab="requests" onclick="switchTab('requests')">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-        Requests
-        <span class="tab-badge" id="pendingCount"></span>
-      </button>
-      <button class="admin-tab" data-tab="users" onclick="switchTab('users')">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Users
-      </button>
-      <button class="admin-tab" data-tab="systems" onclick="switchTab('systems')">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-        Systems/Tasks
-      </button>
-      <button class="admin-tab" data-tab="issues" onclick="switchTab('issues')">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        Issues
-        <span class="tab-badge" id="openIssuesCount" style="display:none;"></span>
-      </button>
-      <button class="admin-tab" data-tab="commonissues" onclick="switchTab('commonissues')">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-        Common Issues
-      </button>
-      <button class="admin-tab" data-tab="devperf" onclick="switchTab('devperf')">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-        Developers
-      </button>
-      <button class="admin-tab" data-tab="config" onclick="switchTab('config')">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        Configurations
-      </button>
-      <a href="/tasks" class="admin-tab admin-tab-link">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-        Tasks Board
-      </a>
-    </div>
+      <div class="admin-sb-nav">
+        <div class="admin-sb-section">
+          <span class="admin-sb-section-label">Operations</span>
+          <button class="admin-sb-item admin-tab active" data-tab="requests" onclick="switchTab('requests')">
+            <svg class="admin-sb-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <span class="admin-sb-label">Requests</span>
+            <span class="admin-sb-badge admin-sb-badge--gold" id="pendingCount"></span>
+          </button>
+          <button class="admin-sb-item admin-tab" data-tab="issues" onclick="switchTab('issues')">
+            <svg class="admin-sb-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span class="admin-sb-label">Issues</span>
+            <span class="admin-sb-badge admin-sb-badge--red" id="openIssuesCount" style="display:none;"></span>
+          </button>
+          <button class="admin-sb-item admin-tab" data-tab="commonissues" onclick="switchTab('commonissues')">
+            <svg class="admin-sb-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            <span class="admin-sb-label">Common Issues</span>
+          </button>
+        </div>
+
+        <div class="admin-sb-section">
+          <span class="admin-sb-section-label">Team</span>
+          <button class="admin-sb-item admin-tab" data-tab="users" onclick="switchTab('users')">
+            <svg class="admin-sb-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span class="admin-sb-label">Users</span>
+          </button>
+          <button class="admin-sb-item admin-tab" data-tab="systems" onclick="switchTab('systems')">
+            <svg class="admin-sb-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            <span class="admin-sb-label">Systems / Tasks</span>
+          </button>
+          <button class="admin-sb-item admin-tab" data-tab="devperf" onclick="switchTab('devperf')">
+            <svg class="admin-sb-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            <span class="admin-sb-label">Developers</span>
+          </button>
+        </div>
+
+        <div class="admin-sb-section">
+          <span class="admin-sb-section-label">Settings</span>
+          <button class="admin-sb-item admin-tab" data-tab="config" onclick="switchTab('config')">
+            <svg class="admin-sb-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span class="admin-sb-label">Configurations</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="admin-sb-footer">
+        <a href="/tasks" class="admin-sb-item admin-sb-external">
+          <svg class="admin-sb-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          <span class="admin-sb-label">Tasks Board</span>
+          <svg class="admin-sb-external-icon" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      </div>
+    </nav>
+
+    <!-- ── Content Area ── -->
+    <div class="admin-content">
 
     <!-- ── Requests Panel ── -->
     <div id="panel-requests" class="admin-panel active">
@@ -128,6 +151,81 @@
 
     <!-- ── Issues Panel ── -->
     <div id="panel-issues" class="admin-panel">
+
+      <!-- KPI strip -->
+      <div class="iss-kpi-strip" id="issKpiStrip">
+        <div class="iss-kpi-card">
+          <div class="iss-kpi-val" id="issKpiTotal">—</div>
+          <div class="iss-kpi-label">Total</div>
+        </div>
+        <div class="iss-kpi-card iss-kpi--open">
+          <div class="iss-kpi-val" id="issKpiOpen">—</div>
+          <div class="iss-kpi-label">Open</div>
+        </div>
+        <div class="iss-kpi-card iss-kpi--progress">
+          <div class="iss-kpi-val" id="issKpiProgress">—</div>
+          <div class="iss-kpi-label">In Progress</div>
+        </div>
+        <div class="iss-kpi-card iss-kpi--resolved">
+          <div class="iss-kpi-val" id="issKpiResolved">—</div>
+          <div class="iss-kpi-label">Resolved</div>
+        </div>
+        <div class="iss-kpi-card iss-kpi--connected">
+          <div class="iss-kpi-val" id="issKpiConnected">—</div>
+          <div class="iss-kpi-label">Connected</div>
+        </div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="iss-filter-bar">
+        <div class="iss-filter-search-wrap">
+          <svg class="iss-filter-search-icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="iss-filter-input iss-filter-search" id="issFilterSearch" type="text" placeholder="Ticket, title, reporter, company…" oninput="issApplyFilters()" autocomplete="off">
+          <button class="iss-filter-clear-btn" id="issFilterSearchClear" onclick="issClearSearch()" style="display:none;" aria-label="Clear">&times;</button>
+        </div>
+        <input class="iss-filter-input iss-filter-date" id="issFilterFrom" type="date" onchange="issApplyFilters()" title="From date">
+        <input class="iss-filter-input iss-filter-date" id="issFilterTo"   type="date" onchange="issApplyFilters()" title="To date">
+        <select class="iss-filter-input iss-filter-select" id="issFilterPriority" onchange="issApplyFilters()">
+          <option value="">All Priorities</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <select class="iss-filter-input iss-filter-select" id="issFilterCompany" onchange="issApplyFilters()">
+          <option value="">All Companies</option>
+        </select>
+        <button class="iss-filter-analytics-btn" id="issAnalyticsToggle" onclick="issToggleAnalytics()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Analytics
+        </button>
+      </div>
+
+      <!-- Analytics panel -->
+      <div class="iss-analytics-panel" id="issAnalyticsPanel" style="display:none;">
+        <div class="iss-analytics-grid">
+          <div class="iss-chart-card">
+            <div class="iss-chart-title">Status Distribution</div>
+            <div class="iss-ring-wrap">
+              <svg id="issRingChart" viewBox="0 0 140 140" width="140" height="140" class="iss-ring-svg"></svg>
+              <div class="iss-ring-center">
+                <span class="iss-ring-pct" id="issRingPct">—</span>
+                <span class="iss-ring-sub">resolved</span>
+              </div>
+            </div>
+            <div class="iss-ring-legend" id="issRingLegend"></div>
+          </div>
+          <div class="iss-chart-card iss-chart-wide">
+            <div class="iss-chart-title">By Category</div>
+            <div id="issCategoryBars" class="iss-bars-body"></div>
+          </div>
+          <div class="iss-chart-card">
+            <div class="iss-chart-title">Top Companies</div>
+            <div id="issCompanyBars" class="iss-bars-body"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status sub-tabs -->
       <div class="admin-status-tabs" id="issueStatusTabs">
         <button class="status-tab active" data-istatus="open"        onclick="switchIssueStatus('open')">Open</button>
         <button class="status-tab"        data-istatus="in_progress" onclick="switchIssueStatus('in_progress')">In Progress</button>
@@ -135,6 +233,7 @@
         <button class="status-tab"        data-istatus="closed"      onclick="switchIssueStatus('closed')">Closed</button>
         <button class="status-tab"        data-istatus="all"         onclick="switchIssueStatus('all')">All</button>
       </div>
+
       <div id="issues-body" class="admin-table-wrap">
         <div class="admin-loading"><div class="spinner"></div><span>Loading issues…</span></div>
       </div>
@@ -324,6 +423,7 @@
       </div>
     </div>
 
+    </div><!-- /admin-content -->
   </main>
 
   <!-- ── Developer Performance Modal ── -->

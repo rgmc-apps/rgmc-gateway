@@ -1363,13 +1363,17 @@ function switchIssueStatus(status) {
   document.querySelectorAll('#issueStatusTabs .status-tab').forEach(b =>
     b.classList.toggle('active', b.dataset.istatus === status)
   );
-  loadIssues(status);
+  if (_issuesCache.length > 0) {
+    issApplyFilters();
+  } else {
+    loadIssues(status);
+  }
 }
 
 const ISSUE_STATUS_LABELS = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed' };
 const ISSUE_STATUS_CLASS  = { open: 'badge-issue-open', in_progress: 'badge-issue-progress', resolved: 'badge-issue-resolved', closed: 'badge-issue-closed' };
 
-async function loadIssues(filterStatus) {
+async function loadIssues() {
   const wrap = document.getElementById('issues-body');
   wrap.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading issues…</span></div>';
 
@@ -1385,42 +1389,174 @@ async function loadIssues(filterStatus) {
       // Show all statuses so the target issue is visible regardless of its status
       _currentIssueStatus = 'all';
       document.querySelectorAll('#issueStatusTabs .status-tab').forEach(b =>
-        b.classList.toggle('active', b.dataset.status === 'all')
+        b.classList.toggle('active', b.dataset.istatus === 'all')
       );
       setTimeout(() => openIssueModal(targetId), 0);
     }
 
-    // Update open badge
-    const openCount = all.filter(i => i.status === 'open').length;
-    const badge = document.getElementById('openIssuesCount');
-    badge.textContent = openCount || '';
-    badge.style.display = openCount ? '' : 'none';
-
-    const rows = filterStatus === 'all' ? all : all.filter(i => i.status === filterStatus);
-    if (rows.length === 0) {
-      wrap.innerHTML = `<div class="admin-empty">No ${filterStatus === 'all' ? '' : filterStatus.replace('_',' ')+' '}issues.</div>`;
-      return;
-    }
-
-    wrap.innerHTML = `
-      <table class="admin-table">
-        <thead>
-          <tr>
-            <th>System</th>
-            <th>Reporter</th>
-            <th>Description</th>
-            <th>Attachments</th>
-            <th>Status</th>
-            <th>Assigned To</th>
-            <th>Reported</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>${rows.map(renderIssueRow).join('')}</tbody>
-      </table>`;
+    _renderIssueKpis(all);
+    _populateIssueCompanyFilter(all);
+    issApplyFilters();
   } catch (err) {
-    wrap.innerHTML = `<div class="admin-error">Failed to load issues: ${escHtml(err.message)}</div>`;
+    document.getElementById('issues-body').innerHTML = `<div class="admin-error">Failed to load issues: ${escHtml(err.message)}</div>`;
   }
+}
+
+function _renderIssueKpis(all) {
+  const total     = all.length;
+  const open      = all.filter(i => i.status === 'open').length;
+  const progress  = all.filter(i => i.status === 'in_progress').length;
+  const resolved  = all.filter(i => ['resolved','closed'].includes(i.status)).length;
+  const connected = all.filter(i => i.dev_item_id || i.task_id || i.user_task_id).length;
+  _setText('issKpiTotal',     total);
+  _setText('issKpiOpen',      open);
+  _setText('issKpiProgress',  progress);
+  _setText('issKpiResolved',  resolved);
+  _setText('issKpiConnected', connected);
+
+  // Sidebar badge
+  const badge = document.getElementById('openIssuesCount');
+  if (badge) { badge.textContent = open || ''; badge.style.display = open ? '' : 'none'; }
+}
+function _setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+
+function _populateIssueCompanyFilter(all) {
+  const sel = document.getElementById('issFilterCompany');
+  if (!sel) return;
+  const current = sel.value;
+  const companies = [...new Set(all.map(i => i.company_name).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">All Companies</option>' +
+    companies.map(c => `<option value="${escHtml(c)}"${c === current ? ' selected' : ''}>${escHtml(c)}</option>`).join('');
+}
+
+let _issAnalyticsOpen = false;
+function issToggleAnalytics() {
+  _issAnalyticsOpen = !_issAnalyticsOpen;
+  const panel = document.getElementById('issAnalyticsPanel');
+  const btn   = document.getElementById('issAnalyticsToggle');
+  if (panel) panel.style.display = _issAnalyticsOpen ? '' : 'none';
+  if (btn)   btn.classList.toggle('active', _issAnalyticsOpen);
+  if (_issAnalyticsOpen) _renderIssueAnalytics(_issuesCache);
+}
+
+function _renderIssueAnalytics(all) {
+  _renderIssRing(all);
+  _renderIssBars('issCategoryBars', all, i => i.request_category || 'Uncategorized');
+  _renderIssBars('issCompanyBars',  all, i => i.company_name     || 'Unknown');
+}
+
+function _renderIssRing(all) {
+  const counts = {
+    open:        all.filter(i => i.status === 'open').length,
+    in_progress: all.filter(i => i.status === 'in_progress').length,
+    resolved:    all.filter(i => i.status === 'resolved').length,
+    closed:      all.filter(i => i.status === 'closed').length,
+  };
+  const total    = all.length || 1;
+  const resolved = counts.resolved + counts.closed;
+  const pct      = Math.round((resolved / total) * 100);
+  const pctEl = document.getElementById('issRingPct');
+  if (pctEl) pctEl.textContent = pct + '%';
+
+  const svg    = document.getElementById('issRingChart');
+  if (!svg) return;
+  const cx = 70, cy = 70, r = 54, stroke = 10;
+  const circ = 2 * Math.PI * r;
+  const colors = { open: '#f87171', in_progress: '#facc15', resolved: '#4ade80', closed: '#94a3b8' };
+  const labels = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed' };
+  let offset = 0;
+  const segs = Object.entries(counts).map(([key, val]) => {
+    const dash = (val / total) * circ;
+    const seg  = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${colors[key]}" stroke-width="${stroke}" stroke-dasharray="${dash} ${circ}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})" opacity="0.88"/>`;
+    offset += dash;
+    return seg;
+  }).join('');
+  svg.innerHTML = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="${stroke}"/>${segs}`;
+
+  const legend = document.getElementById('issRingLegend');
+  if (legend) legend.innerHTML = Object.entries(counts).map(([key, val]) =>
+    `<div class="iss-legend-item"><span class="iss-legend-dot" style="background:${colors[key]}"></span><span class="iss-legend-label">${labels[key]}</span><span class="iss-legend-val">${val}</span></div>`
+  ).join('');
+}
+
+function _renderIssBars(containerId, all, keyFn) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const counts = {};
+  all.forEach(i => { const k = keyFn(i); counts[k] = (counts[k] || 0) + 1; });
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  if (!sorted.length) { el.innerHTML = '<div class="iss-bars-empty">No data</div>'; return; }
+  const max = sorted[0][1];
+  el.innerHTML = sorted.map(([label, val]) => {
+    const pct = Math.max(4, Math.round((val / max) * 100));
+    return `<div class="iss-bar-row">
+      <div class="iss-bar-label" title="${escHtml(label)}">${escHtml(label)}</div>
+      <div class="iss-bar-track"><div class="iss-bar-fill" style="width:${pct}%"></div></div>
+      <div class="iss-bar-val">${val}</div>
+    </div>`;
+  }).join('');
+}
+
+function issApplyFilters() {
+  const search   = (document.getElementById('issFilterSearch')?.value   || '').toLowerCase().trim();
+  const from     = document.getElementById('issFilterFrom')?.value   || '';
+  const to       = document.getElementById('issFilterTo')?.value     || '';
+  const priority = document.getElementById('issFilterPriority')?.value || '';
+  const company  = document.getElementById('issFilterCompany')?.value  || '';
+  const clearBtn = document.getElementById('issFilterSearchClear');
+  if (clearBtn) clearBtn.style.display = search ? '' : 'none';
+
+  let rows = _currentIssueStatus === 'all'
+    ? _issuesCache
+    : _issuesCache.filter(i => i.status === _currentIssueStatus);
+
+  if (search) rows = rows.filter(i =>
+    (i.ticket_number || '').toLowerCase().includes(search) ||
+    (i.title         || '').toLowerCase().includes(search) ||
+    (i.description   || '').toLowerCase().includes(search) ||
+    (i.employee_name || '').toLowerCase().includes(search) ||
+    (i.company_name  || '').toLowerCase().includes(search)
+  );
+  if (from)     rows = rows.filter(i => i.created_at && i.created_at.slice(0,10) >= from);
+  if (to)       rows = rows.filter(i => i.created_at && i.created_at.slice(0,10) <= to);
+  if (priority) rows = rows.filter(i => (i.priority || '').toLowerCase() === priority);
+  if (company)  rows = rows.filter(i => i.company_name === company);
+
+  _renderIssueTable(rows);
+  if (_issAnalyticsOpen) _renderIssueAnalytics(rows);
+}
+
+function issClearSearch() {
+  const inp = document.getElementById('issFilterSearch');
+  if (inp) inp.value = '';
+  document.getElementById('issFilterSearchClear').style.display = 'none';
+  issApplyFilters();
+}
+
+function _renderIssueTable(rows) {
+  const wrap = document.getElementById('issues-body');
+  if (!wrap) return;
+  if (!rows.length) {
+    wrap.innerHTML = '<div class="admin-empty">No issues match the current filters.</div>';
+    return;
+  }
+  wrap.innerHTML = `
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Ticket / System</th>
+          <th>Reporter</th>
+          <th>Description</th>
+          <th>Priority</th>
+          <th>Status</th>
+          <th>Connected</th>
+          <th>Assigned To</th>
+          <th>Reported</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>${rows.map(renderIssueRow).join('')}</tbody>
+    </table>`;
 }
 
 /* ── Lightbox ── */
@@ -1499,21 +1635,32 @@ function _renderAttachPreviews(issueId, urls) {
   return `<div class="attach-thumb-row">${items.join('')}</div>`;
 }
 
+const PRIORITY_BADGE = {
+  high:   '<span class="iss-prio-badge iss-prio--high">High</span>',
+  medium: '<span class="iss-prio-badge iss-prio--medium">Medium</span>',
+  low:    '<span class="iss-prio-badge iss-prio--low">Low</span>',
+};
+
 function renderIssueRow(issue) {
-  const statusBadge = `<span class="label-badge ${ISSUE_STATUS_CLASS[issue.status] || 'label-rgmc'}">${ISSUE_STATUS_LABELS[issue.status] || issue.status}</span>`;
-  const titleText   = issue.title ? issue.title : (issue.description.length > 60 ? issue.description.slice(0, 58) + '…' : issue.description);
-  const devBadge      = issue.dev_item_id   ? '<span class="badge-dev" title="Promoted to dev item">Dev</span> '       : '';
-  const taskBadge     = issue.task_id       ? '<span class="badge-task" title="Promoted to task">Task</span> '         : '';
-  const userTaskBadge = issue.user_task_id  ? '<span class="badge-user-task" title="Promoted to user task">User Task</span> ' : '';
-  const ticketRef = issue.ticket_number
+  const statusBadge   = `<span class="label-badge ${ISSUE_STATUS_CLASS[issue.status] || 'label-rgmc'}">${ISSUE_STATUS_LABELS[issue.status] || issue.status}</span>`;
+  const prioBadge     = PRIORITY_BADGE[(issue.priority || '').toLowerCase()] || '<span class="text-muted">—</span>';
+  const titleText     = issue.title ? issue.title : ((issue.description || '').length > 60 ? issue.description.slice(0, 58) + '…' : (issue.description || ''));
+  const ticketRef     = issue.ticket_number
     ? `<code class="mono-val" style="font-size:11px;">${escHtml(issue.ticket_number)}</code><br>`
     : '';
+  const devBadge      = issue.dev_item_id  ? '<span class="badge-dev"   title="Linked to dev item">Dev Item</span>' : '';
+  const taskBadge     = issue.task_id      ? '<span class="badge-task"  title="Linked to task">Task</span>'         : '';
+  const userTaskBadge = issue.user_task_id ? '<span class="badge-user-task" title="Linked to user task">User Task</span>' : '';
+  const linkedBadge   = issue.linked_issue_id ? (issue.is_duplicate ? '<span class="badge-duplicate">Duplicate</span>' : '<span class="badge-linked">Linked</span>') : '';
+  const connectedHtml = [devBadge, taskBadge, userTaskBadge, linkedBadge].filter(Boolean).join(' ') || '<span class="text-muted">—</span>';
+
   return `<tr>
-    <td>${ticketRef}<span class="user-name">${escHtml(issue.site_name)}</span></td>
-    <td>${escHtml(issue.employee_name)}<br><small class="text-muted">${escHtml(issue.company_name)}</small></td>
-    <td class="issue-desc-cell">${devBadge}${taskBadge}${userTaskBadge}${escHtml(titleText)}</td>
-    <td class="attach-preview-cell">${_renderAttachPreviews(issue.id, issue.attachment_urls)}</td>
+    <td>${ticketRef}<span class="user-name">${escHtml(issue.site_name || '')}</span></td>
+    <td>${escHtml(issue.employee_name || '')}<br><small class="text-muted">${escHtml(issue.company_name || '')}</small></td>
+    <td class="issue-desc-cell">${escHtml(titleText)}</td>
+    <td>${prioBadge}</td>
     <td>${statusBadge}</td>
+    <td class="iss-connected-cell">${connectedHtml}</td>
     <td>${issue.assigned_to ? `<code class="mono-val">${escHtml(issue.assigned_to)}</code>` : '<span class="text-muted">—</span>'}</td>
     <td class="date-cell">${fmtDateTime(issue.created_at)}</td>
     <td class="action-cell">
