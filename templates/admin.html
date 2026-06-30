@@ -183,8 +183,6 @@
           <input class="iss-filter-input iss-filter-search" id="issFilterSearch" type="text" placeholder="Ticket, title, reporter, company…" oninput="issApplyFilters()" autocomplete="off">
           <button class="iss-filter-clear-btn" id="issFilterSearchClear" onclick="issClearSearch()" style="display:none;" aria-label="Clear">&times;</button>
         </div>
-        <input class="iss-filter-input iss-filter-date" id="issFilterFrom" type="date" onchange="issApplyFilters()" title="From date">
-        <input class="iss-filter-input iss-filter-date" id="issFilterTo"   type="date" onchange="issApplyFilters()" title="To date">
         <select class="iss-filter-input iss-filter-select" id="issFilterPriority" onchange="issApplyFilters()">
           <option value="">All Priorities</option>
           <option value="high">High</option>
@@ -194,6 +192,22 @@
         <select class="iss-filter-input iss-filter-select" id="issFilterCompany" onchange="issApplyFilters()">
           <option value="">All Companies</option>
         </select>
+      </div>
+
+      <!-- Date preset row -->
+      <div class="iss-date-row">
+        <span class="iss-date-label">Date:</span>
+        <button class="iss-date-preset" data-preset="today"   onclick="issSetDatePreset('today')">Today</button>
+        <button class="iss-date-preset" data-preset="weeks"   onclick="issSetDatePreset('weeks')">Last <input class="iss-date-count" id="issDateWeeks"  type="number" min="1" max="52" value="1" onclick="event.stopPropagation()" oninput="issSetDatePreset('weeks')">wk</button>
+        <button class="iss-date-preset" data-preset="1month"  onclick="issSetDatePreset('1month')">1 Month</button>
+        <button class="iss-date-preset" data-preset="months"  onclick="issSetDatePreset('months')">Last <input class="iss-date-count" id="issDateMonths" type="number" min="1" max="24" value="3" onclick="event.stopPropagation()" oninput="issSetDatePreset('months')">mo</button>
+        <button class="iss-date-preset" data-preset="year"    onclick="issSetDatePreset('year')">This Year</button>
+        <button class="iss-date-preset" data-preset="custom"  onclick="issSetDatePreset('custom')">Custom</button>
+        <div id="issCustomRange" class="iss-custom-range">
+          <input class="iss-filter-input iss-filter-date" id="issFilterFrom" type="date" onchange="issCustomDateChanged()" title="From date">
+          <span class="iss-date-sep">–</span>
+          <input class="iss-filter-input iss-filter-date" id="issFilterTo"   type="date" onchange="issCustomDateChanged()" title="To date">
+        </div>
       </div>
 
       <!-- Analytics panel -->

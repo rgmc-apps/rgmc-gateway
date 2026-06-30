@@ -1,0 +1,221 @@
+/* ── Health Section ── */
+.health-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.health-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.last-updated {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.btn-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 18px;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  letter-spacing: 0.025em;
+  transition: all 0.3s var(--ease);
+}
+.btn-refresh:hover { border-color: var(--gold-border-h); color: var(--gold); background: var(--gold-dim); transform: translateY(-1px); }
+.btn-refresh.spinning svg { animation: spin 0.7s linear infinite; }
+
+.health-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 12px;
+}
+
+.health-loading {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 28px 22px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* Health Card — Double-Bezel */
+.health-card {
+  background: rgba(196,151,42,0.04);
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  padding: 3px;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.health-card-header {
+  background: var(--bg-card-inner);
+  border-radius: 17px 17px 0 0;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+.health-card-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+}
+
+.health-overall {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.health-card-body {
+  background: var(--bg-card);
+  border-radius: 0 0 17px 17px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Status Row */
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-dot.ok      { background: var(--success); box-shadow: 0 0 0 3px var(--success-bg); }
+.status-dot.error   { background: var(--error);   box-shadow: 0 0 0 3px var(--error-bg); }
+.status-dot.timeout { background: var(--warning); box-shadow: 0 0 0 3px var(--warning-bg); }
+.status-dot.loading { background: var(--text-muted); animation: pulse 1.4s ease-in-out infinite; }
+
+.status-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.status-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.status-badge.ok      { background: var(--success-bg); color: var(--success); border: 1px solid rgba(82,168,112,0.3); }
+.status-badge.error   { background: var(--error-bg);   color: var(--error);   border: 1px solid rgba(216,88,88,0.3); }
+.status-badge.timeout { background: var(--warning-bg); color: var(--warning); border: 1px solid rgba(212,150,50,0.3); }
+.status-badge.loading { background: rgba(92,74,40,0.2); color: var(--text-muted); border: 1px solid rgba(92,74,40,0.2); }
+
+/* Connections table */
+.connections-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 6px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.connections-table th {
+  text-align: left;
+  padding: 7px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(255,255,255,0.02);
+}
+.connections-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  color: var(--text-primary);
+}
+.connections-table tr:last-child td { border-bottom: none; }
+.conn-name { font-weight: 600; font-size: 13px; }
+.conn-status-ok  { color: var(--success); font-weight: 700; font-size: 12px; }
+.conn-status-err { color: var(--error);   font-weight: 700; font-size: 12px; }
+.conn-error-text { color: var(--text-muted); font-size: 12px; }
+
+/* ── Health check JSON response ── */
+.health-ep-error {
+  padding: 3px 0 4px 20px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+}
+.health-json-wrap {
+  padding: 5px 0 2px 20px;
+}
+.health-json {
+  margin: 0;
+  background: var(--bg-card-inner);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-family: ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  overflow-x: auto;
+  white-space: pre;
+}
+.health-json--collapsed {
+  max-height: 88px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+}
+.health-json-toggle {
+  display: inline-block;
+  margin-top: 4px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gold);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.75;
+  transition: opacity 0.15s;
+}
+.health-json-toggle:hover { opacity: 1; }
+.json-key  { color: var(--gold); }
+.json-str  { color: var(--json-str); }
+.json-num  { color: var(--json-num); }
+.json-bool { color: var(--json-bool); }
+.json-null { color: var(--text-muted); font-style: italic; }

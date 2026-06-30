@@ -1,0 +1,61 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+/* ── Variables ── */
+:root {
+  --gold:          #C4972A;
+  --gold-light:    #D4A83C;
+  --gold-dim:      rgba(196,151,42,0.12);
+  --gold-glow:     rgba(196,151,42,0.18);
+  --gold-border:   rgba(196,151,42,0.22);
+  --gold-border-h: rgba(196,151,42,0.58);
+
+  --bg:            #080604;
+  --bg-surface:    #0F0C07;
+  --bg-card:       #0D0A06;
+  --bg-card-h:     #161209;
+  --bg-card-inner: #121008;
+  --bg-modal:      #0B0906;
+
+  --border:        rgba(196,151,42,0.2);
+  --border-subtle: rgba(255,255,255,0.04);
+
+  --text-primary:  #EDE5D0;
+  --text-secondary:#A89060;
+  --text-muted:    #5C4A28;
+
+  --success:       #52A870;
+  --success-bg:    rgba(82,168,112,0.12);
+  --error:         #D85858;
+  --error-bg:      rgba(216,88,88,0.12);
+  --warning:       #D49632;
+  --warning-bg:    rgba(212,150,50,0.12);
+
+  --font-display:  'Playfair Display', Georgia, serif;
+  --font-ui:       'Plus Jakarta Sans', -apple-system, sans-serif;
+
+  --radius-sm:     8px;
+  --radius:        12px;
+  --radius-lg:     22px;
+  --radius-pill:   999px;
+
+  --ease:          cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring:   cubic-bezier(0.16, 1, 0.3, 1);
+
+  --shadow-card:   0 2px 20px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.65);
+  --shadow-card-h: 0 12px 44px rgba(0,0,0,0.65), 0 0 0 1px var(--gold-border-h);
+  --shadow-modal:  0 32px 100px rgba(0,0,0,0.8);
+  --shadow-btn:    0 4px 18px rgba(196,151,42,0.42);
+  --shadow-nav:    0 8px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05);
+
+  /* JSON syntax token colors (dark theme) */
+  --json-str:  #86efac;
+  --json-num:  #7dd3fc;
+  --json-bool: #f9a8d4;
+
+  /* Aliases for legacy references */
+  --text:         var(--text-primary);
+  --text-dim:     var(--text-muted);
+  --bg-inner:     var(--bg-card-inner);
+  --bg-secondary: var(--bg-card-h);
+  --radius-card:  var(--radius);
+}

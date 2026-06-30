@@ -1528,6 +1528,67 @@ function issClearSearch() {
   issApplyFilters();
 }
 
+function issSetDatePreset(preset) {
+  const today  = new Date();
+  const fmt    = d => d.toISOString().slice(0, 10);
+  const fromEl = document.getElementById('issFilterFrom');
+  const toEl   = document.getElementById('issFilterTo');
+  const customRange = document.getElementById('issCustomRange');
+
+  // Fixed presets toggle off when re-clicked
+  const fixedPresets = ['today', '1month', 'year'];
+  const active = document.querySelector('.iss-date-preset.active')?.dataset.preset;
+  if (fixedPresets.includes(preset) && active === preset) {
+    document.querySelectorAll('.iss-date-preset').forEach(b => b.classList.remove('active'));
+    if (customRange) customRange.style.display = 'none';
+    if (fromEl) fromEl.value = '';
+    if (toEl)   toEl.value   = '';
+    issApplyFilters();
+    return;
+  }
+
+  document.querySelectorAll('.iss-date-preset').forEach(b => b.classList.remove('active'));
+  if (customRange) customRange.style.display = 'none';
+  const btn = document.querySelector(`.iss-date-preset[data-preset="${preset}"]`);
+  if (btn) btn.classList.add('active');
+
+  if (preset === 'today') {
+    const t = fmt(today);
+    if (fromEl) fromEl.value = t;
+    if (toEl)   toEl.value   = t;
+  } else if (preset === 'weeks') {
+    const n = Math.max(1, parseInt(document.getElementById('issDateWeeks')?.value || '1', 10) || 1);
+    const from = new Date(today); from.setDate(from.getDate() - n * 7);
+    if (fromEl) fromEl.value = fmt(from);
+    if (toEl)   toEl.value   = fmt(today);
+  } else if (preset === '1month') {
+    const from = new Date(today); from.setMonth(from.getMonth() - 1);
+    if (fromEl) fromEl.value = fmt(from);
+    if (toEl)   toEl.value   = fmt(today);
+  } else if (preset === 'months') {
+    const n = Math.max(1, parseInt(document.getElementById('issDateMonths')?.value || '3', 10) || 3);
+    const from = new Date(today); from.setMonth(from.getMonth() - n);
+    if (fromEl) fromEl.value = fmt(from);
+    if (toEl)   toEl.value   = fmt(today);
+  } else if (preset === 'year') {
+    if (fromEl) fromEl.value = `${today.getFullYear()}-01-01`;
+    if (toEl)   toEl.value   = fmt(today);
+  } else if (preset === 'custom') {
+    if (customRange) customRange.style.display = 'flex';
+    return; // Wait for user to set dates
+  }
+
+  issApplyFilters();
+}
+
+function issCustomDateChanged() {
+  // Ensure 'custom' preset stays active when user edits the date inputs
+  document.querySelectorAll('.iss-date-preset').forEach(b =>
+    b.classList.toggle('active', b.dataset.preset === 'custom')
+  );
+  issApplyFilters();
+}
+
 function issSetPage(page) {
   _issPage = page;
   issApplyFilters_noReset();

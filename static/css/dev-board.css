@@ -1,0 +1,118 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   Dev Board — Page chrome
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.dev-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.dev-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.dev-filter-tabs {
+  display: flex;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 3px;
+  gap: 2px;
+}
+.dev-filter-tab {
+  padding: 5px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+  line-height: 1;
+}
+.dev-filter-tab.active {
+  background: var(--gold);
+  color: #0d0a06;
+}
+.dev-filter-tab:hover:not(.active) {
+  background: rgba(255,255,255,0.07);
+  color: var(--text);
+}
+
+/* Stats summary bar */
+.dev-stats-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.dev-stat-pill {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 18px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  flex: 1;
+  min-width: 110px;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
+}
+.dev-stat-pill:hover {
+  background: rgba(255,255,255,0.04);
+  border-color: var(--border);
+}
+
+.dev-stat-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dev-stat-count {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  min-width: 18px;
+}
+
+.dev-stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+}
+
+/* Status-tinted stat pills */
+.dev-stat-pill.stat-pending     { background: rgba(107,114,128,0.08); border-color: rgba(107,114,128,0.22); }
+.dev-stat-pill.stat-ongoing     { background: rgba(168,85,247,0.09);  border-color: rgba(168,85,247,0.25); }
+.dev-stat-pill.stat-ongoing .dev-stat-count { color: #c084fc; }
+.dev-stat-pill.stat-coding      { background: rgba(59,130,246,0.09);  border-color: rgba(59,130,246,0.25); }
+.dev-stat-pill.stat-testing     { background: rgba(245,158,11,0.09);  border-color: rgba(245,158,11,0.25); }
+.dev-stat-pill.stat-done        { background: rgba(34,197,94,0.08);   border-color: rgba(34,197,94,0.22); }
+.dev-stat-pill.stat-done .dev-stat-count { color: #4ade80; }
+/* Tasks board stat pills */
+.dev-stat-pill.stat-open        { background: rgba(107,114,128,0.08); border-color: rgba(107,114,128,0.22); }
+.dev-stat-pill.stat-in_progress { background: rgba(59,130,246,0.09);  border-color: rgba(59,130,246,0.25); }
+.dev-stat-pill.stat-for_review  { background: rgba(245,158,11,0.09);  border-color: rgba(245,158,11,0.25); }
+
+@media (max-width: 640px) {
+  .dev-stats-bar { gap: 6px; }
+  .dev-stat-pill { padding: 8px 14px; min-width: 80px; }
+  .dev-stat-count { font-size: 16px; }
+}
+
