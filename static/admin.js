@@ -1528,7 +1528,7 @@ async function _ensureDevelopers() {
     const res = await fetch('/api/admin/users', { headers: authHeaders() });
     if (res.ok) {
       const all = await res.json();
-      _developersCache = all.filter(u => u.is_developer && !u.is_admin && !u.is_management);
+      _developersCache = all.filter(u => (u.is_developer || u.is_admin) && !u.is_management);
     }
   } catch { /* non-fatal */ }
 }
