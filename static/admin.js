@@ -42,7 +42,7 @@ function fmtDateTime(iso) {
 }
 
 /* ── State ── */
-let currentTab          = 'requests';
+let currentTab          = 'issues';
 let currentStatus       = 'pending';
 let _requestsCache      = [];
 let _rejectingId        = null;
@@ -52,7 +52,9 @@ let _editingUserSystems = null;
 let _editingUsername    = null;
 let _adminCompanies     = [];
 let _issuesCache        = [];
-let _currentIssueStatus = 'open';
+let _currentIssueStatus = 'all';
+let _issPage            = 1;
+let _issPerPage         = 25;
 let _editingIssueId     = null;
 let _developersCache    = [];
 let _devPerfCache       = [];
@@ -179,11 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>`;
   }
 
-  if (window._OPEN_ISSUE_ID) {
-    switchTab('issues');
-  } else {
-    loadRequests('pending');
-  }
+  loadIssues();
   _loadAdminCompanies();
   _loadAdminDepartments();
   setTimeout(hidePageLoader, 600);
@@ -1522,6 +1520,7 @@ function issApplyFilters() {
   if (priority) rows = rows.filter(i => (i.priority || '').toLowerCase() === priority);
   if (company)  rows = rows.filter(i => i.company_name === company);
 
+  _issPage = 1;
   _renderIssueTable(rows);
   if (_issAnalyticsOpen) _renderIssueAnalytics(rows);
 }
@@ -1529,17 +1528,66 @@ function issApplyFilters() {
 function issClearSearch() {
   const inp = document.getElementById('issFilterSearch');
   if (inp) inp.value = '';
-  document.getElementById('issFilterSearchClear').style.display = 'none';
+  const clearBtn = document.getElementById('issFilterSearchClear');
+  if (clearBtn) clearBtn.style.display = 'none';
   issApplyFilters();
+}
+
+function issSetPage(page) {
+  _issPage = page;
+  issApplyFilters_noReset();
+}
+
+function issSetPerPage(n) {
+  _issPerPage = Number(n);
+  _issPage = 1;
+  issApplyFilters_noReset();
+}
+
+function issApplyFilters_noReset() {
+  const search   = (document.getElementById('issFilterSearch')?.value   || '').toLowerCase().trim();
+  const from     = document.getElementById('issFilterFrom')?.value   || '';
+  const to       = document.getElementById('issFilterTo')?.value     || '';
+  const priority = document.getElementById('issFilterPriority')?.value || '';
+  const company  = document.getElementById('issFilterCompany')?.value  || '';
+
+  let rows = _currentIssueStatus === 'all'
+    ? _issuesCache
+    : _issuesCache.filter(i => i.status === _currentIssueStatus);
+
+  if (search)   rows = rows.filter(i =>
+    (i.ticket_number || '').toLowerCase().includes(search) ||
+    (i.title         || '').toLowerCase().includes(search) ||
+    (i.description   || '').toLowerCase().includes(search) ||
+    (i.employee_name || '').toLowerCase().includes(search) ||
+    (i.company_name  || '').toLowerCase().includes(search)
+  );
+  if (from)     rows = rows.filter(i => i.created_at && i.created_at.slice(0,10) >= from);
+  if (to)       rows = rows.filter(i => i.created_at && i.created_at.slice(0,10) <= to);
+  if (priority) rows = rows.filter(i => (i.priority || '').toLowerCase() === priority);
+  if (company)  rows = rows.filter(i => i.company_name === company);
+
+  _renderIssueTable(rows);
+  if (_issAnalyticsOpen) _renderIssueAnalytics(rows);
 }
 
 function _renderIssueTable(rows) {
   const wrap = document.getElementById('issues-body');
   if (!wrap) return;
-  if (!rows.length) {
+
+  const total   = rows.length;
+  const perPage = _issPerPage === 0 ? total : _issPerPage;
+  const pages   = perPage > 0 ? Math.ceil(total / perPage) : 1;
+  if (_issPage > pages) _issPage = Math.max(1, pages);
+  const start   = (_issPage - 1) * perPage;
+  const end     = perPage > 0 ? Math.min(start + perPage, total) : total;
+  const pageRows = rows.slice(start, end);
+
+  if (!total) {
     wrap.innerHTML = '<div class="admin-empty">No issues match the current filters.</div>';
     return;
   }
+
   wrap.innerHTML = `
     <table class="admin-table">
       <thead>
@@ -1555,8 +1603,51 @@ function _renderIssueTable(rows) {
           <th></th>
         </tr>
       </thead>
-      <tbody>${rows.map(renderIssueRow).join('')}</tbody>
-    </table>`;
+      <tbody>${pageRows.map(renderIssueRow).join('')}</tbody>
+    </table>
+    ${_renderIssPagination(total, start, end, pages)}`;
+}
+
+function _renderIssPagination(total, start, end, pages) {
+  const perPageOpts = [10, 25, 50, 100, 0];
+  const perPageSel = perPageOpts.map(n =>
+    `<option value="${n}"${_issPerPage === n ? ' selected' : ''}>${n === 0 ? 'All' : n}</option>`
+  ).join('');
+
+  let pageButtons = '';
+  const maxVisible = 7;
+  if (pages <= maxVisible) {
+    for (let i = 1; i <= pages; i++) {
+      pageButtons += `<button class="iss-page-btn${i === _issPage ? ' active' : ''}" onclick="issSetPage(${i})">${i}</button>`;
+    }
+  } else {
+    const left  = Math.max(2, _issPage - 2);
+    const right = Math.min(pages - 1, _issPage + 2);
+    pageButtons += `<button class="iss-page-btn${_issPage === 1 ? ' active' : ''}" onclick="issSetPage(1)">1</button>`;
+    if (left > 2) pageButtons += `<span class="iss-page-ellipsis">…</span>`;
+    for (let i = left; i <= right; i++) {
+      pageButtons += `<button class="iss-page-btn${i === _issPage ? ' active' : ''}" onclick="issSetPage(${i})">${i}</button>`;
+    }
+    if (right < pages - 1) pageButtons += `<span class="iss-page-ellipsis">…</span>`;
+    pageButtons += `<button class="iss-page-btn${_issPage === pages ? ' active' : ''}" onclick="issSetPage(${pages})">${pages}</button>`;
+  }
+
+  return `<div class="iss-pagination">
+    <span class="iss-page-info">Showing ${start + 1}–${end} of ${total}</span>
+    <div class="iss-page-controls">
+      <button class="iss-page-nav" onclick="issSetPage(${_issPage - 1})" ${_issPage === 1 ? 'disabled' : ''}>
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      ${pageButtons}
+      <button class="iss-page-nav" onclick="issSetPage(${_issPage + 1})" ${_issPage === pages ? 'disabled' : ''}>
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+    <div class="iss-page-size">
+      <label class="iss-page-size-label">Per page:</label>
+      <select class="iss-page-size-sel" onchange="issSetPerPage(this.value)">${perPageSel}</select>
+    </div>
+  </div>`;
 }
 
 /* ── Lightbox ── */
