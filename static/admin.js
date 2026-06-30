@@ -1394,6 +1394,7 @@ async function loadIssues() {
 
     _renderIssueKpis(all);
     _populateIssueCompanyFilter(all);
+    _renderIssueAnalytics(all);
     issApplyFilters();
   } catch (err) {
     document.getElementById('issues-body').innerHTML = `<div class="admin-error">Failed to load issues: ${escHtml(err.message)}</div>`;
@@ -1427,15 +1428,6 @@ function _populateIssueCompanyFilter(all) {
     companies.map(c => `<option value="${escHtml(c)}"${c === current ? ' selected' : ''}>${escHtml(c)}</option>`).join('');
 }
 
-let _issAnalyticsOpen = false;
-function issToggleAnalytics() {
-  _issAnalyticsOpen = !_issAnalyticsOpen;
-  const panel = document.getElementById('issAnalyticsPanel');
-  const btn   = document.getElementById('issAnalyticsToggle');
-  if (panel) panel.style.display = _issAnalyticsOpen ? '' : 'none';
-  if (btn)   btn.classList.toggle('active', _issAnalyticsOpen);
-  if (_issAnalyticsOpen) _renderIssueAnalytics(_issuesCache);
-}
 
 function _renderIssueAnalytics(all) {
   _renderIssRing(all);
@@ -1522,7 +1514,7 @@ function issApplyFilters() {
 
   _issPage = 1;
   _renderIssueTable(rows);
-  if (_issAnalyticsOpen) _renderIssueAnalytics(rows);
+  _renderIssueAnalytics(rows);
 }
 
 function issClearSearch() {
@@ -1568,7 +1560,7 @@ function issApplyFilters_noReset() {
   if (company)  rows = rows.filter(i => i.company_name === company);
 
   _renderIssueTable(rows);
-  if (_issAnalyticsOpen) _renderIssueAnalytics(rows);
+  _renderIssueAnalytics(rows);
 }
 
 function _renderIssueTable(rows) {
@@ -1600,7 +1592,6 @@ function _renderIssueTable(rows) {
           <th>Connected</th>
           <th>Assigned To</th>
           <th>Reported</th>
-          <th></th>
         </tr>
       </thead>
       <tbody>${pageRows.map(renderIssueRow).join('')}</tbody>
@@ -1745,18 +1736,16 @@ function renderIssueRow(issue) {
   const linkedBadge   = issue.linked_issue_id ? (issue.is_duplicate ? '<span class="badge-duplicate">Duplicate</span>' : '<span class="badge-linked">Linked</span>') : '';
   const connectedHtml = [devBadge, taskBadge, userTaskBadge, linkedBadge].filter(Boolean).join(' ') || '<span class="text-muted">—</span>';
 
-  return `<tr>
+  const safeId = escHtml(issue.id);
+  return `<tr class="iss-row-clickable" onclick="openIssueModal('${safeId}')">
     <td>${ticketRef}<span class="user-name">${escHtml(issue.site_name || '')}</span></td>
     <td>${escHtml(issue.employee_name || '')}<br><small class="text-muted">${escHtml(issue.company_name || '')}</small></td>
     <td class="issue-desc-cell">${escHtml(titleText)}</td>
     <td>${prioBadge}</td>
     <td>${statusBadge}</td>
-    <td class="iss-connected-cell">${connectedHtml}</td>
+    <td class="iss-connected-cell" onclick="event.stopPropagation()">${connectedHtml}</td>
     <td>${issue.assigned_to ? `<code class="mono-val">${escHtml(issue.assigned_to)}</code>` : '<span class="text-muted">—</span>'}</td>
     <td class="date-cell">${fmtDateTime(issue.created_at)}</td>
-    <td class="action-cell">
-      <button class="btn-tbl-secondary" onclick="openIssueModal('${escHtml(issue.id)}')">View</button>
-    </td>
   </tr>`;
 }
 

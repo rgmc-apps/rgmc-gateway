@@ -7970,3 +7970,8 @@ kbd {
 [data-theme="light"] .iss-page-btn,
 [data-theme="light"] .iss-page-nav,
 [data-theme="light"] .iss-page-size-sel { background: #fff; border-color: rgba(0,0,0,0.1); }
+
+/* Clickable issue rows */
+.iss-row-clickable { cursor: pointer; }
+.iss-row-clickable:hover { background: rgba(196,151,42,0.06) !important; }
+[data-theme="light"] .iss-row-clickable:hover { background: rgba(196,151,42,0.08) !important; }
