@@ -50,7 +50,7 @@ let _issueMap           = {};
 let _teamMembers        = null;
 let _taskFilter         = 'team';
 let _issueSubtab        = 'team';
-let _issueStatusFilter  = 'all';
+let _wsIssStatus        = 'all';
 let _taskEditId         = null;
 let _activeTab          = 'issues';
 let _currentIssue       = null;
@@ -84,26 +84,197 @@ function switchIssueSubtab(subtab) {
     const panel = document.getElementById(`ws-issues-${s}`);
     if (panel) panel.style.display = s === subtab ? '' : 'none';
   });
-  if (_issues[subtab] === null) loadIssues(subtab);
-}
-
-function setIssueStatusFilter(filter) {
-  _issueStatusFilter = filter;
-  document.querySelectorAll('[data-issue-filter]').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.issueFilter === filter);
-  });
-  const issues = _issues[_issueSubtab];
-  if (issues !== null) renderIssueList(_issueSubtab, issues);
-}
-
-function _applyIssueFilter(issues) {
-  switch (_issueStatusFilter) {
-    case 'open_unassigned': return issues.filter(i => ['new', 'open'].includes(i.status) && !i.assigned_to);
-    case 'in_progress':     return issues.filter(i => i.status === 'in_progress');
-    case 'resolved':        return issues.filter(i => i.status === 'resolved');
-    case 'closed':          return issues.filter(i => i.status === 'closed');
-    default:                return issues;
+  if (_issues[subtab] === null) {
+    loadIssues(subtab);
+  } else {
+    _wsPopulateCompanyFilter(_issues[subtab]);
+    wsIssApplyFilters();
   }
+}
+
+function wsIssSwitchStatus(status) {
+  _wsIssStatus = status;
+  document.querySelectorAll('#wsIssueStatusTabs .status-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.wsStatus === status)
+  );
+  wsIssApplyFilters();
+}
+
+function wsIssApplyFilters() {
+  const search   = (document.getElementById('wsIssFilterSearch')?.value   || '').toLowerCase().trim();
+  const from     = document.getElementById('wsIssFilterFrom')?.value   || '';
+  const to       = document.getElementById('wsIssFilterTo')?.value     || '';
+  const priority = document.getElementById('wsIssFilterPriority')?.value || '';
+  const company  = document.getElementById('wsIssFilterCompany')?.value  || '';
+  const clearBtn = document.getElementById('wsIssFilterSearchClear');
+  if (clearBtn) clearBtn.style.display = search ? '' : 'none';
+
+  const all = _issues[_issueSubtab] || [];
+  _wsRenderIssueKpis(all);
+
+  let rows = _wsIssStatus === 'all'
+    ? all
+    : all.filter(i => i.status === _wsIssStatus);
+
+  if (search) rows = rows.filter(i =>
+    (i.ticket_number || '').toLowerCase().includes(search) ||
+    (i.title         || '').toLowerCase().includes(search) ||
+    (i.description   || '').toLowerCase().includes(search) ||
+    (i.employee_name || '').toLowerCase().includes(search) ||
+    (i.company_name  || '').toLowerCase().includes(search)
+  );
+  if (from)     rows = rows.filter(i => i.created_at && i.created_at.slice(0,10) >= from);
+  if (to)       rows = rows.filter(i => i.created_at && i.created_at.slice(0,10) <= to);
+  if (priority) rows = rows.filter(i => (i.priority || '').toLowerCase() === priority);
+  if (company)  rows = rows.filter(i => i.company_name === company);
+
+  renderIssueList(_issueSubtab, rows, true);
+  _wsRenderIssueAnalytics(rows);
+}
+
+function wsIssClearSearch() {
+  const inp = document.getElementById('wsIssFilterSearch');
+  if (inp) inp.value = '';
+  const clearBtn = document.getElementById('wsIssFilterSearchClear');
+  if (clearBtn) clearBtn.style.display = 'none';
+  wsIssApplyFilters();
+}
+
+function wsIssSetDatePreset(preset) {
+  const today  = new Date();
+  const fmt    = d => d.toISOString().slice(0, 10);
+  const fromEl = document.getElementById('wsIssFilterFrom');
+  const toEl   = document.getElementById('wsIssFilterTo');
+  const customRange = document.getElementById('wsIssCustomRange');
+
+  const fixedPresets = ['today', '1month', 'year'];
+  const active = document.querySelector('.ws-date-preset.active')?.dataset.wsPreset;
+  if (fixedPresets.includes(preset) && active === preset) {
+    document.querySelectorAll('.ws-date-preset').forEach(b => b.classList.remove('active'));
+    if (customRange) customRange.style.display = 'none';
+    if (fromEl) fromEl.value = '';
+    if (toEl)   toEl.value   = '';
+    wsIssApplyFilters();
+    return;
+  }
+
+  document.querySelectorAll('.ws-date-preset').forEach(b => b.classList.remove('active'));
+  if (customRange) customRange.style.display = 'none';
+  const btn = document.querySelector(`.ws-date-preset[data-ws-preset="${preset}"]`);
+  if (btn) btn.classList.add('active');
+
+  if (preset === 'today') {
+    const t = fmt(today);
+    if (fromEl) fromEl.value = t;
+    if (toEl)   toEl.value   = t;
+  } else if (preset === 'weeks') {
+    const n = Math.max(1, parseInt(document.getElementById('wsIssDateWeeks')?.value || '1', 10) || 1);
+    const from = new Date(today); from.setDate(from.getDate() - n * 7);
+    if (fromEl) fromEl.value = fmt(from);
+    if (toEl)   toEl.value   = fmt(today);
+  } else if (preset === '1month') {
+    const from = new Date(today); from.setMonth(from.getMonth() - 1);
+    if (fromEl) fromEl.value = fmt(from);
+    if (toEl)   toEl.value   = fmt(today);
+  } else if (preset === 'months') {
+    const n = Math.max(1, parseInt(document.getElementById('wsIssDateMonths')?.value || '3', 10) || 3);
+    const from = new Date(today); from.setMonth(from.getMonth() - n);
+    if (fromEl) fromEl.value = fmt(from);
+    if (toEl)   toEl.value   = fmt(today);
+  } else if (preset === 'year') {
+    if (fromEl) fromEl.value = `${today.getFullYear()}-01-01`;
+    if (toEl)   toEl.value   = fmt(today);
+  } else if (preset === 'custom') {
+    if (customRange) customRange.style.display = 'flex';
+    return;
+  }
+  wsIssApplyFilters();
+}
+
+function wsIssCustomDateChanged() {
+  document.querySelectorAll('.ws-date-preset').forEach(b =>
+    b.classList.toggle('active', b.dataset.wsPreset === 'custom')
+  );
+  wsIssApplyFilters();
+}
+
+function _wsRenderIssueKpis(all) {
+  const total    = all.length;
+  const open     = all.filter(i => ['new', 'open'].includes(i.status)).length;
+  const progress = all.filter(i => i.status === 'in_progress').length;
+  const resolved = all.filter(i => ['resolved', 'closed'].includes(i.status)).length;
+  const _wsSetText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  _wsSetText('wsIssKpiTotal',    total);
+  _wsSetText('wsIssKpiOpen',     open);
+  _wsSetText('wsIssKpiProgress', progress);
+  _wsSetText('wsIssKpiResolved', resolved);
+}
+
+function _wsPopulateCompanyFilter(all) {
+  const sel = document.getElementById('wsIssFilterCompany');
+  if (!sel) return;
+  const current   = sel.value;
+  const companies = [...new Set(all.map(i => i.company_name).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">All Companies</option>' +
+    companies.map(c => `<option value="${escHtml(c)}"${c === current ? ' selected' : ''}>${escHtml(c)}</option>`).join('');
+}
+
+function _wsRenderIssueAnalytics(all) {
+  _wsRenderIssRing(all);
+  _wsRenderIssBars('wsIssCategoryBars', all, i => i.request_category || 'Uncategorized');
+  _wsRenderIssBars('wsIssCompanyBars',  all, i => i.company_name     || 'Unknown');
+}
+
+function _wsRenderIssRing(all) {
+  const counts = {
+    open:        all.filter(i => ['new', 'open'].includes(i.status)).length,
+    in_progress: all.filter(i => i.status === 'in_progress').length,
+    resolved:    all.filter(i => i.status === 'resolved').length,
+    closed:      all.filter(i => i.status === 'closed').length,
+  };
+  const total    = all.length || 1;
+  const resolved = counts.resolved + counts.closed;
+  const pct      = Math.round((resolved / total) * 100);
+  const pctEl = document.getElementById('wsIssRingPct');
+  if (pctEl) pctEl.textContent = pct + '%';
+
+  const svg = document.getElementById('wsIssRingChart');
+  if (!svg) return;
+  const cx = 70, cy = 70, r = 54, stroke = 10;
+  const circ  = 2 * Math.PI * r;
+  const colors = { open: '#f87171', in_progress: '#facc15', resolved: '#4ade80', closed: '#94a3b8' };
+  const labels = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed' };
+  let offset = 0;
+  const segs = Object.entries(counts).map(([key, val]) => {
+    const dash = (val / total) * circ;
+    const seg  = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${colors[key]}" stroke-width="${stroke}" stroke-dasharray="${dash} ${circ}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})" opacity="0.88"/>`;
+    offset += dash;
+    return seg;
+  }).join('');
+  svg.innerHTML = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="${stroke}"/>${segs}`;
+
+  const legend = document.getElementById('wsIssRingLegend');
+  if (legend) legend.innerHTML = Object.entries(counts).map(([key, val]) =>
+    `<div class="iss-legend-item"><span class="iss-legend-dot" style="background:${colors[key]}"></span><span class="iss-legend-label">${labels[key]}</span><span class="iss-legend-val">${val}</span></div>`
+  ).join('');
+}
+
+function _wsRenderIssBars(containerId, all, keyFn) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const counts = {};
+  all.forEach(i => { const k = keyFn(i); counts[k] = (counts[k] || 0) + 1; });
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  if (!sorted.length) { el.innerHTML = '<div class="iss-bars-empty">No data</div>'; return; }
+  const max = sorted[0][1];
+  el.innerHTML = sorted.map(([label, val]) => {
+    const pct = Math.max(4, Math.round((val / max) * 100));
+    return `<div class="iss-bar-row">
+      <div class="iss-bar-label" title="${escHtml(label)}">${escHtml(label)}</div>
+      <div class="iss-bar-track"><div class="iss-bar-fill" style="width:${pct}%"></div></div>
+      <div class="iss-bar-val">${val}</div>
+    </div>`;
+  }).join('');
 }
 
 /* ── Issue helpers ── */
@@ -150,13 +321,16 @@ async function loadIssues(scope) {
     const data = await res.json();
     _issues[scope] = data;
     data.forEach(iss => { _issueMap[iss.id] = iss; });
-    renderIssueList(scope, data);
+    if (scope === _issueSubtab) {
+      _wsPopulateCompanyFilter(data);
+      wsIssApplyFilters();
+    }
   } catch (err) {
-    listEl.innerHTML = `<div class="admin-error">${escHtml(err.message)}</div>`;
+    if (listEl) listEl.innerHTML = `<div class="admin-error">${escHtml(err.message)}</div>`;
   }
 }
 
-function renderIssueList(scope, issues) {
+function renderIssueList(scope, issues, preFiltered) {
   const listEl = document.getElementById(`ws-issue-list-${scope}`);
   if (!listEl) return;
 
@@ -168,17 +342,12 @@ function renderIssueList(scope, issues) {
       mine:  'No issues are currently assigned to you.',
       filed: 'You have not filed any issues yet. Use the IT Helpdesk to submit one.',
     };
-    listEl.innerHTML = `<div class="ws-empty-state">${issueIcon}<p style="color:var(--text-muted);font-size:14px;margin:0;">${msgs[scope] || 'No issues found.'}</p></div>`;
+    const msg = preFiltered ? 'No issues match the current filters.' : (msgs[scope] || 'No issues found.');
+    listEl.innerHTML = `<div class="ws-empty-state">${issueIcon}<p style="color:var(--text-muted);font-size:14px;margin:0;">${msg}</p></div>`;
     return;
   }
 
-  const filtered = _applyIssueFilter(issues);
-  if (filtered.length === 0) {
-    listEl.innerHTML = `<div class="ws-empty-state">${issueIcon}<p style="color:var(--text-muted);font-size:14px;margin:0;">No issues match the selected filter.</p></div>`;
-    return;
-  }
-
-  listEl.innerHTML = filtered.map(iss => renderIssueCard(iss)).join('');
+  listEl.innerHTML = issues.map(iss => renderIssueCard(iss)).join('');
 }
 
 function renderIssueCard(iss) {
@@ -334,7 +503,7 @@ async function updateTeamIssue() {
     if (_issues[scope]) {
       const idx = _issues[scope].findIndex(i => i.id === _currentIssue.id);
       if (idx !== -1) _issues[scope][idx] = { ..._issues[scope][idx], status, assigned_to: assignedTo || null };
-      renderIssueList(scope, _issues[scope]);
+      wsIssApplyFilters();
     }
 
     // Update the status badge in the modal header

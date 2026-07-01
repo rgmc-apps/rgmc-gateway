@@ -64,6 +64,7 @@
     ══════════════════════════════════════════ -->
     <div id="ws-panel-issues" class="ws-tab-panel ws-active">
 
+      <!-- Scope subtabs -->
       <div class="ws-subtabs-row">
         <div class="dev-filter-tabs">
           <button class="dev-filter-tab active" data-issue-subtab="team"  onclick="switchIssueSubtab('team')">Team Issues</button>
@@ -71,14 +72,93 @@
           <button class="dev-filter-tab"        data-issue-subtab="filed" onclick="switchIssueSubtab('filed')">Issues I Filed</button>
         </div>
       </div>
-      <div class="ws-subtabs-row" style="margin-top:10px;">
-        <div class="dev-filter-tabs">
-          <button class="dev-filter-tab"        data-issue-filter="open_unassigned" onclick="setIssueStatusFilter('open_unassigned')">Open &amp; Unassigned</button>
-          <button class="dev-filter-tab active" data-issue-filter="all"             onclick="setIssueStatusFilter('all')">All</button>
-          <button class="dev-filter-tab"        data-issue-filter="in_progress"     onclick="setIssueStatusFilter('in_progress')">In Progress</button>
-          <button class="dev-filter-tab"        data-issue-filter="resolved"        onclick="setIssueStatusFilter('resolved')">Resolved</button>
-          <button class="dev-filter-tab"        data-issue-filter="closed"          onclick="setIssueStatusFilter('closed')">Closed</button>
+
+      <!-- KPI strip -->
+      <div class="iss-kpi-strip" id="wsIssKpiStrip">
+        <div class="iss-kpi-card">
+          <div class="iss-kpi-val" id="wsIssKpiTotal">—</div>
+          <div class="iss-kpi-label">Total</div>
         </div>
+        <div class="iss-kpi-card iss-kpi--open">
+          <div class="iss-kpi-val" id="wsIssKpiOpen">—</div>
+          <div class="iss-kpi-label">Open</div>
+        </div>
+        <div class="iss-kpi-card iss-kpi--progress">
+          <div class="iss-kpi-val" id="wsIssKpiProgress">—</div>
+          <div class="iss-kpi-label">In Progress</div>
+        </div>
+        <div class="iss-kpi-card iss-kpi--resolved">
+          <div class="iss-kpi-val" id="wsIssKpiResolved">—</div>
+          <div class="iss-kpi-label">Resolved</div>
+        </div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="iss-filter-bar">
+        <div class="iss-filter-search-wrap">
+          <svg class="iss-filter-search-icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="iss-filter-input iss-filter-search" id="wsIssFilterSearch" type="text" placeholder="Ticket, title, reporter, company…" oninput="wsIssApplyFilters()" autocomplete="off">
+          <button class="iss-filter-clear-btn" id="wsIssFilterSearchClear" onclick="wsIssClearSearch()" style="display:none;" aria-label="Clear">&times;</button>
+        </div>
+        <select class="iss-filter-input iss-filter-select" id="wsIssFilterPriority" onchange="wsIssApplyFilters()">
+          <option value="">All Priorities</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <select class="iss-filter-input iss-filter-select" id="wsIssFilterCompany" onchange="wsIssApplyFilters()">
+          <option value="">All Companies</option>
+        </select>
+      </div>
+
+      <!-- Date preset row -->
+      <div class="iss-date-row">
+        <span class="iss-date-label">Date:</span>
+        <button class="iss-date-preset ws-date-preset" data-ws-preset="today"   onclick="wsIssSetDatePreset('today')">Today</button>
+        <button class="iss-date-preset ws-date-preset" data-ws-preset="weeks"   onclick="wsIssSetDatePreset('weeks')">Last <input class="iss-date-count" id="wsIssDateWeeks"  type="number" min="1" max="52" value="1" onclick="event.stopPropagation()" oninput="wsIssSetDatePreset('weeks')">wk</button>
+        <button class="iss-date-preset ws-date-preset" data-ws-preset="1month"  onclick="wsIssSetDatePreset('1month')">1 Month</button>
+        <button class="iss-date-preset ws-date-preset" data-ws-preset="months"  onclick="wsIssSetDatePreset('months')">Last <input class="iss-date-count" id="wsIssDateMonths" type="number" min="1" max="24" value="3" onclick="event.stopPropagation()" oninput="wsIssSetDatePreset('months')">mo</button>
+        <button class="iss-date-preset ws-date-preset" data-ws-preset="year"    onclick="wsIssSetDatePreset('year')">This Year</button>
+        <button class="iss-date-preset ws-date-preset" data-ws-preset="custom"  onclick="wsIssSetDatePreset('custom')">Custom</button>
+        <div id="wsIssCustomRange" class="iss-custom-range">
+          <input class="iss-filter-input iss-filter-date" id="wsIssFilterFrom" type="date" onchange="wsIssCustomDateChanged()" title="From date">
+          <span class="iss-date-sep">–</span>
+          <input class="iss-filter-input iss-filter-date" id="wsIssFilterTo"   type="date" onchange="wsIssCustomDateChanged()" title="To date">
+        </div>
+      </div>
+
+      <!-- Analytics panel -->
+      <div class="iss-analytics-panel" id="wsIssAnalyticsPanel">
+        <div class="iss-analytics-grid">
+          <div class="iss-chart-card">
+            <div class="iss-chart-title">Status Distribution</div>
+            <div class="iss-ring-wrap">
+              <svg id="wsIssRingChart" viewBox="0 0 140 140" width="140" height="140" class="iss-ring-svg"></svg>
+              <div class="iss-ring-center">
+                <span class="iss-ring-pct" id="wsIssRingPct">—</span>
+                <span class="iss-ring-sub">resolved</span>
+              </div>
+            </div>
+            <div class="iss-ring-legend" id="wsIssRingLegend"></div>
+          </div>
+          <div class="iss-chart-card iss-chart-wide">
+            <div class="iss-chart-title">By Category</div>
+            <div id="wsIssCategoryBars" class="iss-bars-body"></div>
+          </div>
+          <div class="iss-chart-card">
+            <div class="iss-chart-title">Top Companies</div>
+            <div id="wsIssCompanyBars" class="iss-bars-body"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status tabs -->
+      <div class="admin-status-tabs" id="wsIssueStatusTabs">
+        <button class="status-tab"        data-ws-status="open"        onclick="wsIssSwitchStatus('open')">Open</button>
+        <button class="status-tab"        data-ws-status="in_progress" onclick="wsIssSwitchStatus('in_progress')">In Progress</button>
+        <button class="status-tab"        data-ws-status="resolved"    onclick="wsIssSwitchStatus('resolved')">Resolved</button>
+        <button class="status-tab"        data-ws-status="closed"      onclick="wsIssSwitchStatus('closed')">Closed</button>
+        <button class="status-tab active" data-ws-status="all"         onclick="wsIssSwitchStatus('all')">All</button>
       </div>
 
       <div id="ws-issues-team">
