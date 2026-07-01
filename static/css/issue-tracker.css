@@ -987,7 +987,7 @@
   position: absolute;
   top: 7px;
   right: 8px;
-  z-index: 10;
+  z-index: 200;
 }
 .iss-kpi-info {
   width: 15px;
