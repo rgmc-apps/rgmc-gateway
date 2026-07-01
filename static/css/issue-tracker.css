@@ -464,6 +464,226 @@
 .iss-row-clickable:hover { background: rgba(196,151,42,0.06) !important; }
 [data-theme="light"] .iss-row-clickable:hover { background: rgba(196,151,42,0.08) !important; }
 
+/* ══════════════════════════════════════════════════════════════
+   NEW ISSUE NOTIFICATION SYSTEM
+   ══════════════════════════════════════════════════════════════ */
+
+/* "New" KPI card accent */
+.iss-kpi--new::before { background: rgba(239,68,68,0.75); animation: new-kpi-glow 2s ease-in-out infinite; }
+.iss-kpi--new .iss-kpi-val { color: #f87171; }
+@keyframes new-kpi-glow {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+/* Row-level new highlight */
+.iss-row-new { background: rgba(239,68,68,0.045) !important; }
+.iss-row-new:hover { background: rgba(239,68,68,0.09) !important; }
+
+/* NEW pill badge */
+.badge-iss-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: var(--radius-pill);
+  color: #f87171;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  margin-left: 5px;
+  animation: badge-new-fade 2.2s ease-in-out infinite;
+}
+.badge-iss-new-dot {
+  width: 5px;
+  height: 5px;
+  background: #f87171;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: dot-blink-red 1.6s ease-in-out infinite;
+}
+@keyframes badge-new-fade {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+@keyframes dot-blink-red {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%       { transform: scale(1.7); opacity: 0.55; }
+}
+
+/* Alert banner above the table */
+.new-issues-banner {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(239,68,68,0.055);
+  border: 1px solid rgba(239,68,68,0.2);
+  border-top: 2px solid rgba(239,68,68,0.52);
+  border-radius: var(--radius-sm);
+  margin-bottom: 14px;
+  animation: banner-drop 0.3s var(--ease) both;
+}
+.new-issues-banner-dot {
+  width: 7px;
+  height: 7px;
+  background: #f87171;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: dot-blink-red 1.6s ease-in-out infinite;
+}
+.new-issues-banner-text {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: #f87171;
+}
+.new-issues-banner-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-left: 6px;
+}
+.new-issues-banner-dismiss {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+.new-issues-banner-dismiss:hover { color: var(--text-primary); }
+@keyframes banner-drop {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Live refresh indicator (right side of filter bar) */
+.iss-live-indicator {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.iss-live-dot {
+  width: 6px;
+  height: 6px;
+  background: #4ade80;
+  border-radius: 50%;
+  animation: live-glow-pulse 2.8s ease-in-out infinite;
+}
+@keyframes live-glow-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(74,222,128,0.55); }
+  60%  { box-shadow: 0 0 0 5px rgba(74,222,128,0); }
+  100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); }
+}
+.iss-live-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.iss-live-refresh-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: none;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.iss-live-refresh-btn:hover {
+  border-color: var(--gold-border);
+  color: var(--gold);
+  background: var(--gold-dim);
+}
+.iss-live-refresh-btn svg { transition: transform 0.45s var(--ease); }
+.iss-live-refresh-btn.spinning svg { transform: rotate(360deg); }
+
+/* Sidebar new-issues pulse badge */
+.admin-sb-badge--pulse {
+  background: rgba(239,68,68,0.18);
+  color: #f87171;
+  border: 1px solid rgba(239,68,68,0.35);
+  animation: badge-new-fade 2.2s ease-in-out infinite;
+}
+
+/* Floating live-poll toast */
+.live-issues-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid rgba(239,68,68,0.26);
+  border-top: 2px solid rgba(239,68,68,0.58);
+  border-radius: var(--radius);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.55), 0 4px 16px rgba(239,68,68,0.1);
+  font-size: 13px;
+  color: var(--text-primary);
+  animation: toast-rise 0.32s var(--ease-spring) both;
+  max-width: 340px;
+}
+.live-toast-dot {
+  width: 7px;
+  height: 7px;
+  background: #f87171;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: dot-blink-red 1.6s ease-in-out infinite;
+}
+.live-toast-text { flex: 1; font-weight: 500; }
+.live-toast-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.28);
+  border-radius: var(--radius-pill);
+  color: #f87171;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.live-toast-refresh-btn:hover { background: rgba(239,68,68,0.18); }
+.live-toast-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 2px;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+.live-toast-close:hover { color: var(--text-primary); }
+@keyframes toast-rise {
+  from { opacity: 0; transform: translateY(14px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+[data-theme="light"] .new-issues-banner { background: rgba(239,68,68,0.04); }
+[data-theme="light"] .iss-row-new       { background: rgba(239,68,68,0.035) !important; }
+[data-theme="light"] .live-issues-toast { background: var(--bg-card-inner); }
+
 
 /* ══════════════════════════════════════════════════════════════
    DONE COLUMN CONTROLS (Dev Board / Tasks Board)

@@ -57,6 +57,7 @@
           <button class="admin-sb-item admin-tab active" data-tab="issues" onclick="switchTab('issues')">
             <svg class="admin-sb-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             <span class="admin-sb-label">Issues</span>
+            <span class="admin-sb-badge admin-sb-badge--pulse" id="newIssuesCount" style="display:none;"></span>
             <span class="admin-sb-badge admin-sb-badge--red" id="openIssuesCount" style="display:none;"></span>
           </button>
           <button class="admin-sb-item admin-tab" data-tab="commonissues" onclick="switchTab('commonissues')">
@@ -154,6 +155,10 @@
 
       <!-- KPI strip -->
       <div class="iss-kpi-strip" id="issKpiStrip">
+        <div class="iss-kpi-card iss-kpi--new" id="issKpiNewCard" style="display:none;">
+          <div class="iss-kpi-val" id="issKpiNew">—</div>
+          <div class="iss-kpi-label">New</div>
+        </div>
         <div class="iss-kpi-card">
           <div class="iss-kpi-val" id="issKpiTotal">—</div>
           <div class="iss-kpi-label">Total</div>
@@ -192,6 +197,13 @@
         <select class="iss-filter-input iss-filter-select" id="issFilterCompany" onchange="issApplyFilters()">
           <option value="">All Companies</option>
         </select>
+        <div class="iss-live-indicator">
+          <span class="iss-live-dot"></span>
+          <span class="iss-live-time" id="issLiveTime">—</span>
+          <button class="iss-live-refresh-btn" id="issLiveRefreshBtn" onclick="issManualRefresh()" title="Refresh issues">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          </button>
+        </div>
       </div>
 
       <!-- Date preset row -->
@@ -243,6 +255,9 @@
         <button class="status-tab"        data-istatus="closed"      onclick="switchIssueStatus('closed')">Closed</button>
         <button class="status-tab active" data-istatus="all"         onclick="switchIssueStatus('all')">All</button>
       </div>
+
+      <!-- New-since-last-visit alert banner -->
+      <div class="new-issues-banner" id="newIssuesBanner"></div>
 
       <div id="issues-body" class="admin-table-wrap">
         <div class="admin-loading"><div class="spinner"></div><span>Loading issues…</span></div>

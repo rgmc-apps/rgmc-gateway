@@ -60,6 +60,11 @@ let _developersCache    = [];
 let _devPerfCache       = [];
 let _devPerfSelected    = null;
 
+let _lastAdminVisit     = null;
+let _pollInterval       = null;
+let _pollLastFetch      = null;
+let _liveTimeInterval   = null;
+
 let _currentConfigTab   = 'companies';
 let _cfgCompaniesCache  = [];
 let _cfgCategoriesCache = [];
@@ -1378,6 +1383,13 @@ async function loadIssues() {
   const wrap = document.getElementById('issues-body');
   wrap.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading issues…</span></div>';
 
+  // Read last-visit timestamp before updating it
+  _lastAdminVisit = localStorage.getItem('rgmc_admin_last_visit') || null;
+  const now = new Date().toISOString();
+  localStorage.setItem('rgmc_admin_last_visit', now);
+  _pollLastFetch = now;
+  _updateLiveTime();
+
   try {
     const res = await fetch('/api/admin/issues', { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
@@ -1387,7 +1399,6 @@ async function loadIssues() {
     if (window._OPEN_ISSUE_ID) {
       const targetId = window._OPEN_ISSUE_ID;
       window._OPEN_ISSUE_ID = null;
-      // Show all statuses so the target issue is visible regardless of its status
       _currentIssueStatus = 'all';
       document.querySelectorAll('#issueStatusTabs .status-tab').forEach(b =>
         b.classList.toggle('active', b.dataset.istatus === 'all')
@@ -1395,16 +1406,97 @@ async function loadIssues() {
       setTimeout(() => openIssueModal(targetId), 0);
     }
 
-    _renderIssueKpis(all);
+    const newCount = _lastAdminVisit
+      ? all.filter(i => i.created_at && i.created_at > _lastAdminVisit).length
+      : 0;
+    _showNewIssuesBanner(newCount, _lastAdminVisit);
+
+    _renderIssueKpis(all, newCount);
     _populateIssueCompanyFilter(all);
     _renderIssueAnalytics(all);
     issApplyFilters();
+    _startIssuePoller();
   } catch (err) {
     document.getElementById('issues-body').innerHTML = `<div class="admin-error">Failed to load issues: ${escHtml(err.message)}</div>`;
   }
 }
 
-function _renderIssueKpis(all) {
+function _showNewIssuesBanner(count, since) {
+  const el = document.getElementById('newIssuesBanner');
+  if (!el) return;
+  if (!count || !since) { el.style.display = 'none'; return; }
+  el.innerHTML = `
+    <span class="new-issues-banner-dot"></span>
+    <span class="new-issues-banner-text">
+      ${count} new issue${count !== 1 ? 's' : ''} since your last visit
+      <span class="new-issues-banner-sub">(last seen ${fmtDateTime(since)})</span>
+    </span>
+    <button class="new-issues-banner-dismiss" onclick="dismissNewBanner()" aria-label="Dismiss">&times;</button>
+  `;
+  el.style.display = 'flex';
+}
+
+function dismissNewBanner() {
+  const el = document.getElementById('newIssuesBanner');
+  if (el) el.style.display = 'none';
+}
+
+function _updateLiveTime() {
+  const el = document.getElementById('issLiveTime');
+  if (!el || !_pollLastFetch) return;
+  const diff = Math.round((Date.now() - new Date(_pollLastFetch).getTime()) / 1000);
+  if (diff < 60) el.textContent = `${diff}s ago`;
+  else if (diff < 3600) el.textContent = `${Math.floor(diff / 60)}m ago`;
+  else el.textContent = fmtDateTime(_pollLastFetch);
+}
+
+function issManualRefresh() {
+  const btn = document.getElementById('issLiveRefreshBtn');
+  if (btn) { btn.classList.add('spinning'); setTimeout(() => btn.classList.remove('spinning'), 500); }
+  _dismissLiveToast();
+  // Treat this refresh as the new "last visit" so already-seen issues don't re-flag as new
+  _lastAdminVisit = _pollLastFetch;
+  localStorage.setItem('rgmc_admin_last_visit', _lastAdminVisit || new Date().toISOString());
+  loadIssues(_currentIssueStatus);
+}
+
+function _startIssuePoller() {
+  if (_pollInterval) return;
+  if (_liveTimeInterval) clearInterval(_liveTimeInterval);
+  _liveTimeInterval = setInterval(_updateLiveTime, 15000);
+  _pollInterval = setInterval(async () => {
+    if (document.hidden) return;
+    try {
+      const res = await fetch('/api/admin/issues', { headers: authHeaders() });
+      if (!res.ok) return;
+      const fresh = await res.json();
+      const newer = fresh.filter(i => i.created_at && _pollLastFetch && i.created_at > _pollLastFetch);
+      if (newer.length > 0) _showLivePollToast(newer.length);
+    } catch { /* silent */ }
+  }, 90000);
+}
+
+function _showLivePollToast(count) {
+  _dismissLiveToast();
+  const toast = document.createElement('div');
+  toast.id = 'liveIssuesToast';
+  toast.className = 'live-issues-toast';
+  toast.innerHTML = `
+    <span class="live-toast-dot"></span>
+    <span class="live-toast-text">${count} new issue${count !== 1 ? 's' : ''} received</span>
+    <button class="live-toast-refresh-btn" onclick="issManualRefresh()">Refresh</button>
+    <button class="live-toast-close" onclick="_dismissLiveToast()" aria-label="Dismiss">&times;</button>
+  `;
+  document.body.appendChild(toast);
+  setTimeout(_dismissLiveToast, 30000);
+}
+
+function _dismissLiveToast() {
+  const el = document.getElementById('liveIssuesToast');
+  if (el) el.remove();
+}
+
+function _renderIssueKpis(all, newCount) {
   const total     = all.length;
   const open      = all.filter(i => i.status === 'open').length;
   const progress  = all.filter(i => i.status === 'in_progress').length;
@@ -1416,9 +1508,19 @@ function _renderIssueKpis(all) {
   _setText('issKpiResolved',  resolved);
   _setText('issKpiConnected', connected);
 
-  // Sidebar badge
+  // "New" KPI card — only shown when there are new issues
+  const nc = newCount ?? (_lastAdminVisit ? all.filter(i => i.created_at && i.created_at > _lastAdminVisit).length : 0);
+  _setText('issKpiNew', nc);
+  const newCard = document.getElementById('issKpiNewCard');
+  if (newCard) newCard.style.display = nc > 0 ? '' : 'none';
+
+  // Sidebar open badge
   const badge = document.getElementById('openIssuesCount');
   if (badge) { badge.textContent = open || ''; badge.style.display = open ? '' : 'none'; }
+
+  // Sidebar new badge
+  const newBadge = document.getElementById('newIssuesCount');
+  if (newBadge) { newBadge.textContent = nc || ''; newBadge.style.display = nc > 0 ? '' : 'none'; }
 }
 function _setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
 
@@ -1788,20 +1890,23 @@ const PRIORITY_BADGE = {
 };
 
 function renderIssueRow(issue) {
+  const isNew         = _lastAdminVisit && issue.created_at && issue.created_at > _lastAdminVisit;
   const statusBadge   = `<span class="label-badge ${ISSUE_STATUS_CLASS[issue.status] || 'label-rgmc'}">${ISSUE_STATUS_LABELS[issue.status] || issue.status}</span>`;
   const prioBadge     = PRIORITY_BADGE[(issue.priority || '').toLowerCase()] || '<span class="text-muted">—</span>';
   const titleText     = issue.title ? issue.title : ((issue.description || '').length > 60 ? issue.description.slice(0, 58) + '…' : (issue.description || ''));
+  const newBadge      = isNew ? '<span class="badge-iss-new"><span class="badge-iss-new-dot"></span>New</span>' : '';
   const ticketRef     = issue.ticket_number
-    ? `<code class="mono-val" style="font-size:11px;">${escHtml(issue.ticket_number)}</code><br>`
-    : '';
+    ? `<code class="mono-val" style="font-size:11px;">${escHtml(issue.ticket_number)}</code>${newBadge}<br>`
+    : newBadge ? `${newBadge}<br>` : '';
   const devBadge      = issue.dev_item_id  ? '<span class="badge-dev"   title="Linked to dev item">Dev Item</span>' : '';
   const taskBadge     = issue.task_id      ? '<span class="badge-task"  title="Linked to task">Task</span>'         : '';
   const userTaskBadge = issue.user_task_id ? '<span class="badge-user-task" title="Linked to user task">User Task</span>' : '';
   const linkedBadge   = issue.linked_issue_id ? (issue.is_duplicate ? '<span class="badge-duplicate">Duplicate</span>' : '<span class="badge-linked">Linked</span>') : '';
   const connectedHtml = [devBadge, taskBadge, userTaskBadge, linkedBadge].filter(Boolean).join(' ') || '<span class="text-muted">—</span>';
 
-  const safeId = escHtml(issue.id);
-  return `<tr class="iss-row-clickable" onclick="openIssueModal('${safeId}')">
+  const safeId   = escHtml(issue.id);
+  const rowClass = isNew ? 'iss-row-clickable iss-row-new' : 'iss-row-clickable';
+  return `<tr class="${rowClass}" onclick="openIssueModal('${safeId}')">
     <td>${ticketRef}<span class="user-name">${escHtml(issue.site_name || '')}</span></td>
     <td>${escHtml(issue.employee_name || '')}<br><small class="text-muted">${escHtml(issue.company_name || '')}</small></td>
     <td class="issue-desc-cell">${escHtml(titleText)}</td>
