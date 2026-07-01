@@ -813,7 +813,13 @@
           <h3 class="modal-title" id="issueModalTitle">Issue Report</h3>
           <p class="modal-site-name" id="issueModalMeta"></p>
         </div>
-        <button class="modal-close" onclick="closeIssueModal()" aria-label="Close">&times;</button>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="iss-share-btn" onclick="openIssueShareModal()" title="Share ticket link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            Share
+          </button>
+          <button class="modal-close" onclick="closeIssueModal()" aria-label="Close">&times;</button>
+        </div>
       </div>
       <div class="modal-form">
 
@@ -905,6 +911,10 @@
         <div class="form-group" id="issueResolvedByGroup" style="display:none;">
           <label class="form-label" for="issueResolvedBy">Resolved By</label>
           <input class="form-input" type="text" id="issueResolvedBy" placeholder="Developer name">
+        </div>
+        <div class="form-group" id="issueConfirmedFixGroup" style="display:none;">
+          <label class="form-label">Reporter Confirmation</label>
+          <div id="issueConfirmedFixDisplay"></div>
         </div>
 
         <!-- Actions taken checklist -->
@@ -1557,6 +1567,58 @@
       <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
     </button>
     <div class="lightbox-counter" id="lightboxCounter"></div>
+  </div>
+
+  <!-- ── Issue Share Modal ── -->
+  <div id="issShareModal" class="iss-share-modal-overlay" onclick="closeIssShareModal()">
+    <div class="iss-share-modal" onclick="event.stopPropagation()">
+      <div class="iss-share-modal-head">
+        <div>
+          <div class="iss-share-modal-title">Share Ticket</div>
+          <p class="iss-share-modal-sub" id="issShareModalSub"></p>
+        </div>
+        <button class="iss-share-modal-x" onclick="closeIssShareModal()" aria-label="Close">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="iss-share-modal-body">
+        <div class="iss-share-link-row">
+          <input class="iss-share-link-input" id="issShareLinkInput" type="text" readonly>
+          <button class="iss-share-copy-btn" id="issShareCopyBtn" onclick="copyIssShareLink()">Copy</button>
+        </div>
+        <div class="iss-share-copied" id="issShareCopied">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Copied to clipboard
+        </div>
+        <div class="iss-share-apps-label">Share via</div>
+        <div class="iss-share-apps">
+          <a class="iss-share-app" id="issShareWa" href="#" target="_blank" rel="noopener">
+            <div class="iss-share-app-icon iss-share-app-icon--wa">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.71 3.41 2 2 0 0 1 3.71 1.24h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6 6l1.03-1.03a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 21.73 16z"/></svg>
+            </div>
+            <span class="iss-share-app-name">WhatsApp</span>
+          </a>
+          <a class="iss-share-app" id="issShareViber" href="#" target="_blank" rel="noopener">
+            <div class="iss-share-app-icon iss-share-app-icon--viber">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <span class="iss-share-app-name">Viber</span>
+          </a>
+          <a class="iss-share-app" id="issShareTg" href="#" target="_blank" rel="noopener">
+            <div class="iss-share-app-icon iss-share-app-icon--tg">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </div>
+            <span class="iss-share-app-name">Telegram</span>
+          </a>
+          <a class="iss-share-app" id="issShareEmail" href="#">
+            <div class="iss-share-app-icon iss-share-app-icon--email">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </div>
+            <span class="iss-share-app-name">Email</span>
+          </a>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="/static/theme.js"></script>

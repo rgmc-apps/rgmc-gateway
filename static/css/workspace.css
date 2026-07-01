@@ -90,6 +90,7 @@
 .iss-modal-field { display: flex; flex-direction: column; gap: 4px; }
 .iss-modal-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); }
 .iss-modal-value { font-size: 13px; color: var(--text-primary); }
+.iss-confirm-fix-row { grid-column: 1 / -1; }
 
 /* Team member grid */
 .team-member-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }

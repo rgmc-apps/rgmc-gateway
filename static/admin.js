@@ -2071,6 +2071,21 @@ async function openIssueModal(id) {
   document.getElementById('issueResolutionNotes').value = issue.resolution_notes || '';
   document.getElementById('issueResolvedBy').value      = issue.resolved_by      || '';
 
+  // Confirmed fix (read-only indicator)
+  const cfGroup   = document.getElementById('issueConfirmedFixGroup');
+  const cfDisplay = document.getElementById('issueConfirmedFixDisplay');
+  if (isTerminal && cfGroup && cfDisplay) {
+    cfGroup.style.display = '';
+    if (issue.confirmed_fix) {
+      const dt = issue.confirmed_fix_at ? ' on ' + fmtDate(issue.confirmed_fix_at) : '';
+      cfDisplay.innerHTML = `<span class="iss-confirmed-badge"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Reporter confirmed fix${escHtml(dt)}</span>`;
+    } else {
+      cfDisplay.innerHTML = `<span class="iss-unconfirmed-note"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Awaiting reporter confirmation</span>`;
+    }
+  } else if (cfGroup) {
+    cfGroup.style.display = 'none';
+  }
+
   // Resolution actions + attachments
   _issResExistingUrls = Array.isArray(issue.resolution_attachment_urls) ? issue.resolution_attachment_urls.filter(Boolean) : [];
   _issResPendingFiles = [];
@@ -2230,7 +2245,7 @@ function overlayCloseLinkedItem(e) {
 
 function _toggleIssueResolution(status) {
   const isTerminal = status === 'resolved' || status === 'closed';
-  ['issueResolutionGroup', 'issueResolvedByGroup', 'issueActionsGroup', 'issueResAttachGroup'].forEach(id => {
+  ['issueResolutionGroup', 'issueResolvedByGroup', 'issueActionsGroup', 'issueResAttachGroup', 'issueConfirmedFixGroup'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = isTerminal ? '' : 'none';
   });
@@ -4547,3 +4562,55 @@ function _buildPrintHtml(dev, opts = {}) {
     </div>
   </div>`;
 }
+
+/* ── Issue Share Modal ── */
+function openIssueShareModal() {
+  const issue = _issuesCache.find(i => i.id === _editingIssueId);
+  if (!issue) return;
+
+  const url    = window.location.origin + '/admin/issues/' + encodeURIComponent(issue.id);
+  const ref    = issue.ticket_number || 'Ticket';
+  const title  = issue.title || ((issue.description || '').slice(0, 48) + (issue.description && issue.description.length > 48 ? '…' : ''));
+  const sub    = ref + (title ? ' — ' + title : '');
+  const msgTxt = ref + '\n' + url;
+
+  document.getElementById('issShareModalSub').textContent = sub;
+  document.getElementById('issShareLinkInput').value      = url;
+  document.getElementById('issShareCopied').classList.remove('visible');
+  document.getElementById('issShareCopyBtn').textContent  = 'Copy';
+
+  document.getElementById('issShareWa').href    = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msgTxt);
+  document.getElementById('issShareViber').href = 'viber://forward?text='               + encodeURIComponent(msgTxt);
+  document.getElementById('issShareTg').href    = 'https://t.me/share/url?url='         + encodeURIComponent(url) + '&text=' + encodeURIComponent(ref);
+  document.getElementById('issShareEmail').href = 'mailto:?subject='                    + encodeURIComponent(ref) + '&body='    + encodeURIComponent('Ticket link:\n' + url);
+
+  document.getElementById('issShareModal').classList.add('active');
+  document.body.style.overflow = 'hidden';
+
+  navigator.clipboard.writeText(url).then(() => {
+    document.getElementById('issShareCopied').classList.add('visible');
+  }).catch(() => {});
+}
+
+function closeIssShareModal() {
+  document.getElementById('issShareModal').classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+function copyIssShareLink() {
+  const url = document.getElementById('issShareLinkInput').value;
+  navigator.clipboard.writeText(url).then(() => {
+    document.getElementById('issShareCopied').classList.add('visible');
+    const btn = document.getElementById('issShareCopyBtn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+  }).catch(() => {
+    const input = document.getElementById('issShareLinkInput');
+    input.select();
+    document.execCommand('copy');
+  });
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeIssShareModal();
+});

@@ -1,5 +1,6 @@
 import requests
-from flask import Blueprint, render_template, jsonify, request
+from datetime import datetime, timezone
+from flask import Blueprint, render_template, jsonify, request, redirect
 
 from config import HEALTH_CHECKS
 from services.sites import get_sites
@@ -170,8 +171,70 @@ def get_public_issue(issue_id):
             "site_name,employee_name,company_name,department,"
             "ticket_type,request_category,request_subcategory,"
             "from_helpdesk,error_code,assigned_to,resolved_by,"
-            "created_at,resolved_at,resolution_notes,attachment_urls"
+            "created_at,resolved_at,resolution_notes,attachment_urls,"
+            "dev_item_id,task_id,user_task_id,"
+            "confirmed_fix,confirmed_fix_at"
         ),
+    })
+    if not rows:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify(rows[0])
+
+
+@public_bp.get("/api/public/issues/<issue_id>/confirm-fix")
+def public_confirm_fix(issue_id):
+    from config import GATEWAY_BASE_URL
+    base     = (GATEWAY_BASE_URL or "").rstrip("/")
+    back_url = f"{base}/admin/issues/{issue_id}"
+
+    rows = supabase_req("GET", "/issues", params={
+        "id":     f"eq.{issue_id}",
+        "select": "id,status,confirmed_fix",
+    })
+    if not rows:
+        return redirect(back_url)
+
+    issue = rows[0]
+    if issue.get("status") not in ("resolved", "closed"):
+        return redirect(back_url)
+    if issue.get("confirmed_fix"):
+        return redirect(f"{back_url}?confirmed=1")
+
+    supabase_req("PATCH", "/issues", data={
+        "confirmed_fix":    True,
+        "confirmed_fix_at": datetime.now(timezone.utc).isoformat(),
+    }, params={"id": f"eq.{issue_id}"})
+
+    return redirect(f"{back_url}?confirmed=1")
+
+
+@public_bp.get("/api/public/dev-items/<item_id>")
+def get_public_dev_item(item_id):
+    rows = supabase_req("GET", "/dev_items", params={
+        "id":     f"eq.{item_id}",
+        "select": "id,title,status,dev_item_type,estimated_end_date,created_at",
+    })
+    if not rows:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify(rows[0])
+
+
+@public_bp.get("/api/public/tasks/<task_id>")
+def get_public_task(task_id):
+    rows = supabase_req("GET", "/tasks", params={
+        "id":     f"eq.{task_id}",
+        "select": "id,task_name,task_type,status,estimated_end_date,actual_end_date,created_at",
+    })
+    if not rows:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify(rows[0])
+
+
+@public_bp.get("/api/public/user-tasks/<task_id>")
+def get_public_user_task(task_id):
+    rows = supabase_req("GET", "/user_tasks", params={
+        "id":     f"eq.{task_id}",
+        "select": "id,title,status,created_at",
     })
     if not rows:
         return jsonify({"error": "Not found"}), 404

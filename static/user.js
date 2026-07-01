@@ -407,7 +407,25 @@ async function openIssueDetail(iss) {
 
   // Show reopen section only for resolved / closed issues
   const reopenSection = document.getElementById('iss-reopen-section');
-  if (reopenSection) reopenSection.style.display = ['resolved', 'closed'].includes(status) ? '' : 'none';
+  const isTerminal = ['resolved', 'closed'].includes(status);
+  if (reopenSection) reopenSection.style.display = isTerminal ? '' : 'none';
+
+  // Confirmed fix row
+  const cfRow = document.getElementById('iss-confirm-fix-row');
+  const cfVal = document.getElementById('iss-modal-confirm-fix');
+  if (cfRow && cfVal) {
+    if (isTerminal) {
+      cfRow.style.display = '';
+      if (iss.confirmed_fix) {
+        const dt = iss.confirmed_fix_at ? ' on ' + fmtDate(iss.confirmed_fix_at) : '';
+        cfVal.innerHTML = `<span class="iss-confirmed-badge"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Confirmed${escHtml(dt)}</span>`;
+      } else {
+        cfVal.innerHTML = `<span class="iss-unconfirmed-note">Awaiting confirmation</span>`;
+      }
+    } else {
+      cfRow.style.display = 'none';
+    }
+  }
 
   // Show dept head action panel
   const session = loadSession();
@@ -1314,10 +1332,57 @@ document.addEventListener('DOMContentLoaded', () => {
   initUtPhysicsDrag();
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeReopenModal(); closeIssueDetail(); closeUtModal(); closeProfileMenu(); }
+    if (e.key === 'Escape') { closeWsIssShareModal(); closeReopenModal(); closeIssueDetail(); closeUtModal(); closeProfileMenu(); }
   });
   document.addEventListener('click', e => {
     closeProfileMenu();
     if (_utAssigneeOpen && !document.getElementById('ut-assignee-wrap')?.contains(e.target)) _closeAssigneeDropdown();
   });
 });
+
+/* ── Workspace Issue Share Modal ── */
+function openWsIssShareModal() {
+  if (!_currentIssue) return;
+  const iss    = _currentIssue;
+  const url    = window.location.origin + '/admin/issues/' + encodeURIComponent(iss.id);
+  const ref    = iss.ticket_number || 'Ticket';
+  const title  = iss.title || ((iss.description || '').slice(0, 48) + (iss.description && iss.description.length > 48 ? '…' : ''));
+  const sub    = ref + (title ? ' — ' + title : '');
+  const msgTxt = ref + '\n' + url;
+
+  document.getElementById('wsIssShareModalSub').textContent = sub;
+  document.getElementById('wsIssShareLinkInput').value      = url;
+  document.getElementById('wsIssShareCopied').classList.remove('visible');
+  document.getElementById('wsIssShareCopyBtn').textContent  = 'Copy';
+
+  document.getElementById('wsIssShareWa').href    = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msgTxt);
+  document.getElementById('wsIssShareViber').href = 'viber://forward?text='               + encodeURIComponent(msgTxt);
+  document.getElementById('wsIssShareTg').href    = 'https://t.me/share/url?url='         + encodeURIComponent(url) + '&text=' + encodeURIComponent(ref);
+  document.getElementById('wsIssShareEmail').href = 'mailto:?subject='                    + encodeURIComponent(ref) + '&body='    + encodeURIComponent('Ticket link:\n' + url);
+
+  document.getElementById('wsIssShareModal').classList.add('active');
+  document.body.style.overflow = 'hidden';
+
+  navigator.clipboard.writeText(url).then(() => {
+    document.getElementById('wsIssShareCopied').classList.add('visible');
+  }).catch(() => {});
+}
+
+function closeWsIssShareModal() {
+  document.getElementById('wsIssShareModal').classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+function copyWsIssShareLink() {
+  const url = document.getElementById('wsIssShareLinkInput').value;
+  navigator.clipboard.writeText(url).then(() => {
+    document.getElementById('wsIssShareCopied').classList.add('visible');
+    const btn = document.getElementById('wsIssShareCopyBtn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+  }).catch(() => {
+    const input = document.getElementById('wsIssShareLinkInput');
+    input.select();
+    document.execCommand('copy');
+  });
+}

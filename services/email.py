@@ -467,7 +467,7 @@ def send_issue_resolved_email(
         If the issue persists or you have further questions, please contact the IT department at
         <a href="mailto:{_he(it_email)}" style="color:#C4972A;text-decoration:none;font-weight:600;">{_he(it_email)}</a>.
       </p>
-      {_ticket_btn_html(issue.get("id"))}
+      {_confirm_fix_btn_html(issue.get("id"))}
     </div>
     <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
   </div>
@@ -719,6 +719,34 @@ def _ticket_btn_html(issue_id: str | None) -> str:
             f'<a href="{url}" style="display:inline-block;padding:12px 28px;background:#C4972A;'
             f'color:#0d0a06;text-decoration:none;border-radius:7px;font-size:14px;font-weight:700;'
             f'letter-spacing:.02em;">View Ticket &rarr;</a></div>')
+
+
+def _confirm_fix_btn_html(issue_id: str | None) -> str:
+    if not issue_id:
+        return ""
+    base        = (GATEWAY_BASE_URL or "").rstrip("/")
+    confirm_url = f"{base}/api/public/issues/{issue_id}/confirm-fix"
+    ticket_url  = f"{base}/admin/issues/{issue_id}"
+    return f"""
+      <div style="margin-top:28px;padding:20px 24px;background:#f0fdf4;border:1px solid rgba(21,128,61,.18);border-top:3px solid #15803d;border-radius:0 0 8px 8px;">
+        <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:.05em;">Was your issue resolved?</p>
+        <p style="margin:0 0 16px;font-size:13px;color:#374151;line-height:1.6;">
+          If the fix worked on your end, please confirm so our team knows the issue is fully resolved.
+        </p>
+        <table style="border-collapse:collapse;">
+          <tr>
+            <td style="padding-right:10px;">
+              <a href="{confirm_url}" style="display:inline-block;padding:11px 24px;background:#15803d;color:#fff;text-decoration:none;border-radius:7px;font-size:14px;font-weight:700;letter-spacing:.02em;">&#10003;&nbsp; Yes, It&#39;s Fixed</a>
+            </td>
+            <td>
+              <a href="{ticket_url}" style="display:inline-block;padding:11px 20px;background:#fff;color:#374151;text-decoration:none;border-radius:7px;font-size:13px;font-weight:600;border:1px solid #d1d5db;">View Ticket</a>
+            </td>
+          </tr>
+        </table>
+        <p style="margin:12px 0 0;font-size:11px;color:#94a3b8;">
+          Still having issues? Contact IT at the email above.
+        </p>
+      </div>"""
 
 
 _TICKET_TYPE_LABELS = {
