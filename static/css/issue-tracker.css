@@ -898,7 +898,7 @@
 }
 .iss-share-apps {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
 .iss-share-app {
@@ -925,10 +925,12 @@
   color: #fff;
   flex-shrink: 0;
 }
-.iss-share-app-icon--wa    { background: #25D366; }
-.iss-share-app-icon--viber { background: #7360F2; }
-.iss-share-app-icon--tg    { background: #2AABEE; }
-.iss-share-app-icon--email { background: var(--gold); color: #0B0906; }
+.iss-share-app-icon--wa        { background: #25D366; }
+.iss-share-app-icon--viber     { background: #7360F2; }
+.iss-share-app-icon--tg        { background: #2AABEE; }
+.iss-share-app-icon--email     { background: var(--gold); color: #0B0906; }
+.iss-share-app-icon--teams     { background: #6264A7; }
+.iss-share-app-icon--messenger { background: #0084FF; }
 .iss-share-app-name {
   font-size: 10px;
   font-weight: 600;

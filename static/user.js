@@ -1355,10 +1355,12 @@ function openWsIssShareModal() {
   document.getElementById('wsIssShareCopied').classList.remove('visible');
   document.getElementById('wsIssShareCopyBtn').textContent  = 'Copy';
 
-  document.getElementById('wsIssShareWa').href    = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msgTxt);
-  document.getElementById('wsIssShareViber').href = 'viber://forward?text='               + encodeURIComponent(msgTxt);
-  document.getElementById('wsIssShareTg').href    = 'https://t.me/share/url?url='         + encodeURIComponent(url) + '&text=' + encodeURIComponent(ref);
-  document.getElementById('wsIssShareEmail').href = 'mailto:?subject='                    + encodeURIComponent(ref) + '&body='    + encodeURIComponent('Ticket link:\n' + url);
+  document.getElementById('wsIssShareWa').href        = 'https://api.whatsapp.com/send?text='     + encodeURIComponent(msgTxt);
+  document.getElementById('wsIssShareViber').href     = 'viber://forward?text='                   + encodeURIComponent(msgTxt);
+  document.getElementById('wsIssShareTg').href        = 'https://t.me/share/url?url='             + encodeURIComponent(url) + '&text=' + encodeURIComponent(ref);
+  document.getElementById('wsIssShareEmail').href     = 'mailto:?subject='                        + encodeURIComponent(ref) + '&body=' + encodeURIComponent('Ticket link:\n' + url);
+  document.getElementById('wsIssShareTeams').href     = 'https://teams.microsoft.com/share?href=' + encodeURIComponent(url) + '&msgText=' + encodeURIComponent(ref);
+  document.getElementById('wsIssShareMessenger').href = 'fb-messenger://share?link='              + encodeURIComponent(url);
 
   document.getElementById('wsIssShareModal').classList.add('active');
   document.body.style.overflow = 'hidden';

@@ -394,6 +394,9 @@ def admin_promote_issue(issue_id):
     if issue.get("dev_item_id"):
         return jsonify({"error": "Already promoted to a dev item"}), 409
 
+    body     = request.get_json(silent=True) or {}
+    assignee = (body.get("assigned_to") or "").strip() or None
+
     title = (issue.get("title") or
              f"[{issue['site_name']}] {issue['description'][:80]}{'…' if len(issue['description']) > 80 else ''}")
     desc  = (
@@ -401,23 +404,30 @@ def admin_promote_issue(issue_id):
         f"Email: {issue['email']}\n\n"
         f"{issue['description']}"
     )
+    dev_item_data = {
+        "title":       title,
+        "description": desc,
+        "status":      "pending",
+        "created_by":  admin_username,
+    }
+    if assignee:
+        dev_item_data["assigned_to"] = assignee
     try:
-        new_item = supabase_req("POST", "/dev_items", data={
-            "title":       title,
-            "description": desc,
-            "status":      "pending",
-            "created_by":  admin_username,
-        }, extra_headers={"Prefer": "return=representation"})
+        new_item = supabase_req("POST", "/dev_items", data=dev_item_data,
+                                extra_headers={"Prefer": "return=representation"})
     except Exception as exc:
         current_app.logger.error("promote create dev_item failed: %s", exc)
         return jsonify({"error": "Failed to create dev item"}), 500
 
     dev_item_id = new_item[0]["id"] if new_item else None
     if dev_item_id:
+        issue_patch = {"dev_item_id": dev_item_id}
+        if assignee:
+            issue_patch["status"] = "in_progress"
+            if not issue.get("assigned_to"):
+                issue_patch["assigned_to"] = assignee
         try:
-            supabase_req("PATCH", "/issues",
-                         data={"dev_item_id": dev_item_id, "status": "in_progress"},
-                         params={"id": f"eq.{issue_id}"})
+            supabase_req("PATCH", "/issues", data=issue_patch, params={"id": f"eq.{issue_id}"})
         except Exception as exc:
             current_app.logger.error("promote link issue failed: %s", exc)
 
@@ -441,6 +451,9 @@ def admin_promote_issue_to_task(issue_id):
     if issue.get("task_id"):
         return jsonify({"error": "Already promoted to a task"}), 409
 
+    body     = request.get_json(silent=True) or {}
+    assignee = (body.get("assigned_to") or "").strip() or None
+
     task_name = (issue.get("title") or
                  f"[{issue['site_name']}] {issue['description'][:80]}{'…' if len(issue['description']) > 80 else ''}")
     desc = (
@@ -448,25 +461,32 @@ def admin_promote_issue_to_task(issue_id):
         f"Email: {issue['email']}\n\n"
         f"{issue['description']}"
     )
+    task_data = {
+        "task_name":   task_name,
+        "description": desc,
+        "issue_id":    issue_id,
+        "status":      "open",
+        "is_active":   True,
+        "created_by":  admin_username,
+    }
+    if assignee:
+        task_data["assigned_to"] = assignee
     try:
-        new_task = supabase_req("POST", "/tasks", data={
-            "task_name":  task_name,
-            "description": desc,
-            "issue_id":   issue_id,
-            "status":     "open",
-            "is_active":  True,
-            "created_by": admin_username,
-        }, extra_headers={"Prefer": "return=representation"})
+        new_task = supabase_req("POST", "/tasks", data=task_data,
+                                extra_headers={"Prefer": "return=representation"})
     except Exception as exc:
         current_app.logger.error("promote-task create task failed: %s", exc)
         return jsonify({"error": "Failed to create task"}), 500
 
     task_id = new_task[0]["id"] if new_task else None
     if task_id:
+        issue_patch = {"task_id": task_id}
+        if assignee:
+            issue_patch["status"] = "in_progress"
+            if not issue.get("assigned_to"):
+                issue_patch["assigned_to"] = assignee
         try:
-            supabase_req("PATCH", "/issues",
-                         data={"task_id": task_id, "status": "in_progress"},
-                         params={"id": f"eq.{issue_id}"})
+            supabase_req("PATCH", "/issues", data=issue_patch, params={"id": f"eq.{issue_id}"})
         except Exception as exc:
             current_app.logger.error("promote-task link issue failed: %s", exc)
 

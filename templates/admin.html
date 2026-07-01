@@ -888,7 +888,7 @@
           </div>
           <div class="form-group">
             <label class="form-label" for="issueAssignedTo">Assigned To</label>
-            <select class="form-input" id="issueAssignedTo">
+            <select class="form-input" id="issueAssignedTo" onchange="onIssueAssigneeChange()">
               <option value="">— Unassigned —</option>
             </select>
           </div>
@@ -1015,11 +1015,11 @@
               </button>
               <div class="iss-actions-divider"></div>
               <!-- Promote options (hidden when already promoted) -->
-              <button class="iss-actions-item" id="issPromoteDevBtn" onclick="promoteIssueToDevItem()">
+              <button class="iss-actions-item" id="issPromoteDevBtn" onclick="openPromoteModal('dev')"  >
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
                 Promote to Dev Item
               </button>
-              <button class="iss-actions-item" id="issPromoteTaskBtn" onclick="promoteIssueToTask()">
+              <button class="iss-actions-item" id="issPromoteTaskBtn" onclick="openPromoteModal('task')">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
                 Promote to Admin Task
               </button>
@@ -1569,6 +1569,31 @@
     <div class="lightbox-counter" id="lightboxCounter"></div>
   </div>
 
+  <!-- ── Promote Modal ── -->
+  <div id="promoteModal" class="modal-overlay" onclick="closePromoteModal(event)">
+    <div class="modal" style="max-width:420px;">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="promoteModalTitle">Promote Issue</h3>
+          <p class="modal-site-name" id="promoteModalSub"></p>
+        </div>
+        <button class="modal-close" onclick="document.getElementById('promoteModal').classList.remove('open')" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-form" style="padding:20px 24px 8px;">
+        <div class="form-group">
+          <label class="form-label" for="promoteAssigneeSelect">Assign To <span class="form-label-hint">(optional)</span></label>
+          <select class="form-input" id="promoteAssigneeSelect">
+            <option value="">— Unassigned —</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-actions" style="padding:16px 24px 20px;">
+        <button type="button" class="btn-modal-cancel" onclick="document.getElementById('promoteModal').classList.remove('open')">Cancel</button>
+        <button type="button" class="btn-modal-submit" id="promoteSubmitBtn" onclick="submitPromote()">Promote</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Issue Share Modal ── -->
   <div id="issShareModal" class="iss-share-modal-overlay" onclick="closeIssShareModal()">
     <div class="iss-share-modal" onclick="event.stopPropagation()">
@@ -1615,6 +1640,18 @@
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
             </div>
             <span class="iss-share-app-name">Email</span>
+          </a>
+          <a class="iss-share-app" id="issShareTeams" href="#" target="_blank" rel="noopener">
+            <div class="iss-share-app-icon iss-share-app-icon--teams">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <span class="iss-share-app-name">Teams</span>
+          </a>
+          <a class="iss-share-app" id="issShareMessenger" href="#" target="_blank" rel="noopener">
+            <div class="iss-share-app-icon iss-share-app-icon--messenger">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><polyline points="13 8 10 12 14 12 11 16"/></svg>
+            </div>
+            <span class="iss-share-app-name">Messenger</span>
           </a>
         </div>
       </div>

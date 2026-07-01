@@ -2375,24 +2375,56 @@ async function saveIssuePatch() {
   }
 }
 
-async function promoteIssueToDevItem() {
+/* ── Promote Modal ── */
+let _promoteType = null;
+
+async function openPromoteModal(type) {
   if (!_editingIssueId) return;
   _closeIssActionsMenu();
-  if (!await showConfirm({ title: 'Promote to Dev Item', message: 'Create a dev board item from this issue?', confirmText: 'Promote' })) return;
+  _promoteType = type;
 
+  const titles = { dev: 'Promote to Dev Item', task: 'Promote to Admin Task' };
+  const subs   = { dev: 'A dev board item will be created linked to this issue.', task: 'An admin task will be created linked to this issue.' };
+  document.getElementById('promoteModalTitle').textContent = titles[type] || 'Promote Issue';
+  document.getElementById('promoteModalSub').textContent   = subs[type]  || '';
+
+  await _ensureDevelopers();
+  const sel = document.getElementById('promoteAssigneeSelect');
+  sel.innerHTML = '<option value="">— Unassigned —</option>' +
+    _developersCache.map(u => {
+      const label = `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username;
+      return `<option value="${escHtml(u.username)}">${escHtml(label)} (@${escHtml(u.username)})</option>`;
+    }).join('');
+
+  document.getElementById('promoteModal').classList.add('open');
+}
+
+function closePromoteModal(e) {
+  if (e && e.target !== document.getElementById('promoteModal')) return;
+  document.getElementById('promoteModal').classList.remove('open');
+}
+
+async function submitPromote() {
+  if (!_editingIssueId || !_promoteType) return;
+  const assignee  = document.getElementById('promoteAssigneeSelect').value.trim();
+  const endpoint  = _promoteType === 'dev' ? 'promote' : 'promote-task';
+  const toastMsg  = _promoteType === 'dev' ? 'Issue promoted to dev board item.' : 'Issue promoted to task board.';
+
+  document.getElementById('promoteModal').classList.remove('open');
   document.getElementById('issueModalActions').style.display = 'none';
   document.getElementById('issueModalLoading').style.display = '';
   document.getElementById('issueModalError').style.display   = 'none';
 
   try {
-    const res = await fetch(`/api/admin/issues/${encodeURIComponent(_editingIssueId)}/promote`, {
+    const res = await fetch(`/api/admin/issues/${encodeURIComponent(_editingIssueId)}/${endpoint}`, {
       method:  'POST',
-      headers: authHeaders(),
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ assigned_to: assignee || null }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Promote failed');
     closeIssueModal();
-    showToast('Issue promoted to dev board item.');
+    showToast(toastMsg);
     loadIssues(_currentIssueStatus);
   } catch (err) {
     document.getElementById('issueModalLoading').style.display = 'none';
@@ -2402,30 +2434,18 @@ async function promoteIssueToDevItem() {
   }
 }
 
-async function promoteIssueToTask() {
-  if (!_editingIssueId) return;
-  _closeIssActionsMenu();
-  if (!await showConfirm({ title: 'Promote to Task', message: 'Create a task from this issue?', confirmText: 'Promote' })) return;
-  document.getElementById('issueModalActions').style.display = 'none';
-  document.getElementById('issueModalLoading').style.display = '';
-  document.getElementById('issueModalError').style.display   = 'none';
-  try {
-    const res = await fetch(`/api/admin/issues/${encodeURIComponent(_editingIssueId)}/promote-task`, {
-      method:  'POST',
-      headers: authHeaders(),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Promote failed');
-    closeIssueModal();
-    showToast('Issue promoted to task board.');
-    loadIssues(_currentIssueStatus);
-  } catch (err) {
-    document.getElementById('issueModalLoading').style.display = 'none';
-    document.getElementById('issueModalActions').style.display = '';
-    document.getElementById('issueModalError').style.display   = '';
-    document.getElementById('issueModalErrorMsg').textContent  = err.message;
+function onIssueAssigneeChange() {
+  const assignee = document.getElementById('issueAssignedTo').value;
+  if (!assignee) return;
+  const statusSel = document.getElementById('issueStatusSelect');
+  if (statusSel && (statusSel.value === 'open' || statusSel.value === 'new')) {
+    statusSel.value = 'in_progress';
+    _toggleIssueResolution('in_progress');
   }
 }
+
+async function promoteIssueToDevItem()  { openPromoteModal('dev');  }
+async function promoteIssueToTask()     { openPromoteModal('task'); }
 
 async function promoteIssueToUserTask() {
   if (!_editingIssueId) return;
@@ -4579,10 +4599,12 @@ function openIssueShareModal() {
   document.getElementById('issShareCopied').classList.remove('visible');
   document.getElementById('issShareCopyBtn').textContent  = 'Copy';
 
-  document.getElementById('issShareWa').href    = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msgTxt);
-  document.getElementById('issShareViber').href = 'viber://forward?text='               + encodeURIComponent(msgTxt);
-  document.getElementById('issShareTg').href    = 'https://t.me/share/url?url='         + encodeURIComponent(url) + '&text=' + encodeURIComponent(ref);
-  document.getElementById('issShareEmail').href = 'mailto:?subject='                    + encodeURIComponent(ref) + '&body='    + encodeURIComponent('Ticket link:\n' + url);
+  document.getElementById('issShareWa').href        = 'https://api.whatsapp.com/send?text='       + encodeURIComponent(msgTxt);
+  document.getElementById('issShareViber').href     = 'viber://forward?text='                     + encodeURIComponent(msgTxt);
+  document.getElementById('issShareTg').href        = 'https://t.me/share/url?url='               + encodeURIComponent(url) + '&text=' + encodeURIComponent(ref);
+  document.getElementById('issShareEmail').href     = 'mailto:?subject='                          + encodeURIComponent(ref) + '&body=' + encodeURIComponent('Ticket link:\n' + url);
+  document.getElementById('issShareTeams').href     = 'https://teams.microsoft.com/share?href='   + encodeURIComponent(url) + '&msgText=' + encodeURIComponent(ref);
+  document.getElementById('issShareMessenger').href = 'fb-messenger://share?link='                + encodeURIComponent(url);
 
   document.getElementById('issShareModal').classList.add('active');
   document.body.style.overflow = 'hidden';
