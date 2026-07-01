@@ -59,6 +59,7 @@ let _editingIssueId     = null;
 let _developersCache    = [];
 let _devPerfCache       = [];
 let _devPerfSelected    = null;
+let _issFilteredRows    = [];
 
 let _lastAdminVisit     = null;
 let _pollInterval       = null;
@@ -1618,6 +1619,7 @@ function issApplyFilters() {
   if (company)  rows = rows.filter(i => i.company_name === company);
 
   _issPage = 1;
+  _issFilteredRows = rows;
   _renderIssueTable(rows);
   _renderIssueAnalytics(rows);
 }
@@ -1725,8 +1727,134 @@ function issApplyFilters_noReset() {
   if (priority) rows = rows.filter(i => (i.priority || '').toLowerCase() === priority);
   if (company)  rows = rows.filter(i => i.company_name === company);
 
+  _issFilteredRows = rows;
   _renderIssueTable(rows);
   _renderIssueAnalytics(rows);
+}
+
+function issExportPDF() {
+  const rows = _issFilteredRows.length ? _issFilteredRows : _issuesCache;
+
+  const search   = (document.getElementById('issFilterSearch')?.value   || '').trim();
+  const from     = document.getElementById('issFilterFrom')?.value   || '';
+  const to       = document.getElementById('issFilterTo')?.value     || '';
+  const priority = document.getElementById('issFilterPriority')?.value || '';
+  const company  = document.getElementById('issFilterCompany')?.value  || '';
+  const activePreset = document.querySelector('.iss-date-preset.active')?.textContent?.trim() || '';
+
+  const filterParts = [];
+  if (_currentIssueStatus !== 'all') filterParts.push(`Status: ${_currentIssueStatus.replace(/_/g,' ')}`);
+  if (search)   filterParts.push(`Search: "${search}"`);
+  if (priority) filterParts.push(`Priority: ${priority.charAt(0).toUpperCase()+priority.slice(1)}`);
+  if (company)  filterParts.push(`Company: ${company}`);
+  if (from || to) {
+    if (activePreset && activePreset !== 'Custom') filterParts.push(`Period: ${activePreset}`);
+    else if (from && to) filterParts.push(`Date: ${from} – ${to}`);
+    else if (from) filterParts.push(`From: ${from}`);
+    else filterParts.push(`To: ${to}`);
+  }
+
+  const counts = { new: 0, open: 0, in_progress: 0, resolved: 0, closed: 0 };
+  rows.forEach(r => { const s = (r.status||'new').toLowerCase(); if (s in counts) counts[s]++; });
+  const priorityCounts = { high: 0, medium: 0, low: 0 };
+  rows.forEach(r => { const p = (r.priority||'').toLowerCase(); if (p in priorityCounts) priorityCounts[p]++; });
+
+  const now = new Date();
+  const reportDate = now.toLocaleDateString('en-PH', { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' });
+
+  const priorityColor = p => ({ high:'#ef4444', medium:'#f59e0b', low:'#22c55e' }[p] || '#888');
+  const statusLabel = s => ({ new:'New', open:'Open', in_progress:'In Progress', resolved:'Resolved', closed:'Closed' }[s] || s);
+  const statusColor = s => ({ new:'#6b7280', open:'#3b82f6', in_progress:'#f59e0b', resolved:'#22c55e', closed:'#8b5cf6' }[s] || '#888');
+
+  const tableRows = rows.map((r, i) => `
+    <tr style="background:${i%2===0?'#fff':'#f9fafb'}">
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;color:#6b7280;white-space:nowrap">${escHtml(r.ticket_number||'—')}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;max-width:260px">${escHtml(r.title||'—')}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap">${escHtml(r.company_name||'—')}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap">${escHtml(r.employee_name||'—')}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center">
+        <span style="display:inline-block;padding:2px 8px;border-radius:9px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;background:${priorityColor((r.priority||'').toLowerCase())}20;color:${priorityColor((r.priority||'').toLowerCase())}">${escHtml(r.priority||'—')}</span>
+      </td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center">
+        <span style="display:inline-block;padding:2px 8px;border-radius:9px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;background:${statusColor((r.status||'new').toLowerCase())}20;color:${statusColor((r.status||'new').toLowerCase())}">${statusLabel((r.status||'new').toLowerCase())}</span>
+      </td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap;color:#6b7280">${fmtDate(r.created_at)}</td>
+    </tr>`).join('');
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>Issues Report — RGMC Group</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; color: #111827; background: #fff; padding: 32px 40px; }
+  @media print {
+    body { padding: 16px 20px; }
+    .no-print { display: none; }
+  }
+</style>
+</head><body>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #c8a84b;padding-bottom:18px;margin-bottom:24px">
+  <div>
+    <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#c8a84b;margin-bottom:4px">RGMC Group</div>
+    <h1 style="font-size:22px;font-weight:700;color:#111827">Issues Report</h1>
+    ${filterParts.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${filterParts.map(f=>`<span style="display:inline-block;padding:2px 9px;background:#f3f0e8;border:1px solid #c8a84b40;border-radius:9px;font-size:10px;font-weight:600;color:#7a6830">${escHtml(f)}</span>`).join('')}</div>` : ''}
+  </div>
+  <div style="text-align:right">
+    <div style="font-size:11px;color:#6b7280">Generated</div>
+    <div style="font-size:12px;font-weight:600;color:#374151">${reportDate}</div>
+    <div style="font-size:11px;color:#6b7280;margin-top:4px">${rows.length} issue${rows.length!==1?'s':''} total</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px">
+  ${[['New',counts.new,'#6b7280'],['Open',counts.open,'#3b82f6'],['In Progress',counts.in_progress,'#f59e0b'],['Resolved',counts.resolved,'#22c55e'],['Closed',counts.closed,'#8b5cf6']].map(([label,count,color])=>`
+  <div style="border:1px solid #e5e7eb;border-top:3px solid ${color};border-radius:8px;padding:12px 14px">
+    <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;margin-bottom:6px">${label}</div>
+    <div style="font-size:22px;font-weight:700;color:${color}">${count}</div>
+  </div>`).join('')}
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px">
+  ${[['High Priority',priorityCounts.high,'#ef4444'],['Medium Priority',priorityCounts.medium,'#f59e0b'],['Low Priority',priorityCounts.low,'#22c55e']].map(([label,count,color])=>`
+  <div style="border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;margin-bottom:2px">${label}</div>
+      <div style="font-size:18px;font-weight:700;color:${color}">${count}</div>
+    </div>
+    <div style="width:36px;height:36px;border-radius:50%;background:${color}20;display:flex;align-items:center;justify-content:center">
+      <div style="width:14px;height:14px;border-radius:50%;background:${color}"></div>
+    </div>
+  </div>`).join('')}
+</div>
+
+<table style="width:100%;border-collapse:collapse;font-size:12px">
+  <thead>
+    <tr style="background:#f9fafb">
+      <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Ticket</th>
+      <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Title</th>
+      <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Company</th>
+      <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Reporter</th>
+      <th style="padding:9px 10px;text-align:center;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Priority</th>
+      <th style="padding:9px 10px;text-align:center;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Status</th>
+      <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Submitted</th>
+    </tr>
+  </thead>
+  <tbody>${tableRows}</tbody>
+</table>
+
+${rows.length === 0 ? '<div style="text-align:center;padding:40px;color:#9ca3af;font-size:14px">No issues match the current filter.</div>' : ''}
+
+<div style="margin-top:32px;padding-top:14px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center">
+  <div style="font-size:10px;color:#9ca3af">RGMC Group — Confidential</div>
+  <button class="no-print" onclick="window.print()" style="padding:8px 18px;background:#c8a84b;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">Print / Save PDF</button>
+</div>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => win.print(), 600);
 }
 
 function _renderIssueTable(rows) {

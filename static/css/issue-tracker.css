@@ -17,7 +17,7 @@
   border-radius: var(--radius);
   padding: 14px 18px;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 .iss-kpi-card::before {
   content: '';
@@ -978,4 +978,107 @@
   color: var(--text-muted);
   font-style: italic;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   KPI CARD TOOLTIPS
+   ══════════════════════════════════════════════════════════════ */
+
+.iss-kpi-info-wrap {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  z-index: 10;
+}
+.iss-kpi-info {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-section);
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  font-style: normal;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  line-height: 1;
+  transition: border-color 0.15s, color 0.15s;
+  user-select: none;
+}
+.iss-kpi-info-wrap:hover .iss-kpi-info {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.iss-kpi-tooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  right: -6px;
+  width: 210px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--gold);
+  border-radius: var(--radius-sm);
+  padding: 10px 13px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  z-index: 200;
+}
+[data-theme="dark"] .iss-kpi-tooltip { box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+.iss-kpi-info-wrap:hover .iss-kpi-tooltip {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.iss-kpi-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  right: 9px;
+  border: 6px solid transparent;
+  border-top-color: var(--border);
+}
+.iss-kpi-tooltip-name {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 5px;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PDF EXPORT BUTTON
+   ══════════════════════════════════════════════════════════════ */
+
+.iss-export-pdf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  background: none;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: var(--font-ui);
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+.iss-export-pdf-btn:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(196,151,42,0.06);
+}
+.iss-export-pdf-btn svg { flex-shrink: 0; }
 

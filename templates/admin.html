@@ -52,7 +52,7 @@
           <button class="admin-sb-item admin-tab" data-tab="requests" onclick="switchTab('requests')">
             <svg class="admin-sb-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
             <span class="admin-sb-label">Requests</span>
-            <span class="admin-sb-badge admin-sb-badge--gold" id="pendingCount"></span>
+            <span class="admin-sb-badge admin-sb-badge--gold" id="pendingCount" style="display:none;"></span>
           </button>
           <button class="admin-sb-item admin-tab active" data-tab="issues" onclick="switchTab('issues')">
             <svg class="admin-sb-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -156,26 +156,68 @@
       <!-- KPI strip -->
       <div class="iss-kpi-strip" id="issKpiStrip">
         <div class="iss-kpi-card iss-kpi--new" id="issKpiNewCard" style="display:none;">
+          <div class="iss-kpi-info-wrap">
+            <span class="iss-kpi-info">i</span>
+            <div class="iss-kpi-tooltip">
+              <div class="iss-kpi-tooltip-name">New</div>
+              Tickets submitted since your last visit to this page. Resets when you manually refresh.
+            </div>
+          </div>
           <div class="iss-kpi-val" id="issKpiNew">—</div>
           <div class="iss-kpi-label">New</div>
         </div>
         <div class="iss-kpi-card">
+          <div class="iss-kpi-info-wrap">
+            <span class="iss-kpi-info">i</span>
+            <div class="iss-kpi-tooltip">
+              <div class="iss-kpi-tooltip-name">Total</div>
+              All issue tickets in the current view, reflecting your active status tab and date range filter.
+            </div>
+          </div>
           <div class="iss-kpi-val" id="issKpiTotal">—</div>
           <div class="iss-kpi-label">Total</div>
         </div>
         <div class="iss-kpi-card iss-kpi--open">
+          <div class="iss-kpi-info-wrap">
+            <span class="iss-kpi-info">i</span>
+            <div class="iss-kpi-tooltip">
+              <div class="iss-kpi-tooltip-name">Open</div>
+              Issues awaiting pickup — submitted and visible but not yet assigned or actioned by any staff member.
+            </div>
+          </div>
           <div class="iss-kpi-val" id="issKpiOpen">—</div>
           <div class="iss-kpi-label">Open</div>
         </div>
         <div class="iss-kpi-card iss-kpi--progress">
+          <div class="iss-kpi-info-wrap">
+            <span class="iss-kpi-info">i</span>
+            <div class="iss-kpi-tooltip">
+              <div class="iss-kpi-tooltip-name">In Progress</div>
+              Issues actively being investigated or resolved by an assigned staff member.
+            </div>
+          </div>
           <div class="iss-kpi-val" id="issKpiProgress">—</div>
           <div class="iss-kpi-label">In Progress</div>
         </div>
         <div class="iss-kpi-card iss-kpi--resolved">
+          <div class="iss-kpi-info-wrap">
+            <span class="iss-kpi-info">i</span>
+            <div class="iss-kpi-tooltip">
+              <div class="iss-kpi-tooltip-name">Resolved / Closed</div>
+              Completed tickets. Includes both <em>Resolved</em> (fix confirmed or pending user confirmation) and <em>Closed</em> (no further action needed) statuses.
+            </div>
+          </div>
           <div class="iss-kpi-val" id="issKpiResolved">—</div>
           <div class="iss-kpi-label">Resolved</div>
         </div>
         <div class="iss-kpi-card iss-kpi--connected">
+          <div class="iss-kpi-info-wrap">
+            <span class="iss-kpi-info">i</span>
+            <div class="iss-kpi-tooltip">
+              <div class="iss-kpi-tooltip-name">Connected</div>
+              Issues linked to a Dev Board Item, Admin Task, or User Task for development or operations tracking.
+            </div>
+          </div>
           <div class="iss-kpi-val" id="issKpiConnected">—</div>
           <div class="iss-kpi-label">Connected</div>
         </div>
@@ -197,6 +239,10 @@
         <select class="iss-filter-input iss-filter-select" id="issFilterCompany" onchange="issApplyFilters()">
           <option value="">All Companies</option>
         </select>
+        <button class="iss-export-pdf-btn" onclick="issExportPDF()" title="Export filtered issues as PDF">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export PDF
+        </button>
         <div class="iss-live-indicator">
           <span class="iss-live-dot"></span>
           <span class="iss-live-time" id="issLiveTime">—</span>
