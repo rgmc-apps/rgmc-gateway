@@ -46,6 +46,8 @@ def _submit_issue():
         "title":                    request.form.get("title", "").strip() or None,
         "error_code":               request.form.get("error_code", "").strip() or None,
         "user_payload":             request.form.get("user_payload", "").strip() or None,
+        "request_category":         request.form.get("request_category", "").strip() or None,
+        "priority":                 request.form.get("priority", "").strip() or None,
         "request_to_department_id": int(_raw_dept_id) if _raw_dept_id.isdigit() else None,
     }
 
@@ -86,6 +88,10 @@ def _submit_issue():
                 issue_row["error_code"] = form_data["error_code"]
             if form_data["user_payload"]:
                 issue_row["user_payload"] = form_data["user_payload"]
+            if form_data["request_category"]:
+                issue_row["request_category"] = form_data["request_category"]
+            if form_data["priority"]:
+                issue_row["priority"] = form_data["priority"]
             if form_data["request_to_department_id"]:
                 issue_row["request_to_department_id"] = form_data["request_to_department_id"]
             rows = supabase_req("POST", "/issues", data=issue_row,

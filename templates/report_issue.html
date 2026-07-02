@@ -46,13 +46,6 @@
         <form id="riForm" onsubmit="riSubmit(event)">
           <input type="hidden" id="riSiteName" name="site_name">
 
-          <!-- Affected system (shown when no ?system= param) -->
-          <div class="form-group form-group-full" id="riSystemInputGroup" style="display:none;">
-            <label class="form-label" for="riSystemInput">Affected System <span class="required">*</span></label>
-            <input class="form-input" type="text" id="riSystemInput" name="site_name_manual"
-              placeholder="e.g. RGMC Travel and Expense Web">
-          </div>
-
           <div class="form-row">
             <div class="form-group">
               <label class="form-label" for="riEmployeeName">Employee Name <span class="required">*</span></label>
@@ -78,6 +71,33 @@
               <input class="form-input" type="email" id="riEmail" name="email"
                 placeholder="you@rgmcgroup.com" required>
             </div>
+          </div>
+
+          <!-- Category + Priority row -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="riCategory">Category <span class="required">*</span></label>
+              <select class="form-input" id="riCategory" name="request_category" onchange="riOnCategoryChange()">
+                <option value="" disabled>Loading…</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="riPriority">Priority</label>
+              <select class="form-input" id="riPriority" name="priority">
+                <option value="P1">P1 — Critical</option>
+                <option value="P2">P2 — High</option>
+                <option value="P3">P3 — Medium</option>
+                <option value="P4" selected>P4 — Low</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Affected System (subcategory — hidden when ?system= is pre-filled) -->
+          <div class="form-group form-group-full" id="riSubcategoryGroup" style="display:none;">
+            <label class="form-label" for="riSubcategory" id="riSubcategoryLabel">Affected System <span class="required">*</span></label>
+            <select class="form-input" id="riSubcategory" onchange="riOnSubcategoryChange()">
+              <option value="" disabled selected>Select category first…</option>
+            </select>
           </div>
 
           <div class="form-group form-group-full">

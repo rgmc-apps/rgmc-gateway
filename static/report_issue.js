@@ -23,6 +23,70 @@ async function _fetchAndPopulateCompanies() {
   } catch { /* non-fatal */ }
 }
 
+/* ── Category + Subcategory dropdowns ─────────────────────── */
+
+async function _fetchAndPopulateCategories() {
+  const sel = document.getElementById('riCategory');
+  if (!sel) return;
+  try {
+    const res  = await fetch('/api/helpdesk/categories');
+    const cats = await res.json();
+    sel.innerHTML = '';
+    cats.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.category_name;
+      opt.textContent = c.category_name;
+      sel.appendChild(opt);
+    });
+    // Default to Software/Application
+    const sw = [...sel.options].find(o => o.value === 'Software/Application');
+    if (sw) sw.selected = true;
+    else if (sel.options.length) sel.options[0].selected = true;
+  } catch {
+    sel.innerHTML = '<option value="Software/Application">Software/Application</option>';
+  }
+}
+
+async function _fetchAndPopulateSubcategories(category) {
+  const sel   = document.getElementById('riSubcategory');
+  const label = document.getElementById('riSubcategoryLabel');
+  if (!sel) return;
+
+  const isSoftware = category === 'Software/Application';
+  if (label) {
+    label.innerHTML = (isSoftware ? 'Affected System' : 'Item / Subcategory')
+      + ' <span class="required">*</span>';
+  }
+
+  sel.innerHTML = '<option value="" disabled selected>Loading…</option>';
+  try {
+    const res   = await fetch(`/api/helpdesk/subcategories?category=${encodeURIComponent(category)}`);
+    const items = await res.json();
+    sel.innerHTML = `<option value="" disabled selected>Select ${isSoftware ? 'system' : 'item'}…</option>`;
+    items.forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item.label;
+      opt.textContent = item.label;
+      sel.appendChild(opt);
+    });
+  } catch {
+    sel.innerHTML = '<option value="" disabled selected>Failed to load</option>';
+  }
+
+  // Clear site_name since selection changed
+  document.getElementById('riSiteName').value = '';
+}
+
+function riOnCategoryChange() {
+  const cat = document.getElementById('riCategory').value;
+  if (cat) _fetchAndPopulateSubcategories(cat);
+}
+
+function riOnSubcategoryChange() {
+  const val = document.getElementById('riSubcategory').value;
+  document.getElementById('riSiteName').value = val;
+}
+
 /* ── Payload help modal ───────────────────────────────────── */
 
 function riOpenPayloadHelp() {
@@ -40,13 +104,16 @@ function riClosePayloadHelp() {
 async function riSubmit(e) {
   e.preventDefault();
 
-  const siteName = document.getElementById('riSiteName').value.trim();
+  const siteName      = document.getElementById('riSiteName').value.trim();
+  const subGroup      = document.getElementById('riSubcategoryGroup');
+  const subGroupShown = subGroup && subGroup.style.display !== 'none';
+
   if (!siteName) {
-    const sysInput = document.getElementById('riSystemInput');
-    if (sysInput) {
-      sysInput.focus();
-      sysInput.classList.add('input-shake');
-      setTimeout(() => sysInput.classList.remove('input-shake'), 400);
+    if (subGroupShown) {
+      const subSel = document.getElementById('riSubcategory');
+      subSel.focus();
+      subSel.classList.add('input-shake');
+      setTimeout(() => subSel.classList.remove('input-shake'), 400);
     }
     return;
   }
@@ -107,7 +174,7 @@ function riUpdateFiles(input) {
 
 /* ── Bootstrap ────────────────────────────────────────────── */
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   _fetchAndPopulateCompanies();
 
   // Parse ?system=, ?error=, and ?payload= query params
@@ -116,17 +183,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const errorCode = (params.get('error')   || '').trim();
   const payload   = (params.get('payload') || '').trim();
 
+  // Always load categories and default to Software/Application
+  await _fetchAndPopulateCategories();
+
   if (system) {
+    // System pre-filled from URL param — show strip, hide subcategory picker
     document.getElementById('riSiteName').value         = system;
     document.getElementById('riSystemName').textContent = system;
     document.getElementById('riSystemStrip').style.display    = 'flex';
-    document.getElementById('riSystemInputGroup').style.display = 'none';
+    document.getElementById('riSubcategoryGroup').style.display = 'none';
   } else {
+    // No param — show the subcategory dropdown and load default subcategories
     document.getElementById('riSystemStrip').style.display      = 'none';
-    document.getElementById('riSystemInputGroup').style.display = 'flex';
-    document.getElementById('riSystemInput').addEventListener('input', e => {
-      document.getElementById('riSiteName').value = e.target.value;
-    });
+    document.getElementById('riSubcategoryGroup').style.display = 'flex';
+    const defaultCat = document.getElementById('riCategory').value;
+    if (defaultCat) await _fetchAndPopulateSubcategories(defaultCat);
   }
 
   if (errorCode) {
