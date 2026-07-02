@@ -1756,13 +1756,13 @@ function issExportPDF() {
 
   const counts = { new: 0, open: 0, in_progress: 0, resolved: 0, closed: 0 };
   rows.forEach(r => { const s = (r.status||'new').toLowerCase(); if (s in counts) counts[s]++; });
-  const priorityCounts = { high: 0, medium: 0, low: 0 };
-  rows.forEach(r => { const p = (r.priority||'').toLowerCase(); if (p in priorityCounts) priorityCounts[p]++; });
+  const priorityCounts = { P1: 0, P2: 0, P3: 0, P4: 0 };
+  rows.forEach(r => { const p = (r.priority||'').toUpperCase(); if (p in priorityCounts) priorityCounts[p]++; });
 
   const now = new Date();
   const reportDate = now.toLocaleDateString('en-PH', { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' });
 
-  const priorityColor = p => ({ high:'#ef4444', medium:'#f59e0b', low:'#22c55e' }[p] || '#888');
+  const priorityColor = p => ({ P1:'#ef4444', P2:'#f97316', P3:'#f59e0b', P4:'#22c55e' }[p] || '#888');
   const statusLabel = s => ({ new:'New', open:'Open', in_progress:'In Progress', resolved:'Resolved', closed:'Closed' }[s] || s);
   const statusColor = s => ({ new:'#6b7280', open:'#3b82f6', in_progress:'#f59e0b', resolved:'#22c55e', closed:'#8b5cf6' }[s] || '#888');
 
@@ -1773,7 +1773,7 @@ function issExportPDF() {
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap">${escHtml(r.company_name||'—')}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap">${escHtml(r.employee_name||'—')}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center">
-        <span style="display:inline-block;padding:2px 8px;border-radius:9px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;background:${priorityColor((r.priority||'').toLowerCase())}20;color:${priorityColor((r.priority||'').toLowerCase())}">${escHtml(r.priority||'—')}</span>
+        <span style="display:inline-block;padding:2px 8px;border-radius:9px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;background:${priorityColor((r.priority||'').toUpperCase())}20;color:${priorityColor((r.priority||'').toUpperCase())}">${escHtml(r.priority||'—')}</span>
       </td>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center">
         <span style="display:inline-block;padding:2px 8px;border-radius:9px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;background:${statusColor((r.status||'new').toLowerCase())}20;color:${statusColor((r.status||'new').toLowerCase())}">${statusLabel((r.status||'new').toLowerCase())}</span>
@@ -1815,8 +1815,8 @@ function issExportPDF() {
   </div>`).join('')}
 </div>
 
-<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px">
-  ${[['High Priority',priorityCounts.high,'#ef4444'],['Medium Priority',priorityCounts.medium,'#f59e0b'],['Low Priority',priorityCounts.low,'#22c55e']].map(([label,count,color])=>`
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">
+  ${[['P1 — Critical',priorityCounts.P1,'#ef4444'],['P2 — High',priorityCounts.P2,'#f97316'],['P3 — Medium',priorityCounts.P3,'#f59e0b'],['P4 — Low',priorityCounts.P4,'#22c55e']].map(([label,count,color])=>`
   <div style="border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center">
     <div>
       <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;margin-bottom:2px">${label}</div>
