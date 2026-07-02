@@ -208,6 +208,43 @@ def public_confirm_fix(issue_id):
     return redirect(f"{back_url}?confirmed=1")
 
 
+@public_bp.post("/api/public/issues/<issue_id>/still-having-issues")
+def public_still_having_issues(issue_id):
+    body          = request.get_json(silent=True) or {}
+    issue_desc    = (body.get("issue_description") or "").strip()
+    confirm_steps = (body.get("confirm_steps") or "").strip()
+
+    if not issue_desc or not confirm_steps:
+        return jsonify({"error": "Both fields are required"}), 400
+
+    rows = supabase_req("GET", "/issues", params={
+        "id":     f"eq.{issue_id}",
+        "select": "id,status,description",
+    })
+    if not rows:
+        return jsonify({"error": "Issue not found"}), 404
+
+    issue = rows[0]
+    if issue.get("status") not in ("resolved", "closed"):
+        return jsonify({"error": "Issue is not resolved"}), 400
+
+    append_block = (
+        "\n\n---\n"
+        "[Reporter: Still Having Issues]\n"
+        f"Issue description: {issue_desc}\n"
+        f"Steps taken to confirm: {confirm_steps}"
+    )
+    new_description = (issue.get("description") or "") + append_block
+
+    supabase_req("PATCH", "/issues", data={
+        "status":        "open",
+        "confirmed_fix": False,
+        "description":   new_description,
+    }, params={"id": f"eq.{issue_id}"})
+
+    return jsonify({"success": True})
+
+
 @public_bp.get("/api/public/dev-items/<item_id>")
 def get_public_dev_item(item_id):
     rows = supabase_req("GET", "/dev_items", params={

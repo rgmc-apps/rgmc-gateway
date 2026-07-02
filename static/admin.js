@@ -1883,6 +1883,7 @@ function _renderIssueTable(rows) {
           <th>Description</th>
           <th>Priority</th>
           <th>Status</th>
+          <th>Confirmed</th>
           <th>Connected</th>
           <th>Assigned To</th>
           <th>Reported</th>
@@ -2032,6 +2033,13 @@ function renderIssueRow(issue) {
   const linkedBadge   = issue.linked_issue_id ? (issue.is_duplicate ? '<span class="badge-duplicate">Duplicate</span>' : '<span class="badge-linked">Linked</span>') : '';
   const connectedHtml = [devBadge, taskBadge, userTaskBadge, linkedBadge].filter(Boolean).join(' ') || '<span class="text-muted">—</span>';
 
+  const isTerminalStatus = ['resolved', 'closed'].includes((issue.status || '').toLowerCase());
+  const confirmedCell    = isTerminalStatus
+    ? (issue.confirmed_fix
+        ? `<span class="iss-confirmed-badge" title="Reporter confirmed fix${issue.confirmed_fix_at ? ' on ' + fmtDate(issue.confirmed_fix_at) : ''}"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Yes</span>`
+        : `<span class="iss-unconfirmed-note">Pending</span>`)
+    : '<span class="text-muted">—</span>';
+
   const safeId   = escHtml(issue.id);
   const rowClass = isNew ? 'iss-row-clickable iss-row-new' : 'iss-row-clickable';
   return `<tr class="${rowClass}" onclick="openIssueModal('${safeId}')">
@@ -2040,6 +2048,7 @@ function renderIssueRow(issue) {
     <td class="issue-desc-cell">${escHtml(titleText)}</td>
     <td>${prioBadge}</td>
     <td>${statusBadge}</td>
+    <td>${confirmedCell}</td>
     <td class="iss-connected-cell" onclick="event.stopPropagation()">${connectedHtml}</td>
     <td>${issue.assigned_to ? `<code class="mono-val">${escHtml(issue.assigned_to)}</code>` : '<span class="text-muted">—</span>'}</td>
     <td class="date-cell">${fmtDateTime(issue.created_at)}</td>

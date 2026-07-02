@@ -66,8 +66,9 @@
 /* Reopen modal */
 .reopen-modal-desc { padding: 0 28px 12px; }
 .reopen-modal-desc p { margin: 0; font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
-.reopen-modal-form { padding: 0 28px; }
+.reopen-modal-form { padding: 0 28px 4px; display: flex; flex-direction: column; gap: 7px; }
 .reopen-modal-error { display: none; margin: 8px 28px 0; }
+#reopenIssueModal .modal-actions { padding: 12px 28px 24px; }
 
 /* Utility classes */
 .text-upper { text-transform: uppercase; }
@@ -90,7 +91,7 @@
 .iss-modal-field { display: flex; flex-direction: column; gap: 4px; }
 .iss-modal-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); }
 .iss-modal-value { font-size: 13px; color: var(--text-primary); }
-.iss-confirm-fix-row { grid-column: 1 / -1; }
+.iss-confirm-fix-row { padding: 0 28px 16px; }
 
 /* Team member grid */
 .team-member-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }

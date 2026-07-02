@@ -92,7 +92,7 @@ def user_team_issues():
     try:
         rows = supabase_req("GET", "/issues", params={
             "or":     f"({','.join(or_parts)})",
-            "select": "id,ticket_number,title,description,status,priority,urgency,employee_name,company_name,email,created_at,assigned_to,request_category,ticket_type,from_helpdesk",
+            "select": "id,ticket_number,title,description,status,priority,urgency,employee_name,company_name,email,created_at,assigned_to,request_category,ticket_type,from_helpdesk,confirmed_fix,confirmed_fix_at",
             "order":  "created_at.desc",
         })
         return jsonify(rows or [])
@@ -109,7 +109,7 @@ def user_my_issues():
     try:
         rows = supabase_req("GET", "/issues", params={
             "assigned_to": f"eq.{username}",
-            "select":      "id,ticket_number,title,description,status,priority,urgency,employee_name,company_name,email,created_at,assigned_to,request_category,ticket_type,from_helpdesk",
+            "select":      "id,ticket_number,title,description,status,priority,urgency,employee_name,company_name,email,created_at,assigned_to,request_category,ticket_type,from_helpdesk,confirmed_fix,confirmed_fix_at",
             "order":       "created_at.desc",
         })
         return jsonify(rows or [])
@@ -130,7 +130,7 @@ def user_filed_issues():
     try:
         rows = supabase_req("GET", "/issues", params={
             "email":  f"eq.{user_email}",
-            "select": "id,ticket_number,title,description,status,priority,urgency,employee_name,company_name,email,created_at,assigned_to,request_category,ticket_type,from_helpdesk",
+            "select": "id,ticket_number,title,description,status,priority,urgency,employee_name,company_name,email,created_at,assigned_to,request_category,ticket_type,from_helpdesk,confirmed_fix,confirmed_fix_at",
             "order":  "created_at.desc",
         })
         return jsonify(rows or [])

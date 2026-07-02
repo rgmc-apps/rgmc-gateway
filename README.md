@@ -2,14 +2,12 @@
 
 # <span style="color:#C4972A">RGMC Gateway</span>
 
-<p style="color:#666"><em>Internal systems portal and developer hub for RGMC Group</em></p>
+<p style="color:#666">Internal IT portal for RGMC Group — system launcher, IT helpdesk, issue tracker, and developer board</p>
 
-[![Python](https://img.shields.io/badge/Python-3.12-3776ab?logo=python&logoColor=white)](https://python.org)
-[![Flask](https://img.shields.io/badge/Flask-3.0.3-000000?logo=flask)](https://flask.palletsprojects.com)
-[![Gunicorn](https://img.shields.io/badge/Gunicorn-22.0.0-499848?logo=gunicorn)](https://gunicorn.org)
-[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ecf8e?logo=supabase)](https://supabase.com)
-[![Docker](https://img.shields.io/badge/Docker-ready-2496ed?logo=docker)](https://docker.com)
-[![Cloud Run](https://img.shields.io/badge/Google%20Cloud%20Run-deployed-4285f4?logo=googlecloud)](https://cloud.google.com/run)
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://python.org)
+[![Flask](https://img.shields.io/badge/Flask-3.x-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com)
+[![License](https://img.shields.io/badge/License-Private-C4972A)](.)
 
 </div>
 
@@ -17,131 +15,161 @@
 
 ## 📋 Table of Contents
 
-- [Overview](#-overview)
-- [Tech Stack](#-tech-stack)
-- [Features](#-features)
-- [Screens & Routes](#-screens--routes)
-- [Project Structure](#-project-structure)
-- [Setup & Installation](#-setup--installation)
-- [Environment Variables](#-environment-variables)
-- [Running the App](#-running-the-app)
-- [Building for Production](#-building-for-production)
-- [API Endpoints](#-api-endpoints)
-- [Database Schema](#-database-schema)
-- [Sites Cache Strategy](#-sites-cache-strategy)
-- [Authentication Flow](#-authentication-flow)
-- [Core Data Flow](#-core-data-flow)
-- [Email Notifications](#-email-notifications)
-- [Brand & Design Tokens](#-brand--design-tokens)
-- [License](#-license)
+1. [Overview](#-overview)
+2. [Tech Stack](#-tech-stack)
+3. [Features](#-features)
+4. [Screens / Routes](#-screens--routes)
+5. [Project Structure](#-project-structure)
+6. [Setup & Installation](#-setup--installation)
+7. [Environment Variables](#-environment-variables)
+8. [Running the App](#-running-the-app)
+9. [API Endpoints](#-api-endpoints)
+10. [Database Tables](#-database-tables)
+11. [Authentication Flow](#-authentication-flow)
+12. [IT Bot Notifications](#-it-bot-notifications)
+13. [Email Notifications](#-email-notifications)
+14. [Issue Lifecycle](#-issue-lifecycle)
+15. [Brand / Design Tokens](#-brand--design-tokens)
+16. [License](#-license)
 
 ---
 
-## 🏢 Overview
+## 🌐 Overview
 
-RGMC Gateway is the internal systems portal for RGMC Group. It serves as a single-page launcher for all company applications (cloud-hosted and NAV sites), a username-gated access control system, a developer kanban board, an IT issue reporting tool, and an admin panel for managing users, systems, and access requests.
-
-**Who uses it:**
-- **Regular employees** — authenticate with their username to access assigned systems
-- **Developers** — use the kanban board to track and manage dev items across systems
-- **Admins** — approve/reject access requests, manage users and system listings, review developer performance and issues
+RGMC Gateway is a private internal IT portal that serves as a single entry point for all RGMC Group digital systems. It combines a curated system launcher (with live health checks), a multi-channel IT helpdesk, a full-featured issue tracker with admin analytics, a developer Kanban board, and a user workspace — all in a dark luxury aesthetic built on Flask + Supabase, with no bundler or build step.
 
 **Key design decisions:**
-- **Username-only auth** — no passwords stored; sessions live in `localStorage` and pass via `X-Gateway-Username` header on every API call
-- **Supabase as backend-as-a-service** — PostgREST API for all DB reads/writes, Supabase Storage for avatars and issue attachments
-- **In-memory sites cache** — system directory cached for 5 minutes server-side to minimize DB hits on the homepage
-- **Email-gated access approval** — new user requests generate a tokenized approve/reject link sent to the designated approver
-- **Stateless containers** — designed to run on Google Cloud Run with 1 worker, 8 threads, no persistent local state
+- No SPA framework — server-rendered HTML templates with vanilla JS modules per page
+- Auth is session-less — username is stored in `localStorage` and sent as `X-Gateway-Username` on every API call
+- Supabase is accessed via its PostgREST HTTP API (no SDK), keeping the server dependency list minimal
+- All email is plain SMTP (Gmail) via `smtplib`
+- IT bot integration is fire-and-forget via HTTP webhooks
 
 ---
 
 ## 🛠 Tech Stack
 
-| Layer | Technology | Version |
+| Layer | Technology | Notes |
 |---|---|---|
-| Web framework | Flask | 3.0.3 |
-| WSGI server | Gunicorn | 22.0.0 |
-| HTTP client | requests | 2.32.3 |
-| Language | Python | 3.12 |
-| Database | Supabase (PostgreSQL via PostgREST) | — |
-| File storage | Supabase Storage | — |
-| Email | smtplib (SMTP/TLS) | stdlib |
-| Containerization | Docker (`python:3.12-slim`) | — |
-| Cloud hosting | Google Cloud Run | — |
-| Frontend | Vanilla JS + CSS (no build step) | — |
+| Web framework | Flask 3.x | Blueprint-based; one blueprint per domain |
+| Database | Supabase (PostgreSQL) | Accessed via PostgREST REST API |
+| File storage | Supabase Storage | Buckets: `issue-attachments`, `resolution-attachments`, `system-files` |
+| Email | Python `smtplib` + Gmail SMTP | TLS on port 587 |
+| IT bot | HTTP webhook | Fire-and-forget; `IT_BOT_URL` + `IT_BOT_API_KEY` |
+| Frontend | Vanilla JS + HTML templates (Jinja2) | No bundler; one JS file per page |
+| Fonts | Playfair Display + Plus Jakarta Sans | Loaded from Google Fonts |
+| CSS architecture | Custom properties + modular partials | Imported via `style.css` manifest |
 
 ---
 
 ## ✨ Features
 
-### <span style="color:#2a9d8f">🔐 Authentication & Access Control</span>
+### 🏠 System Launcher
+- Categorized system cards: **RGMC**, **SBIC**, **NAV Sites**, **Windows-based**, **Task systems**
+- Per-card primary + backup URLs with custom labels
+- Live health check panel for 3 production APIs (RGMC GCP API, Inventory API, BC API)
+- **Tags** on systems — searchable via `GET /api/systems/by-tag?tag=<tag>`
+- **Windows system type** — admin can upload `.exe` / `.appref-ms` / `.manifest` launcher files to Supabase Storage; Gateway serves a redirect that triggers ClickOnce launch
+- Compact mode toggle persisted per-user in localStorage
+- Search bar to filter visible systems by name
+- System list is DB-driven with in-memory cache invalidated on admin changes; falls back to hardcoded list if DB is unreachable
 
-- Username-only sign-in: validated against the `users` table in Supabase
-- Fallback lookup against `access_requests` for recently approved users not yet in `users`
-- Session stored in `localStorage` as JSON under key `rgmc_gateway_session`; passed to server as `X-Gateway-Username` header
-- New access request form: first name, last name, company, department, position, email, system selection
-- Additional access requests for existing users to gain new systems
-- Email-gated approval: approver receives HTML email with one-click Approve/Reject links tied to a UUID token
-- Token-based approval and rejection pages (`/access/approve/<token>`, `/access/reject/<token>`)
+### 🔐 Access & Authentication
+- Username-only login — no passwords stored by the gateway
+- Access request flow: employee submits request form → email sent to approver → approver clicks approve/reject link → user notified
+- Additional system access requests from existing users
+- Roles: `is_admin`, `is_developer`, `is_management`, `is_department_head`
+- All admin endpoints validate `X-Gateway-Username` header against the `users` table with `is_admin: true`
+- User profile page: avatar, display name, company, department, Viber, AnyDesk ID
 
-### <span style="color:#2a9d8f">🌐 System Directory</span>
+### 🎫 IT Helpdesk (Public — no login required)
+- **Report Issue** form: freeform system issue report, up to 5 attachments (images), Viber + email contact, optional error code and user payload fields
+- **IT Helpdesk** form: structured ticket with category, subcategory, request type, urgency, priority, business impact, AnyDesk ID; categories driven by `request_category` DB table (group: IT)
+- **General Helpdesk** form: same structure for non-IT departments; categories filtered by `category_group != IT`
+- All three forms: email sent to IT team + confirmation email to reporter; IT bot webhook fired; ticket number returned
 
-- Homepage lists all visible systems grouped by category (RGMC, SBIC, NAV Sites)
-- Each system card shows primary link + optional backup link
-- System list loaded from Supabase `systems` table; falls back to hardcoded `SITES_FALLBACK` if DB is unreachable
-- In-memory cache with 5-minute TTL; invalidated immediately on any admin create/update/delete
+### 📊 Issue Tracker (Admin)
+- Full issue list with live-refresh, column sorting, and multi-criteria filters:
+  - Status, priority, urgency, date range, company, category, source (IT helpdesk / report / general)
+- **KPI bar**: total, open, in-progress, resolved counts with tooltips showing resolution rate and average resolution time
+- **Common Issues analytics**: issues grouped by system and category; resolution type breakdown (quick fix, via dev item, via task, duplicate); average resolution time; per-group resolution drill-down
+- **PDF export**: prints the currently filtered issue list
+- **Compact mode** for dense issue tables
+- **Confirmed fix column** — shows "✓ Yes" / "Pending" / "—" based on reporter confirmation
 
-### <span style="color:#2a9d8f">🐛 Issue Reporting</span>
+### 📄 Issue Detail (Admin)
+- Ticket timeline: comments, task/dev-item movement logs, activity notes — all merged and sorted chronologically
+- **Comment posting** by any authenticated user
+- **Reopen issue** modal
+- **Promote issue** to dev item (with optional assignee → auto-sets status to `in_progress`)
+- **Promote issue** to IT task
+- **Promote issue** to user task (routed to a non-IT department)
+- **Link issue** to an existing issue, task, or dev item; mark as duplicate (auto-resolves, sends resolution email)
+- **Resolution actions**: multi-select from `actions` table; optional screenshot attachments (up to 5 MB images)
+- **Share options**: copy link, Teams deep link, Messenger, WhatsApp, Viber, Telegram, Email
+- **Assignee notification**: email sent to assigned IT staff when `assigned_to` changes
+- **Resolution email**: sent to reporter with notes, actions taken, and attachment previews
 
-- Standalone page at `/report-issue` (also accessible from the main portal)
-- Auth wall: user must verify their username before submitting
-- Form fields: employee name, company, department, email, system, optional title, description, up to 5 file attachments
-- Attachments stored in Supabase Storage bucket `issue-attachments`
-- Issue saved to `issues` table with attachment URLs
-- Email sent to `DEVELOPER_EMAIL` with full details and inline attachments
-- Email notification sent to reporter when status transitions to `resolved` or `closed`
+### ✅ Public Issue Confirmation Page
+- Reporter receives link to `GET /admin/issues/<id>` (no login required)
+- Shows ticket status, resolution notes, and confirm-fix prompt when resolved/closed
+- **Confirm Fix**: reporter can mark the issue as confirmed fixed (`confirmed_fix = true`)
+- **Still Having Issues**: reporter fills in current issue description + steps taken → appended to ticket description → issue reopened (`status = open`, `confirmed_fix = false`) → orange "reopened" banner shown
+- URL query params: `?confirmed=1` shows green confirmation banner; `?reopened=1` shows orange reopened banner
 
-### <span style="color:#2a9d8f">🗂 Developer Board</span>
+### 🧑‍💻 Developer Board
+- Kanban board with columns: **Pending → Ongoing → Coding → Testing → Done**
+- Drag-and-drop card movement with movement logging to `dev_item_logs`
+- Dev items: title, description, system link, dates (start / estimated end / actual end), item type, resolution actions + screenshots
+- **Archive** completed items (soft-delete via `is_archived` flag)
+- **Admin dev performance dashboard**: per-developer item counts by status, linked issues, linked tasks; PDF export of developer history
 
-- Kanban board at `/developer` (requires `is_developer` or `is_admin` flag)
-- Five columns: **Pending** · **Ongoing** · **Coding** · **Testing** · **Done**
-- Physics-based drag-and-drop for moving cards between columns
-- Dev item cards show title, type badge, system, dates, per-developer border colors (DJB2 hash → 8-color palette)
-- Inline detail modal: edit title, description, type, system, start/estimated/actual end dates
-- Activity log per item: timestamped messages with optional hours tracked
-- Seven item types: Feature, Bug Fix, Enhancement, Refactor, Testing, Documentation, Others (custom text stored as `"Others: <text>"`)
-- "Promote to Dev Item" action on issues creates a linked `dev_items` row from an issue
+### 👥 User Workspace (Authenticated employees)
+- User dashboard with issue cards showing: status badges, priority, urgency, confirmed fix badge, creation date, assigned IT staff
+- Three issue list views: **My Issues** (filed by me), **Team Issues** (assigned to department), **Assigned** (assigned to me)
+- Issue cards link to public issue view page
+- Department heads can view/manage user tasks assigned to their department
 
-### <span style="color:#2a9d8f">👤 User Profile</span>
+### 📝 Tasks Board (Admin)
+- IT admin task management separate from dev items
+- Statuses: `open → in_progress → for_review → done`
+- Task creation, assignment, status transitions with email notifications
+- Tasks can be linked to issues (promote-task flow)
+- **User tasks** table: tasks routed to non-IT departments from issues
 
-- Profile page at `/profile`: set display name, upload avatar
-- Avatar cropped client-side and uploaded as base64-encoded image to Supabase Storage bucket `avatars`
-- Display name capped at 80 characters
-- Avatar visible across kanban board (developer cards) and admin developer performance view
+### 👤 User Management (Admin)
+- Create users from access_requests (auto-username assignment from first+last name + suffix)
+- Edit roles: `is_admin`, `is_developer`, `is_management`, `is_department_head`
+- Edit profile fields: display name, company, department, position, email, Viber, AnyDesk ID
+- Delete users
+- Email notification when admin role is granted
 
-### <span style="color:#2a9d8f">🛡 Admin Panel</span>
-
-- Admin page at `/admin` (requires `is_admin` flag)
-- **Requests tab** — view pending/approved/rejected access requests; one-click approve or reject with optional remarks
-- **Users tab** — list all users; toggle `is_admin`, `is_developer` flags; edit assigned systems; delete users
-- **Systems tab** — CRUD for system entries: id, name, category, URLs, labels, sort order, visibility toggle
-- **Issues tab** — view all issue reports; update status (open → in_progress → resolved/closed); assign to developer; add resolution notes and resolver name
-- **Developers tab** — performance metrics per developer: counts by status (pending, ongoing, coding, testing, done), systems handled, full dev item list; clickable rows open a detail modal; PDF download via `window.print()`
-- **Health tab** — live health check against RGMC GCP API and RGMC Inventory API
+### ⚙️ Config Management (Admin)
+- **Companies**: `company_code` + `name` CRUD
+- **Departments**: `department_code` + `department_name` + `is_active` CRUD
+- **Brands**: `brand_code` + `brand_name` + `brand_initial` + `brand_desc` CRUD
+- **Request Categories**: `category_name` + `category_desc` + `category_group` CRUD
+- **Request Types**: per-category type list CRUD with `is_visible` toggle
+- **Non-Software Items**: helpdesk items for non-software categories (Hardware, Peripherals, etc.) CRUD
+- **Resolution Actions**: `action_name` + `action_code` + `action_desc` + `is_active` CRUD
 
 ---
 
-## 🖥 Screens & Routes
+## 🗺 Screens / Routes
 
 ```
-GET  /                              Homepage — system directory launcher
-GET  /report-issue                  Standalone issue reporting (auth wall + form)
-GET  /profile                       User profile — display name + avatar
-GET  /developer                     Developer kanban board
-GET  /admin                         Admin panel (requests / users / systems / issues / developers / health)
-
-GET  /access/approve/<token>        One-click access approval via email link
-GET  /access/reject/<token>         One-click access rejection via email link
+GET  /                         System launcher (public)
+GET  /report-issue             Freeform issue report form (public)
+GET  /helpdesk                 IT helpdesk structured ticket form (public)
+GET  /general-helpdesk         General (non-IT) helpdesk form (public)
+GET  /admin                    Admin panel (requires is_admin)
+GET  /developer                Developer Kanban board (requires is_developer)
+GET  /tasks                    IT tasks board (requires is_admin)
+GET  /workspace                User dashboard (requires valid username)
+GET  /admin/issues/<id>        Issue detail page (accessible with issue link)
+GET  /profile                  User profile editor (requires valid username)
+GET  /access/approve/<token>   Email-click access approval (no login)
+GET  /access/reject/<token>    Email-click access rejection (no login)
 ```
 
 ---
@@ -150,601 +178,506 @@ GET  /access/reject/<token>         One-click access rejection via email link
 
 ```
 rgmc-gateway/
+├── app.py                        # Flask app factory; registers all blueprints
+├── config.py                     # Env var loading; SITES_FALLBACK; HEALTH_CHECKS config
 │
-├── app.py                          Flask app factory; registers all blueprints
-├── config.py                       Env var loading; SITES_FALLBACK; HEALTH_CHECKS config
-├── requirements.txt                flask, gunicorn, requests
-├── Dockerfile                      python:3.12-slim; gunicorn 1w/8t/120s
-├── .dockerignore
-├── .env.example                    All env vars with descriptions
-│
-├── controllers/                    Flask blueprints (one per domain)
-│   ├── public.py                   GET / · GET /report-issue · GET /api/health
-│   ├── auth.py                     POST /verify-username · POST /access-request[/additional]
-│   │                               GET /access/approve/<token> · GET /access/reject/<token>
-│   ├── issues.py                   POST /report (legacy) · POST /api/issues
-│   │                               GET|PATCH /api/admin/issues[/<id>]
-│   │                               POST /api/admin/issues/<id>/promote
-│   ├── developer.py                GET|POST /api/dev/items · PATCH|DELETE /api/dev/items/<id>
-│   │                               GET|POST /api/dev/items/<id>/logs
-│   │                               GET|POST /api/dev/systems · GET /api/dev/members
-│   ├── admin.py                    GET /api/admin/requests · GET /api/admin/users
-│   │                               PATCH|DELETE /api/admin/users/<uname>
-│   │                               GET /api/admin/dev-performance
-│   │                               GET|POST /api/admin/systems
-│   │                               PATCH|DELETE /api/admin/systems/<id>
-│   │                               POST /api/admin/requests/<id>/approve|reject
-│   └── profile.py                  GET|PATCH /api/profile
-│                                   POST|DELETE /api/profile/avatar
+├── controllers/
+│   ├── auth.py                   # /verify-username, /access-request, /access/approve|reject
+│   ├── public.py                 # /, /report-issue, /helpdesk, health checks, public issue API
+│   ├── issues.py                 # Issue CRUD, promote, link, activity, comments
+│   ├── admin.py                  # Admin users/systems/config, dev performance, common issues
+│   ├── developer.py              # Developer board CRUD, item movement logs
+│   ├── tasks.py                  # IT tasks + user tasks CRUD
+│   ├── user_page.py              # /workspace, user issue list endpoints, dept-head user tasks
+│   ├── general_helpdesk.py       # /general-helpdesk form handler
+│   ├── profile.py                # /profile page and PATCH /api/user/profile
+│   └── resolution.py             # /api/actions, /api/upload/resolution
 │
 ├── services/
-│   ├── supabase.py                 supabase_req() — authenticated PostgREST wrapper
-│   ├── guards.py                   _require_admin() · _require_developer()
-│   ├── sites.py                    get_sites() with 5-min in-memory cache; _invalidate_sites_cache()
-│   └── email.py                    All transactional email functions (smtplib/STARTTLS)
+│   ├── supabase.py               # supabase_req() HTTP wrapper; resolve_action_names()
+│   ├── sites.py                  # get_sites() with in-memory TTL cache; cache invalidation
+│   ├── guards.py                 # _require_admin(), _require_developer(), _require_dept_head()
+│   ├── email.py                  # All email send functions (SMTP via smtplib)
+│   └── it_bot.py                 # notify_ticket_created(), notify_ticket_updated(), build_changes()
 │
 ├── models/
-│   └── access.py                   generate_username() · _approve_record() · _reject_record()
+│   └── access.py                 # _approve_record(), _reject_record(), _full_name()
 │
 ├── templates/
-│   ├── index.html                  Homepage
-│   ├── report_issue.html           Standalone issue report page
-│   ├── profile.html                Profile page
-│   ├── developer.html              Kanban board
-│   ├── admin.html                  Admin panel (all tabs)
-│   └── access_result.html          Shared approve/reject result page
+│   ├── index.html                # System launcher
+│   ├── admin.html                # Admin panel (users, issues, systems, config, analytics)
+│   ├── developer.html            # Developer Kanban board
+│   ├── tasks.html                # IT tasks board
+│   ├── user.html                 # User workspace / dashboard
+│   ├── issue_view.html           # Public issue detail + confirm-fix + still-having-issues
+│   ├── helpdesk.html             # IT helpdesk form
+│   ├── general_helpdesk.html     # General helpdesk form
+│   ├── report_issue.html         # Freeform report form
+│   ├── profile.html              # User profile editor
+│   └── access_result.html        # Access approve/reject result page
 │
-└── static/
-    ├── style.css                   All CSS (variables, components, admin, developer, profile, report)
-    ├── script.js                   Homepage JS (auth wall, session, system cards)
-    ├── admin.js                    Admin panel JS (all tabs, modals, developer performance)
-    ├── developer.js                Kanban JS (drag-drop, item modals, activity logs)
-    ├── profile.js                  Profile JS (avatar crop/upload, display name)
-    └── report_issue.js             Standalone report page JS (auth wall, form, drag-drop files)
+├── static/
+│   ├── style.css                 # CSS manifest — @import all partials
+│   ├── script.js                 # System launcher JS
+│   ├── admin.js                  # Admin panel JS (issues table, users, config, analytics)
+│   ├── developer.js              # Developer board JS (Kanban, drag-drop)
+│   ├── tasks.js                  # Tasks board JS
+│   ├── user.js                   # User workspace JS (issue cards, tabs)
+│   ├── helpdesk.js               # IT helpdesk form JS
+│   ├── general_helpdesk.js       # General helpdesk form JS
+│   ├── report_issue.js           # Report form JS
+│   ├── profile.js                # Profile editor JS
+│   └── theme.js                  # Theme/compact mode toggle
+│   │
+│   └── css/
+│       ├── variables.css         # Design tokens (gold, bg, text, shadows, radii)
+│       ├── base.css              # Reset, typography
+│       ├── layout.css            # Page shell, nav, sidebar
+│       ├── cards.css             # System cards
+│       ├── health.css            # Health check panel
+│       ├── modal.css             # Modal overlay + modal body base styles
+│       ├── admin.css             # Admin-specific UI (tables, badges, KPI bar)
+│       ├── admin-sidebar.css     # Admin sidebar navigation
+│       ├── issues.css            # Issue detail view styles
+│       ├── issue-activity.css    # Activity / comment feed
+│       ├── issue-tracker.css     # Issue list table (admin)
+│       ├── workspace.css         # User dashboard / workspace
+│       ├── dev-board.css         # Developer board layout
+│       ├── kanban.css            # Kanban column + card styles
+│       ├── developer.css         # Developer board JS-interactable elements
+│       ├── common-issues.css     # Common issues analytics view
+│       ├── helpdesk.css          # Helpdesk form styles
+│       ├── report-issue.css      # Report issue form styles
+│       ├── profile.css           # Profile page styles
+│       ├── gate.css              # Login / access gate
+│       ├── theme.css             # Dark/light theme toggle
+│       ├── design-refresh.css    # Global UI polish overrides
+│       ├── loaders.css           # Spinner / skeleton loaders
+│       └── utilities.css         # Helper classes (text-muted, flex, gap, etc.)
 ```
 
 ---
 
-## ⚙ Setup & Installation
+## 🚀 Setup & Installation
 
-### Prerequisites
-
-- Python 3.12+
-- A [Supabase](https://supabase.com) project with the required tables (see [Database Schema](#-database-schema))
+**Prerequisites:**
+- Python 3.11+
+- A Supabase project with the tables listed in [Database Tables](#-database-tables)
 - A Gmail account with an App Password for SMTP
-- (Optional) Docker for containerized deployment
-
-### Clone & Install
 
 ```bash
+# Clone
 git clone <repo-url>
 cd rgmc-gateway
 
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
+# Create virtualenv
+python -m venv venv
+venv\Scripts\activate   # Windows
+# source venv/bin/activate  # macOS/Linux
 
 # Install dependencies
-pip install -r requirements.txt
-```
-
-### Configure environment
-
-```bash
-cp .env.example .env
-# Edit .env with your Supabase URL, service key, and SMTP credentials
+pip install flask requests markupsafe
 ```
 
 ---
 
 ## 🔑 Environment Variables
 
-| Variable | File | Description |
+Create a `.env` file in the project root (or set these in your hosting environment):
+
+| Variable | Required | Description |
 |---|---|---|
-| `SMTP_HOST` | `.env` | SMTP server hostname (default: `smtp.gmail.com`) |
-| `SMTP_PORT` | `.env` | SMTP port (default: `587` for STARTTLS) |
-| `SMTP_USER` | `.env` | SMTP login username (Gmail address) |
-| `SMTP_PASSWORD` | `.env` | Gmail App Password (16-char) |
-| `SENDER_EMAIL` | `.env` | From address on outgoing emails |
-| `DEVELOPER_EMAIL` | `.env` | IT team email — receives issue reports |
-| `APPROVER_EMAIL` | `.env` | Receives access request emails with approve/reject links |
-| `SUPABASE_URL` | `.env` | Supabase project URL (`https://<ref>.supabase.co`) |
-| `SUPABASE_SERVICE_KEY` | `.env` | Supabase service role key (bypasses RLS) |
-| `GATEWAY_BASE_URL` | `.env` | Public URL of this app — used in email approve/reject links. Leave blank to auto-detect |
-| `PORT` | injected | Server port. Cloud Run injects this automatically; default `8080` |
+| `SUPABASE_URL` | ✅ | Supabase project URL (e.g. `https://xxx.supabase.co`) |
+| `SUPABASE_SERVICE_KEY` | ✅ | Supabase service role key (bypasses RLS) |
+| `SMTP_HOST` | ✅ | SMTP hostname (default: `smtp.gmail.com`) |
+| `SMTP_PORT` | ✅ | SMTP port (default: `587`) |
+| `SMTP_USER` | ✅ | Gmail address used to send email |
+| `SMTP_PASSWORD` | ✅ | Gmail App Password |
+| `SENDER_EMAIL` | ✅ | From address shown in sent emails |
+| `DEVELOPER_EMAIL` | ✅ | IT team inbox for issue reports |
+| `APPROVER_EMAIL` | ✅ | Email address that receives access approval requests |
+| `GATEWAY_BASE_URL` | ✅ | Public URL of this portal (e.g. `https://gateway.rgmcgroup.com`) — used in email links |
+| `IT_BOT_URL` | optional | Base URL of the IT bot webhook server |
+| `IT_BOT_API_KEY` | optional | API key sent as `x-api-key` header to IT bot |
 
-> 💡 **Tip:** On Google Cloud Run, set all variables as Cloud Run environment variables or Secret Manager secrets. Do not commit `.env` to git.
-
----
-
-## 🚀 Running the App
-
-### Development
-
+Load them at runtime:
 ```bash
-# Load .env and run Flask dev server
-export $(cat .env | grep -v ^# | xargs)   # Linux/macOS
-# Windows PowerShell: Get-Content .env | ForEach-Object { $env:($_ -split '=')[0] = ($_ -split '=',2)[1] }
+# Windows PowerShell
+Get-Content .env | ForEach-Object {
+  $name, $value = $_ -split '=', 2
+  [System.Environment]::SetEnvironmentVariable($name, $value)
+}
 
-flask run --debug --port 8080
-```
-
-The app will be available at `http://localhost:8080`.
-
-### Production (Gunicorn)
-
-```bash
-gunicorn --bind :8080 --workers 1 --threads 8 --timeout 120 app:app
+# or use python-dotenv
+pip install python-dotenv
+# add at top of app.py: from dotenv import load_dotenv; load_dotenv()
 ```
 
 ---
 
-## 🐳 Building for Production
-
-### Docker
+## ▶️ Running the App
 
 ```bash
-# Build image
-docker build -t rgmc-gateway .
+# Development
+flask --app app run --debug
 
-# Run container
-docker run -p 8080:8080 \
-  -e SUPABASE_URL=... \
-  -e SUPABASE_SERVICE_KEY=... \
-  -e SMTP_USER=... \
-  -e SMTP_PASSWORD=... \
-  -e SENDER_EMAIL=... \
-  -e DEVELOPER_EMAIL=... \
-  -e APPROVER_EMAIL=... \
-  rgmc-gateway
+# Production (gunicorn)
+pip install gunicorn
+gunicorn -w 4 -b 0.0.0.0:8000 app:app
+
+# Production (waitress — Windows)
+pip install waitress
+waitress-serve --port=8000 app:app
 ```
-
-### Google Cloud Run
-
-```bash
-# Build and push
-gcloud builds submit --tag gcr.io/<PROJECT_ID>/rgmc-gateway
-
-# Deploy
-gcloud run deploy rgmc-gateway \
-  --image gcr.io/<PROJECT_ID>/rgmc-gateway \
-  --platform managed \
-  --region asia-southeast1 \
-  --allow-unauthenticated \
-  --set-env-vars SUPABASE_URL=...,SUPABASE_SERVICE_KEY=...,...
-```
-
-> ⚠️ **Cloud Run note:** `PORT` is injected automatically. Do not set it manually. The Dockerfile CMD uses `${PORT:-8080}`.
 
 ---
 
-## 📡 API Endpoints
+## 🔌 API Endpoints
 
-### <span style="color:#555">Public</span>
+### 🔓 Public (no auth required)
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/health` | Polls RGMC GCP API and RGMC Inventory API; returns status per endpoint |
+| `GET` | `/` | System launcher HTML |
+| `GET` | `/report-issue` | Report issue form HTML |
+| `GET` | `/helpdesk` | IT helpdesk form HTML |
+| `GET` | `/general-helpdesk` | General helpdesk form HTML |
+| `GET` | `/admin/issues/<id>` | Public issue detail page HTML |
+| `POST` | `/api/issues` | Submit freeform issue report |
+| `POST` | `/api/helpdesk` | Submit structured IT helpdesk ticket |
+| `POST` | `/api/general-helpdesk` | Submit general (non-IT) helpdesk ticket |
+| `GET` | `/api/health` | Aggregate health check for all configured APIs |
+| `GET` | `/api/companies` | List all companies |
+| `GET` | `/api/departments` | List active departments |
+| `GET` | `/api/helpdesk/categories` | IT helpdesk categories (group=IT) |
+| `GET` | `/api/helpdesk/subcategories?category=<name>` | Subcategories or systems for a category |
+| `GET` | `/api/helpdesk/request-types?category=<name>` | Request types for a category |
+| `GET` | `/api/general-helpdesk/categories` | Non-IT helpdesk categories |
+| `GET` | `/api/general-helpdesk/request-types?category=<name>` | Request types for non-IT category |
+| `GET` | `/api/systems/by-tag?tag=<tag>` | Systems matching a tag |
+| `GET` | `/api/public/issues/<id>` | Public issue data (ticket, status, resolution) |
+| `GET` | `/api/public/issues/<id>/confirm-fix` | Reporter confirms fix (redirects) |
+| `POST` | `/api/public/issues/<id>/still-having-issues` | Reporter flags issue not resolved |
+| `GET` | `/api/public/dev-items/<id>` | Dev item status (for issue detail page) |
+| `GET` | `/api/public/tasks/<id>` | IT task status |
+| `GET` | `/api/public/user-tasks/<id>` | User task status |
+| `GET` | `/api/actions` | List active resolution action types |
+| `POST` | `/api/upload/resolution` | Upload resolution screenshot (image, max 5 MB) |
+| `POST` | `/verify-username` | Verify username and return user profile + roles |
+| `POST` | `/access-request` | Submit new access request |
+| `POST` | `/access-request/additional` | Request additional system access |
+| `GET` | `/access/approve/<token>` | Admin email-link approval |
+| `GET` | `/access/reject/<token>` | Admin email-link rejection |
 
-### <span style="color:#555">Auth</span>
+**POST `/api/issues` payload (form-data):**
+```
+employee_name, company_name, viber_number, email, department,
+site_name, description, title?, error_code?, user_payload?,
+request_to_department_id?, attachments[] (up to 5 files)
+```
 
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/verify-username` | Validate username against `users` table; returns session payload |
-| `POST` | `/access-request` | Submit new access request; triggers approval email |
-| `POST` | `/access-request/additional` | Request additional systems for existing username |
-| `GET` | `/access/approve/<token>` | Token-based approval (linked from email); runs `_approve_record()` |
-| `GET` | `/access/reject/<token>` | Token-based rejection (linked from email); runs `_reject_record()` |
+**POST `/api/helpdesk` payload (form-data):**
+```
+employee_name, email, viber_number, company_name, department,
+ticket_type, request_category, request_subcategory?, request_type_name?,
+business_impact?, urgency?, priority?, title?, anydesk_id?,
+description, request_to_department_id?, attachments[] (up to 5 files)
+```
 
-**`POST /verify-username` response:**
+**POST `/api/public/issues/<id>/still-having-issues` payload (JSON):**
 ```json
 {
-  "success": true,
-  "username": "jdoe",
-  "first_name": "John",
-  "full_name": "John Doe",
-  "display_name": "JD",
-  "avatar_url": "https://...",
-  "company": "RGMC",
-  "department": "IT",
-  "email": "jdoe@rgmc.com",
-  "systems": ["travel-expense", "creatives"],
-  "is_admin": false,
-  "is_developer": true
+  "issue_description": "Description of the current problem",
+  "confirm_steps": "Steps taken to verify the fix"
 }
 ```
 
-**`POST /access-request` payload (form data):**
-```
-first_name, last_name, middle_initial, company, department, position, email, systems[] (multi-value)
-```
+---
 
-### <span style="color:#555">Issues</span>
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| `POST` | `/api/issues` | None | Submit issue report (form + files, max 5 attachments, 20 MB total) |
-| `POST` | `/report` | None | Legacy alias for `/api/issues` |
-| `GET` | `/api/admin/issues` | Admin | List all issues ordered by `created_at desc` |
-| `PATCH` | `/api/admin/issues/<id>` | Admin | Update status, assigned_to, title, resolution_notes, resolved_by |
-| `POST` | `/api/admin/issues/<id>/promote` | Admin | Create a `dev_items` row from issue; links `dev_item_id` back |
-
-**`PATCH /api/admin/issues/<id>` payload:**
-```json
-{
-  "status": "resolved",
-  "assigned_to": "jdoe",
-  "resolution_notes": "Fixed by clearing cache",
-  "resolved_by": "Jane Developer"
-}
-```
-
-### <span style="color:#555">Developer Board</span>
-
-All `/api/dev/*` endpoints require `is_developer=true` or `is_admin=true`.
+### 🔒 Admin (requires `X-Gateway-Username` with `is_admin = true`)
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/dev/items` | All dev items ordered by `created_at asc` |
-| `POST` | `/api/dev/items` | Create new dev item |
-| `PATCH` | `/api/dev/items/<id>` | Update item fields (title, description, status, system_id, dates, type) |
-| `DELETE` | `/api/dev/items/<id>` | Delete dev item |
-| `GET` | `/api/dev/items/<id>/logs` | Get activity logs for item |
-| `POST` | `/api/dev/items/<id>/logs` | Add activity log (message + optional hours_spent) |
-| `GET` | `/api/dev/systems` | All systems (id, name, category, URLs, sort) |
-| `POST` | `/api/dev/systems` | Create system (requires id, name, category, primary_url, primary_label) |
-| `GET` | `/api/dev/members` | All developers and admins (username, name, avatar_url) |
-
-**`POST /api/dev/items` payload:**
-```json
-{
-  "title": "Fix login timeout",
-  "description": "Users are getting logged out too quickly",
-  "system_id": "travel-expense",
-  "dev_item_type": "Bug Fix",
-  "start_date": "2026-06-01",
-  "estimated_end_date": "2026-06-10"
-}
-```
-
-**Valid `status` values:** `pending` · `ongoing` · `coding` · `testing` · `done`
-
-### <span style="color:#555">Admin</span>
-
-All `/api/admin/*` endpoints require `is_admin=true`.
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/admin/requests` | Access requests; optional `?status=pending\|approved\|rejected` |
-| `POST` | `/api/admin/requests/<id>/approve` | Approve request; calls `_approve_record()`; sends grant email |
-| `POST` | `/api/admin/requests/<id>/reject` | Reject; optional `{"remarks": "..."}` body; sends rejection email |
-| `GET` | `/api/admin/users` | All users with profile + system + role fields |
-| `PATCH` | `/api/admin/users/<uname>` | Update `is_admin`, `is_developer`, or `systems` |
-| `DELETE` | `/api/admin/users/<uname>` | Delete user record |
-| `GET` | `/api/admin/systems` | All systems ordered by sort_order asc, name asc |
-| `POST` | `/api/admin/systems` | Create system |
-| `PATCH` | `/api/admin/systems/<id>` | Update system fields |
-| `DELETE` | `/api/admin/systems/<id>` | Delete system; invalidates sites cache |
-| `GET` | `/api/admin/issues` | All issues (same as issues endpoint above) |
-| `PATCH` | `/api/admin/issues/<id>` | Update issue |
-| `POST` | `/api/admin/issues/<id>/promote` | Promote issue to dev item |
-| `GET` | `/api/admin/dev-performance` | Developer performance report: counts by status, systems, enriched items |
-
-**`GET /api/admin/dev-performance` response shape:**
-```json
-[
-  {
-    "username": "jdoe",
-    "first_name": "John",
-    "last_name": "Doe",
-    "display_name": "",
-    "avatar_url": "https://...",
-    "email": "jdoe@rgmc.com",
-    "company": "RGMC",
-    "department": "IT",
-    "position": "Developer",
-    "is_admin": false,
-    "is_developer": true,
-    "counts": { "pending": 2, "ongoing": 1, "coding": 3, "testing": 1, "done": 8, "total": 15 },
-    "systems": ["Creatives", "Production"],
-    "items": [
-      {
-        "id": "uuid",
-        "title": "Fix login timeout",
-        "status": "coding",
-        "dev_item_type": "Bug Fix",
-        "system_name": "Creatives",
-        "start_date": "2026-06-01",
-        "estimated_end_date": "2026-06-10",
-        "actual_end_date": null,
-        "created_at": "2026-06-01T00:00:00Z"
-      }
-    ]
-  }
-]
-```
-
-### <span style="color:#555">Profile</span>
-
-All `/api/profile` endpoints require `X-Gateway-Username` header (any authenticated user).
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/profile` | Get current user's profile (username, names, display_name, avatar_url) |
-| `PATCH` | `/api/profile` | Update `display_name` (max 80 chars; send `null` to clear) |
-| `POST` | `/api/profile/avatar` | Upload avatar as data URL; stored to Supabase Storage `avatars/` bucket |
-| `DELETE` | `/api/profile/avatar` | Remove avatar from storage and clear `avatar_url` in DB |
-
-**`POST /api/profile/avatar` payload:**
-```json
-{ "avatar": "data:image/jpeg;base64,/9j/4AAQ..." }
-```
+| `GET` | `/admin` | Admin panel HTML |
+| `GET` | `/api/admin/requests` | List access requests (filterable by `?status=`) |
+| `POST` | `/api/admin/requests/<id>/approve` | Approve an access request |
+| `POST` | `/api/admin/requests/<id>/reject` | Reject with optional remarks |
+| `GET` | `/api/admin/users` | List all users |
+| `POST` | `/api/admin/users` | Create a user manually |
+| `GET` | `/api/admin/users/search?q=<query>` | Search access requests by name |
+| `PATCH` | `/api/admin/users/<username>` | Update user roles/profile |
+| `DELETE` | `/api/admin/users/<username>` | Delete a user |
+| `GET` | `/api/admin/issues` | List all issues (full `SELECT *`) |
+| `PATCH` | `/api/admin/issues/<id>` | Update issue (status, assignee, resolution) |
+| `POST` | `/api/admin/issues/<id>/promote` | Promote to dev item (optional `assigned_to`) |
+| `POST` | `/api/admin/issues/<id>/promote-task` | Promote to IT task |
+| `POST` | `/api/admin/issues/<id>/promote-user-task` | Route to department via user task |
+| `POST` | `/api/admin/issues/<id>/link` | Link to issue/task/dev item; or mark duplicate |
+| `GET` | `/api/admin/issues/search?q=<query>` | Full-text search across ticket, title, description |
+| `GET` | `/api/admin/common-issues` | Analytics by system + category with global stats |
+| `GET` | `/api/admin/linked/dev-item/<id>` | Fetch dev item linked from an issue |
+| `GET` | `/api/admin/linked/task/<id>` | Fetch task linked from an issue |
+| `GET` | `/api/admin/linked/user-task/<id>` | Fetch user task linked from an issue |
+| `GET` | `/api/admin/systems` | List all systems |
+| `POST` | `/api/admin/systems` | Create a system |
+| `PATCH` | `/api/admin/systems/<id>` | Update a system |
+| `DELETE` | `/api/admin/systems/<id>` | Delete a system |
+| `GET` | `/api/admin/systems/<id>/ping` | Live HTTP ping a system's primary URL |
+| `POST` | `/api/admin/systems/<id>/upload` | Upload Windows launcher or manifest file |
+| `GET` | `/api/admin/dev-performance` | Developer performance (items, tasks, issues per dev) |
+| `GET/POST` | `/api/admin/config/companies` | Company CRUD |
+| `PATCH/DELETE` | `/api/admin/config/companies/<code>` | |
+| `GET/POST` | `/api/admin/config/departments` | Department CRUD |
+| `PATCH/DELETE` | `/api/admin/config/departments/<id>` | |
+| `GET/POST` | `/api/admin/config/brands` | Brand CRUD |
+| `PATCH/DELETE` | `/api/admin/config/brands/<code>` | |
+| `GET/POST` | `/api/admin/config/request-categories` | Request category CRUD |
+| `PATCH/DELETE` | `/api/admin/config/request-categories/<id>` | |
+| `GET/POST` | `/api/admin/config/request-types` | Request type CRUD |
+| `PATCH/DELETE` | `/api/admin/config/request-types/<id>` | |
+| `GET/POST` | `/api/admin/config/non-software-items` | Non-software helpdesk item CRUD |
+| `PATCH/DELETE` | `/api/admin/config/non-software-items/<id>` | |
+| `GET/POST` | `/api/admin/config/actions` | Resolution action CRUD |
+| `PATCH/DELETE` | `/api/admin/config/actions/<id>` | |
+| `GET` | `/api/tasks` | List IT tasks |
+| `POST` | `/api/tasks` | Create IT task |
+| `PATCH` | `/api/tasks/<id>` | Update IT task status/fields |
 
 ---
 
-## 🗄 Database Schema
+### 👨‍💻 Developer (requires `is_developer = true`)
 
-### <span style="color:#555">`users`</span>
-
-| Column | Type | Notes |
+| Method | Path | Description |
 |---|---|---|
-| `username` | `text` PK | Auto-generated on first approval (`<first initial><last name>`) |
-| `first_name` | `text` | |
-| `last_name` | `text` | |
-| `middle_initial` | `text` | |
-| `display_name` | `text` | Optional alias shown in UI |
-| `avatar_url` | `text` | Public Supabase Storage URL |
-| `company` | `text` | |
-| `department` | `text` | |
-| `position` | `text` | |
-| `email` | `text` | |
-| `systems` | `text[]` | Array of system IDs the user can access |
-| `is_admin` | `boolean` | Default false |
-| `is_developer` | `boolean` | Default false |
-| `created_at` | `timestamptz` | |
-
-### <span style="color:#555">`access_requests`</span>
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | `uuid` PK | |
-| `first_name`, `last_name`, `middle_initial` | `text` | |
-| `company`, `department`, `position` | `text` | |
-| `email` | `text` | |
-| `systems` | `text[]` | Requested system IDs |
-| `username` | `text` | Populated on approval; also set on additional requests |
-| `status` | `text` | `pending` · `approved` · `rejected` |
-| `approval_token` | `uuid` | Used in approve/reject email links |
-| `rejection_remarks` | `text` | Optional; set on rejection |
-| `processed_at` | `timestamptz` | Set on approve or reject |
-| `created_at` | `timestamptz` | |
-
-### <span style="color:#555">`systems`</span>
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | `text` PK | Slug (e.g. `travel-expense`) |
-| `name` | `text` | Display name |
-| `category` | `text` | Groups cards (e.g. `RGMC`, `SBIC`, `NAV Sites`) |
-| `primary_url` | `text` | |
-| `primary_label` | `text` | Button text (e.g. `Open`, `Primary`) |
-| `backup_url` | `text` | Optional |
-| `backup_label` | `text` | Optional |
-| `sort_order` | `int` | Default 999; lower = first |
-| `is_visible` | `boolean` | Only `true` rows shown on homepage |
-
-### <span style="color:#555">`dev_items`</span>
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | `uuid` PK | |
-| `title` | `text` | |
-| `description` | `text` | |
-| `status` | `text` | CHECK: `pending · ongoing · coding · testing · done` |
-| `system_id` | `text` | FK → `systems.id` |
-| `dev_item_type` | `text` | One of 7 types; custom stored as `"Others: <text>"` |
-| `start_date` | `date` | |
-| `estimated_end_date` | `date` | |
-| `actual_end_date` | `date` | |
-| `created_by` | `text` | FK → `users.username` |
-| `updated_at` | `timestamptz` | Set on every PATCH |
-| `created_at` | `timestamptz` | |
-
-### <span style="color:#555">`dev_activity_logs`</span>
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | `uuid` PK | |
-| `item_id` | `uuid` | FK → `dev_items.id` |
-| `username` | `text` | FK → `users.username` |
-| `message` | `text` | |
-| `hours_spent` | `float` | Optional |
-| `created_at` | `timestamptz` | |
-
-### <span style="color:#555">`issues`</span>
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | `uuid` PK | |
-| `site_name` | `text` | System the issue affects |
-| `employee_name` | `text` | Reporter's name |
-| `company_name`, `department` | `text` | |
-| `email` | `text` | Reporter's email (used for resolved notification) |
-| `title` | `text` | Optional; defaults to truncated description |
-| `description` | `text` | |
-| `status` | `text` | `open · in_progress · resolved · closed` |
-| `attachment_urls` | `text[]` | Public Supabase Storage URLs |
-| `assigned_to` | `text` | Developer username |
-| `resolution_notes` | `text` | Set when resolving; included in notification email |
-| `resolved_by` | `text` | Developer name shown in notification |
-| `resolved_at` | `timestamptz` | Set on first transition to `resolved`/`closed` |
-| `dev_item_id` | `uuid` | Set when promoted to a dev item |
-| `created_at` | `timestamptz` | |
-
-### <span style="color:#555">Supabase Storage Buckets</span>
-
-| Bucket | Path pattern | Contents |
-|---|---|---|
-| `avatars` | `<username>.<ext>` | User profile pictures (jpg/png/webp); upserted on upload |
-| `issue-attachments` | `<issue_id>/<index>_<filename>` | Issue report attachments (up to 5 per issue) |
+| `GET` | `/developer` | Developer board HTML |
+| `GET` | `/api/dev/items` | List all dev items (Kanban) |
+| `POST` | `/api/dev/items` | Create a dev item |
+| `PATCH` | `/api/dev/items/<id>` | Update item status, dates, resolution |
 
 ---
 
-## 💾 Sites Cache Strategy
+### 👤 User (requires `X-Gateway-Username` for valid user)
 
-| Property | Value |
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/workspace` | User workspace HTML |
+| `GET` | `/api/user/issues/team` | Issues assigned to user's department or team members |
+| `GET` | `/api/user/issues/mine` | Issues filed by this user (matched by email) |
+| `GET` | `/api/user/issues/assigned` | Issues where `assigned_to = username` |
+| `GET` | `/api/user/tasks` | User tasks for this user's department |
+| `GET` | `/api/issues/<id>/activity` | Issue activity feed (comments + movement logs merged) |
+| `POST` | `/api/issues/<id>/comments` | Post a comment |
+| `GET` | `/profile` | Profile page HTML |
+| `PATCH` | `/api/user/profile` | Update display name, avatar, Viber, AnyDesk ID |
+
+---
+
+## 🗄 Database Tables
+
+| Table | Purpose |
 |---|---|
-| Storage | Python module-level variable (`_sites_cache`) |
-| TTL | 300 seconds (5 minutes) |
-| Populated from | Supabase `systems` table where `is_visible = true`, ordered by `sort_order asc, name asc` |
-| Fallback | `SITES_FALLBACK` list in `config.py` — 19 hardcoded systems across RGMC, SBIC, NAV Sites |
-| Invalidated by | Any admin or developer create/update/delete on a system record |
-| Scope | Single process only — not shared across Cloud Run instances |
+| `users` | Registered portal users; roles: `is_admin`, `is_developer`, `is_management`, `is_department_head` |
+| `access_requests` | Pending / approved / rejected access requests; each row has `approval_token` for email-click flow |
+| `issues` | All tickets from report form, IT helpdesk, and general helpdesk |
+| `issue_comments` | Per-issue comment thread |
+| `dev_items` | Developer board Kanban cards |
+| `dev_item_logs` | Status movement history for dev items |
+| `tasks` | IT admin tasks (separate from dev items) |
+| `user_tasks` | Non-IT department tasks promoted from issues |
+| `task_item_logs` | Status movement history for user tasks |
+| `task_activity_logs` | Notes and activity for user tasks |
+| `systems` | Launchable systems with URL, category, tags, sort order, Windows launcher fields |
+| `companies` | Company list for helpdesk forms |
+| `departments` | Department list; `is_active` controls visibility in forms |
+| `brands` | Brand catalog (`brand_code`, `brand_name`, `brand_initial`) |
+| `request_category` | Helpdesk categories; `category_group` separates IT from General |
+| `request_type` | Per-category request type options for helpdesk forms |
+| `non_software_items` | Non-software subcategory options for helpdesk |
+| `actions` | Resolution action catalog used when closing tickets/items |
 
-> 📌 **Important:** Because cache is per-process, a new Cloud Run instance always starts cold and fetches from DB on the first request.
+**Key `issues` columns:**
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | uuid | Primary key |
+| `ticket_number` | text | Human-readable ID (e.g. `TKT-0001`) |
+| `title` | text | Optional short title |
+| `description` | text | Full description; append blocks added on reopen |
+| `status` | text | `open`, `in_progress`, `resolved`, `closed` |
+| `priority` | text | `low`, `medium`, `high`, `critical` |
+| `urgency` | text | `low`, `medium`, `high` |
+| `from_helpdesk` | bool | True if submitted via structured helpdesk |
+| `ticket_type` | text | `incident`, `service_request`, etc. |
+| `request_category` | text | Category from helpdesk form |
+| `confirmed_fix` | bool | True when reporter confirms resolution |
+| `confirmed_fix_at` | timestamptz | When reporter confirmed the fix |
+| `dev_item_id` | uuid | FK to `dev_items` (set by promote-to-dev-item) |
+| `task_id` | uuid | FK to `tasks` (set by promote-to-task) |
+| `user_task_id` | uuid | FK to `user_tasks` (set by promote-to-user-task) |
+| `linked_issue_id` | uuid | FK to related/duplicate issue |
+| `is_duplicate` | bool | Marked duplicate when linked |
+| `error_code` | text | Optional error code from reporter |
+| `user_payload` | text | Optional user-provided data payload |
+| `anydesk_id` | text | AnyDesk remote support ID |
+| `resolution_action_ids` | int[] | Array of action IDs from `actions` table |
+| `resolution_attachment_urls` | text[] | Uploaded resolution screenshot URLs |
+| `attachment_urls` | text[] | Reporter-uploaded file URLs |
 
 ---
 
 ## 🔐 Authentication Flow
 
-**New user — first access:**
+```
+1. User visits gateway → login modal shown
+   username is stored in localStorage after successful verify
 
-1. User visits `/` and sees the sign-in wall
-2. User clicks "Request Access" and fills the access request form
-3. `POST /access-request` saves a row to `access_requests` with `status=pending` and a UUID `approval_token`
-4. Server sends an HTML email to `APPROVER_EMAIL` containing Approve / Reject buttons linked to `/access/approve/<token>` and `/access/reject/<token>`
-5. Approver clicks **Approve** → `GET /access/approve/<token>` runs `_approve_record()`:
-   - Generates username: `<first-initial><last-name>` (e.g. `jdoe`); appends `1`, `2`… if taken
-   - Updates `access_requests` row: `status=approved`, `username=<generated>`, `processed_at=<now>`
-   - Upserts a row in `users` table with all profile fields
-   - Sends confirmation email to the user with their new username
-6. User returns to `/`, enters username → `POST /verify-username` finds the `users` row and returns session JSON
-7. Client stores session in `localStorage["rgmc_gateway_session"]`; all subsequent API calls send `X-Gateway-Username: <username>`
+2. User types username → POST /verify-username
+   → Gateway queries /users table (returns is_admin, is_developer, roles)
+   → Falls back to /access_requests (for users not yet in users table)
+   → On success: username + full_name + roles stored in localStorage
 
-**Existing user — sign in:**
+3. Every subsequent API call sends:
+   → Header: X-Gateway-Username: <username>
 
-1. User enters username on the sign-in wall
-2. `POST /verify-username` checks `users` table (primary) → `access_requests` table (fallback)
-3. On match: returns profile JSON → client stores in `localStorage` and renders the portal
-4. On no match: returns 404 → user redirected to request access form
+4. Admin endpoints call _require_admin():
+   → Reads X-Gateway-Username header
+   → Queries /users WHERE username = ? and checks is_admin = true
+   → Returns (username, None) on success or (None, (error, 401/403)) on failure
 
-**Additional system access:**
+5. Developer endpoints call _require_developer() (is_developer = true)
+   Dept-head endpoints call _require_dept_head() (is_department_head = true)
 
-1. Signed-in user opens the system request modal and selects new systems
-2. `POST /access-request/additional` creates a new `access_requests` row with the user's existing username
-3. Same approval email flow; on approval, new systems are merged into `users.systems[]`
+6. New users go through access request flow:
+   a. Employee submits /access-request form
+   b. Approval email sent to APPROVER_EMAIL with approve/reject links
+   c. Admin clicks /access/approve/<token>
+   d. Gateway creates entry in /users table
+      (username auto-generated: firstname.lastname, then .lastname2, .lastname3 etc.)
+   e. Welcome email sent to employee with their assigned username
+```
 
-**Admin / Developer access:**
-
-- Every protected API endpoint calls `_require_admin()` or `_require_developer()` from `services/guards.py`
-- Guard reads `X-Gateway-Username` header, fetches the user row, checks `is_admin` / `is_developer` flag
-- Returns `(username, None)` on success or `(None, (error_dict, status_code))` on failure
+> ⚠️ Auth is username-only with no password or session token. Appropriate for an internal intranet deployment with network-level access control. Do not expose to the public internet without additional authentication.
 
 ---
 
-## 🔄 Core Data Flow
+## 🤖 IT Bot Notifications
 
-### Issue Report → Resolution → Notification
+When `IT_BOT_URL` and `IT_BOT_API_KEY` are configured, the gateway fires webhooks to a separate IT bot service. All calls are fire-and-forget — failures are logged as warnings and never surface to users.
 
-```
-User opens /report-issue
-    |
-    +--> Auth wall: POST /verify-username
-    |        |-- Found in users table → session loaded
-    |        +-- Not found → sign-in wall stays visible
-    |
-    +--> User fills form + optional attachments
-    |
-    +--> POST /api/issues (FormData, X-Gateway-Username header)
-            |
-            +--> Validate required fields
-            +--> supabase_req POST /issues → get issue_id
-            +--> Upload each file to Supabase Storage issue-attachments/<issue_id>/
-            +--> supabase_req PATCH /issues → save attachment_urls[]
-            +--> send_report_email() → SMTP to DEVELOPER_EMAIL (with files attached)
-            +--> Return { success: true }
-
-Admin opens /admin → Issues tab
-    |
-    +--> GET /api/admin/issues → list all issues
-    +--> Admin opens issue → edits status to "resolved", adds resolution notes + resolver name
-    +--> PATCH /api/admin/issues/<id>
-            |
-            +--> Fetch current issue (get old_status)
-            +--> If new_status ∈ {resolved, closed} AND old_status ∉ {resolved, closed}:
-            |       +--> Set resolved_at = now()
-            |       +--> supabase_req PATCH /issues
-            |       +--> send_issue_resolved_email() → SMTP to reporter's email
-            +--> else: supabase_req PATCH /issues (no email)
+**Ticket created** — fires on any new issue (report form, IT helpdesk, general helpdesk):
+```json
+POST {IT_BOT_URL}/api/notify/ticket-created
+{
+  "event": "ticket.created",
+  "ticket": { /* full issue row */ }
+}
 ```
 
-### Developer Kanban Flow
-
-```
-Developer opens /developer
-    |
-    +--> GET /api/dev/items → all dev items
-    +--> GET /api/dev/systems → system list for dropdowns
-    +--> GET /api/dev/members → team avatars for item cards
-    |
-    +--> Drag card from "Pending" column → drop on "Coding" column
-            |
-            +--> PATCH /api/dev/items/<id> { status: "coding", updated_at: <now> }
-            +--> Card re-renders in new column
-
-Developer adds activity log:
-    |
-    +--> POST /api/dev/items/<id>/logs { message: "...", hours_spent: 2.5 }
+**Ticket updated** — fires when an admin changes status, assignee, or resolution fields:
+```json
+POST {IT_BOT_URL}/api/notify/ticket-updated
+{
+  "event": "ticket.updated",
+  "ticket": { /* issue row with new values applied */ },
+  "changes": {
+    "status":      { "from": "open",  "to": "resolved" },
+    "assigned_to": { "from": null,    "to": "jdoe" }
+  }
+}
 ```
 
 ---
 
 ## 📧 Email Notifications
 
-| Function | Trigger | Recipient | Subject |
-|---|---|---|---|
-| `send_report_email` | Issue submitted | `DEVELOPER_EMAIL` | `[RGMC Problem Report] <System Name>` |
-| `send_approval_request_email` | Access request submitted | `APPROVER_EMAIL` | `[Access Request] <Full Name> — RGMC Gateway` |
-| `send_access_granted_email` | Request approved | Requester's email | `Your RGMC Gateway Access Has Been Approved` |
-| `send_access_rejected_email` | Request rejected | Requester's email | `Your RGMC Gateway Access Request — Not Approved` |
-| `send_admin_granted_email` | User granted `is_admin=true` | User's email | `Admin Access Granted — RGMC Gateway` |
-| `send_issue_resolved_email` | Issue status → `resolved`/`closed` | Reporter's email | `Your Issue Has Been Resolved/Closed — <System>` |
+| Trigger | Recipients | Function |
+|---|---|---|
+| New freeform report | IT team (`DEVELOPER_EMAIL`) | `send_report_email` |
+| New IT helpdesk ticket | IT team + reporter | `send_helpdesk_email` + `send_helpdesk_confirmation_email` |
+| New general helpdesk ticket | IT team + reporter | same as above |
+| Issue resolved | Reporter (email on issue) | `send_issue_resolved_email` |
+| Issue assigned to IT staff | Assigned IT staff | `send_issue_assigned_email` |
+| Access request submitted | Approver (`APPROVER_EMAIL`) | `send_approval_request_email` |
+| Access request approved | Employee | `send_access_granted_email` |
+| Access request rejected | Employee | `send_access_rejected_email` |
+| Admin role granted | New admin | `send_admin_granted_email` |
+| Task status changed | Relevant party | `send_task_status_email` |
 
-All emails are sent via SMTP STARTTLS (port 587) using Gmail App Password. Sending is fire-and-forget — failures are logged but do not affect the API response.
+All emails are HTML with RGMC dark gradient header and structured data tables. Reporter attachments are forwarded inline.
 
 ---
 
-## 🎨 Brand & Design Tokens
+## 🔄 Issue Lifecycle
 
-| Token | Value | Usage |
+```
+Reporter submits form
+      |
+      v
+Issue created (status: open, ticket_number: TKT-XXXX)
+      +--- IT bot: ticket.created
+      +--- Email to IT team
+      +--- Confirmation email to reporter
+      |
+      v
+Admin reviews and assigns (assigned_to set)
+      +--- IT bot: ticket.updated (assigned_to changed)
+      +--- Email to assigned IT staff
+      |
+      v
+Admin resolves (status: resolved | closed)
+      +--- resolved_at set automatically
+      +--- IT bot: ticket.updated (status changed)
+      +--- Resolution email to reporter (notes + actions + screenshots)
+      |
+      v
+Reporter receives email → clicks confirm link
+      |
+      +-- [Yes, It's Fixed]
+      |       confirmed_fix = true, confirmed_fix_at = now
+      |       → Green banner on issue page (?confirmed=1)
+      |
+      +-- [Still Having Issues] — fills modal:
+              issue_description + confirm_steps
+              → Appended to description as labeled block
+              → status = open, confirmed_fix = false
+              → Orange reopened banner (?reopened=1)
+              → Issue back in open queue
+```
+
+**Promotion paths from an issue:**
+```
+Issue --[promote]--> Dev Item     dev_items; issue.dev_item_id set; status → in_progress
+Issue --[promote]--> IT Task      tasks; issue.task_id set; status → in_progress
+Issue --[promote]--> User Task    user_tasks; issue.user_task_id set; status → in_progress
+Issue --[link duplicate]--> auto-resolved  is_duplicate=true; resolution_notes set; email sent
+```
+
+---
+
+## 🎨 Brand / Design Tokens
+
+All tokens live in `static/css/variables.css`. Fonts loaded from Google Fonts.
+
+| Token | Value | Use |
 |---|---|---|
-| `--gold` | `#C4972A` | Primary brand accent, buttons, borders, section headings |
-| `--gold-light` | `#D4A83C` | Hover state for gold elements |
-| `--gold-dim` | `rgba(196,151,42,0.12)` | Subtle gold backgrounds (avatar fallback, badges) |
-| `--gold-glow` | `rgba(196,151,42,0.18)` | Card hover glow |
-| `--gold-border` | `rgba(196,151,42,0.22)` | Default gold border |
-| `--gold-border-h` | `rgba(196,151,42,0.58)` | Hovered gold border |
-| `--bg` | `#080604` | App background (near-black) |
-| `--bg-surface` | `#0F0C07` | Surface layer |
-| `--bg-card` | `#0D0A06` | Card background |
-| `--bg-card-h` | `#161209` | Card hover state |
-| `--bg-card-inner` | `#121008` | Inner card sections |
-| `--bg-modal` | `#0B0906` | Modal background |
-
-**Dev item status colors:**
-
-| Status | Color | Background |
-|---|---|---|
-| Pending | `#6b7280` (gray) | `#f3f4f6` |
-| Ongoing | `#a855f7` (violet) | `#f3e8ff` |
-| Coding | `#3b82f6` (blue) | `#eff6ff` |
-| Testing | `#f59e0b` (amber) | `#fffbeb` |
-| Done | `#22c55e` (green) | `#f0fdf4` |
-
-**Typography:** Playfair Display (display/headings) + Plus Jakarta Sans (body) — loaded from Google Fonts.
+| `--gold` | `#C4972A` | Primary brand accent — borders, buttons, section headings |
+| `--gold-light` | `#D4A83C` | Hover states |
+| `--gold-dim` | `rgba(196,151,42,0.12)` | Subtle gold backgrounds |
+| `--bg` | `#080604` | Page background (near-black, warm tint) |
+| `--bg-surface` | `#0F0C07` | Surface above page background |
+| `--bg-card` | `#0D0A06` | Card / panel background |
+| `--bg-modal` | `#0B0906` | Modal backdrop |
+| `--text-primary` | `#EDE5D0` | Body text (warm cream) |
+| `--text-secondary` | `#A89060` | Secondary / label text (muted gold) |
+| `--text-muted` | `#5C4A28` | Disabled / dim text |
+| `--success` | `#52A870` | Success state (green) |
+| `--error` | `#D85858` | Error state (red) |
+| `--warning` | `#D49632` | Warning / amber state |
+| `--font-display` | `'Playfair Display'` | Page titles and major headings |
+| `--font-ui` | `'Plus Jakarta Sans'` | All UI labels, buttons, body copy |
 
 ---
 
 ## 📄 License
 
-This is a private internal tool for RGMC Group. All rights reserved.
+Private — all rights reserved. Internal use by RGMC Group only.

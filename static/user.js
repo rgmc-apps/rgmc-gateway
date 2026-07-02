@@ -351,17 +351,22 @@ function renderIssueList(scope, issues, preFiltered) {
 }
 
 function renderIssueCard(iss) {
-  const status = iss.status || 'new';
-  const label  = ISSUE_STATUS_LABELS[status] || status.replace('_', ' ');
-  const title  = iss.title || iss.description || '(No title)';
-  const desc   = iss.title && iss.description ? iss.description : '';
-  const id     = escHtml(iss.id);
+  const status     = iss.status || 'new';
+  const label      = ISSUE_STATUS_LABELS[status] || status.replace('_', ' ');
+  const title      = iss.title || iss.description || '(No title)';
+  const desc       = iss.title && iss.description ? iss.description : '';
+  const id         = escHtml(iss.id);
+  const isTerminal = ['resolved', 'closed'].includes(status);
+  const confirmedBadge = isTerminal && iss.confirmed_fix
+    ? `<span class="iss-confirmed-badge" style="font-size:10px;padding:2px 8px;gap:4px;"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Confirmed</span>`
+    : (isTerminal ? `<span class="iss-unconfirmed-note" style="font-size:10px;">Awaiting confirmation</span>` : '');
   return `<div class="issue-card" onclick="openIssueDetailById('${id}')">
     <div class="issue-card-top">
       <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
         ${iss.ticket_number ? `<span class="issue-card-ticket">${escHtml(iss.ticket_number)}</span>` : ''}
         <span class="iss-badge ${issueBadgeClass(status)}">${escHtml(label)}</span>
         ${prioBadgeHtml(iss.priority)}
+        ${confirmedBadge}
       </div>
       <span class="issue-card-date">${fmtDateTime(iss.created_at)}</span>
     </div>
