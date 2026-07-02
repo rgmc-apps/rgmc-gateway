@@ -556,6 +556,26 @@ kbd {
   letter-spacing: 0.05em;
 }
 
+/* Priority hint */
+.ri-priority-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 7px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  min-height: 18px;
+}
+
+.ri-prio-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-top: 4px;
+}
+
 /* Input shake (validation) */
 @keyframes ri-shake {
   0%, 100% { transform: translateX(0); }

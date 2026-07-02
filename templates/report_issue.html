@@ -83,12 +83,13 @@
             </div>
             <div class="form-group">
               <label class="form-label" for="riPriority">Priority</label>
-              <select class="form-input" id="riPriority" name="priority">
+              <select class="form-input" id="riPriority" name="priority" onchange="riUpdatePriorityHint()">
                 <option value="P1">P1 — Critical</option>
                 <option value="P2">P2 — High</option>
                 <option value="P3">P3 — Medium</option>
                 <option value="P4" selected>P4 — Low</option>
               </select>
+              <div class="ri-priority-hint" id="riPriorityHint"></div>
             </div>
           </div>
 
@@ -104,8 +105,9 @@
             <label class="form-label" for="riDepartment">Department
               <span class="form-label-hint">(optional)</span>
             </label>
-            <input class="form-input" type="text" id="riDepartment" name="department"
-              placeholder="IT / Finance / Operations">
+            <select class="form-input" id="riDepartment" name="department">
+              <option value="">— Select department —</option>
+            </select>
           </div>
 
           <div class="form-group form-group-full">

@@ -23,6 +23,43 @@ async function _fetchAndPopulateCompanies() {
   } catch { /* non-fatal */ }
 }
 
+/* ── Departments dropdown ─────────────────────────────────── */
+
+async function _fetchAndPopulateDepartments() {
+  const sel = document.getElementById('riDepartment');
+  if (!sel) return;
+  try {
+    const res  = await fetch('/api/departments');
+    const list = await res.json();
+    list.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value       = d.department_name;
+      opt.textContent = d.department_name;
+      sel.appendChild(opt);
+    });
+  } catch { /* non-fatal */ }
+}
+
+/* ── Priority hint ────────────────────────────────────────── */
+
+const _PRIORITY_INFO = {
+  P1: { color: '#D85858', desc: 'Severe impact — system down or entire company affected. Immediate response required.' },
+  P2: { color: '#E8873A', desc: 'Significant impact — department or team affected. Urgent attention needed.' },
+  P3: { color: '#D49632', desc: 'Moderate impact — single user or minor workflow disruption. Prompt action needed.' },
+  P4: { color: '#52A870', desc: 'Minimal impact — cosmetic issue or minor inconvenience. No immediate urgency.' },
+};
+
+function riUpdatePriorityHint() {
+  const sel  = document.getElementById('riPriority');
+  const hint = document.getElementById('riPriorityHint');
+  if (!hint) return;
+  const info = _PRIORITY_INFO[sel.value];
+  if (!info) { hint.innerHTML = ''; return; }
+  hint.innerHTML =
+    `<span class="ri-prio-dot" style="background:${info.color}"></span>`
+    + `<span>${info.desc}</span>`;
+}
+
 /* ── Category + Subcategory dropdowns ─────────────────────── */
 
 async function _fetchAndPopulateCategories() {
@@ -176,6 +213,8 @@ function riUpdateFiles(input) {
 
 document.addEventListener('DOMContentLoaded', async () => {
   _fetchAndPopulateCompanies();
+  _fetchAndPopulateDepartments();
+  riUpdatePriorityHint(); // show hint for default P4
 
   // Parse ?system=, ?error=, and ?payload= query params
   const params    = new URLSearchParams(window.location.search);
