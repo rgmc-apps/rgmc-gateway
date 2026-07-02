@@ -1502,12 +1502,21 @@ function _renderIssueKpis(all, newCount) {
   const open      = all.filter(i => i.status === 'open').length;
   const progress  = all.filter(i => i.status === 'in_progress').length;
   const resolved  = all.filter(i => ['resolved','closed'].includes(i.status)).length;
-  const connected = all.filter(i => i.dev_item_id || i.task_id || i.user_task_id).length;
+  const devItem   = all.filter(i => i.dev_item_id).length;
+  const task      = all.filter(i => i.task_id).length;
+  const userTask  = all.filter(i => i.user_task_id).length;
+  const terminal  = all.filter(i => ['resolved','closed'].includes(i.status));
+  const confirmed = terminal.filter(i => i.confirmed_fix).length;
+  const awaiting  = terminal.filter(i => !i.confirmed_fix).length;
   _setText('issKpiTotal',     total);
   _setText('issKpiOpen',      open);
   _setText('issKpiProgress',  progress);
   _setText('issKpiResolved',  resolved);
-  _setText('issKpiConnected', connected);
+  _setText('issKpiDevItem',   devItem);
+  _setText('issKpiTask',      task);
+  _setText('issKpiUserTask',  userTask);
+  _setText('issKpiConfirmed', confirmed);
+  _setText('issKpiAwaiting',  awaiting);
 
   // "New" KPI card — only shown when there are new issues
   const nc = newCount ?? (_lastAdminVisit ? all.filter(i => i.created_at && i.created_at > _lastAdminVisit).length : 0);

@@ -210,16 +210,60 @@
           <div class="iss-kpi-val" id="issKpiResolved">—</div>
           <div class="iss-kpi-label">Resolved</div>
         </div>
-        <div class="iss-kpi-card iss-kpi--connected">
+        <div class="iss-kpi-card iss-kpi--dev">
           <div class="iss-kpi-info-wrap">
             <span class="iss-kpi-info">i</span>
             <div class="iss-kpi-tooltip">
-              <div class="iss-kpi-tooltip-name">Connected</div>
-              Issues linked to a Dev Board Item, Admin Task, or User Task for development or operations tracking.
+              <div class="iss-kpi-tooltip-name">Dev Item</div>
+              Issues linked to a Dev Board item for development or bug tracking.
             </div>
           </div>
-          <div class="iss-kpi-val" id="issKpiConnected">—</div>
-          <div class="iss-kpi-label">Connected</div>
+          <div class="iss-kpi-val" id="issKpiDevItem">—</div>
+          <div class="iss-kpi-label">Dev Item</div>
+        </div>
+        <div class="iss-kpi-card iss-kpi--task">
+          <div class="iss-kpi-info-wrap">
+            <span class="iss-kpi-info">i</span>
+            <div class="iss-kpi-tooltip">
+              <div class="iss-kpi-tooltip-name">Task</div>
+              Issues linked to an Admin Task for operations or IT follow-up tracking.
+            </div>
+          </div>
+          <div class="iss-kpi-val" id="issKpiTask">—</div>
+          <div class="iss-kpi-label">Task</div>
+        </div>
+        <div class="iss-kpi-card iss-kpi--user-task">
+          <div class="iss-kpi-info-wrap">
+            <span class="iss-kpi-info">i</span>
+            <div class="iss-kpi-tooltip">
+              <div class="iss-kpi-tooltip-name">User Task</div>
+              Issues linked to a User Task assigned to a reporter or stakeholder.
+            </div>
+          </div>
+          <div class="iss-kpi-val" id="issKpiUserTask">—</div>
+          <div class="iss-kpi-label">User Task</div>
+        </div>
+        <div class="iss-kpi-card iss-kpi--confirmed">
+          <div class="iss-kpi-info-wrap">
+            <span class="iss-kpi-info">i</span>
+            <div class="iss-kpi-tooltip">
+              <div class="iss-kpi-tooltip-name">Confirmed Fixed</div>
+              Resolved or closed issues where the reporter confirmed the fix was successful.
+            </div>
+          </div>
+          <div class="iss-kpi-val" id="issKpiConfirmed">—</div>
+          <div class="iss-kpi-label">Confirmed</div>
+        </div>
+        <div class="iss-kpi-card iss-kpi--awaiting">
+          <div class="iss-kpi-info-wrap">
+            <span class="iss-kpi-info">i</span>
+            <div class="iss-kpi-tooltip">
+              <div class="iss-kpi-tooltip-name">Awaiting Confirmation</div>
+              Resolved or closed issues still waiting for the reporter to confirm the fix.
+            </div>
+          </div>
+          <div class="iss-kpi-val" id="issKpiAwaiting">—</div>
+          <div class="iss-kpi-label">Awaiting</div>
         </div>
       </div>
 
