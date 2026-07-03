@@ -103,12 +103,17 @@ function closeProfileMenu() {
 }
 
 /* ── Init ── */
+/* ── Rich editor instances ────────────────────────────────── */
+let _resNotesEditor = null;
+
 document.addEventListener('DOMContentLoaded', () => {
   const session = loadSession();
   if (!session || !session.username || (!session.isAdmin && !session.isManagement)) {
     location.href = '/';
     return;
   }
+
+  _resNotesEditor = initRichEditor('issueResolutionNotes');
 
   // Build profile dropdown
   const container = document.getElementById('adminHeaderUser');

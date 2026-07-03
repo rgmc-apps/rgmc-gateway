@@ -24,6 +24,13 @@ function showToast(msg, duration = 3500) {
 function escHtml(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+function _descPreview(raw, max = 110) {
+  if (!raw) return '';
+  const tmp = document.createElement('div');
+  tmp.innerHTML = raw;
+  const text = (tmp.innerText || tmp.textContent || '').trim().replace(/\s+/g, ' ');
+  return text.length > max ? text.slice(0, max) + '…' : text;
+}
 function fmtDate(iso) {
   if (!iso) return '—';
   const [y, m, d] = iso.slice(0, 10).split('-');
@@ -96,12 +103,17 @@ function closeProfileMenu() {
 }
 
 /* ── Init ── */
+/* ── Rich editor instance ─────────────────────────────────── */
+let _taskDescEditor = null;
+
 document.addEventListener('DOMContentLoaded', () => {
   const session = loadSession();
   if (!session || !session.username || (!session.isAdmin && !session.isManagement)) {
     location.href = '/';
     return;
   }
+
+  _taskDescEditor = initRichEditor('taskDesc');
 
   // Build profile dropdown
   const container = document.getElementById('tasksHeaderUser');
@@ -404,7 +416,7 @@ function renderTaskCard(task, idx = 0) {
                style="animation-delay:${idx * 55}ms;--dev-clr:${devClr}${archived ? ';opacity:0.6' : ''}">
     ${topRow}
     <div class="kcard-title">${escHtml(task.task_name)}</div>
-    ${task.description ? `<div class="kcard-desc">${escHtml(task.description)}</div>` : ''}
+    ${task.description ? `<div class="kcard-desc">${escHtml(_descPreview(task.description))}</div>` : ''}
     <div class="kcard-meta">
       <div class="kcard-dates">
         ${task.start_date ? `<span class="kcard-date-item">

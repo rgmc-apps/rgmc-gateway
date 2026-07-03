@@ -24,6 +24,13 @@ function showToast(msg, duration = 3500) {
 function escHtml(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+function _descPreview(raw, max = 110) {
+  if (!raw) return '';
+  const tmp = document.createElement('div');
+  tmp.innerHTML = raw;
+  const text = (tmp.innerText || tmp.textContent || '').trim().replace(/\s+/g, ' ');
+  return text.length > max ? text.slice(0, max) + '…' : text;
+}
 function fmtDate(iso) {
   if (!iso) return '—';
   const [y, m, d] = iso.slice(0, 10).split('-');
@@ -105,12 +112,17 @@ function closeProfileMenu() {
 }
 
 /* ── Init ── */
+/* ── Rich editor instance ─────────────────────────────────── */
+let _itemDescEditor = null;
+
 document.addEventListener('DOMContentLoaded', () => {
   const session = loadSession();
   if (!session || !session.username || (!session.isDeveloper && !session.isAdmin)) {
     location.href = '/';
     return;
   }
+
+  _itemDescEditor = initRichEditor('itemDesc');
 
   // Build profile dropdown
   const container = document.getElementById('devHeaderUser');
@@ -460,7 +472,7 @@ function renderCard(item, idx = 0) {
     ${item.dev_item_code ? `<div class="kcard-code">${escHtml(item.dev_item_code)}</div>` : ''}
     ${topRow}
     <div class="kcard-title">${escHtml(item.title)}</div>
-    ${item.description ? `<div class="kcard-desc">${escHtml(item.description)}</div>` : ''}
+    ${item.description ? `<div class="kcard-desc">${escHtml(_descPreview(item.description))}</div>` : ''}
     <div class="kcard-meta">
       <div class="kcard-dates">
         ${item.start_date ? `<span class="kcard-date-item">
