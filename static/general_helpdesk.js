@@ -1,5 +1,7 @@
 'use strict';
 
+let _ghDescEditor = null;
+
 function _esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -330,6 +332,15 @@ async function ghSubmit(e) {
     return;
   }
 
+  const descHtml = _ghDescEditor ? _ghDescEditor.getValue() : document.getElementById('ghDescription').value.trim();
+  if (!descHtml) {
+    const editorWrap = _ghDescEditor?._wrap || document.getElementById('ghDescription');
+    editorWrap.classList.add('input-shake');
+    editorWrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => editorWrap.classList.remove('input-shake'), 400);
+    return;
+  }
+
   document.getElementById('ghFormActions').style.display = 'none';
   document.getElementById('ghLoading').style.display     = 'flex';
   document.getElementById('ghSuccess').style.display     = 'none';
@@ -337,6 +348,7 @@ async function ghSubmit(e) {
 
   const fd = new FormData(document.getElementById('ghForm'));
   _ghFiles.forEach(f => fd.append('attachments', f));
+  fd.set('description', descHtml);
 
   try {
     const res  = await fetch('/api/general-helpdesk', { method: 'POST', body: fd });
@@ -370,6 +382,9 @@ async function ghSubmit(e) {
 /* ── Bootstrap ────────────────────────────────────────────────────────────── */
 
 document.addEventListener('DOMContentLoaded', async () => {
+  _ghDescEditor = initRichEditor('ghDescription');
+  document.getElementById('ghForm').addEventListener('reset', () => _ghDescEditor?.setValue(''));
+
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeItHelpdeskPrompt();
   });

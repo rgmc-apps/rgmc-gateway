@@ -1,5 +1,7 @@
 'use strict';
 
+let _hdDescEditor = null;
+
 function _esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -344,6 +346,15 @@ async function hdSubmit(e) {
     return;
   }
 
+  const descHtml = _hdDescEditor ? _hdDescEditor.getValue() : document.getElementById('hdDescription').value.trim();
+  if (!descHtml) {
+    const editorWrap = _hdDescEditor?._wrap || document.getElementById('hdDescription');
+    editorWrap.classList.add('input-shake');
+    editorWrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => editorWrap.classList.remove('input-shake'), 400);
+    return;
+  }
+
   document.getElementById('hdFormActions').style.display = 'none';
   document.getElementById('hdLoading').style.display     = 'flex';
   document.getElementById('hdSuccess').style.display     = 'none';
@@ -351,6 +362,7 @@ async function hdSubmit(e) {
 
   const fd = new FormData(document.getElementById('hdForm'));
   _hdFiles.forEach(f => fd.append('attachments', f));
+  fd.set('description', descHtml);
 
   try {
     const res  = await fetch('/api/helpdesk', { method: 'POST', body: fd });
@@ -386,6 +398,9 @@ async function hdSubmit(e) {
 /* ── Bootstrap ────────────────────────────────────────────────────────────── */
 
 document.addEventListener('DOMContentLoaded', async () => {
+  _hdDescEditor = initRichEditor('hdDescription');
+  document.getElementById('hdForm').addEventListener('reset', () => _hdDescEditor?.setValue(''));
+
   await Promise.all([_loadCompanies(), _loadCategories(), _loadDepartments()]);
   await _applyUrlParams();
   hidePageLoader();

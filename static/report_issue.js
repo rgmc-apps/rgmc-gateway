@@ -1,5 +1,7 @@
 'use strict';
 
+let _riDescEditor = null;
+
 function _esc(s) {
   return String(s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -155,6 +157,15 @@ async function riSubmit(e) {
     return;
   }
 
+  const descHtml = _riDescEditor ? _riDescEditor.getValue() : document.getElementById('riDescription').value.trim();
+  if (!descHtml) {
+    const editorWrap = _riDescEditor?._wrap || document.getElementById('riDescription');
+    editorWrap.classList.add('input-shake');
+    editorWrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => editorWrap.classList.remove('input-shake'), 400);
+    return;
+  }
+
   document.getElementById('riFormActions').style.display = 'none';
   document.getElementById('riLoading').style.display     = 'flex';
   document.getElementById('riSuccess').style.display     = 'none';
@@ -169,6 +180,7 @@ async function riSubmit(e) {
   files.forEach(f => fd.append('attachments', f));
 
   fd.set('site_name', siteName);
+  fd.set('description', descHtml);
 
   try {
     const res  = await fetch('/api/issues', { method: 'POST', body: fd });
@@ -212,6 +224,9 @@ function riUpdateFiles(input) {
 /* ── Bootstrap ────────────────────────────────────────────── */
 
 document.addEventListener('DOMContentLoaded', async () => {
+  _riDescEditor = initRichEditor('riDescription');
+  document.getElementById('riForm').addEventListener('reset', () => _riDescEditor?.setValue(''));
+
   _fetchAndPopulateCompanies();
   _fetchAndPopulateDepartments();
   riUpdatePriorityHint(); // show hint for default P4
