@@ -282,7 +282,8 @@ class RichEditor {
   /* ── State sync ───────────────────────────────────────── */
   _sync() {
     const h = this._body.innerHTML;
-    this._ta.value = (h === '<br>' || h === '') ? '' : h;
+    // Use the native setter directly to avoid triggering the monkey-patched setValue
+    this._nativeSet((h === '<br>' || h === '') ? '' : h);
   }
 
   _updateEmpty() {
@@ -300,6 +301,10 @@ class RichEditor {
   /* ── Monkey-patch .value on the original <textarea> ──── */
   _patchTextarea() {
     const self = this;
+    // Save the native setter before patching so _sync() can bypass the patch
+    const proto = Object.getPrototypeOf(this._ta);
+    const orig  = Object.getOwnPropertyDescriptor(proto, 'value');
+    this._nativeSet = v => orig.set.call(this._ta, v);
     Object.defineProperty(this._ta, 'value', {
       configurable: true,
       get() { return self.getValue(); },
