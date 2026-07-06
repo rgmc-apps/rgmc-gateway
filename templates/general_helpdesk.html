@@ -157,6 +157,10 @@
             <select class="form-input" id="ghDepartment" name="department" onchange="ghOnUserDeptChange()">
               <option value="">— Select your department —</option>
             </select>
+            <div id="ghDepartment-other-wrap" style="display:none;margin-top:8px;">
+              <input class="form-input" type="text" id="ghDepartment-other-input"
+                placeholder="Please specify your department…" autocomplete="off">
+            </div>
           </div>
 
           <hr class="hd-divider">
@@ -290,6 +294,7 @@
 
   <script src="/static/theme.js"></script>
   <script src="/static/rich-editor.js"></script>
+  <script src="/static/dept-other.js"></script>
   <script src="/static/general_helpdesk.js"></script>
 </body>
 </html>

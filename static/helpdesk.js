@@ -202,6 +202,7 @@ async function _loadDepartments() {
       opt.textContent = `${d.department_code} — ${d.department_name}`;
       sel.appendChild(opt);
     });
+    deptOtherInit('hdDepartment', 'hdDepartment-other-input', 'hdDepartment-other-wrap');
   } catch { /* non-fatal */ }
 }
 
@@ -363,6 +364,9 @@ async function hdSubmit(e) {
   const fd = new FormData(document.getElementById('hdForm'));
   _hdFiles.forEach(f => fd.append('attachments', f));
   fd.set('description', descHtml);
+
+  const resolvedDept = await deptOtherResolve('hdDepartment', 'hdDepartment-other-input');
+  fd.set('department', resolvedDept);
 
   try {
     const res  = await fetch('/api/helpdesk', { method: 'POST', body: fd });

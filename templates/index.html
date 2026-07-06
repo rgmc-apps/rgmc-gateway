@@ -319,6 +319,10 @@
           <select class="form-input" id="department" name="department">
             <option value="">— Select department —</option>
           </select>
+          <div id="department-other-wrap" style="display:none;margin-top:8px;">
+            <input class="form-input" type="text" id="department-other-input"
+              placeholder="Please specify your department…" autocomplete="off">
+          </div>
         </div>
         <div class="form-group form-group-full">
           <label class="form-label" for="issueTitle">Issue Title <span class="form-label-hint">(optional — brief summary)</span></label>
@@ -643,6 +647,7 @@
     const ALL_SITES = {{ sites | tojson }};
   </script>
   <script src="/static/theme.js"></script>
+  <script src="/static/dept-other.js"></script>
   <script src="/static/script.js"></script>
 </body>
 </html>

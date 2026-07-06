@@ -253,9 +253,9 @@ function closeItHelpdeskPrompt() {
 }
 
 function ghOnUserDeptChange() {
-  const sel  = document.getElementById('ghDepartment');
-  const val  = sel.value;
-  if (_isItDepartment(val)) showItHelpdeskPrompt();
+  const sel = document.getElementById('ghDepartment');
+  const val = sel.value;
+  if (val !== '__other__' && _isItDepartment(val)) showItHelpdeskPrompt();
 }
 
 async function ghOnDeptChange() {
@@ -315,6 +315,7 @@ async function _loadDepartments() {
         reqDeptSel.appendChild(opt);
       }
     });
+    deptOtherInit('ghDepartment', 'ghDepartment-other-input', 'ghDepartment-other-wrap');
   } catch { /* non-fatal */ }
 }
 
@@ -349,6 +350,9 @@ async function ghSubmit(e) {
   const fd = new FormData(document.getElementById('ghForm'));
   _ghFiles.forEach(f => fd.append('attachments', f));
   fd.set('description', descHtml);
+
+  const resolvedDept = await deptOtherResolve('ghDepartment', 'ghDepartment-other-input');
+  fd.set('department', resolvedDept);
 
   try {
     const res  = await fetch('/api/general-helpdesk', { method: 'POST', body: fd });

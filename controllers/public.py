@@ -1,3 +1,4 @@
+import re
 import requests
 from datetime import datetime, timezone
 from flask import Blueprint, render_template, jsonify, request, redirect
@@ -128,6 +129,48 @@ def get_departments():
         "select":    "department_id,department_name,department_code",
     })
     return jsonify(rows or [])
+
+
+@public_bp.post("/api/departments")
+def create_department_public():
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("department_name", "")).strip()
+    if not name or len(name) < 2:
+        return jsonify({"error": "Department name is required"}), 400
+
+    # Return existing department if the name already exists (case-insensitive)
+    existing = supabase_req("GET", "/departments", params={
+        "department_name": f"ilike.{name}",
+        "select":          "department_id,department_name,department_code",
+    })
+    if existing:
+        return jsonify(existing[0]), 200
+
+    # Auto-generate a short code from the name words
+    words = [w for w in re.split(r'[\s\-&/,]+', name) if w]
+    base_code = (''.join(w[0] for w in words) if len(words) > 1 else words[0][:6]).upper()[:8]
+
+    # Find a unique code
+    code, suffix = base_code, 2
+    while True:
+        taken = supabase_req("GET", "/departments", params={
+            "department_code": f"eq.{code}",
+            "select":          "department_id",
+        })
+        if not taken:
+            break
+        code = f"{base_code}{suffix}"
+        suffix += 1
+        if suffix > 99:
+            break
+
+    try:
+        rows = supabase_req("POST", "/departments",
+                            data={"department_code": code, "department_name": name, "is_active": True},
+                            extra_headers={"Prefer": "return=representation"})
+        return jsonify(rows[0] if rows else {"department_name": name, "department_code": code}), 201
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
 
 
 @public_bp.get("/api/systems/by-tag")

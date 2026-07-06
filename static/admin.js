@@ -2027,9 +2027,14 @@ function _renderAttachPreviews(issueId, urls) {
 }
 
 const PRIORITY_BADGE = {
-  high:   '<span class="iss-prio-badge iss-prio--high">High</span>',
-  medium: '<span class="iss-prio-badge iss-prio--medium">Medium</span>',
-  low:    '<span class="iss-prio-badge iss-prio--low">Low</span>',
+  p1: '<span class="iss-prio-badge iss-prio--critical">P1</span>',
+  p2: '<span class="iss-prio-badge iss-prio--high">P2</span>',
+  p3: '<span class="iss-prio-badge iss-prio--medium">P3</span>',
+  p4: '<span class="iss-prio-badge iss-prio--low">P4</span>',
+  critical: '<span class="iss-prio-badge iss-prio--critical">Critical</span>',
+  high:     '<span class="iss-prio-badge iss-prio--high">High</span>',
+  medium:   '<span class="iss-prio-badge iss-prio--medium">Medium</span>',
+  low:      '<span class="iss-prio-badge iss-prio--low">Low</span>',
 };
 
 function renderIssueRow(issue) {
@@ -3671,7 +3676,7 @@ function _buildDevPerfModalHtml(dev, av, initial, displayName) {
               <th>Category</th><th>Priority</th><th>Status</th>
             </tr></thead>
             <tbody>${(dev.issues || []).map((iss, i) => {
-              const PRIO_CLS = { high: 'dp-prio-high', medium: 'dp-prio-medium', low: 'dp-prio-low' };
+              const PRIO_CLS = { p1: 'dp-prio-high', p2: 'dp-prio-high', p3: 'dp-prio-medium', p4: 'dp-prio-low', high: 'dp-prio-high', medium: 'dp-prio-medium', low: 'dp-prio-low' };
               const STAT_CLS = { resolved: 'dp-status-done', open: 'dp-status-pending', 'in-progress': 'dp-status-ongoing', closed: 'dp-status-cancelled' };
               return `<tr>
                 <td class="dp-item-num">${i + 1}</td>

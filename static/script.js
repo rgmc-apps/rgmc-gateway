@@ -76,6 +76,8 @@ function closeReport() {
   document.getElementById('reportForm').reset();
   document.getElementById('fileLabel').textContent = 'Click to attach screenshots or drag & drop';
   document.getElementById('modalPriorityHint').innerHTML = '';
+  const otherWrap = document.getElementById('department-other-wrap');
+  if (otherWrap) otherWrap.style.display = 'none';
   resetFormState();
 }
 
@@ -108,6 +110,10 @@ async function submitReport(e) {
   const files = Array.from(fileInput.files).slice(0, 5);
   formData.delete('attachments');
   files.forEach(f => formData.append('attachments', f));
+
+  // Resolve "Others" department — saves new entry to DB if needed
+  const resolvedDept = await deptOtherResolve('department', 'department-other-input');
+  formData.set('department', resolvedDept);
 
   try {
     const res = await fetch('/api/issues', { method: 'POST', body: formData });
@@ -795,6 +801,8 @@ async function _loadDepartments() {
         if (sel) sel.value = session.department;
       });
     }
+    // Wire "Others" option for the report modal department select
+    deptOtherInit('department', 'department-other-input', 'department-other-wrap');
   } catch { /* non-fatal */ }
 }
 

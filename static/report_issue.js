@@ -39,6 +39,7 @@ async function _fetchAndPopulateDepartments() {
       opt.textContent = d.department_name;
       sel.appendChild(opt);
     });
+    deptOtherInit('riDepartment', 'riDepartment-other-input', 'riDepartment-other-wrap');
   } catch { /* non-fatal */ }
 }
 
@@ -181,6 +182,9 @@ async function riSubmit(e) {
 
   fd.set('site_name', siteName);
   fd.set('description', descHtml);
+
+  const resolvedDept = await deptOtherResolve('riDepartment', 'riDepartment-other-input');
+  fd.set('department', resolvedDept);
 
   try {
     const res  = await fetch('/api/issues', { method: 'POST', body: fd });
