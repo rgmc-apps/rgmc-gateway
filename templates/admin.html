@@ -64,6 +64,10 @@
             <svg class="admin-sb-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
             <span class="admin-sb-label">Common Issues</span>
           </button>
+          <button class="admin-sb-item admin-tab" data-tab="commonfix" onclick="switchTab('commonfix')">
+            <svg class="admin-sb-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            <span class="admin-sb-label">Common Fixes</span>
+          </button>
         </div>
 
         <div class="admin-sb-section">
@@ -424,6 +428,24 @@
       </div>
 
       <div id="ci-body" class="ci-body">
+        <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
+      </div>
+    </div>
+
+    <!-- ── Common Fixes Panel ── -->
+    <div id="panel-commonfix" class="admin-panel">
+      <div class="cf-toolbar">
+        <button class="cf-add-btn" onclick="openCfModal(null)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Common Fix
+        </button>
+        <div class="cf-search-wrap">
+          <svg class="cf-search-icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="cf-search-input" id="cfSearchInput" type="text" placeholder="Search fixes…" oninput="cfSearch(this.value)" autocomplete="off">
+          <button class="cf-search-clear" id="cfSearchClear" onclick="cfClearSearch()" style="display:none;">&times;</button>
+        </div>
+      </div>
+      <div id="cfTableWrap" class="cf-table-wrap">
         <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
       </div>
     </div>
@@ -1067,6 +1089,22 @@
         <div class="form-group form-group-full" id="issueLinkGroup" style="display:none;">
           <label class="form-label" id="issueLinkLabel">Related Issue</label>
           <div id="issueLinkDisplay" class="iss-link-display"></div>
+        </div>
+
+        <!-- Linked Common Fixes -->
+        <div class="form-group form-group-full">
+          <div class="cf-issue-section">
+            <div class="cf-issue-section-head">
+              <span class="cf-issue-section-label">Common Fixes</span>
+              <button type="button" class="cf-issue-link-btn" onclick="openCfPickerForIssue()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Link Fix
+              </button>
+            </div>
+            <div class="cf-issue-links-body" id="issueCfList">
+              <span class="cf-issue-link-empty">Loading…</span>
+            </div>
+          </div>
         </div>
 
         <!-- Activity & Comments -->
@@ -1745,6 +1783,74 @@
             <span class="iss-share-app-name">Messenger</span>
           </a>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Common Fix Create / Edit Modal ── -->
+  <div id="cfModal" class="modal-overlay" onclick="overlayCfModal(event)">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div><h3 class="modal-title" id="cfModalTitle">New Common Fix</h3></div>
+        <button class="modal-close" onclick="closeCfModal()" aria-label="Close">&times;</button>
+      </div>
+      <form id="cfForm" class="modal-form" onsubmit="saveCf(event)">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Fix Name <span class="req">*</span></label>
+            <input class="form-input" type="text" id="cfFixName" required placeholder="e.g. Reset user password">
+          </div>
+          <div class="form-group">
+            <label class="form-label">System <span class="req">*</span></label>
+            <select class="form-input" id="cfSystemId" required>
+              <option value="">— Select system —</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group form-group-full">
+          <label class="form-label">Problem Description</label>
+          <textarea id="cfProblemDescEditor" rows="4" placeholder="Describe the problem this fix addresses…"></textarea>
+        </div>
+        <div class="form-group form-group-full">
+          <label class="form-label">Fix Description</label>
+          <textarea id="cfFixDescEditor" rows="4" placeholder="Describe the steps to resolve this issue…"></textarea>
+        </div>
+        <div class="form-group form-group-full">
+          <label class="form-label">Attachments</label>
+          <div class="cf-drop-zone" id="cfDropZone">
+            <svg class="cf-drop-zone-icon" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+            <span class="cf-drop-zone-text">Drop files here or <label for="cfFileInput" style="color:var(--gold);cursor:pointer;font-weight:600;">browse</label></span>
+            <input type="file" id="cfFileInput" multiple style="display:none" onchange="cfAddFiles(this.files)">
+          </div>
+          <div class="cf-attach-list" id="cfAttachList"></div>
+        </div>
+        <div id="cfFormActions" class="modal-actions">
+          <button type="button" class="btn-modal-cancel" onclick="closeCfModal()">Cancel</button>
+          <button type="submit" class="btn-modal-submit">Save Fix</button>
+        </div>
+        <div id="cfFormLoading" class="form-state" style="display:none;">
+          <div class="spinner"></div><span>Saving…</span>
+        </div>
+        <div id="cfFormError" class="form-state form-error" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="cfFormErrorMsg"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Common Fix Picker Modal (link fix to issue) ── -->
+  <div id="cfPickerModal" class="modal-overlay" onclick="overlayCfPicker(event)" style="z-index:1100;">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div><h3 class="modal-title">Link Common Fix</h3></div>
+        <button class="modal-close" onclick="closeCfPicker()" aria-label="Close">&times;</button>
+      </div>
+      <div style="padding:16px 20px 8px;">
+        <input class="cf-picker-search" id="cfPickerSearch" type="text" placeholder="Search fixes by name or system…" oninput="renderCfPickerList(this.value)" autocomplete="off">
+      </div>
+      <div id="cfPickerList" class="cf-picker-list">
+        <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
       </div>
     </div>
   </div>

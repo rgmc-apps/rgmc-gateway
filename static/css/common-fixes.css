@@ -1,0 +1,681 @@
+/* ══════════════════════════════════════════════════════════════
+   COMMON FIXES — Admin Panel Section
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Toolbar ── */
+.cf-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 0 16px;
+  flex-wrap: wrap;
+}
+
+.cf-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+  max-width: 340px;
+}
+
+.cf-search-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.cf-search-input {
+  width: 100%;
+  padding: 7px 32px 7px 32px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font-ui);
+}
+
+.cf-search-input:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.cf-search-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px 4px;
+}
+
+.cf-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: var(--gold);
+  color: #000;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+
+.cf-add-btn:hover { opacity: 0.88; }
+
+/* ── Empty state ── */
+.cf-empty {
+  padding: 52px 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.cf-empty-icon {
+  margin: 0 auto 14px;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.cf-empty-title {
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+/* ── Table ── */
+.cf-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+}
+
+.cf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.cf-table thead th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.cf-table tbody tr {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.12s;
+  cursor: pointer;
+}
+
+.cf-table tbody tr:last-child { border-bottom: none; }
+.cf-table tbody tr:hover { background: var(--bg-hover); }
+
+.cf-table td {
+  padding: 11px 14px;
+  vertical-align: middle;
+}
+
+.cf-fix-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.cf-system-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(196,151,42,0.12);
+  border: 1px solid rgba(196,151,42,0.25);
+  color: var(--gold);
+  white-space: nowrap;
+}
+
+.cf-problem-preview {
+  color: var(--text-secondary);
+  font-size: 12px;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cf-link-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.cf-link-count-num {
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.cf-row-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.cf-btn-sm {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+
+.cf-btn-sm:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+.cf-btn-sm--delete {
+  border-color: rgba(239,68,68,0.3);
+  color: #f87171;
+  background: rgba(239,68,68,0.08);
+}
+
+.cf-btn-sm--delete:hover { background: rgba(239,68,68,0.15); color: #f87171; }
+
+/* ── Create / Edit Modal ── */
+.cf-modal-body {
+  padding: 20px 28px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* file drop zone in cf modal */
+.cf-drop-zone {
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: var(--bg-input);
+}
+
+.cf-drop-zone:hover,
+.cf-drop-zone.dragover { border-color: var(--gold); background: rgba(196,151,42,0.05); }
+
+.cf-drop-zone-icon { color: var(--text-muted); flex-shrink: 0; }
+
+.cf-drop-zone-text { font-size: 12px; color: var(--text-muted); }
+
+.cf-drop-zone-text strong { color: var(--text-secondary); font-weight: 600; }
+
+/* attachment preview chips */
+.cf-attach-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.cf-attach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px 3px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  font-size: 11px;
+  color: var(--text-secondary);
+  max-width: 220px;
+}
+
+.cf-attach-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cf-attach-chip-remove {
+  background: none;
+  border: none;
+  padding: 0 0 0 2px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.cf-attach-chip-remove:hover { color: #f87171; }
+
+/* existing attachment link */
+.cf-existing-attach {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  font-size: 11px;
+  color: var(--gold);
+  text-decoration: none;
+}
+
+.cf-existing-attach:hover { text-decoration: underline; }
+
+/* ── Issue modal — Linked Common Fixes section ── */
+.cf-issue-section {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.cf-issue-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.cf-issue-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.cf-issue-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.cf-issue-link-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+.cf-issue-links-body {
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 38px;
+}
+
+.cf-issue-link-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.cf-issue-link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+}
+
+.cf-issue-link-row-name {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cf-issue-link-row-name:hover { color: var(--gold); text-decoration: underline; }
+
+.cf-issue-link-row-sys {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.cf-issue-unlink-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+
+.cf-issue-unlink-btn:hover { color: #f87171; }
+
+/* ── Picker Modal ── */
+.cf-picker-search-wrap {
+  padding: 14px 20px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.cf-picker-search {
+  width: 100%;
+  padding: 7px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font-ui);
+}
+
+.cf-picker-search:focus { outline: none; border-color: var(--gold); }
+
+.cf-picker-list {
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.cf-picker-item {
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: background 0.1s;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.cf-picker-item:hover { background: var(--bg-hover); }
+
+.cf-picker-item-main { flex: 1; min-width: 0; }
+
+.cf-picker-item-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.cf-picker-item-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cf-picker-already {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--gold);
+  padding: 2px 6px;
+  border: 1px solid rgba(196,151,42,0.3);
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.cf-picker-empty {
+  padding: 28px 20px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ── Detail view (inside cf panel) ── */
+.cf-detail-wrap {
+  display: none;
+}
+
+.cf-detail-wrap.active {
+  display: block;
+}
+
+.cf-detail-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0 0 14px 0;
+  font-family: var(--font-ui);
+  transition: color 0.12s;
+}
+
+.cf-detail-back:hover { color: var(--text-primary); }
+
+.cf-detail-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  margin-bottom: 18px;
+}
+
+.cf-detail-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  font-family: var(--font-display);
+}
+
+.cf-detail-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cf-detail-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin: 16px 0 8px;
+}
+
+.cf-detail-section-label:first-of-type { margin-top: 0; }
+
+.cf-detail-content {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+.cf-detail-content p { margin: 0 0 8px; }
+.cf-detail-content p:last-child { margin-bottom: 0; }
+
+.cf-detail-attach-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 6px;
+}
+
+.cf-detail-attach-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-input);
+  font-size: 11px;
+  color: var(--gold);
+  text-decoration: none;
+  transition: background 0.12s;
+}
+
+.cf-detail-attach-link:hover { background: rgba(196,151,42,0.08); }
+
+/* linked issues in detail view */
+.cf-detail-issues-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.cf-detail-issues-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.cf-detail-issue-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.cf-detail-issue-row:hover { background: var(--bg-hover); }
+
+.cf-detail-issue-ticket {
+  font-size: 10px;
+  font-weight: 700;
+  font-family: monospace;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.cf-detail-issue-name {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cf-detail-issue-unlink {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 15px;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.cf-detail-issue-unlink:hover { color: #f87171; }
+
+.cf-detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.cf-detail-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.cf-detail-edit-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+.cf-detail-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  border: 1px solid rgba(239,68,68,0.3);
+  background: rgba(239,68,68,0.08);
+  color: #f87171;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.cf-detail-delete-btn:hover { background: rgba(239,68,68,0.15); }
+
+/* ── Light theme overrides ── */
+[data-theme="light"] .cf-search-input  { background: #fff; border-color: #d1d5db; }
+[data-theme="light"] .cf-picker-search { background: #fff; border-color: #d1d5db; }
+[data-theme="light"] .cf-table thead th { background: #f9fafb; }
+[data-theme="light"] .cf-drop-zone     { background: #f9fafb; border-color: #d1d5db; }
+[data-theme="light"] .cf-attach-chip,
+[data-theme="light"] .cf-existing-attach { background: #f3f4f6; border-color: #e5e7eb; }
+[data-theme="light"] .cf-issue-link-row  { background: #f9fafb; border-color: #e5e7eb; }
+[data-theme="light"] .cf-issue-section   { border-color: #e5e7eb; }
+[data-theme="light"] .cf-issue-section-head { background: #f9fafb; border-color: #e5e7eb; }
+[data-theme="light"] .cf-detail-card    { background: #f9fafb; border-color: #e5e7eb; }
+[data-theme="light"] .cf-detail-issue-row { background: #f3f4f6; border-color: #e5e7eb; }

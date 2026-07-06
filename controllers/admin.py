@@ -1125,3 +1125,257 @@ def config_update_action(action_id):
         return jsonify({"success": True})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
+
+
+# ── Common Fixes ──────────────────────────────────────────────────────────────
+
+def _upload_cf_attachment(fix_id: str, index: int, filename: str, data: bytes, content_type: str) -> str | None:
+    safe_name = re.sub(r"[^a-zA-Z0-9.\-_]", "_", filename)
+    path      = f"cf/{fix_id}/{index}_{safe_name}"
+    url       = f"{SUPABASE_URL.rstrip('/')}/storage/v1/object/issue-attachments/{path}"
+    try:
+        resp = http_requests.put(
+            url,
+            headers={
+                "apikey":        SUPABASE_SERVICE_KEY,
+                "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                "Content-Type":  content_type or "application/octet-stream",
+                "x-upsert":      "true",
+            },
+            data=data,
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return f"{SUPABASE_URL.rstrip('/')}/storage/v1/object/public/issue-attachments/{path}"
+    except Exception as exc:
+        current_app.logger.error("CF attachment upload failed: %s", exc)
+        return None
+
+
+@admin_bp.get("/api/admin/common-fixes")
+def cf_list():
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/common_fixes", params={
+            "select": "fix_id,fix_name,system_id,problem_desc,fix_description,fix_attachments,created_at,updated_at",
+            "order":  "created_at.desc",
+        })
+        # Attach system names
+        systems = supabase_req("GET", "/systems", params={"select": "id,name"})
+        sys_map = {s["id"]: s["name"] for s in (systems or [])}
+        for r in (rows or []):
+            r["system_name"] = sys_map.get(r.get("system_id"), "")
+        # Attach linked issue counts
+        links = supabase_req("GET", "/issue_common_fix_links", params={"select": "fix_id"})
+        from collections import Counter
+        link_counts = Counter(l["fix_id"] for l in (links or []))
+        for r in (rows or []):
+            r["linked_issue_count"] = link_counts.get(r["fix_id"], 0)
+        return jsonify(rows or [])
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.post("/api/admin/common-fixes")
+def cf_create():
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+
+    fix_name   = request.form.get("fix_name", "").strip()
+    system_id  = request.form.get("system_id", "").strip() or None
+    prob_desc  = request.form.get("problem_desc", "").strip() or None
+    fix_desc   = request.form.get("fix_description", "").strip() or None
+
+    if not fix_name:
+        return jsonify({"error": "Fix name is required"}), 400
+
+    try:
+        rows = supabase_req("POST", "/common_fixes",
+                            data={"fix_name": fix_name, "system_id": system_id,
+                                  "problem_desc": prob_desc, "fix_description": fix_desc,
+                                  "fix_attachments": []},
+                            extra_headers={"Prefer": "return=representation"})
+        fix = rows[0] if rows else {}
+        fix_id = fix.get("fix_id")
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+    urls = []
+    if fix_id:
+        for i, f in enumerate(request.files.getlist("attachments")):
+            if f and f.filename:
+                url = _upload_cf_attachment(fix_id, i, f.filename, f.read(),
+                                            f.content_type or "application/octet-stream")
+                if url:
+                    urls.append(url)
+        if urls:
+            try:
+                supabase_req("PATCH", "/common_fixes",
+                             data={"fix_attachments": urls},
+                             params={"fix_id": f"eq.{fix_id}"})
+                fix["fix_attachments"] = urls
+            except Exception:
+                pass
+
+    return jsonify(fix), 201
+
+
+@admin_bp.route("/api/admin/common-fixes/<fix_id>", methods=["PATCH", "DELETE"])
+def cf_update_delete(fix_id):
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+
+    if request.method == "DELETE":
+        try:
+            supabase_req("DELETE", "/common_fixes", params={"fix_id": f"eq.{fix_id}"})
+            return jsonify({"success": True})
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
+
+    # PATCH — support both JSON and multipart
+    if request.content_type and "application/json" in request.content_type:
+        data = request.get_json(silent=True) or {}
+        patch = {}
+        for field in ("fix_name", "system_id", "problem_desc", "fix_description"):
+            if field in data:
+                patch[field] = data[field] or None if field != "fix_name" else data[field]
+    else:
+        patch = {}
+        if request.form.get("fix_name"):
+            patch["fix_name"] = request.form.get("fix_name", "").strip()
+        for field in ("system_id", "problem_desc", "fix_description"):
+            if field in request.form:
+                patch[field] = request.form.get(field, "").strip() or None
+
+        # Handle new file uploads
+        new_files = [f for f in request.files.getlist("attachments") if f and f.filename]
+        if new_files:
+            try:
+                existing = supabase_req("GET", "/common_fixes",
+                                        params={"fix_id": f"eq.{fix_id}",
+                                                "select": "fix_attachments"})
+                current_urls = list(existing[0].get("fix_attachments") or []) if existing else []
+            except Exception:
+                current_urls = []
+            start = len(current_urls)
+            for i, f in enumerate(new_files):
+                url = _upload_cf_attachment(fix_id, start + i, f.filename, f.read(),
+                                            f.content_type or "application/octet-stream")
+                if url:
+                    current_urls.append(url)
+            patch["fix_attachments"] = current_urls
+
+        # Handle removed attachments
+        keep_raw = request.form.get("keep_attachments")
+        if keep_raw is not None:
+            import json as _json
+            try:
+                keep = _json.loads(keep_raw)
+                patch["fix_attachments"] = keep
+            except Exception:
+                pass
+
+    if not patch:
+        return jsonify({"error": "Nothing to update"}), 400
+    try:
+        supabase_req("PATCH", "/common_fixes", data=patch, params={"fix_id": f"eq.{fix_id}"})
+        return jsonify({"success": True})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.get("/api/admin/common-fixes/<fix_id>/issues")
+def cf_get_linked_issues(fix_id):
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    try:
+        links = supabase_req("GET", "/issue_common_fix_links",
+                             params={"fix_id": f"eq.{fix_id}", "select": "issue_id,linked_at"})
+        if not links:
+            return jsonify([])
+        ids = [l["issue_id"] for l in links]
+        issues = supabase_req("GET", "/issues", params={
+            "id":     "in.(" + ",".join(ids) + ")",
+            "select": "id,ticket_number,title,description,status,site_name,created_at",
+        })
+        return jsonify(issues or [])
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.post("/api/admin/common-fixes/<fix_id>/issues")
+def cf_link_issue(fix_id):
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    data = request.get_json(silent=True) or {}
+    issue_id = str(data.get("issue_id", "")).strip()
+    if not issue_id:
+        return jsonify({"error": "issue_id required"}), 400
+    try:
+        rows = supabase_req("POST", "/issue_common_fix_links",
+                            data={"fix_id": fix_id, "issue_id": issue_id},
+                            extra_headers={"Prefer": "return=representation,resolution=ignore-duplicates"})
+        return jsonify(rows[0] if rows else {}), 201
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.delete("/api/admin/common-fixes/<fix_id>/issues/<issue_id>")
+def cf_unlink_issue(fix_id, issue_id):
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    try:
+        supabase_req("DELETE", "/issue_common_fix_links",
+                     params={"fix_id": f"eq.{fix_id}", "issue_id": f"eq.{issue_id}"})
+        return jsonify({"success": True})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.get("/api/admin/issues/<issue_id>/common-fixes")
+def issue_get_linked_fixes(issue_id):
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    try:
+        links = supabase_req("GET", "/issue_common_fix_links",
+                             params={"issue_id": f"eq.{issue_id}", "select": "fix_id,linked_at"})
+        if not links:
+            return jsonify([])
+        ids = [l["fix_id"] for l in links]
+        fixes = supabase_req("GET", "/common_fixes", params={
+            "fix_id": "in.(" + ",".join(ids) + ")",
+            "select": "fix_id,fix_name,system_id,problem_desc,fix_description,fix_attachments",
+        })
+        systems = supabase_req("GET", "/systems", params={"select": "id,name"})
+        sys_map = {s["id"]: s["name"] for s in (systems or [])}
+        for r in (fixes or []):
+            r["system_name"] = sys_map.get(r.get("system_id"), "")
+        return jsonify(fixes or [])
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.post("/api/admin/issues/<issue_id>/common-fixes/<fix_id>")
+def issue_link_fix(issue_id, fix_id):
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("POST", "/issue_common_fix_links",
+                            data={"fix_id": fix_id, "issue_id": issue_id},
+                            extra_headers={"Prefer": "return=representation,resolution=ignore-duplicates"})
+        return jsonify(rows[0] if rows else {}), 201
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.delete("/api/admin/issues/<issue_id>/common-fixes/<fix_id>")
+def issue_unlink_fix(issue_id, fix_id):
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    try:
+        supabase_req("DELETE", "/issue_common_fix_links",
+                     params={"fix_id": f"eq.{fix_id}", "issue_id": f"eq.{issue_id}"})
+        return jsonify({"success": True})
+    except Exception as exc:
+        return jsonify({"error": str(exc)})

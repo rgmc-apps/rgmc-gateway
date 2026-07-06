@@ -61,6 +61,16 @@ let _devPerfCache       = [];
 let _devPerfSelected    = null;
 let _issFilteredRows    = [];
 
+/* ── Common Fixes state ── */
+let _cfCache              = null;
+let _editingFixId         = null;
+let _cfProblemEditor      = null;
+let _cfFixEditor          = null;
+let _cfFiles              = [];
+let _cfExistingAttachments = [];
+let _cfSearchQuery        = '';
+let _cfIssueLinkCache     = [];
+
 let _lastAdminVisit     = null;
 let _pollInterval       = null;
 let _pollLastFetch      = null;
@@ -114,6 +124,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   _resNotesEditor = initRichEditor('issueResolutionNotes');
+
+  // Common Fixes editors
+  _cfProblemEditor = initRichEditor('cfProblemDescEditor');
+  _cfFixEditor     = initRichEditor('cfFixDescEditor');
+
+  // Common Fixes drop zone wiring
+  const dz = document.getElementById('cfDropZone');
+  if (dz) {
+    dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('dragover'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+    dz.addEventListener('drop',      e => { e.preventDefault(); dz.classList.remove('dragover'); cfAddFiles(e.dataTransfer.files); });
+    dz.addEventListener('click',     e => { if (e.target.tagName !== 'LABEL') document.getElementById('cfFileInput').click(); });
+  }
 
   // Build profile dropdown
   const container = document.getElementById('adminHeaderUser');
@@ -236,12 +259,13 @@ function switchTab(tab) {
   document.querySelectorAll('.admin-panel').forEach(p => p.classList.toggle('active', p.id === `panel-${tab}`));
 
   if (tab === 'requests') loadRequests(currentStatus);
-  if (tab === 'users')    loadUsers();
-  if (tab === 'systems')  loadSystems();
-  if (tab === 'issues')   loadIssues(_currentIssueStatus);
+  if (tab === 'users')      loadUsers();
+  if (tab === 'systems')    loadSystems();
+  if (tab === 'issues')     loadIssues(_currentIssueStatus);
   if (tab === 'commonissues') loadCommonIssues();
-  if (tab === 'devperf')  loadDevPerf();
-  if (tab === 'config')   _loadCurrentConfigSub();
+  if (tab === 'commonfix')  loadCommonFixes();
+  if (tab === 'devperf')    loadDevPerf();
+  if (tab === 'config')     _loadCurrentConfigSub();
 }
 
 function switchStatus(status) {
@@ -2254,7 +2278,9 @@ async function openIssueModal(id) {
   document.getElementById('issueCommentInput').value = '';
   document.getElementById('issueModal').classList.add('open');
   document.body.style.overflow = 'hidden';
+  _cfIssueLinkCache = [];
   loadIssueActivity(id);
+  loadIssueCfLinks(id);
 }
 
 function closeIssueModal() {
@@ -4792,3 +4818,443 @@ function copyIssShareLink() {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeIssShareModal();
 });
+
+/* ════════════════════════════════════════════════════════════════
+   COMMON FIXES
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Load & render list ── */
+async function loadCommonFixes(force = false) {
+  if (_cfCache && !force) { _renderCfTable(); return; }
+  const wrap = document.getElementById('cfTableWrap');
+  wrap.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  try {
+    const res = await fetch('/api/admin/common-fixes', { headers: authHeaders() });
+    if (!res.ok) throw new Error(await res.text());
+    _cfCache = await res.json();
+    _renderCfTable();
+  } catch (err) {
+    wrap.innerHTML = `<div class="admin-error">Failed to load common fixes: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function cfSearch(q) {
+  _cfSearchQuery = q.trim().toLowerCase();
+  const clear = document.getElementById('cfSearchClear');
+  if (clear) clear.style.display = _cfSearchQuery ? '' : 'none';
+  _renderCfTable();
+}
+
+function cfClearSearch() {
+  _cfSearchQuery = '';
+  const inp = document.getElementById('cfSearchInput');
+  if (inp) inp.value = '';
+  const clear = document.getElementById('cfSearchClear');
+  if (clear) clear.style.display = 'none';
+  _renderCfTable();
+}
+
+function _renderCfTable() {
+  const wrap = document.getElementById('cfTableWrap');
+  if (!_cfCache) return;
+  let rows = _cfCache;
+  if (_cfSearchQuery) {
+    rows = rows.filter(f =>
+      f.fix_name.toLowerCase().includes(_cfSearchQuery) ||
+      (f.system_name || '').toLowerCase().includes(_cfSearchQuery)
+    );
+  }
+  if (!rows.length) {
+    wrap.innerHTML = `
+      <div class="cf-empty">
+        <div class="cf-empty-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        </div>
+        <div class="cf-empty-title">${_cfSearchQuery ? 'No fixes match your search' : 'No common fixes yet'}</div>
+        ${!_cfSearchQuery ? '<p>Click <strong>New Common Fix</strong> to add one.</p>' : ''}
+      </div>`;
+    return;
+  }
+  wrap.innerHTML = `
+    <table class="cf-table">
+      <thead>
+        <tr>
+          <th>Fix Name</th>
+          <th>System</th>
+          <th>Problem Summary</th>
+          <th>Linked Issues</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>${rows.map(renderCfRow).join('')}</tbody>
+    </table>`;
+}
+
+function renderCfRow(fix) {
+  const prob = (fix.problem_desc || '').replace(/<[^>]*>/g, '').slice(0, 80);
+  const count = fix.linked_issue_count || 0;
+  return `<tr onclick="openCfDetail('${escHtml(fix.fix_id)}')">
+    <td><span class="cf-fix-name">${escHtml(fix.fix_name)}</span></td>
+    <td>${fix.system_name ? `<span class="cf-system-badge">${escHtml(fix.system_name)}</span>` : '<span class="text-muted">—</span>'}</td>
+    <td><span class="cf-problem-preview">${escHtml(prob) || '—'}</span></td>
+    <td>
+      <span class="cf-link-count">
+        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        <span class="cf-link-count-num">${count}</span> issue${count === 1 ? '' : 's'}
+      </span>
+    </td>
+    <td>
+      <div class="cf-row-actions" onclick="event.stopPropagation()">
+        <button class="cf-btn-sm" onclick="openCfModal('${escHtml(fix.fix_id)}')">Edit</button>
+        <button class="cf-btn-sm cf-btn-sm--delete" onclick="deleteCf('${escHtml(fix.fix_id)}')">Delete</button>
+      </div>
+    </td>
+  </tr>`;
+}
+
+/* ── Detail view ── */
+async function openCfDetail(fixId) {
+  const fix = (_cfCache || []).find(f => f.fix_id === fixId);
+  if (!fix) return;
+
+  let linkedIssues = [];
+  try {
+    const res = await fetch(`/api/admin/common-fixes/${encodeURIComponent(fixId)}/issues`, { headers: authHeaders() });
+    if (res.ok) linkedIssues = await res.json();
+  } catch { /* non-fatal */ }
+
+  const wrap = document.getElementById('cfTableWrap');
+  const attachHtml = (fix.fix_attachments || []).map(u =>
+    `<a class="cf-detail-attach-link" href="${escHtml(u)}" target="_blank" rel="noopener">
+      <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+      ${escHtml(u.split('/').pop())}
+    </a>`
+  ).join('');
+
+  const issuesHtml = linkedIssues.length
+    ? linkedIssues.map(i => `
+        <div class="cf-detail-issue-row" onclick="openIssueModal('${escHtml(i.id)}')">
+          <span class="cf-detail-issue-ticket">${escHtml(i.ticket_number || i.id.slice(0,8))}</span>
+          <span class="cf-detail-issue-name">${escHtml(i.title || i.description || i.site_name || 'Untitled Issue')}</span>
+          <button class="cf-detail-issue-unlink" onclick="event.stopPropagation();unlinkCfFromIssueViaDetail('${escHtml(i.id)}','${escHtml(fixId)}')" title="Unlink">&times;</button>
+        </div>`).join('')
+    : '<p style="font-size:12px;color:var(--text-muted);font-style:italic;">No linked issues.</p>';
+
+  wrap.innerHTML = `
+    <div class="cf-detail-wrap active">
+      <button class="cf-detail-back" onclick="loadCommonFixes(true)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back to list
+      </button>
+      <div class="cf-detail-card">
+        <div class="cf-detail-title">${escHtml(fix.fix_name)}</div>
+        <div class="cf-detail-meta">
+          ${fix.system_name ? `<span class="cf-system-badge">${escHtml(fix.system_name)}</span>` : ''}
+        </div>
+        <div class="cf-detail-actions">
+          <button class="cf-detail-edit-btn" onclick="openCfModal('${escHtml(fix.fix_id)}')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Edit
+          </button>
+          <button class="cf-detail-delete-btn" onclick="deleteCf('${escHtml(fix.fix_id)}')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            Delete
+          </button>
+        </div>
+        <div class="cf-detail-section-label">Problem Description</div>
+        <div class="cf-detail-content">${fix.problem_desc || '<em>Not specified.</em>'}</div>
+        <div class="cf-detail-section-label">Fix Description</div>
+        <div class="cf-detail-content">${fix.fix_description || '<em>Not specified.</em>'}</div>
+        ${attachHtml ? `<div class="cf-detail-section-label">Attachments</div><div class="cf-detail-attach-row">${attachHtml}</div>` : ''}
+      </div>
+      <div class="cf-detail-card">
+        <div class="cf-detail-issues-head">
+          <span class="cf-detail-issues-title">Linked Issues</span>
+        </div>
+        ${issuesHtml}
+      </div>
+    </div>`;
+}
+
+async function unlinkCfFromIssueViaDetail(issueId, fixId) {
+  try {
+    await fetch(`/api/admin/issues/${encodeURIComponent(issueId)}/common-fixes/${encodeURIComponent(fixId)}`, {
+      method: 'DELETE', headers: authHeaders(),
+    });
+    openCfDetail(fixId);
+  } catch { showToast('Failed to unlink.'); }
+}
+
+/* ── Create / Edit modal ── */
+async function openCfModal(fixId) {
+  _editingFixId = fixId || null;
+  _cfFiles = [];
+  _cfExistingAttachments = [];
+
+  const modal = document.getElementById('cfModal');
+  const title = document.getElementById('cfModalTitle');
+  title.textContent = fixId ? 'Edit Common Fix' : 'New Common Fix';
+
+  document.getElementById('cfFixName').value = '';
+  document.getElementById('cfSystemId').value = '';
+  _cfProblemEditor?.setValue('');
+  _cfFixEditor?.setValue('');
+  document.getElementById('cfAttachList').innerHTML = '';
+
+  _cfSetLoading(false);
+  _cfSetError('');
+
+  await _cfLoadSystemsSelect();
+
+  if (fixId) {
+    const fix = (_cfCache || []).find(f => f.fix_id === fixId);
+    if (fix) {
+      document.getElementById('cfFixName').value = fix.fix_name || '';
+      document.getElementById('cfSystemId').value = fix.system_id || '';
+      _cfProblemEditor?.setValue(fix.problem_desc || '');
+      _cfFixEditor?.setValue(fix.fix_description || '');
+      _cfExistingAttachments = fix.fix_attachments || [];
+      _cfRenderAttachList();
+    }
+  }
+
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCfModal() {
+  document.getElementById('cfModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function overlayCfModal(e) {
+  if (e.target === document.getElementById('cfModal')) closeCfModal();
+}
+
+async function _cfLoadSystemsSelect() {
+  const sel = document.getElementById('cfSystemId');
+  const prevVal = sel.value;
+  sel.innerHTML = '<option value="">— Select system —</option>';
+  try {
+    let systems = _systemsCache;
+    if (!systems.length) {
+      const res = await fetch('/api/admin/systems', { headers: authHeaders() });
+      if (res.ok) systems = await res.json();
+    }
+    systems.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.system_id || s.id;
+      opt.textContent = s.system_name || s.name;
+      sel.appendChild(opt);
+    });
+    if (prevVal) sel.value = prevVal;
+  } catch { /* non-fatal */ }
+}
+
+function cfAddFiles(files) {
+  for (const f of files) _cfFiles.push(f);
+  _cfRenderAttachList();
+}
+
+function _cfRenderAttachList() {
+  const list = document.getElementById('cfAttachList');
+  const existingChips = _cfExistingAttachments.map((url, i) => {
+    const name = url.split('/').pop();
+    return `<span class="cf-attach-chip">
+      <span class="cf-attach-chip-name" title="${escHtml(url)}">${escHtml(name)}</span>
+      <button class="cf-attach-chip-remove" type="button" onclick="cfRemoveExisting(${i})" title="Remove">&times;</button>
+    </span>`;
+  });
+  const newChips = _cfFiles.map((f, i) => `
+    <span class="cf-attach-chip">
+      <span class="cf-attach-chip-name" title="${escHtml(f.name)}">${escHtml(f.name)}</span>
+      <button class="cf-attach-chip-remove" type="button" onclick="cfRemoveFile(${i})" title="Remove">&times;</button>
+    </span>`);
+  list.innerHTML = [...existingChips, ...newChips].join('');
+}
+
+function cfRemoveExisting(i) {
+  _cfExistingAttachments.splice(i, 1);
+  _cfRenderAttachList();
+}
+
+function cfRemoveFile(i) {
+  _cfFiles.splice(i, 1);
+  _cfRenderAttachList();
+}
+
+function _cfSetLoading(on) {
+  document.getElementById('cfFormActions').style.display = on ? 'none' : '';
+  document.getElementById('cfFormLoading').style.display = on ? '' : 'none';
+}
+
+function _cfSetError(msg) {
+  const el = document.getElementById('cfFormError');
+  if (msg) { document.getElementById('cfFormErrorMsg').textContent = msg; el.style.display = ''; }
+  else el.style.display = 'none';
+}
+
+async function saveCf(e) {
+  e.preventDefault();
+  const name     = document.getElementById('cfFixName').value.trim();
+  const systemId = document.getElementById('cfSystemId').value;
+  const prob     = _cfProblemEditor?.getValue() || '';
+  const fix      = _cfFixEditor?.getValue() || '';
+  if (!name)     { _cfSetError('Fix name is required.'); return; }
+  if (!systemId) { _cfSetError('Please select a system.'); return; }
+
+  _cfSetLoading(true);
+  _cfSetError('');
+
+  try {
+    const fd = new FormData();
+    fd.append('fix_name', name);
+    fd.append('system_id', systemId);
+    fd.append('problem_desc', prob);
+    fd.append('fix_description', fix);
+    fd.append('keep_attachments', JSON.stringify(_cfExistingAttachments));
+    _cfFiles.forEach(f => fd.append('attachments', f));
+
+    const url    = _editingFixId ? `/api/admin/common-fixes/${encodeURIComponent(_editingFixId)}` : '/api/admin/common-fixes';
+    const method = _editingFixId ? 'PATCH' : 'POST';
+    const res    = await fetch(url, { method, headers: authHeaders(), body: fd });
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+
+    closeCfModal();
+    showToast(_editingFixId ? 'Common fix updated.' : 'Common fix created.');
+    _cfCache = null;
+    loadCommonFixes();
+  } catch (err) {
+    _cfSetLoading(false);
+    _cfSetError(err.message);
+  }
+}
+
+/* ── Delete ── */
+async function deleteCf(fixId) {
+  const fix = (_cfCache || []).find(f => f.fix_id === fixId);
+  if (!await showConfirm({
+    title: 'Delete Common Fix',
+    message: `Delete "${fix?.fix_name || fixId}"?`,
+    detail: 'This will remove it and all links to issues. This cannot be undone.',
+    confirmText: 'Delete',
+    danger: true,
+  })) return;
+  try {
+    const res = await fetch(`/api/admin/common-fixes/${encodeURIComponent(fixId)}`, {
+      method: 'DELETE', headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Delete failed');
+    showToast('Common fix deleted.');
+    _cfCache = null;
+    loadCommonFixes();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+/* ── Linked fixes in issue modal ── */
+async function loadIssueCfLinks(issueId) {
+  const list = document.getElementById('issueCfList');
+  if (!list) return;
+  list.innerHTML = '<span class="cf-issue-link-empty">Loading…</span>';
+  try {
+    const res = await fetch(`/api/admin/issues/${encodeURIComponent(issueId)}/common-fixes`, { headers: authHeaders() });
+    if (!res.ok) throw new Error(await res.text());
+    _cfIssueLinkCache = await res.json();
+    renderIssueCfLinks(_cfIssueLinkCache);
+  } catch {
+    list.innerHTML = '<span class="cf-issue-link-empty">Could not load fixes.</span>';
+  }
+}
+
+function renderIssueCfLinks(links) {
+  const list = document.getElementById('issueCfList');
+  if (!list) return;
+  if (!links.length) {
+    list.innerHTML = '<span class="cf-issue-link-empty">No common fixes linked.</span>';
+    return;
+  }
+  list.innerHTML = links.map(fix => `
+    <div class="cf-issue-link-row">
+      <span class="cf-issue-link-row-name" onclick="switchTab('commonfix');closeIssueModal();openCfDetail('${escHtml(fix.fix_id)}')">${escHtml(fix.fix_name)}</span>
+      ${fix.system_name ? `<span class="cf-issue-link-row-sys">${escHtml(fix.system_name)}</span>` : ''}
+      <button class="cf-issue-unlink-btn" title="Unlink" onclick="unlinkCfFromIssue('${escHtml(fix.fix_id)}')">&times;</button>
+    </div>`).join('');
+}
+
+async function unlinkCfFromIssue(fixId) {
+  if (!_editingIssueId) return;
+  try {
+    await fetch(`/api/admin/issues/${encodeURIComponent(_editingIssueId)}/common-fixes/${encodeURIComponent(fixId)}`, {
+      method: 'DELETE', headers: authHeaders(),
+    });
+    loadIssueCfLinks(_editingIssueId);
+  } catch { showToast('Failed to unlink fix.'); }
+}
+
+/* ── CF Picker (link fix to current issue) ── */
+async function openCfPickerForIssue() {
+  const modal = document.getElementById('cfPickerModal');
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  const inp = document.getElementById('cfPickerSearch');
+  if (inp) inp.value = '';
+
+  if (!_cfCache) {
+    try {
+      const res = await fetch('/api/admin/common-fixes', { headers: authHeaders() });
+      if (res.ok) _cfCache = await res.json();
+    } catch { /* non-fatal */ }
+  }
+  renderCfPickerList('');
+}
+
+function closeCfPicker() {
+  document.getElementById('cfPickerModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function overlayCfPicker(e) {
+  if (e.target === document.getElementById('cfPickerModal')) closeCfPicker();
+}
+
+function renderCfPickerList(query) {
+  const list = document.getElementById('cfPickerList');
+  const q = (query || '').toLowerCase();
+  const alreadyLinked = new Set((_cfIssueLinkCache || []).map(f => f.fix_id));
+  let items = (_cfCache || []);
+  if (q) items = items.filter(f =>
+    f.fix_name.toLowerCase().includes(q) ||
+    (f.system_name || '').toLowerCase().includes(q)
+  );
+  if (!items.length) {
+    list.innerHTML = `<div class="cf-picker-empty">${q ? 'No fixes match.' : 'No common fixes available.'}</div>`;
+    return;
+  }
+  list.innerHTML = items.map(fix => {
+    const linked = alreadyLinked.has(fix.fix_id);
+    return `<div class="cf-picker-item" onclick="${linked ? '' : `linkCfToIssue('${escHtml(fix.fix_id)}')`}" style="${linked ? 'opacity:0.6;cursor:default;' : ''}">
+      <div class="cf-picker-item-main">
+        <div class="cf-picker-item-name">${escHtml(fix.fix_name)}</div>
+        <div class="cf-picker-item-meta">${fix.system_name ? escHtml(fix.system_name) : 'No system'}</div>
+      </div>
+      ${linked ? '<span class="cf-picker-already">Linked</span>' : ''}
+    </div>`;
+  }).join('');
+}
+
+async function linkCfToIssue(fixId) {
+  if (!_editingIssueId) return;
+  try {
+    const res = await fetch(`/api/admin/issues/${encodeURIComponent(_editingIssueId)}/common-fixes/${encodeURIComponent(fixId)}`, {
+      method: 'POST', headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Link failed');
+    closeCfPicker();
+    loadIssueCfLinks(_editingIssueId);
+    showToast('Common fix linked.');
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
