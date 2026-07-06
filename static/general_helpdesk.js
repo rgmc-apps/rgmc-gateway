@@ -396,6 +396,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   await Promise.all([_loadCompanies(), _loadCategories(), _loadDepartments()]);
   hidePageLoader();
 
+  initUserSearch('ghName', {
+    email:      'ghEmail',
+    viber:      'ghPhone',
+    company:    'ghCompany',
+    department: 'ghDepartment',
+  });
+
   const zone = document.getElementById('ghDropZone');
   if (zone) {
     zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });

@@ -235,6 +235,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   _fetchAndPopulateDepartments();
   riUpdatePriorityHint(); // show hint for default P4
 
+  initUserSearch('riEmployeeName', {
+    email:      'riEmail',
+    viber:      'riViberNumber',
+    company:    'riCompanyName',
+    department: 'riDepartment',
+  });
+
   // Parse ?system=, ?error=, and ?payload= query params
   const params    = new URLSearchParams(window.location.search);
   const system    = (params.get('system')  || '').trim();

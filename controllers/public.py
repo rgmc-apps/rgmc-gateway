@@ -39,6 +39,23 @@ def helpdesk_page():
     return render_template("helpdesk.html")
 
 
+@public_bp.get("/api/users/search")
+def search_users():
+    q = request.args.get("q", "").strip()
+    if len(q) < 2:
+        return jsonify([])
+    safe = q.replace("*", "").replace("(", "").replace(")", "").replace(",", "")
+    try:
+        rows = supabase_req("GET", "/users", params={
+            "select": "display_name,first_name,middle_initial,last_name,email,viber_number,company,department",
+            "or":     f"(first_name.ilike.*{safe}*,last_name.ilike.*{safe}*,display_name.ilike.*{safe}*)",
+            "limit":  "10",
+        })
+        return jsonify(rows or [])
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
 @public_bp.get("/api/helpdesk/categories")
 def get_helpdesk_categories():
     rows = supabase_req("GET", "/request_category", params={

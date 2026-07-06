@@ -945,6 +945,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Populate category dropdown in report modal
   _loadModalCategories();
 
+  // User search autocomplete on name field
+  initUserSearch('employeeName', {
+    email:      'emailAddr',
+    viber:      'modalViberNumber',
+    company:    'companyName',
+    department: 'department',
+  });
+
   // Enter key in gate username field
   document.getElementById('gateUsername')?.addEventListener('keydown', e => {
     if (e.key === 'Enter') signIn();

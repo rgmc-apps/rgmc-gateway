@@ -70,6 +70,9 @@ let _cfFiles              = [];
 let _cfExistingAttachments = [];
 let _cfSearchQuery        = '';
 let _cfIssueLinkCache     = [];
+let _cfLightboxUrls       = [];
+let _cfLightboxIdx        = 0;
+const _cfBlobUrls         = new WeakMap();
 
 let _lastAdminVisit     = null;
 let _pollInterval       = null;
@@ -4823,6 +4826,119 @@ document.addEventListener('keydown', e => {
    COMMON FIXES
    ════════════════════════════════════════════════════════════════ */
 
+/* ── File type helpers ── */
+function _cfIsImage(name) {
+  return /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(name);
+}
+
+function _cfFileExt(name) {
+  return (name.split('.').pop() || '').toLowerCase();
+}
+
+function _cfFileIcon(ext) {
+  const map = {
+    pdf:  { color: '#ef4444', bg: '#ef444418' },
+    doc:  { color: '#3b82f6', bg: '#3b82f618' },
+    docx: { color: '#3b82f6', bg: '#3b82f618' },
+    xls:  { color: '#22c55e', bg: '#22c55e18' },
+    xlsx: { color: '#22c55e', bg: '#22c55e18' },
+    csv:  { color: '#22c55e', bg: '#22c55e18' },
+    ppt:  { color: '#f97316', bg: '#f9731618' },
+    pptx: { color: '#f97316', bg: '#f9731618' },
+    zip:  { color: '#a855f7', bg: '#a855f718' },
+    rar:  { color: '#a855f7', bg: '#a855f718' },
+    '7z': { color: '#a855f7', bg: '#a855f718' },
+    txt:  { color: '#94a3b8', bg: '#94a3b818' },
+    mp4:  { color: '#ec4899', bg: '#ec489918' },
+    mov:  { color: '#ec4899', bg: '#ec489918' },
+    mp3:  { color: '#8b5cf6', bg: '#8b5cf618' },
+  };
+  return map[ext] || { color: '#6b7280', bg: '#6b728018' };
+}
+
+function _cfBlobUrl(file) {
+  if (!_cfBlobUrls.has(file)) _cfBlobUrls.set(file, URL.createObjectURL(file));
+  return _cfBlobUrls.get(file);
+}
+
+function _cfCleanName(url) {
+  return decodeURIComponent(url.split('/').pop().replace(/^\d+_/, ''));
+}
+
+/* ── Attachment card HTML builders ── */
+function _cfImageCard({ src, name, removeOnclick, savedTag, clickOnclick }) {
+  const zoomSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>`;
+  return `<div class="cf-attach-card cf-attach-card--image"${clickOnclick ? ` onclick="${clickOnclick}"` : ''} title="${escHtml(name)}">
+    <div class="cf-attach-thumb" style="background-image:url('${escHtml(src)}')">
+      ${savedTag ? '<span class="cf-attach-saved-tag">Saved</span>' : ''}
+      <div class="cf-attach-zoom-icon">${zoomSvg}</div>
+      ${removeOnclick ? `<button class="cf-attach-card-remove" type="button" onclick="event.stopPropagation();${removeOnclick}" title="Remove">&times;</button>` : ''}
+    </div>
+    <div class="cf-attach-card-name">${escHtml(name)}</div>
+  </div>`;
+}
+
+function _cfFileCard({ ext, name, removeOnclick, savedTag, clickOnclick }) {
+  const { color, bg } = _cfFileIcon(ext);
+  const fileSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${escHtml(color)}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`;
+  return `<div class="cf-attach-card cf-attach-card--file"${clickOnclick ? ` onclick="${clickOnclick}"` : ''} title="${escHtml(name)}" style="cursor:${clickOnclick ? 'pointer' : 'default'}">
+    <div class="cf-attach-file-body" style="background:${escHtml(bg)}">
+      ${savedTag ? '<span class="cf-attach-saved-tag">Saved</span>' : ''}
+      ${fileSvg}
+      <span class="cf-attach-file-ext" style="color:${escHtml(color)};background:${escHtml(color)}22">${escHtml(ext.toUpperCase() || 'FILE')}</span>
+      ${removeOnclick ? `<button class="cf-attach-card-remove" type="button" onclick="event.stopPropagation();${removeOnclick}" title="Remove">&times;</button>` : ''}
+    </div>
+    <div class="cf-attach-card-name">${escHtml(name)}</div>
+  </div>`;
+}
+
+/* ── Lightbox ── */
+function openCfLightbox(urls, idx) {
+  _cfLightboxUrls = Array.isArray(urls) ? urls : [];
+  _cfLightboxIdx  = idx;
+  _cfRenderLightbox();
+  document.getElementById('cfLightbox').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function openCfLightboxAt(idx) {
+  _cfLightboxIdx = idx;
+  _cfRenderLightbox();
+  document.getElementById('cfLightbox').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCfLightbox() {
+  document.getElementById('cfLightbox').classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+function _cfLightboxNav(dir) {
+  _cfLightboxIdx = Math.max(0, Math.min(_cfLightboxUrls.length - 1, _cfLightboxIdx + dir));
+  _cfRenderLightbox();
+}
+
+function _cfRenderLightbox() {
+  const url  = _cfLightboxUrls[_cfLightboxIdx];
+  const name = _cfCleanName(url);
+  const n    = _cfLightboxUrls.length;
+  document.getElementById('cfLightboxImg').src         = url;
+  document.getElementById('cfLightboxCaption').textContent = name;
+  document.getElementById('cfLightboxCounter').textContent = n > 1 ? `${_cfLightboxIdx + 1} / ${n}` : '';
+  const prev = document.getElementById('cfLightboxPrev');
+  const next = document.getElementById('cfLightboxNext');
+  if (prev) prev.style.display = _cfLightboxIdx > 0 ? '' : 'none';
+  if (next) next.style.display = _cfLightboxIdx < n - 1 ? '' : 'none';
+}
+
+document.addEventListener('keydown', e => {
+  const lb = document.getElementById('cfLightbox');
+  if (!lb?.classList.contains('active')) return;
+  if (e.key === 'Escape')      closeCfLightbox();
+  if (e.key === 'ArrowLeft')   _cfLightboxNav(-1);
+  if (e.key === 'ArrowRight')  _cfLightboxNav(1);
+});
+
 /* ── Load & render list ── */
 async function loadCommonFixes(force = false) {
   if (_cfCache && !force) { _renderCfTable(); return; }
@@ -4924,12 +5040,19 @@ async function openCfDetail(fixId) {
   } catch { /* non-fatal */ }
 
   const wrap = document.getElementById('cfTableWrap');
-  const attachHtml = (fix.fix_attachments || []).map(u =>
-    `<a class="cf-detail-attach-link" href="${escHtml(u)}" target="_blank" rel="noopener">
-      <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-      ${escHtml(u.split('/').pop())}
-    </a>`
-  ).join('');
+  const allAttachments = fix.fix_attachments || [];
+  // Set global image URL array for lightbox before building cards
+  _cfLightboxUrls = allAttachments.filter(u => _cfIsImage(_cfCleanName(u)));
+
+  const attachHtml = allAttachments.map(u => {
+    const name = _cfCleanName(u);
+    if (_cfIsImage(name)) {
+      const imgIdx = _cfLightboxUrls.indexOf(u);
+      return _cfImageCard({ src: u, name, clickOnclick: `openCfLightboxAt(${imgIdx})` });
+    }
+    const ext = _cfFileExt(name);
+    return _cfFileCard({ ext, name, clickOnclick: `window.open('${escHtml(u)}','_blank')` });
+  }).join('');
 
   const issuesHtml = linkedIssues.length
     ? linkedIssues.map(i => `
@@ -5058,19 +5181,43 @@ function cfAddFiles(files) {
 
 function _cfRenderAttachList() {
   const list = document.getElementById('cfAttachList');
-  const existingChips = _cfExistingAttachments.map((url, i) => {
-    const name = url.split('/').pop();
-    return `<span class="cf-attach-chip">
-      <span class="cf-attach-chip-name" title="${escHtml(url)}">${escHtml(name)}</span>
-      <button class="cf-attach-chip-remove" type="button" onclick="cfRemoveExisting(${i})" title="Remove">&times;</button>
-    </span>`;
+  if (!list) return;
+
+  // Collect image URLs for the lightbox (existing + new images)
+  const existingImgUrls = _cfExistingAttachments.filter(u => _cfIsImage(_cfCleanName(u)));
+  const newImgBlobs     = _cfFiles.filter(f => _cfIsImage(f.name)).map(f => _cfBlobUrl(f));
+  _cfLightboxUrls       = [...existingImgUrls, ...newImgBlobs];
+
+  const existingCards = _cfExistingAttachments.map((url, i) => {
+    const name = _cfCleanName(url);
+    if (_cfIsImage(name)) {
+      const imgIdx = _cfLightboxUrls.indexOf(url);
+      return _cfImageCard({
+        src: url, name, savedTag: true,
+        removeOnclick: `cfRemoveExisting(${i})`,
+        clickOnclick: `openCfLightboxAt(${imgIdx})`,
+      });
+    }
+    const ext = _cfFileExt(name);
+    return _cfFileCard({ ext, name, savedTag: true, removeOnclick: `cfRemoveExisting(${i})` });
   });
-  const newChips = _cfFiles.map((f, i) => `
-    <span class="cf-attach-chip">
-      <span class="cf-attach-chip-name" title="${escHtml(f.name)}">${escHtml(f.name)}</span>
-      <button class="cf-attach-chip-remove" type="button" onclick="cfRemoveFile(${i})" title="Remove">&times;</button>
-    </span>`);
-  list.innerHTML = [...existingChips, ...newChips].join('');
+
+  const newCards = _cfFiles.map((f, i) => {
+    const name = f.name;
+    if (_cfIsImage(name)) {
+      const blobSrc = _cfBlobUrl(f);
+      const imgIdx  = _cfLightboxUrls.indexOf(blobSrc);
+      return _cfImageCard({
+        src: blobSrc, name,
+        removeOnclick: `cfRemoveFile(${i})`,
+        clickOnclick: `openCfLightboxAt(${imgIdx})`,
+      });
+    }
+    const ext = _cfFileExt(name);
+    return _cfFileCard({ ext, name, removeOnclick: `cfRemoveFile(${i})` });
+  });
+
+  list.innerHTML = [...existingCards, ...newCards].join('');
 }
 
 function cfRemoveExisting(i) {

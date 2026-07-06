@@ -409,6 +409,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   await _applyUrlParams();
   hidePageLoader();
 
+  initUserSearch('hdName', {
+    email:      'hdEmail',
+    viber:      'hdPhone',
+    company:    'hdCompany',
+    department: 'hdDepartment',
+  });
+
   const zone = document.getElementById('hdDropZone');
   if (zone) {
     zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });

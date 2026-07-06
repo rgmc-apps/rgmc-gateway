@@ -245,45 +245,146 @@
 
 .cf-drop-zone-text strong { color: var(--text-secondary); font-weight: 600; }
 
-/* attachment preview chips */
+/* ── Attachment card grid (modal + detail) ── */
 .cf-attach-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
 }
 
-.cf-attach-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 8px 3px 10px;
-  border-radius: 20px;
+.cf-attach-card {
+  position: relative;
+  border-radius: var(--radius);
   border: 1px solid var(--border-subtle);
+  overflow: hidden;
   background: var(--bg-card);
-  font-size: 11px;
-  color: var(--text-secondary);
-  max-width: 220px;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
 }
 
-.cf-attach-chip-name {
+.cf-attach-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28);
+  border-color: var(--border);
+}
+
+/* Image thumbnail */
+.cf-attach-thumb {
+  width: 100%;
+  aspect-ratio: 4/3;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--bg-input);
+  position: relative;
+}
+
+.cf-attach-card--image { cursor: pointer; }
+
+/* Zoom icon on image hover */
+.cf-attach-zoom-icon {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0);
+  transition: background 0.15s;
+}
+
+.cf-attach-card--image:hover .cf-attach-zoom-icon {
+  background: rgba(0,0,0,0.35);
+}
+
+.cf-attach-zoom-icon svg {
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.15s, transform 0.15s;
+  color: #fff;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
+}
+
+.cf-attach-card--image:hover .cf-attach-zoom-icon svg {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* File type body */
+.cf-attach-file-body {
+  width: 100%;
+  aspect-ratio: 4/3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.cf-attach-file-ext {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  font-family: var(--font-ui);
+  padding: 2px 5px;
+  border-radius: 3px;
+  line-height: 1.4;
+}
+
+/* Filename label */
+.cf-attach-card-name {
+  padding: 5px 6px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-subtle);
+  line-height: 1.3;
 }
 
-.cf-attach-chip-remove {
-  background: none;
-  border: none;
-  padding: 0 0 0 2px;
-  cursor: pointer;
-  color: var(--text-muted);
+/* Remove button — appears on hover */
+.cf-attach-card-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #fff;
   font-size: 14px;
   line-height: 1;
-  flex-shrink: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+  z-index: 2;
 }
 
-.cf-attach-chip-remove:hover { color: #f87171; }
+.cf-attach-card:hover .cf-attach-card-remove { opacity: 1; }
+.cf-attach-card-remove:hover { background: #ef4444; border-color: #ef4444; }
+
+/* "Saved" badge for already-uploaded attachments */
+.cf-attach-saved-tag {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: rgba(196,151,42,0.88);
+  color: #000;
+  font-family: var(--font-ui);
+  z-index: 2;
+  pointer-events: none;
+}
 
 /* existing attachment link */
 .cf-existing-attach {
@@ -543,10 +644,27 @@
 .cf-detail-content p:last-child { margin-bottom: 0; }
 
 .cf-detail-attach-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin-top: 6px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.cf-detail-attach-row .cf-attach-card {
+  cursor: pointer;
+}
+
+.cf-detail-attach-row .cf-attach-thumb {
+  aspect-ratio: 16/10;
+}
+
+.cf-detail-attach-row .cf-attach-file-body {
+  aspect-ratio: 16/10;
+}
+
+.cf-detail-attach-row .cf-attach-card-name {
+  font-size: 11px;
+  padding: 6px 8px;
 }
 
 .cf-detail-attach-link {
@@ -667,12 +785,130 @@
 
 .cf-detail-delete-btn:hover { background: rgba(239,68,68,0.15); }
 
+/* ── Lightbox ── */
+.cf-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0,0,0,0.93);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.cf-lightbox.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.cf-lightbox-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+.cf-lightbox-img {
+  max-width: 88vw;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: 6px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+  transform: scale(0.95);
+  transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
+  display: block;
+}
+
+.cf-lightbox.active .cf-lightbox-img { transform: scale(1); }
+
+.cf-lightbox-caption {
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+  font-family: var(--font-ui);
+  letter-spacing: 0.03em;
+  max-width: 70vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.cf-lightbox-counter {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.45);
+  font-family: var(--font-ui);
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+
+.cf-lightbox-close {
+  position: fixed;
+  top: 14px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.13);
+  color: rgba(255,255,255,0.7);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  z-index: 2001;
+  font-family: var(--font-ui);
+}
+
+.cf-lightbox-close:hover { background: rgba(255,255,255,0.16); color: #fff; }
+
+.cf-lightbox-nav {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.11);
+  color: rgba(255,255,255,0.75);
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  z-index: 2001;
+  font-family: var(--font-ui);
+  user-select: none;
+}
+
+.cf-lightbox-nav:hover { background: rgba(255,255,255,0.15); color: #fff; }
+.cf-lightbox-prev { left: 14px; }
+.cf-lightbox-next { right: 14px; }
+
 /* ── Light theme overrides ── */
 [data-theme="light"] .cf-search-input  { background: #fff; border-color: #d1d5db; }
 [data-theme="light"] .cf-picker-search { background: #fff; border-color: #d1d5db; }
 [data-theme="light"] .cf-table thead th { background: #f9fafb; }
 [data-theme="light"] .cf-drop-zone     { background: #f9fafb; border-color: #d1d5db; }
-[data-theme="light"] .cf-attach-chip,
+[data-theme="light"] .cf-attach-card   { background: #fff; border-color: #e5e7eb; }
+[data-theme="light"] .cf-attach-card-name { background: #fff; border-color: #e5e7eb; }
+[data-theme="light"] .cf-attach-thumb  { background-color: #f3f4f6; }
+[data-theme="light"] .cf-attach-file-body { background: #f3f4f6; }
 [data-theme="light"] .cf-existing-attach { background: #f3f4f6; border-color: #e5e7eb; }
 [data-theme="light"] .cf-issue-link-row  { background: #f9fafb; border-color: #e5e7eb; }
 [data-theme="light"] .cf-issue-section   { border-color: #e5e7eb; }

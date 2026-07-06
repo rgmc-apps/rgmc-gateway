@@ -1855,6 +1855,18 @@
     </div>
   </div>
 
+  <!-- ── Common Fix Image Lightbox ── -->
+  <div id="cfLightbox" class="cf-lightbox" onclick="closeCfLightbox()">
+    <button class="cf-lightbox-close" onclick="closeCfLightbox()" aria-label="Close">&times;</button>
+    <span class="cf-lightbox-counter" id="cfLightboxCounter"></span>
+    <button class="cf-lightbox-nav cf-lightbox-prev" id="cfLightboxPrev" onclick="event.stopPropagation();_cfLightboxNav(-1)" aria-label="Previous">&#8249;</button>
+    <div class="cf-lightbox-content" onclick="event.stopPropagation()">
+      <img class="cf-lightbox-img" id="cfLightboxImg" src="" alt="">
+      <div class="cf-lightbox-caption" id="cfLightboxCaption"></div>
+    </div>
+    <button class="cf-lightbox-nav cf-lightbox-next" id="cfLightboxNext" onclick="event.stopPropagation();_cfLightboxNav(1)" aria-label="Next">&#8250;</button>
+  </div>
+
   <script src="/static/theme.js"></script>
   <script src="/static/rich-editor.js"></script>
   {% if open_issue_id %}
