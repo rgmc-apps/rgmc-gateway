@@ -2,6 +2,52 @@
 
 /* ── Report Modal ── */
 
+const _MODAL_PRIORITY_INFO = {
+  P1: { color: '#D85858', desc: 'Severe impact — system down or entire company affected. Immediate response required.' },
+  P2: { color: '#E8873A', desc: 'Significant impact — department or team affected. Urgent attention needed.' },
+  P3: { color: '#D49632', desc: 'Moderate impact — single user or minor workflow disruption. Prompt action needed.' },
+  P4: { color: '#52A870', desc: 'Minimal impact — cosmetic issue or minor inconvenience. No immediate urgency.' },
+};
+
+function updateModalPriorityHint() {
+  const sel  = document.getElementById('modalPriority');
+  const hint = document.getElementById('modalPriorityHint');
+  if (!hint) return;
+  const info = _MODAL_PRIORITY_INFO[sel.value];
+  hint.innerHTML = info
+    ? `<span class="ri-prio-dot" style="background:${info.color}"></span><span>${info.desc}</span>`
+    : '';
+}
+
+async function _loadModalCategories() {
+  const sel = document.getElementById('modalCategory');
+  if (!sel) return;
+  try {
+    const res  = await fetch('/api/helpdesk/categories');
+    const cats = await res.json();
+    sel.innerHTML = '';
+    cats.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.category_name;
+      opt.textContent = c.category_name;
+      sel.appendChild(opt);
+    });
+    const sw = [...sel.options].find(o => o.value === 'Software/Application');
+    if (sw) sw.selected = true;
+    else if (sel.options.length) sel.options[0].selected = true;
+  } catch {
+    sel.innerHTML = '<option value="Software/Application">Software/Application</option>';
+  }
+}
+
+function openModalPayloadHelp() {
+  document.getElementById('modalPayloadHelpOverlay').classList.add('open');
+}
+
+function closeModalPayloadHelp() {
+  document.getElementById('modalPayloadHelpOverlay').classList.remove('open');
+}
+
 function openReport(siteName) {
   document.getElementById('siteNameField').value = siteName;
   document.getElementById('modalSiteName').textContent = siteName;
@@ -16,15 +62,20 @@ function openReport(siteName) {
     if (cSel && session.company) _selectCompanyOption(cSel, session.company);
   }
 
+  document.getElementById('modalPriority').value = 'P4';
+  updateModalPriorityHint();
+
   document.getElementById('reportModal').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
 
 function closeReport() {
   document.getElementById('reportModal').classList.remove('open');
+  document.getElementById('modalPayloadHelpOverlay')?.classList.remove('open');
   document.body.style.overflow = '';
   document.getElementById('reportForm').reset();
   document.getElementById('fileLabel').textContent = 'Click to attach screenshots or drag & drop';
+  document.getElementById('modalPriorityHint').innerHTML = '';
   resetFormState();
 }
 
@@ -882,6 +933,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Populate department dropdowns
   _loadDepartments();
+
+  // Populate category dropdown in report modal
+  _loadModalCategories();
 
   // Enter key in gate username field
   document.getElementById('gateUsername')?.addEventListener('keydown', e => {
