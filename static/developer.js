@@ -318,18 +318,11 @@ async function loadSystems() {
   } catch { /* non-fatal */ }
 }
 
-function _parseSystemIds(raw) {
-  if (!raw) return [];
-  if (typeof raw === 'string' && raw.startsWith('[')) {
-    try { return JSON.parse(raw).filter(Boolean); } catch {}
-  }
-  return [raw];
-}
-
-function _serializeSystemIds(ids) {
-  if (!ids || !ids.length) return null;
-  if (ids.length === 1) return ids[0];
-  return JSON.stringify(ids);
+function _parseSystemIds(item) {
+  if (!item) return [];
+  if (Array.isArray(item.system_ids) && item.system_ids.length) return item.system_ids.filter(Boolean);
+  if (item.system_id) return [item.system_id];
+  return [];
 }
 
 function _buildSystemChecklist(selectedIds = []) {
@@ -523,7 +516,7 @@ function renderCard(item, idx = 0) {
                      new Date(item.estimated_end_date + 'T00:00:00') < new Date();
   const statusIdx  = STATUSES.indexOf(item.status);
 
-  const sysIds    = _parseSystemIds(item.system_id);
+  const sysIds    = _parseSystemIds(item);
   const sysLabels = sysIds.map(id => { const s = _systems.find(s => s.id === id); return s ? s.name : null; }).filter(Boolean);
   const devClr    = devColor(item.created_by);
   const topRow = (sysLabels.length || item.dev_item_type) ? `<div class="kcard-top-row">
@@ -811,7 +804,7 @@ function openDetailModal(idOrNull) {
   document.getElementById('itemStatus').value   = item?.status ?? 'pending';
   document.getElementById('itemStart').value    = item?.start_date ?? '';
   document.getElementById('itemEstEnd').value   = item?.estimated_end_date ?? '';
-  _buildSystemChecklist(_parseSystemIds(item?.system_id ?? null));
+  _buildSystemChecklist(_parseSystemIds(item ?? {}));
 
   // Item type — handle "Others: ..." case
   const savedType = item?.dev_item_type ?? '';
@@ -1016,7 +1009,7 @@ async function _execSaveItem(remarks, actionIds = [], files = []) {
     title,
     description:        document.getElementById('itemDesc').value.trim() || null,
     status:             newStatus,
-    system_id:          _serializeSystemIds(_getSelectedSystemIds()),
+    system_ids:         _getSelectedSystemIds(),
     start_date:         document.getElementById('itemStart').value || null,
     estimated_end_date: document.getElementById('itemEstEnd').value || null,
     actual_end_date,
@@ -1170,7 +1163,7 @@ function overlayCloseArchive(e) {
 }
 
 function renderArchiveRow(item) {
-  const sysIds    = _parseSystemIds(item.system_id);
+  const sysIds    = _parseSystemIds(item);
   const sysLabels = sysIds.map(id => { const s = _systems.find(s => s.id === id); return s ? s.name : null; }).filter(Boolean);
   const id        = escHtml(item.id);
   return `<div onclick="openDetailModal('${id}')"

@@ -47,11 +47,15 @@ def dev_create_item():
     title = (data.get("title") or "").strip()
     if not title:
         return jsonify({"error": "Title is required"}), 400
+    raw_ids    = data.get("system_ids") or []
+    system_ids = [s for s in raw_ids if s] if isinstance(raw_ids, list) else []
+    system_id  = system_ids[0] if len(system_ids) == 1 else None
     item = {
         "title":              title,
         "description":        (data.get("description") or "").strip() or None,
         "status":             "pending",
-        "system_id":          data.get("system_id") or None,
+        "system_id":          system_id,
+        "system_ids":         system_ids or None,
         "start_date":         data.get("start_date") or None,
         "estimated_end_date": data.get("estimated_end_date") or None,
         "dev_item_type":      (data.get("dev_item_type") or "").strip() or None,
@@ -83,8 +87,12 @@ def dev_update_item(item_id):
         return jsonify(err[0]), err[1]
     data    = request.get_json(silent=True) or {}
     remarks = (data.get("remarks") or "").strip()
-    allowed = {"title", "description", "status", "system_id", "start_date", "estimated_end_date", "actual_end_date", "dev_item_type", "resolution_action_ids", "resolution_attachment_urls"}
+    allowed = {"title", "description", "status", "system_id", "system_ids", "start_date", "estimated_end_date", "actual_end_date", "dev_item_type", "resolution_action_ids", "resolution_attachment_urls"}
     patch   = {k: v for k, v in data.items() if k in allowed}
+    if "system_ids" in patch:
+        ids = [s for s in (patch["system_ids"] or []) if s]
+        patch["system_ids"] = ids or None
+        patch["system_id"]  = ids[0] if len(ids) == 1 else None
     if "status" in patch and patch["status"] not in ("pending", "ongoing", "coding", "testing", "done"):
         return jsonify({"error": "Invalid status"}), 400
     if not patch:
