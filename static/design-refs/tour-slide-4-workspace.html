@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RGMC Gateway — Tour Slide 4 (My Workspace) — Design Reference</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --gold:#C8962A;
+    --gold-soft:rgba(200,150,42,0.14);
+    --ink:#141210;
+    --muted:#6B6460;
+    --hairline:#EDE7E0;
+    --dot-grey:#D9D3CE;
+    --paper:#FFFFFF;
+    --green:#3D9B6F;
+    --red:#D05050;
+    --amber:#D4881E;
+    --shadow-modal: 0 32px 80px rgba(0,0,0,0.18), 0 8px 24px rgba(0,0,0,0.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#0d0b09;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+  .canvas{position:relative;width:1600px;height:900px;margin:0 auto;overflow:hidden;isolation:isolate;}
+  .portal-bg{
+    position:absolute;inset:0;
+    background:
+      radial-gradient(1200px 700px at 20% 30%, #f7ecdc 0%, transparent 60%),
+      radial-gradient(900px 600px at 85% 80%, #f2e3cc 0%, transparent 55%),
+      linear-gradient(180deg,#fbf6ef 0%,#f2ebe0 100%);
+    filter: blur(14px) saturate(1.05);transform: scale(1.06);
+  }
+  .portal-bg::before{
+    content:"";position:absolute;inset:0;
+    background:
+      linear-gradient(180deg, rgba(20,18,16,0.05) 0 72px, transparent 72px),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1600' height='900'><g fill='%23ffffff' opacity='0.72'><rect x='120' y='170' width='300' height='190' rx='22'/><rect x='450' y='170' width='300' height='190' rx='22'/><rect x='780' y='170' width='300' height='190' rx='22'/></g></svg>");
+    background-size:cover;
+  }
+  .dim{position:absolute;inset:0;background:rgba(0,0,0,0.55);backdrop-filter: blur(2px);}
+
+  .modal{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:760px;height:520px;background:var(--paper);border-radius:28px;
+    box-shadow:var(--shadow-modal);padding:32px 36px 26px;
+    display:flex;flex-direction:column;
+  }
+  .m-head{display:flex;align-items:center;justify-content:space-between;height:26px;}
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand-mark{width:26px;height:26px;background:var(--ink);color:#F7EDD6;border-radius:7px;display:grid;place-items:center;}
+  .brand-mark svg{width:15px;height:15px}
+  .brand-word{font-size:12px;letter-spacing:0.18em;font-weight:700;text-transform:uppercase;}
+  .brand-word span{color:var(--gold);margin-left:4px;font-weight:600}
+  .skip{font-size:13px;color:var(--muted);text-decoration:none;font-weight:500;}
+  .m-body{display:grid;grid-template-columns: 44% 56%;gap:24px;flex:1 1 auto;padding-top:22px;min-height:0;}
+
+  .left{display:flex;flex-direction:column;justify-content:center;}
+  .step-chip{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--gold-soft);color:var(--gold);
+    padding:5px 12px;border-radius:999px;
+    font-size:10.5px;letter-spacing:0.18em;font-weight:700;text-transform:uppercase;
+    align-self:flex-start;margin-bottom:16px;
+  }
+  .headline{font-family:'Playfair Display',Georgia,serif;font-weight:500;color:var(--ink);font-size:34px;line-height:1.1;letter-spacing:-0.01em;margin:0 0 12px;}
+  .sub{font-size:13.5px;line-height:1.55;color:var(--muted);margin:0 0 20px;}
+  .pills{display:flex;flex-direction:column;gap:8px;margin-bottom:20px;}
+  .pill{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#FBF7F0;border-radius:10px;border:1px solid var(--hairline);font-size:12px;color:var(--ink);font-weight:500;}
+  .pill .p-ico{width:22px;height:22px;border-radius:6px;background:var(--gold-soft);display:grid;place-items:center;color:var(--gold);font-size:12px;flex:0 0 22px;}
+  .next-btn{background:var(--ink);color:#fff;border:none;padding:10px 18px;border-radius:999px;font-family:inherit;font-weight:600;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;align-self:flex-start;}
+  .next-btn svg{width:13px;height:13px}
+
+  /* RIGHT mockup: workspace */
+  .right{
+    position:relative;
+    background:radial-gradient(80% 80% at 55% 55%, #FCF3E1 0%, #F7EBD3 55%, #F1E1BF 100%);
+    border-radius:18px;overflow:hidden;padding:14px 12px;
+    display:flex;flex-direction:column;gap:8px;
+  }
+
+  .tabs{
+    display:flex;align-items:center;gap:14px;padding:0 4px;
+    border-bottom:1px solid rgba(20,18,16,0.08);
+  }
+  .tab{
+    font-size:11px;font-weight:600;color:var(--muted);
+    padding:5px 0;position:relative;
+  }
+  .tab.active{color:var(--ink);}
+  .tab.active::after{
+    content:"";position:absolute;left:0;right:0;bottom:-1px;
+    height:2px;background:var(--gold);border-radius:2px;
+  }
+
+  .subtabs{
+    display:flex;align-items:center;gap:6px;padding:0 4px;font-size:9.5px;
+  }
+  .subtab{
+    padding:3px 8px;border-radius:999px;font-weight:600;
+    background:#fff;color:var(--muted);border:1px solid var(--hairline);
+  }
+  .subtab.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+
+  .kpi-strip{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:6px;position:relative;
+  }
+  .kpi{
+    background:#fff;border-radius:8px;padding:7px 8px;
+    border:1px solid rgba(20,18,16,0.06);
+    display:flex;flex-direction:column;gap:1px;
+  }
+  .kpi .n{font-family:'Playfair Display',serif;font-size:16px;font-weight:600;color:var(--ink);line-height:1;}
+  .kpi .lb{font-size:8.5px;color:var(--muted);font-weight:600;letter-spacing:0.02em;}
+  .kpi .side{position:absolute;left:0;top:0;bottom:0;width:2px;border-radius:2px 0 0 2px;}
+  .kpi.open{border-left:2px solid var(--red);}
+  .kpi.prog{border-left:2px solid var(--amber);}
+  .kpi.done{border-left:2px solid var(--green);}
+  .kpi.total{border-left:2px solid var(--ink);}
+
+  .callout-pop{
+    position:absolute;top:-16px;right:14px;
+    background:var(--ink);color:#fff;
+    font-size:8.5px;font-weight:600;
+    padding:4px 8px;border-radius:6px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.15);
+  }
+  .callout-pop::after{content:"";position:absolute;bottom:-4px;right:20px;border-left:4px solid transparent;border-right:4px solid transparent;border-top:4px solid var(--ink);}
+  .callout-dot-kpi{
+    position:absolute;right:6px;top:-4px;
+    width:10px;height:10px;border-radius:50%;background:var(--red);
+    box-shadow:0 0 0 3px rgba(208,80,80,0.2);
+  }
+
+  .table-panel{
+    background:#fff;border-radius:10px;
+    border:1px solid rgba(20,18,16,0.06);
+    padding:8px 8px 6px;display:flex;flex-direction:column;gap:5px;
+    flex:1;
+  }
+  .filter-bar{
+    display:flex;align-items:center;gap:6px;
+    padding:2px 4px 4px;border-bottom:1px solid var(--hairline);
+  }
+  .filter-in{
+    flex:1;height:20px;background:#FBF7F0;border-radius:5px;
+    padding:0 8px;font-size:9px;color:var(--muted);
+    display:flex;align-items:center;
+  }
+  .filter-btn{font-size:9px;background:#F0EAE0;color:var(--ink);padding:3px 8px;border-radius:5px;font-weight:600;}
+
+  .thead,.trow{
+    display:grid;grid-template-columns:44px 1fr 78px 52px 62px;
+    gap:6px;align-items:center;padding:4px 4px;font-size:9px;
+  }
+  .thead{
+    color:var(--muted);font-weight:700;letter-spacing:0.06em;text-transform:uppercase;
+    border-bottom:1px solid var(--hairline);
+  }
+  .trow{border-bottom:1px solid #F5F0E7;}
+  .trow:last-child{border-bottom:none;}
+  .tid{font-family:'Playfair Display',serif;font-size:10px;font-weight:600;color:var(--ink);}
+  .ttitle{font-size:9.5px;color:var(--ink);font-weight:500;}
+  .treporter{font-size:8.5px;color:var(--muted);}
+  .badge{
+    font-size:8px;font-weight:700;padding:2px 6px;border-radius:999px;
+    display:inline-flex;align-items:center;justify-content:center;
+  }
+  .badge.p2{background:rgba(212,136,30,0.14);color:var(--amber);}
+  .badge.p1{background:rgba(208,80,80,0.14);color:var(--red);}
+  .badge.p3{background:rgba(61,155,111,0.14);color:var(--green);}
+  .badge.open{background:rgba(208,80,80,0.14);color:var(--red);}
+  .badge.prog{background:rgba(212,136,30,0.14);color:var(--amber);}
+
+  .m-foot{display:grid;grid-template-columns: 1fr auto 1fr;align-items:center;padding-top:8px;border-top:1px solid var(--hairline);margin-top:4px;}
+  .back{justify-self:start;background:transparent;border:none;color:var(--muted);font-family:inherit;font-weight:500;font-size:12.5px;cursor:pointer;padding:6px 0;}
+  .dots{display:flex;align-items:center;gap:8px;justify-content:center;}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--dot-grey)}
+  .dot.active{width:22px;height:6px;border-radius:999px;background:var(--gold);}
+  .next{justify-self:end;display:inline-flex;align-items:center;gap:8px;color:#fff;background:var(--ink);border:none;padding:9px 16px;border-radius:999px;font-family:inherit;font-weight:600;font-size:12.5px;cursor:pointer;}
+  .next svg{width:12px;height:12px}
+</style>
+</head>
+<body>
+
+<div class="canvas">
+  <div class="portal-bg" aria-hidden="true"></div>
+  <div class="dim" aria-hidden="true"></div>
+
+  <div class="modal" role="dialog">
+    <div class="m-head">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2 4 5v6c0 5 3.5 9.4 8 11 4.5-1.6 8-6 8-11V5l-8-3z"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+        </div>
+        <div class="brand-word">RGMC <span>Gateway</span></div>
+      </div>
+      <a href="#" class="skip">Skip tour &nbsp;&rarr;</a>
+    </div>
+
+    <div class="m-body">
+      <div class="left">
+        <div class="step-chip">Step 4 of 5</div>
+        <h1 class="headline">Track Issues in<br/>Your Workspace</h1>
+        <p class="sub">Your personal hub for all active issues. See team issues, your own, and tasks — all with live status tracking.</p>
+        <div class="pills">
+          <div class="pill"><div class="p-ico">📊</div>KPI summary strip</div>
+          <div class="pill"><div class="p-ico">🔍</div>Filter by status &amp; priority</div>
+          <div class="pill"><div class="p-ico">👥</div>Team · My Issues · Tasks</div>
+        </div>
+        <button class="next-btn">
+          Next
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+
+      <div class="right" aria-hidden="true">
+        <div class="tabs">
+          <div class="tab active">Issues</div>
+          <div class="tab">My Team</div>
+          <div class="tab">Tasks</div>
+        </div>
+
+        <div class="subtabs">
+          <span class="subtab active">Team Issues</span>
+          <span class="subtab">My Issues</span>
+          <span class="subtab">Issues I Filed</span>
+        </div>
+
+        <div class="kpi-strip">
+          <div class="kpi total">
+            <div class="n">12</div>
+            <div class="lb">Total</div>
+          </div>
+          <div class="kpi open">
+            <div class="n">5</div>
+            <div class="lb">Open</div>
+          </div>
+          <div class="kpi prog">
+            <div class="n">4</div>
+            <div class="lb">In Progress</div>
+          </div>
+          <div class="kpi done">
+            <div class="n">3</div>
+            <div class="lb">Resolved</div>
+          </div>
+          <div class="callout-dot-kpi"></div>
+          <div class="callout-pop">Live status overview</div>
+        </div>
+
+        <div class="table-panel">
+          <div class="filter-bar">
+            <div class="filter-in">🔍 Filter issues by title, reporter or system…</div>
+            <div class="filter-btn">All ▾</div>
+          </div>
+
+          <div class="thead">
+            <div>Ticket</div><div>Issue</div><div>Reporter</div><div>Priority</div><div>Status</div>
+          </div>
+          <div class="trow">
+            <div class="tid">#0042</div>
+            <div>
+              <div class="ttitle">ERP timeout on dashboard</div>
+              <div class="treporter">ERP System</div>
+            </div>
+            <div class="treporter">J. dela Cruz</div>
+            <div><span class="badge p2">P2</span></div>
+            <div><span class="badge open">Open</span></div>
+          </div>
+          <div class="trow">
+            <div class="tid">#0041</div>
+            <div>
+              <div class="ttitle">HR Portal login loop</div>
+              <div class="treporter">HR Portal</div>
+            </div>
+            <div class="treporter">M. Santos</div>
+            <div><span class="badge p1">P1</span></div>
+            <div><span class="badge prog">In Progress</span></div>
+          </div>
+          <div class="trow">
+            <div class="tid">#0038</div>
+            <div>
+              <div class="ttitle">Finance report exports blank</div>
+              <div class="treporter">Finance</div>
+            </div>
+            <div class="treporter">A. Reyes</div>
+            <div><span class="badge p3">P3</span></div>
+            <div><span class="badge open">Open</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="m-foot">
+      <button class="back">&larr; Back</button>
+      <div class="dots" role="tablist">
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot active"></span>
+        <span class="dot"></span>
+      </div>
+      <button class="next">
+        Next
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

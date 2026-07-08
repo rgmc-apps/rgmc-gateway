@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RGMC Gateway — Tour Slide 1 (Welcome) — Design Reference</title>
+
+<!--
+  DESIGN REFERENCE COMP
+  ---------------------
+  Purpose: Slide 1 of 5 first-time user onboarding tour for RGMC Gateway.
+  Canvas: 16:9 (1600 x 900) horizontal frame.
+  Layer 1: Blurred, dimmed portal home page (mocked with faux system cards).
+  Layer 2: Semi-transparent dark overlay rgba(0,0,0,0.55).
+  Layer 3: Pure-white centered modal (760 x 520) with elegant welcome content.
+
+  This file is a static, code-ready visual reference — open it in a browser
+  and screenshot at 1600x900 for the requested 16:9 comp.
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --gold:#C8962A;
+    --gold-soft:rgba(200,150,42,0.14);
+    --ink:#141210;
+    --muted:#6B6460;
+    --hairline:#EDE7E0;
+    --dot-grey:#D9D3CE;
+    --cream:#F6F1EA;
+    --paper:#FFFFFF;
+    --shadow-modal: 0 32px 80px rgba(0,0,0,0.18), 0 8px 24px rgba(0,0,0,0.06);
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#0d0b09;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+
+  /* -------- 16:9 CANVAS -------- */
+  .canvas{
+    position:relative;
+    width:1600px;
+    height:900px;
+    margin:0 auto;
+    overflow:hidden;
+    isolation:isolate;
+  }
+
+  /* -------- LAYER 1: Blurred portal home behind modal -------- */
+  .portal-bg{
+    position:absolute;inset:0;
+    background:
+      radial-gradient(1200px 700px at 20% 30%, #f7ecdc 0%, transparent 60%),
+      radial-gradient(900px 600px at 85% 80%, #f2e3cc 0%, transparent 55%),
+      linear-gradient(180deg,#fbf6ef 0%,#f2ebe0 100%);
+    filter: blur(14px) saturate(1.05);
+    transform: scale(1.06); /* hide blur edges */
+  }
+  .portal-bg::before{
+    content:"";
+    position:absolute;inset:0;
+    background:
+      /* portal top bar */
+      linear-gradient(180deg, rgba(20,18,16,0.05) 0 72px, transparent 72px),
+      /* faint grid of system cards */
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1600' height='900'><g fill='%23ffffff' opacity='0.72'><rect x='120' y='170' width='300' height='190' rx='22'/><rect x='450' y='170' width='300' height='190' rx='22'/><rect x='780' y='170' width='300' height='190' rx='22'/><rect x='1110' y='170' width='300' height='190' rx='22'/><rect x='120' y='400' width='300' height='190' rx='22'/><rect x='450' y='400' width='300' height='190' rx='22'/><rect x='780' y='400' width='300' height='190' rx='22'/><rect x='1110' y='400' width='300' height='190' rx='22'/></g><g fill='%23C8962A' opacity='0.55'><rect x='150' y='200' width='44' height='44' rx='10'/><rect x='480' y='200' width='44' height='44' rx='10'/><rect x='810' y='200' width='44' height='44' rx='10'/><rect x='1140' y='200' width='44' height='44' rx='10'/><rect x='150' y='430' width='44' height='44' rx='10'/><rect x='480' y='430' width='44' height='44' rx='10'/><rect x='810' y='430' width='44' height='44' rx='10'/><rect x='1140' y='430' width='44' height='44' rx='10'/></g><g fill='%23141210' opacity='0.25'><rect x='150' y='262' width='170' height='14' rx='4'/><rect x='480' y='262' width='210' height='14' rx='4'/><rect x='810' y='262' width='180' height='14' rx='4'/><rect x='1140' y='262' width='200' height='14' rx='4'/><rect x='150' y='492' width='190' height='14' rx='4'/><rect x='480' y='492' width='160' height='14' rx='4'/><rect x='810' y='492' width='220' height='14' rx='4'/><rect x='1140' y='492' width='170' height='14' rx='4'/></g></svg>");
+    background-size:cover;
+  }
+
+  /* -------- LAYER 2: Dim overlay -------- */
+  .dim{
+    position:absolute;inset:0;
+    background:rgba(0,0,0,0.55);
+    backdrop-filter: blur(2px);
+  }
+
+  /* -------- LAYER 3: Modal -------- */
+  .modal{
+    position:absolute;
+    left:50%;top:50%;
+    transform:translate(-50%,-50%);
+    width:760px;
+    height:520px;
+    background:var(--paper);
+    border-radius:28px;
+    box-shadow:var(--shadow-modal);
+    padding:36px 40px 32px;
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* Header row */
+  .m-head{
+    display:flex;align-items:center;justify-content:space-between;
+    height:28px;
+    flex:0 0 auto;
+  }
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand-mark{
+    width:26px;height:26px;
+    background:var(--ink);
+    color:#F7EDD6;
+    border-radius:7px;
+    display:grid;place-items:center;
+    position:relative;
+  }
+  .brand-mark svg{width:15px;height:15px}
+  .brand-word{
+    font-size:12px;letter-spacing:0.18em;font-weight:700;
+    color:var(--ink);text-transform:uppercase;
+  }
+  .brand-word span{color:var(--gold);margin-left:4px;font-weight:600}
+  .skip{
+    font-size:13px;color:var(--muted);text-decoration:none;
+    font-weight:500;letter-spacing:0.01em;
+  }
+  .skip:hover{color:var(--ink)}
+
+  /* Body — two columns */
+  .m-body{
+    display:grid;
+    grid-template-columns: 44% 56%;
+    gap:28px;
+    flex:1 1 auto;
+    padding-top:28px;
+    padding-bottom:12px;
+    min-height:0;
+  }
+
+  /* LEFT column */
+  .left{
+    display:flex;flex-direction:column;justify-content:center;
+    padding-right:8px;
+  }
+  .label-chip{
+    display:flex;align-items:center;gap:10px;
+    margin-bottom:22px;
+  }
+  .label-bar{
+    width:2px;height:14px;background:var(--gold);
+    border-radius:2px;
+  }
+  .label-text{
+    font-size:10.5px;letter-spacing:0.22em;
+    color:var(--gold);text-transform:uppercase;font-weight:700;
+  }
+  .headline{
+    font-family:'Playfair Display',Georgia,serif;
+    font-weight:500;
+    color:var(--ink);
+    font-size:40px;
+    line-height:1.08;
+    letter-spacing:-0.01em;
+    margin:0 0 18px;
+  }
+  .headline em{
+    font-style:italic;font-weight:500;color:var(--gold);
+  }
+  .sub{
+    font-size:14.5px;line-height:1.55;
+    color:var(--muted);
+    margin:0 0 28px;
+    max-width:30ch;
+    font-weight:400;
+  }
+  .cta-row{
+    display:flex;align-items:center;gap:16px;
+  }
+  .btn-gold{
+    background:var(--gold);
+    color:#fff;
+    border:none;
+    padding:12px 22px;
+    border-radius:999px;
+    font-family:inherit;
+    font-weight:600;
+    font-size:13.5px;
+    letter-spacing:0.01em;
+    cursor:pointer;
+    display:inline-flex;align-items:center;gap:8px;
+    box-shadow: 0 8px 20px rgba(200,150,42,0.28);
+  }
+  .btn-gold svg{width:14px;height:14px}
+  .btn-ghost{
+    background:transparent;border:none;
+    color:var(--muted);
+    font-family:inherit;font-weight:500;font-size:13.5px;
+    cursor:pointer;padding:12px 6px;
+    text-decoration:none;
+  }
+  .btn-ghost:hover{color:var(--ink)}
+
+  /* RIGHT column — illustration */
+  .right{
+    position:relative;
+    background:
+      radial-gradient(80% 80% at 55% 55%, #FCF3E1 0%, #F7EBD3 55%, #F1E1BF 100%);
+    border-radius:22px;
+    overflow:hidden;
+    display:flex;align-items:center;justify-content:center;
+  }
+
+  /* Subtle grid inside illustration panel */
+  .right::before{
+    content:"";position:absolute;inset:0;
+    background-image:
+      linear-gradient(rgba(20,18,16,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(20,18,16,0.04) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: radial-gradient(70% 70% at 50% 55%, #000 60%, transparent 100%);
+  }
+
+  .illus{
+    position:relative;
+    width:100%;height:100%;
+  }
+
+  /* Gateway arch */
+  .arch{
+    position:absolute;
+    left:50%;top:56%;
+    transform:translate(-50%,-50%);
+    width:180px;height:220px;
+  }
+  .arch .glow{
+    position:absolute;inset:-40% -60%;
+    background:radial-gradient(closest-side, rgba(200,150,42,0.55), rgba(200,150,42,0) 70%);
+    filter:blur(4px);
+  }
+  .arch svg{
+    position:relative;
+    width:100%;height:100%;
+    filter: drop-shadow(0 12px 24px rgba(120,80,20,0.18));
+  }
+
+  /* Floating cards around arch */
+  .card{
+    position:absolute;
+    background:#fff;
+    border-radius:12px;
+    padding:10px 12px;
+    box-shadow: 0 12px 28px rgba(80,55,20,0.15), 0 2px 4px rgba(80,55,20,0.06);
+    display:flex;align-items:center;gap:9px;
+    width:150px;
+  }
+  .card .ico{
+    width:26px;height:26px;border-radius:7px;
+    display:grid;place-items:center;flex:0 0 26px;
+  }
+  .card .ico svg{width:14px;height:14px;color:#fff}
+  .card .lines{display:flex;flex-direction:column;gap:5px}
+  .card .l1{height:6px;width:70px;background:#26221E;border-radius:2px}
+  .card .l2{height:5px;width:50px;background:#B8AFA6;border-radius:2px}
+
+  .card.c1{top:18%;left:8%;transform:rotate(-6deg)}
+  .card.c1 .ico{background:#2A2825}
+  .card.c2{top:12%;right:6%;transform:rotate(5deg)}
+  .card.c2 .ico{background:var(--gold)}
+  .card.c3{bottom:14%;left:6%;transform:rotate(3deg)}
+  .card.c3 .ico{background:#4A423B}
+  .card.c4{bottom:18%;right:8%;transform:rotate(-4deg)}
+  .card.c4 .ico{background:#8A6A22}
+
+  /* Tiny orbiting dots for motion feel */
+  .orbit{
+    position:absolute;
+    width:6px;height:6px;background:var(--gold);border-radius:50%;
+    opacity:0.65;
+  }
+  .orbit.o1{top:32%;left:30%}
+  .orbit.o2{top:70%;left:38%}
+  .orbit.o3{top:44%;right:24%}
+  .orbit.o4{bottom:32%;right:34%}
+
+  /* Footer row */
+  .m-foot{
+    display:grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items:center;
+    flex:0 0 auto;
+    padding-top:10px;
+    border-top:1px solid var(--hairline);
+    margin-top:4px;
+  }
+  .foot-left{}
+  .dots{
+    display:flex;align-items:center;gap:8px;justify-content:center;
+  }
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--dot-grey)}
+  .dot.active{
+    width:22px;height:6px;border-radius:999px;
+    background:var(--gold);
+  }
+  .next{
+    justify-self:end;
+    display:inline-flex;align-items:center;gap:8px;
+    color:var(--ink);
+    background:transparent;border:none;
+    font-family:inherit;font-weight:600;font-size:13.5px;
+    cursor:pointer;
+  }
+  .next svg{width:14px;height:14px}
+
+  /* Second-read moment: subtle serif numeral watermark inside left column */
+  .stamp{
+    position:absolute;
+    left:40px;bottom:78px;
+    font-family:'Playfair Display',serif;
+    font-size:11px;letter-spacing:0.18em;
+    color:var(--muted);
+    text-transform:uppercase;
+    display:flex;align-items:center;gap:8px;
+  }
+  .stamp .hair{width:22px;height:1px;background:var(--muted);opacity:.5}
+
+</style>
+</head>
+<body>
+
+<div class="canvas">
+
+  <!-- LAYER 1: Blurred portal home -->
+  <div class="portal-bg" aria-hidden="true"></div>
+
+  <!-- LAYER 2: Dark dim overlay -->
+  <div class="dim" aria-hidden="true"></div>
+
+  <!-- LAYER 3: Modal -->
+  <div class="modal" role="dialog" aria-labelledby="tour-title">
+
+    <!-- Header -->
+    <div class="m-head">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <!-- shield/badge glyph -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2 4 5v6c0 5 3.5 9.4 8 11 4.5-1.6 8-6 8-11V5l-8-3z"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+        </div>
+        <div class="brand-word">RGMC <span>Gateway</span></div>
+      </div>
+      <a href="#" class="skip">Skip tour &nbsp;&rarr;</a>
+    </div>
+
+    <!-- Body -->
+    <div class="m-body">
+
+      <!-- LEFT: content -->
+      <div class="left">
+        <div class="label-chip">
+          <div class="label-bar" aria-hidden="true"></div>
+          <div class="label-text">Getting started</div>
+        </div>
+
+        <h1 id="tour-title" class="headline">
+          Welcome to<br/>
+          <em>RGMC Gateway</em>
+        </h1>
+
+        <p class="sub">
+          This quick tour will show you everything available to you — from launching systems to tracking your issues.
+        </p>
+
+        <div class="cta-row">
+          <button class="btn-gold">
+            Start Tour
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+          <a href="#" class="btn-ghost">Skip for now</a>
+        </div>
+
+        <div class="stamp">
+          <span class="hair"></span>
+          Step 01 &nbsp;·&nbsp; Welcome
+        </div>
+      </div>
+
+      <!-- RIGHT: illustration -->
+      <div class="right" aria-hidden="true">
+        <div class="illus">
+
+          <!-- floating system cards -->
+          <div class="card c1">
+            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></div>
+            <div class="lines"><div class="l1"></div><div class="l2"></div></div>
+          </div>
+          <div class="card c2">
+            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 10h16"/></svg></div>
+            <div class="lines"><div class="l1"></div><div class="l2"></div></div>
+          </div>
+          <div class="card c3">
+            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/></svg></div>
+            <div class="lines"><div class="l1"></div><div class="l2"></div></div>
+          </div>
+          <div class="card c4">
+            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h16"/></svg></div>
+            <div class="lines"><div class="l1"></div><div class="l2"></div></div>
+          </div>
+
+          <!-- orbit dots -->
+          <div class="orbit o1"></div>
+          <div class="orbit o2"></div>
+          <div class="orbit o3"></div>
+          <div class="orbit o4"></div>
+
+          <!-- gateway arch centerpiece -->
+          <div class="arch">
+            <div class="glow"></div>
+            <svg viewBox="0 0 180 220" fill="none">
+              <!-- floor line -->
+              <line x1="0" y1="205" x2="180" y2="205" stroke="#C8962A" stroke-opacity="0.5" stroke-width="1.2" stroke-dasharray="3 5"/>
+              <!-- outer arch -->
+              <path d="M18 205 V95 A72 72 0 0 1 162 95 V205"
+                    stroke="#141210" stroke-width="3" stroke-linecap="round"/>
+              <!-- inner arch (parallel) -->
+              <path d="M40 205 V100 A50 50 0 0 1 140 100 V205"
+                    stroke="#C8962A" stroke-width="2.2" stroke-linecap="round"/>
+              <!-- inner glow rectangle (portal light) -->
+              <rect x="52" y="118" width="76" height="87" rx="2"
+                    fill="url(#g1)"/>
+              <!-- keystone dot -->
+              <circle cx="90" cy="45" r="5" fill="#C8962A"/>
+              <!-- keystone ring -->
+              <circle cx="90" cy="45" r="10" stroke="#C8962A" stroke-opacity="0.5" stroke-width="1.2" fill="none"/>
+              <!-- pillars details -->
+              <line x1="18" y1="150" x2="40" y2="150" stroke="#141210" stroke-opacity="0.35" stroke-width="1"/>
+              <line x1="140" y1="150" x2="162" y2="150" stroke="#141210" stroke-opacity="0.35" stroke-width="1"/>
+
+              <defs>
+                <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#FFE7B0" stop-opacity="0.95"/>
+                  <stop offset="1" stop-color="#FFD98A" stop-opacity="0.2"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="m-foot">
+      <div class="foot-left"></div>
+      <div class="dots" role="tablist" aria-label="Tour progress">
+        <span class="dot active" aria-current="step"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+      </div>
+      <button class="next">
+        Next
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

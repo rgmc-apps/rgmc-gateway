@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RGMC Gateway — Tour Slide 2 (Systems Portal) — Design Reference</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --gold:#C8962A;
+    --gold-soft:rgba(200,150,42,0.14);
+    --ink:#141210;
+    --muted:#6B6460;
+    --hairline:#EDE7E0;
+    --dot-grey:#D9D3CE;
+    --cream:#F6F1EA;
+    --paper:#FFFFFF;
+    --green:#3D9B6F;
+    --red:#D05050;
+    --amber:#D4881E;
+    --blue:#3B6FB0;
+    --shadow-modal: 0 32px 80px rgba(0,0,0,0.18), 0 8px 24px rgba(0,0,0,0.06);
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#0d0b09;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+
+  .canvas{position:relative;width:1600px;height:900px;margin:0 auto;overflow:hidden;isolation:isolate;}
+
+  .portal-bg{
+    position:absolute;inset:0;
+    background:
+      radial-gradient(1200px 700px at 20% 30%, #f7ecdc 0%, transparent 60%),
+      radial-gradient(900px 600px at 85% 80%, #f2e3cc 0%, transparent 55%),
+      linear-gradient(180deg,#fbf6ef 0%,#f2ebe0 100%);
+    filter: blur(14px) saturate(1.05);
+    transform: scale(1.06);
+  }
+  .portal-bg::before{
+    content:"";position:absolute;inset:0;
+    background:
+      linear-gradient(180deg, rgba(20,18,16,0.05) 0 72px, transparent 72px),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1600' height='900'><g fill='%23ffffff' opacity='0.72'><rect x='120' y='170' width='300' height='190' rx='22'/><rect x='450' y='170' width='300' height='190' rx='22'/><rect x='780' y='170' width='300' height='190' rx='22'/><rect x='1110' y='170' width='300' height='190' rx='22'/><rect x='120' y='400' width='300' height='190' rx='22'/><rect x='450' y='400' width='300' height='190' rx='22'/><rect x='780' y='400' width='300' height='190' rx='22'/><rect x='1110' y='400' width='300' height='190' rx='22'/></g><g fill='%23C8962A' opacity='0.55'><rect x='150' y='200' width='44' height='44' rx='10'/><rect x='480' y='200' width='44' height='44' rx='10'/><rect x='810' y='200' width='44' height='44' rx='10'/><rect x='1140' y='200' width='44' height='44' rx='10'/><rect x='150' y='430' width='44' height='44' rx='10'/><rect x='480' y='430' width='44' height='44' rx='10'/><rect x='810' y='430' width='44' height='44' rx='10'/><rect x='1140' y='430' width='44' height='44' rx='10'/></g><g fill='%23141210' opacity='0.25'><rect x='150' y='262' width='170' height='14' rx='4'/><rect x='480' y='262' width='210' height='14' rx='4'/><rect x='810' y='262' width='180' height='14' rx='4'/><rect x='1140' y='262' width='200' height='14' rx='4'/><rect x='150' y='492' width='190' height='14' rx='4'/><rect x='480' y='492' width='160' height='14' rx='4'/><rect x='810' y='492' width='220' height='14' rx='4'/><rect x='1140' y='492' width='170' height='14' rx='4'/></g></svg>");
+    background-size:cover;
+  }
+
+  .dim{position:absolute;inset:0;background:rgba(0,0,0,0.55);backdrop-filter: blur(2px);}
+
+  .modal{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:760px;height:520px;background:var(--paper);border-radius:28px;
+    box-shadow:var(--shadow-modal);padding:32px 36px 26px;
+    display:flex;flex-direction:column;
+  }
+
+  .m-head{display:flex;align-items:center;justify-content:space-between;height:26px;flex:0 0 auto;}
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand-mark{width:26px;height:26px;background:var(--ink);color:#F7EDD6;border-radius:7px;display:grid;place-items:center;}
+  .brand-mark svg{width:15px;height:15px}
+  .brand-word{font-size:12px;letter-spacing:0.18em;font-weight:700;color:var(--ink);text-transform:uppercase;}
+  .brand-word span{color:var(--gold);margin-left:4px;font-weight:600}
+  .skip{font-size:13px;color:var(--muted);text-decoration:none;font-weight:500;}
+  .skip:hover{color:var(--ink)}
+
+  .m-body{display:grid;grid-template-columns: 44% 56%;gap:24px;flex:1 1 auto;padding-top:22px;min-height:0;}
+
+  .left{display:flex;flex-direction:column;justify-content:center;padding-right:4px;}
+  .step-chip{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--gold-soft);color:var(--gold);
+    padding:5px 12px;border-radius:999px;
+    font-size:10.5px;letter-spacing:0.18em;font-weight:700;text-transform:uppercase;
+    align-self:flex-start;margin-bottom:16px;
+  }
+  .headline{
+    font-family:'Playfair Display',Georgia,serif;font-weight:500;
+    color:var(--ink);font-size:34px;line-height:1.1;letter-spacing:-0.01em;
+    margin:0 0 12px;
+  }
+  .sub{font-size:13.5px;line-height:1.55;color:var(--muted);margin:0 0 20px;font-weight:400;}
+
+  .pills{display:flex;flex-direction:column;gap:8px;margin-bottom:20px;}
+  .pill{
+    display:flex;align-items:center;gap:10px;
+    padding:8px 12px;background:#FBF7F0;border-radius:10px;
+    border:1px solid var(--hairline);
+    font-size:12px;color:var(--ink);font-weight:500;
+  }
+  .pill .p-ico{
+    width:22px;height:22px;border-radius:6px;background:var(--gold-soft);
+    display:grid;place-items:center;color:var(--gold);font-size:12px;
+    flex:0 0 22px;
+  }
+
+  .next-btn{
+    background:var(--ink);color:#fff;border:none;
+    padding:10px 18px;border-radius:999px;
+    font-family:inherit;font-weight:600;font-size:13px;
+    cursor:pointer;display:inline-flex;align-items:center;gap:8px;
+    align-self:flex-start;
+  }
+  .next-btn svg{width:13px;height:13px}
+
+  /* RIGHT: mockup panel */
+  .right{
+    position:relative;
+    background:radial-gradient(80% 80% at 55% 55%, #FCF3E1 0%, #F7EBD3 55%, #F1E1BF 100%);
+    border-radius:18px;overflow:hidden;padding:14px;
+    display:flex;flex-direction:column;gap:10px;
+  }
+
+  .toolbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 4px 2px;
+  }
+  .search-mock{
+    height:22px;width:120px;background:#fff;border-radius:6px;
+    border:1px solid var(--hairline);
+    display:flex;align-items:center;padding:0 8px;
+    font-size:9px;color:var(--muted);
+  }
+  .view-toggle{
+    display:inline-flex;background:#fff;border-radius:8px;
+    padding:2px;border:1px solid var(--hairline);
+    font-size:9px;font-weight:600;
+  }
+  .view-toggle span{padding:3px 8px;border-radius:6px;color:var(--muted);}
+  .view-toggle span.active{background:var(--ink);color:#fff;}
+
+  .section-head{
+    display:flex;align-items:center;gap:8px;margin:2px 4px 0;
+  }
+  .sec-badge{
+    background:var(--gold);color:#fff;
+    font-size:8.5px;font-weight:700;letter-spacing:0.12em;
+    padding:3px 8px;border-radius:999px;
+  }
+  .sec-badge.sbic{background:#4A4238}
+  .sec-title{font-size:11px;font-weight:700;color:var(--ink);}
+
+  .cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .sys-card{
+    background:#fff;border-radius:10px;padding:9px 10px;
+    border:1px solid rgba(20,18,16,0.06);
+    display:flex;flex-direction:column;gap:6px;
+    position:relative;
+  }
+  .sys-name{
+    display:flex;align-items:center;gap:5px;
+    font-size:10px;font-weight:700;color:var(--ink);
+  }
+  .status-dot{
+    width:6px;height:6px;border-radius:50%;
+    background:var(--green);
+    box-shadow:0 0 0 3px rgba(61,155,111,0.15);
+  }
+  .status-dot.amber{background:var(--amber);box-shadow:0 0 0 3px rgba(212,136,30,0.15);}
+  .sys-btns{display:flex;gap:4px;}
+  .btn-mini{
+    font-size:8.5px;font-weight:600;padding:3px 7px;border-radius:5px;
+    color:#fff;
+  }
+  .btn-mini.open{background:#3B6FB0;}
+  .btn-mini.backup{background:#E9E4DC;color:var(--ink);}
+  .btn-report{
+    background:rgba(208,80,80,0.1);color:var(--red);
+    font-size:8.5px;font-weight:600;padding:3px 6px;border-radius:5px;
+    text-align:center;
+  }
+
+  .sbic-strip{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+    opacity:0.75;
+  }
+  .sys-card.dim-card{opacity:0.85;}
+
+  /* callout */
+  .callout{
+    position:absolute;
+    top:78px;left:32px;
+    width:14px;height:14px;border-radius:50%;
+    background:var(--red);
+    box-shadow:0 0 0 4px rgba(208,80,80,0.25),0 0 0 8px rgba(208,80,80,0.12);
+  }
+
+  .m-foot{
+    display:grid;grid-template-columns: 1fr auto 1fr;align-items:center;
+    padding-top:8px;border-top:1px solid var(--hairline);margin-top:4px;
+  }
+  .back{
+    justify-self:start;background:transparent;border:none;color:var(--muted);
+    font-family:inherit;font-weight:500;font-size:12.5px;cursor:pointer;padding:6px 0;
+  }
+  .dots{display:flex;align-items:center;gap:8px;justify-content:center;}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--dot-grey)}
+  .dot.active{width:22px;height:6px;border-radius:999px;background:var(--gold);}
+  .next{
+    justify-self:end;display:inline-flex;align-items:center;gap:8px;
+    color:#fff;background:var(--ink);border:none;
+    padding:9px 16px;border-radius:999px;
+    font-family:inherit;font-weight:600;font-size:12.5px;cursor:pointer;
+  }
+  .next svg{width:12px;height:12px}
+</style>
+</head>
+<body>
+
+<div class="canvas">
+  <div class="portal-bg" aria-hidden="true"></div>
+  <div class="dim" aria-hidden="true"></div>
+
+  <div class="modal" role="dialog">
+
+    <div class="m-head">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2 4 5v6c0 5 3.5 9.4 8 11 4.5-1.6 8-6 8-11V5l-8-3z"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+        </div>
+        <div class="brand-word">RGMC <span>Gateway</span></div>
+      </div>
+      <a href="#" class="skip">Skip tour &nbsp;&rarr;</a>
+    </div>
+
+    <div class="m-body">
+      <!-- LEFT -->
+      <div class="left">
+        <div class="step-chip">Step 2 of 5</div>
+        <h1 class="headline">Browse &amp; Launch<br/>Your Systems</h1>
+        <p class="sub">Access every RGMC and SBIC system from one place. Switch between Card view and Compact list view.</p>
+
+        <div class="pills">
+          <div class="pill"><div class="p-ico">▦</div>Card &amp; Compact views</div>
+          <div class="pill"><div class="p-ico" style="color:var(--red);background:rgba(208,80,80,0.14);">●</div>Live health status indicators</div>
+          <div class="pill"><div class="p-ico">⚡</div>One-click system launch</div>
+        </div>
+
+        <button class="next-btn">
+          Next
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+
+      <!-- RIGHT mockup -->
+      <div class="right" aria-hidden="true">
+        <div class="toolbar">
+          <div class="search-mock">🔍 Search systems…</div>
+          <div class="view-toggle">
+            <span class="active">Cards</span><span>Compact</span>
+          </div>
+        </div>
+
+        <div class="section-head">
+          <div class="sec-badge">RGMC</div>
+          <div class="sec-title">RGMC Systems</div>
+        </div>
+
+        <div class="cards-grid" style="position:relative;">
+          <div class="sys-card">
+            <div class="sys-name"><span class="status-dot"></span>ERP System</div>
+            <div class="sys-btns"><span class="btn-mini open">Open</span><span class="btn-mini backup">Backup</span></div>
+            <div class="btn-report">⚠ Report Problem</div>
+          </div>
+          <div class="sys-card">
+            <div class="sys-name"><span class="status-dot"></span>HR Portal</div>
+            <div class="sys-btns"><span class="btn-mini open">Open</span><span class="btn-mini backup">Backup</span></div>
+            <div class="btn-report">⚠ Report Problem</div>
+          </div>
+          <div class="sys-card">
+            <div class="sys-name"><span class="status-dot amber"></span>Finance</div>
+            <div class="sys-btns"><span class="btn-mini open">Open</span><span class="btn-mini backup">Backup</span></div>
+            <div class="btn-report">⚠ Report Problem</div>
+          </div>
+          <div class="callout"></div>
+        </div>
+
+        <div class="section-head" style="margin-top:4px;">
+          <div class="sec-badge sbic">SBIC</div>
+          <div class="sec-title">SBIC Systems</div>
+        </div>
+
+        <div class="sbic-strip">
+          <div class="sys-card dim-card">
+            <div class="sys-name"><span class="status-dot"></span>Fleet Ops</div>
+            <div class="sys-btns"><span class="btn-mini open">Open</span><span class="btn-mini backup">Backup</span></div>
+          </div>
+          <div class="sys-card dim-card">
+            <div class="sys-name"><span class="status-dot"></span>Logistics</div>
+            <div class="sys-btns"><span class="btn-mini open">Open</span><span class="btn-mini backup">Backup</span></div>
+          </div>
+          <div class="sys-card dim-card" style="opacity:0.4;">
+            <div class="sys-name"><span class="status-dot"></span>&nbsp;</div>
+            <div class="sys-btns"><span class="btn-mini open">&nbsp;</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="m-foot">
+      <button class="back">&larr; Back</button>
+      <div class="dots" role="tablist">
+        <span class="dot"></span>
+        <span class="dot active"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+      </div>
+      <button class="next">
+        Next
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

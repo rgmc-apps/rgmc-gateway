@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RGMC Gateway — Tour Slide 5 (All Set) — Design Reference</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --gold:#C8962A;
+    --gold-soft:rgba(200,150,42,0.14);
+    --ink:#141210;
+    --muted:#6B6460;
+    --hairline:#EDE7E0;
+    --dot-grey:#D9D3CE;
+    --paper:#FFFFFF;
+    --shadow-modal: 0 32px 80px rgba(0,0,0,0.18), 0 8px 24px rgba(0,0,0,0.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#0d0b09;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+  .canvas{position:relative;width:1600px;height:900px;margin:0 auto;overflow:hidden;isolation:isolate;}
+  .portal-bg{
+    position:absolute;inset:0;
+    background:
+      radial-gradient(1200px 700px at 20% 30%, #f7ecdc 0%, transparent 60%),
+      radial-gradient(900px 600px at 85% 80%, #f2e3cc 0%, transparent 55%),
+      linear-gradient(180deg,#fbf6ef 0%,#f2ebe0 100%);
+    filter: blur(14px) saturate(1.05);transform: scale(1.06);
+  }
+  .portal-bg::before{
+    content:"";position:absolute;inset:0;
+    background:
+      linear-gradient(180deg, rgba(20,18,16,0.05) 0 72px, transparent 72px),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1600' height='900'><g fill='%23ffffff' opacity='0.72'><rect x='120' y='170' width='300' height='190' rx='22'/><rect x='450' y='170' width='300' height='190' rx='22'/><rect x='780' y='170' width='300' height='190' rx='22'/></g></svg>");
+    background-size:cover;
+  }
+  .dim{position:absolute;inset:0;background:rgba(0,0,0,0.55);backdrop-filter: blur(2px);}
+
+  .modal{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:760px;height:520px;background:var(--paper);border-radius:28px;
+    box-shadow:var(--shadow-modal);padding:32px 40px 26px;
+    display:flex;flex-direction:column;
+    overflow:hidden;
+  }
+  .m-head{display:flex;align-items:center;justify-content:space-between;height:26px;flex:0 0 auto;position:relative;z-index:2;}
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand-mark{width:26px;height:26px;background:var(--ink);color:#F7EDD6;border-radius:7px;display:grid;place-items:center;}
+  .brand-mark svg{width:15px;height:15px}
+  .brand-word{font-size:12px;letter-spacing:0.18em;font-weight:700;text-transform:uppercase;}
+  .brand-word span{color:var(--gold);margin-left:4px;font-weight:600}
+  .skip{font-size:13px;color:var(--muted);text-decoration:none;font-weight:500;visibility:hidden;}
+
+  /* Confetti dots */
+  .confetti{position:absolute;inset:0;pointer-events:none;z-index:1;}
+  .conf{position:absolute;border-radius:50%;}
+  .conf.gold{background:var(--gold);}
+  .conf.cream{background:#E8D6AE;}
+  .conf.ink{background:var(--ink);opacity:0.4;}
+  .conf.thin{width:8px;height:2px;border-radius:2px;transform:rotate(30deg);}
+
+  .center-body{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;position:relative;z-index:2;padding:8px 20px 4px;
+  }
+  .big-badge{
+    width:52px;height:52px;background:var(--ink);color:#F7EDD6;
+    border-radius:14px;display:grid;place-items:center;
+    margin-bottom:16px;
+    box-shadow:0 10px 24px rgba(20,18,16,0.25),0 0 0 6px rgba(200,150,42,0.14);
+  }
+  .big-badge svg{width:26px;height:26px;}
+
+  .big-head{
+    font-family:'Playfair Display',serif;font-weight:500;
+    font-size:40px;color:var(--ink);letter-spacing:-0.01em;line-height:1;
+    margin:0 0 10px;
+  }
+  .big-head em{color:var(--gold);font-style:italic;}
+  .big-sub{
+    font-size:14px;color:var(--muted);
+    margin:0 0 20px;max-width:44ch;line-height:1.5;
+  }
+
+  .tips-grid{
+    display:grid;grid-template-columns:1fr 1fr;gap:8px;
+    width:100%;max-width:560px;margin-bottom:20px;
+  }
+  .tip{
+    display:flex;align-items:center;gap:10px;
+    background:#FBF7F0;border:1px solid var(--hairline);
+    border-radius:12px;padding:10px 14px;
+    font-size:12px;color:var(--ink);font-weight:500;text-align:left;
+  }
+  .tip .n{
+    width:22px;height:22px;border-radius:50%;
+    background:var(--gold-soft);color:var(--gold);
+    font-size:10px;font-weight:800;
+    display:grid;place-items:center;flex:0 0 22px;
+    font-family:'Playfair Display',serif;
+  }
+
+  .start-btn{
+    background:var(--gold);color:#fff;border:none;
+    padding:12px 28px;border-radius:999px;
+    font-family:inherit;font-weight:700;font-size:14px;letter-spacing:0.01em;
+    cursor:pointer;display:inline-flex;align-items:center;gap:9px;
+    box-shadow:0 12px 26px rgba(200,150,42,0.35),0 3px 6px rgba(200,150,42,0.2);
+    margin-bottom:8px;
+  }
+  .start-btn svg{width:15px;height:15px;}
+
+  .revisit{font-size:11.5px;color:var(--muted);text-decoration:none;font-weight:500;}
+  .revisit:hover{color:var(--ink);}
+
+  .m-foot{
+    display:flex;align-items:center;justify-content:center;
+    padding-top:8px;border-top:1px solid var(--hairline);
+    position:relative;z-index:2;
+  }
+  .dots{display:flex;align-items:center;gap:8px;}
+  .dot{width:22px;height:6px;border-radius:999px;background:var(--gold);}
+</style>
+</head>
+<body>
+
+<div class="canvas">
+  <div class="portal-bg" aria-hidden="true"></div>
+  <div class="dim" aria-hidden="true"></div>
+
+  <div class="modal" role="dialog">
+    <div class="m-head">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2 4 5v6c0 5 3.5 9.4 8 11 4.5-1.6 8-6 8-11V5l-8-3z"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+        </div>
+        <div class="brand-word">RGMC <span>Gateway</span></div>
+      </div>
+      <a href="#" class="skip">Skip</a>
+    </div>
+
+    <!-- Confetti -->
+    <div class="confetti" aria-hidden="true">
+      <span class="conf gold" style="top:48px;left:70px;width:6px;height:6px;"></span>
+      <span class="conf cream" style="top:80px;left:130px;width:5px;height:5px;"></span>
+      <span class="conf thin" style="top:60px;left:200px;background:var(--gold);"></span>
+      <span class="conf gold" style="top:110px;left:80px;width:4px;height:4px;"></span>
+      <span class="conf ink" style="top:44px;left:280px;width:4px;height:4px;"></span>
+      <span class="conf cream" style="top:100px;right:100px;width:6px;height:6px;"></span>
+      <span class="conf gold" style="top:70px;right:180px;width:5px;height:5px;"></span>
+      <span class="conf thin" style="top:130px;right:60px;background:#E8D6AE;transform:rotate(-40deg);"></span>
+      <span class="conf ink" style="top:150px;right:150px;width:3px;height:3px;"></span>
+      <span class="conf gold" style="top:40px;right:250px;width:4px;height:4px;"></span>
+
+      <span class="conf gold" style="bottom:120px;left:60px;width:5px;height:5px;"></span>
+      <span class="conf cream" style="bottom:90px;left:180px;width:6px;height:6px;"></span>
+      <span class="conf thin" style="bottom:150px;left:260px;background:var(--gold);transform:rotate(60deg);"></span>
+      <span class="conf gold" style="bottom:80px;right:80px;width:4px;height:4px;"></span>
+      <span class="conf cream" style="bottom:140px;right:200px;width:5px;height:5px;"></span>
+      <span class="conf ink" style="bottom:100px;right:280px;width:3px;height:3px;"></span>
+      <span class="conf thin" style="bottom:60px;right:130px;background:#E8D6AE;transform:rotate(-25deg);"></span>
+    </div>
+
+    <div class="center-body">
+      <div class="big-badge" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2 4 5v6c0 5 3.5 9.4 8 11 4.5-1.6 8-6 8-11V5l-8-3z"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg>
+      </div>
+
+      <h1 class="big-head">You're <em>all set!</em></h1>
+      <p class="big-sub">The portal is ready for you. Here's a quick reminder of what you can do:</p>
+
+      <div class="tips-grid">
+        <div class="tip"><div class="n">1</div>Launch any system from the home portal</div>
+        <div class="tip"><div class="n">2</div>Report issues directly on each system card</div>
+        <div class="tip"><div class="n">3</div>Track your team's issues in My Workspace</div>
+        <div class="tip"><div class="n">4</div>Update your profile from the top navigation</div>
+      </div>
+
+      <button class="start-btn">
+        Start Exploring
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+      <a href="#" class="revisit">Revisit this tour anytime in your profile</a>
+    </div>
+
+    <div class="m-foot">
+      <div class="dots" role="tablist" aria-label="Tour progress complete">
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
