@@ -675,10 +675,10 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
+  background: var(--bg-modal);
+  border: 1px solid var(--gold-border);
   border-radius: var(--radius-sm);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.45);
   max-height: 220px;
   overflow-y: auto;
   display: none;
@@ -694,7 +694,7 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
   color: var(--text-secondary);
   transition: background 0.1s;
 }
-.sys-multi-item:hover { background: var(--bg-secondary); }
+.sys-multi-item:hover { background: var(--gold-dim); }
 .sys-multi-item input[type="checkbox"] {
   width: 14px;
   height: 14px;
