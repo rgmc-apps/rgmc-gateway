@@ -211,7 +211,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeDoneRemarksModal(); closeDetailModal(); closeAddSystemModal(); closeArchiveModal(); closeProfileMenu(); }
   });
-  document.addEventListener('click', () => closeProfileMenu());
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#sysMultiWrap')) closeSysDropdown();
+    closeProfileMenu();
+  });
 
   document.getElementById('itemType').addEventListener('change', function () {
     const othersGroup = document.getElementById('itemTypeOthersGroup');
@@ -310,21 +313,80 @@ async function loadSystems() {
     const res = await fetch('/api/dev/systems', { headers: authHeaders() });
     if (res.ok) {
       _systems = await res.json();
-      populateSystemDropdown(document.getElementById('itemSystem'), null);
+      _buildSystemChecklist([]);
     }
   } catch { /* non-fatal */ }
 }
 
-function populateSystemDropdown(select, selectedId) {
-  const prev = selectedId ?? select.value;
-  select.innerHTML = '<option value="">— None —</option>' +
-    _systems.map(s => `<option value="${escHtml(s.id)}" ${s.id === prev ? 'selected' : ''}>${escHtml(s.name)}</option>`).join('');
+function _parseSystemIds(raw) {
+  if (!raw) return [];
+  if (typeof raw === 'string' && raw.startsWith('[')) {
+    try { return JSON.parse(raw).filter(Boolean); } catch {}
+  }
+  return [raw];
 }
 
-function systemName(id) {
-  if (!id) return null;
-  const s = _systems.find(s => s.id === id);
-  return s ? s.name : id;
+function _serializeSystemIds(ids) {
+  if (!ids || !ids.length) return null;
+  if (ids.length === 1) return ids[0];
+  return JSON.stringify(ids);
+}
+
+function _buildSystemChecklist(selectedIds = []) {
+  const dropdown = document.getElementById('sysMultiDropdown');
+  if (!dropdown) return;
+  if (!_systems.length) {
+    dropdown.innerHTML = '<div class="sys-multi-empty">No systems available.</div>';
+    _updateSysLabel([]);
+    return;
+  }
+  dropdown.innerHTML = _systems.map(s => {
+    const checked = selectedIds.includes(s.id);
+    return `<label class="sys-multi-item${checked ? ' checked' : ''}">
+      <input type="checkbox" value="${escHtml(s.id)}" ${checked ? 'checked' : ''}
+             onchange="this.closest('.sys-multi-item').classList.toggle('checked',this.checked);_updateSysLabel()">
+      <span>${escHtml(s.name)}</span>
+    </label>`;
+  }).join('');
+  _updateSysLabel(selectedIds);
+}
+
+function _getSelectedSystemIds() {
+  const dropdown = document.getElementById('sysMultiDropdown');
+  if (!dropdown) return [];
+  return Array.from(dropdown.querySelectorAll('input[type="checkbox"]:checked'))
+    .map(cb => cb.value);
+}
+
+function _updateSysLabel(ids) {
+  const label = document.getElementById('sysMultiLabel');
+  if (!label) return;
+  const selected = ids !== undefined ? ids : _getSelectedSystemIds();
+  if (!selected.length) {
+    label.textContent = '— None —';
+    label.classList.add('is-placeholder');
+    return;
+  }
+  const names = selected.map(id => {
+    const s = _systems.find(s => s.id === id);
+    return s ? s.name : id;
+  });
+  label.textContent = names.join(', ');
+  label.classList.remove('is-placeholder');
+}
+
+function toggleSysDropdown() {
+  const dropdown = document.getElementById('sysMultiDropdown');
+  const wrap     = document.getElementById('sysMultiWrap');
+  if (!dropdown) return;
+  const opening = !dropdown.classList.contains('open');
+  dropdown.classList.toggle('open', opening);
+  wrap?.classList.toggle('is-open', opening);
+}
+
+function closeSysDropdown() {
+  document.getElementById('sysMultiDropdown')?.classList.remove('open');
+  document.getElementById('sysMultiWrap')?.classList.remove('is-open');
 }
 
 /* ── Skeleton loader ── */
@@ -461,10 +523,11 @@ function renderCard(item, idx = 0) {
                      new Date(item.estimated_end_date + 'T00:00:00') < new Date();
   const statusIdx  = STATUSES.indexOf(item.status);
 
-  const sysLabel = systemName(item.system_id);
-  const devClr   = devColor(item.created_by);
-  const topRow = (sysLabel || item.dev_item_type) ? `<div class="kcard-top-row">
-      ${sysLabel ? `<div class="kcard-system-tag">${escHtml(sysLabel)}</div>` : ''}
+  const sysIds    = _parseSystemIds(item.system_id);
+  const sysLabels = sysIds.map(id => { const s = _systems.find(s => s.id === id); return s ? s.name : null; }).filter(Boolean);
+  const devClr    = devColor(item.created_by);
+  const topRow = (sysLabels.length || item.dev_item_type) ? `<div class="kcard-top-row">
+      ${sysLabels.length ? `<div class="kcard-sys-tags">${sysLabels.map(l => `<div class="kcard-system-tag">${escHtml(l)}</div>`).join('')}</div>` : ''}
       ${typeBadge(item.dev_item_type)}
     </div>` : '';
   return `<div class="kanban-card" id="card-${escHtml(item.id)}"
@@ -748,7 +811,7 @@ function openDetailModal(idOrNull) {
   document.getElementById('itemStatus').value   = item?.status ?? 'pending';
   document.getElementById('itemStart').value    = item?.start_date ?? '';
   document.getElementById('itemEstEnd').value   = item?.estimated_end_date ?? '';
-  populateSystemDropdown(document.getElementById('itemSystem'), item?.system_id ?? null);
+  _buildSystemChecklist(_parseSystemIds(item?.system_id ?? null));
 
   // Item type — handle "Others: ..." case
   const savedType = item?.dev_item_type ?? '';
@@ -792,6 +855,7 @@ function openDetailModal(idOrNull) {
 }
 
 function closeDetailModal() {
+  closeSysDropdown();
   const detailModal = document.getElementById('itemDetailModal');
   detailModal.classList.remove('open');
   detailModal.style.zIndex = '';
@@ -952,7 +1016,7 @@ async function _execSaveItem(remarks, actionIds = [], files = []) {
     title,
     description:        document.getElementById('itemDesc').value.trim() || null,
     status:             newStatus,
-    system_id:          document.getElementById('itemSystem').value || null,
+    system_id:          _serializeSystemIds(_getSelectedSystemIds()),
     start_date:         document.getElementById('itemStart').value || null,
     estimated_end_date: document.getElementById('itemEstEnd').value || null,
     actual_end_date,
@@ -1106,8 +1170,9 @@ function overlayCloseArchive(e) {
 }
 
 function renderArchiveRow(item) {
-  const sysLabel = systemName(item.system_id);
-  const id       = escHtml(item.id);
+  const sysIds    = _parseSystemIds(item.system_id);
+  const sysLabels = sysIds.map(id => { const s = _systems.find(s => s.id === id); return s ? s.name : null; }).filter(Boolean);
+  const id        = escHtml(item.id);
   return `<div onclick="openDetailModal('${id}')"
     style="cursor:pointer;padding:14px 16px;border-bottom:1px solid var(--border);display:flex;gap:14px;align-items:flex-start;transition:background 0.12s;"
     onmouseenter="this.style.background='var(--bg-secondary)'" onmouseleave="this.style.background=''">
@@ -1115,7 +1180,7 @@ function renderArchiveRow(item) {
       ${item.dev_item_code ? `<div class="kcard-code" style="margin-bottom:4px;">${escHtml(item.dev_item_code)}</div>` : ''}
       <div style="font-weight:600;font-size:13px;color:var(--text-primary);margin-bottom:5px;">${escHtml(item.title)}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-        ${sysLabel           ? `<span class="kcard-system-tag">${escHtml(sysLabel)}</span>` : ''}
+        ${sysLabels.map(l => `<span class="kcard-system-tag">${escHtml(l)}</span>`).join('')}
         ${item.dev_item_type ? typeBadge(item.dev_item_type) : ''}
         ${item.created_by    ? `<span style="font-size:11px;color:var(--text-muted);">${authorBubble(item.created_by)}</span>` : ''}
       </div>
@@ -1201,7 +1266,9 @@ async function saveNewSystem(e) {
     const saved = await res.json();
     _systems.push(saved);
     _systems.sort((a, b) => (a.sort_order - b.sort_order) || a.name.localeCompare(b.name));
-    populateSystemDropdown(document.getElementById('itemSystem'), saved.id);
+    const currentSelected = _getSelectedSystemIds();
+    currentSelected.push(saved.id);
+    _buildSystemChecklist(currentSelected);
     closeAddSystemModal();
     showToast(`System "${name}" added.`);
   } catch (err) {

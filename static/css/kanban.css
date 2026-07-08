@@ -563,6 +563,13 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
   gap: 6px;
   margin-bottom: 7px;
 }
+.kcard-sys-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
 .kcard-system-tag {
   display: inline-flex;
   align-items: center;
@@ -574,11 +581,10 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  max-width: 55%;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex-shrink: 1;
 }
 
 /* ── Item type badge ── */
@@ -632,6 +638,76 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
 .btn-add-system:hover {
   background: rgba(196,151,42,0.22);
   border-color: var(--gold-border-h);
+}
+
+/* ── Multi-system checklist dropdown ── */
+.sys-multi-wrap {
+  position: relative;
+  flex: 1;
+}
+.sys-multi-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  user-select: none;
+}
+.sys-multi-label-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.sys-multi-label-text.is-placeholder { color: var(--text-muted); }
+.sys-multi-chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.18s;
+}
+.sys-multi-wrap.is-open .sys-multi-chevron { transform: rotate(180deg); }
+.sys-multi-dropdown {
+  position: absolute;
+  z-index: 200;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  max-height: 220px;
+  overflow-y: auto;
+  display: none;
+}
+.sys-multi-dropdown.open { display: block; }
+.sys-multi-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  transition: background 0.1s;
+}
+.sys-multi-item:hover { background: var(--bg-secondary); }
+.sys-multi-item input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--gold);
+  margin: 0;
+}
+.sys-multi-item.checked { color: var(--text-primary); font-weight: 500; }
+.sys-multi-empty {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 /* ── Toggle checkbox label ── */
