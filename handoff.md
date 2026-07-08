@@ -2,110 +2,147 @@
 
 ## Goal
 
-RGMC Gateway internal portal — ongoing feature development on the issues tracker module. The system is a Flask + Supabase (PostgREST) + Vanilla JS app with no build step. CSS is modular: `static/style.css` is a manifest that `@import`s partials from `static/css/*.css`.
+Maintain and extend the **RGMC Gateway** — an internal Flask web portal for RGMC Group that serves as a central hub for:
+- Accessing internal systems (RGMC, SBIC, NAV Sites, Windows-based apps, task launchers)
+- Submitting IT helpdesk tickets and general helpdesk requests
+- Admin management of users, access requests, systems, and configuration tables
+- Issue tracking with rich resolution workflows (actions, dev items, tasks, common fixes)
+- Developer performance analytics
 
-The sprint of features being built around the issues tracker includes: public ticket confirmation flow, share integrations (Teams + Messenger), promote-to-dev/task with assignee, smart status transitions, KPI tooltips, and PDF report export.
+The portal uses Flask + Supabase (PostgREST API) for the backend and vanilla JS + HTML/CSS for the frontend. No build step — everything is served directly from Flask.
 
 ---
 
 ## Current State
 
-**Everything is working and committed.** Working directory is clean (`git status` is empty). Last two commits:
+**Working directory is clean.** All changes are committed and pushed to `origin/master`. The project is in a stable state after a sequence of UI improvements and new features.
 
-- `b69da01` — "added print pdf on the issues list" (July 1 2026, 18:40)
-- `3700115` — "added few share options" (July 1 2026, 17:58)
+**Recent commits (newest first):**
+- `84c1b42` — added user search for user lists (admin user list now has live search dropdown)
+- `06cbca1` — added common fixes screen (CRUD for `common_fixes` table + linking issues to fixes)
+- `201042e` — added improvements for UI
+- `24e3ddf` — updated report issue form on systems screen
+- `b881d7a` — added rich editor on description fields
 
-All features from this session are complete and functional:
-
-| Feature | Status |
-|---|---|
-| Confirmed fix flow (public ticket page) | Complete |
-| Confirmed fix display in admin modal | Complete |
-| Confirmed fix display in workspace modal | Complete |
-| Teams + Messenger in public share modal | Complete |
-| Teams + Messenger in admin issue share modal | Complete |
-| Teams + Messenger in workspace issue share modal | Complete |
-| Promote modal with assignee dropdown | Complete |
-| Auto status to in_progress when assignee set | Complete |
-| DB columns: dev_items.assigned_to, tasks.assigned_to | Complete (Supabase migration) |
-| Pending count badge fix (showed empty gold dot) | Complete |
-| KPI tooltips with hover descriptions | Complete |
-| KPI card overflow fix (tooltip was clipped) | Complete |
-| PDF export button in filter bar | Complete |
-| _issFilteredRows tracking in filter functions | Complete |
-| issExportPDF() function with full report | Complete |
+All features from recent sessions are complete and functional. No in-progress or broken work.
 
 ---
 
 ## Files Actively Being Edited
 
-All files were modified across the two previous commits. No files are mid-edit.
+No files are currently mid-edit. All work is committed. Key files to know:
 
-- `templates/admin.html` — Added: KPI tooltip markup (all 6 cards), promote modal HTML, confirmed fix group in issue modal, Teams/Messenger in issue share modal, export PDF button in filter bar, pending count badge style="display:none;" fix
-- `static/admin.js` — Added: `_issFilteredRows` global, `_issFilteredRows = rows` in both `issApplyFilters()` and `issApplyFilters_noReset()`, `issExportPDF()` function, `openPromoteModal()`/`submitPromote()`, `onIssueAssigneeChange()`, confirmed fix display in `openIssueModal()`, Teams/Messenger hrefs in `openIssueShareModal()`, `_promoteType` state variable
-- `static/css/issue-tracker.css` — Added: tooltip CSS (.iss-kpi-info-wrap, .iss-kpi-info, .iss-kpi-tooltip), .iss-export-pdf-btn, .iss-confirmed-badge, .iss-unconfirmed-note, share icon colors for teams/messenger; changed .iss-kpi-card overflow to visible (was hidden); changed .iss-share-apps grid to repeat(3,1fr) (was 4)
-- `static/css/workspace.css` — Added .iss-confirm-fix-row { grid-column: 1 / -1 } for full-width in 2-col grid
-- `templates/issue_view.html` — Added renderConfirmFix(issue), submitConfirmFix(), ?confirmed=1 banner check in init(), Teams/Messenger in public share modal, .pub-share-apps grid repeat(3,1fr)
-- `templates/user.html` — Added #iss-confirm-fix-row div in workspace modal, wsIssShareTeams and wsIssShareMessenger in workspace share modal
-- `static/user.js` — Added confirmed fix display logic in openIssueDetail(), Teams/Messenger hrefs in openWsIssShareModal()
-- `controllers/issues.py` — Both promote endpoints (/promote and /promote-task) updated to accept assigned_to from request body; conditionally patch issue.status = "in_progress" and issue.assigned_to when assignee is set
+- `app.py` — Flask app factory; registers all 10 blueprints
+- `controllers/admin.py` — Largest controller (~1382 lines); admin API routes including common fixes CRUD, config tables (companies, departments, brands, categories, request types, non-software items, actions), analytics (dev performance, common issues), system ping + Windows file upload
+- `controllers/public.py` — Public-facing routes; health check, user search (`/api/users/search`), helpdesk category/subcategory lookups, issue confirm-fix flow
+- `controllers/issues.py` — Issue CRUD + resolution workflows (promote to dev item, promote to task, resolve)
+- `controllers/resolution.py` — Resolution actions endpoint
+- `controllers/developer.py` — Developer-side dev_items management
+- `controllers/tasks.py` — Task management
+- `controllers/user_page.py` — User profile/workspace page
+- `controllers/general_helpdesk.py` — General (non-IT) helpdesk submissions
+- `controllers/profile.py` — User profile updates
+- `controllers/auth.py` — Login/logout/auth guards
+- `services/supabase.py` — Central Supabase PostgREST request helper (`supabase_req`)
+- `services/guards.py` — `_require_admin()` and other auth guard helpers
+- `services/email.py` — Email sending via smtplib
+- `services/sites.py` — Cached systems list (`get_sites()` with `_invalidate_sites_cache()`)
+- `models/access.py` — `_approve_record()` / `_reject_record()` for access request workflow
+- `config.py` — Env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `HEALTH_CHECKS`, `GATEWAY_BASE_URL`
+- `static/admin.js` — Main admin panel JS (monolithic, includes users, systems, common fixes, config tables, analytics)
+- `static/script.js` — Main portal homepage JS
+- `static/style.css` — CSS manifest that `@import`s partials from `static/css/*.css`
+- `static/css/common-fixes.css` — Common fixes screen styles
+- `static/css/issue-tracker.css` — Issue tracker styles
+- `static/css/user-search.css` — User search dropdown styles
+- `static/user-search.js` — User search component (used in admin user list)
+- `static/report_issue.js` — Report issue form JS
+- `static/helpdesk.js` — IT helpdesk form JS
+- `static/general_helpdesk.js` — General helpdesk form JS
+- `static/dept-other.js` — Department "other" free-text handling
+- `templates/admin.html` — Admin panel template
+- `templates/index.html` — Main portal homepage
+- `templates/helpdesk.html` — IT helpdesk template
+- `templates/general_helpdesk.html` — General helpdesk template
+- `templates/report_issue.html` — Report issue template
+- `templates/user.html` — User profile/workspace page
+- `templates/developer.html` — Developer dashboard
+- `templates/tasks.html` — Task management page
+- `templates/profile.html` — Profile edit page
+- `templates/issue_view.html` — Public issue status view
+- `templates/access_result.html` — Access request result page
 
 ---
 
 ## Failed Attempts
 
-No failed attempts during this session. All changes applied cleanly on first try.
+No failed attempts recorded in this session — this is a fresh handoff from a clean state.
 
 ---
 
 ## Next Step
 
-No pending implementation tasks. The session ended cleanly with all features complete and committed.
+No active task is in progress. Ask the user what to work on next. Likely continuation areas based on recent work:
 
-To continue adding features, likely next candidates based on the app's direction:
-1. Issue analytics drill-down — click a bar in the analytics chart to filter the table to that company/category
-2. Bulk actions on the issues table — checkboxes for multi-select, bulk status update or bulk export
-3. Issue comments/activity feed — a threaded note system within the admin issue modal
-4. Email notifications — notify assignee by email when promoted/assigned
+1. **Common fixes screen** — recently added; may need UX polish or filtering by system
+2. **User search in admin user list** — recently added; verify it works end-to-end
+3. **Rich editor fields** — recently added to description fields; verify consistency across all description inputs in forms
+4. **Previous pending ideas** from prior session: issue analytics drill-down, bulk actions on issues table, issue comments/activity feed, email notification to assignee on promote/assign
 
-To run the dev server: `python app.py` then navigate to `/admin`.
+To run the dev server:
+```
+python app.py
+```
+Then navigate to `/admin` or `/` in the browser. Requires `.env` or environment variables: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `GATEWAY_BASE_URL`, and SMTP config for email.
 
 ---
 
 ## Context & Gotchas
 
 **Architecture:**
-- Flask + Supabase (PostgREST via Python supabase client) + Vanilla JS — no build step, no bundler
-- CSS manifest: static/style.css imports all partials via @import url('css/...'). Add new CSS files to this manifest or edit the relevant partial directly.
-- static/admin.js is the main admin script — monolithic, ~1900+ lines. State globals at the top (~lines 44-82).
+- Flask + Supabase (PostgREST) + Vanilla JS — no build step, no bundler
+- CSS manifest: `static/style.css` imports all partials via `@import url('css/...')`. Add new CSS files to this manifest, or edit the relevant partial directly.
+- `static/admin.js` is a monolithic ~1900+ line file. State globals are at the top.
 - `_issuesCache` = all fetched issues; `_editingIssueId` = currently open admin issue modal ID; `_developersCache` = cached developer list for assignee dropdowns.
-- `_currentIssue` in user.js = currently open workspace modal issue object.
 
-**Share URLs:**
+**Auth pattern:**
+- All admin routes call `_require_admin()` from `services/guards.py`, which returns `(user, None)` on success or `(None, (error_dict, status_code))` on failure. Always destructure and check `err` before proceeding.
+
+**Supabase calls:**
+- All DB access goes through `supabase_req(method, path, params, data, extra_headers)` in `services/supabase.py`.
+- Uses PostgREST URL query params: e.g., `"status": "eq.pending"`, `"order": "created_at.desc"`, `"or": "(field.ilike.*q*,other.ilike.*q*)"`.
+
+**Systems cache:**
+- `get_sites()` is cached in memory. After any system CRUD, call `_invalidate_sites_cache()` to force refresh. Forgetting this leaves stale system lists on the portal homepage.
+
+**Storage buckets:**
+- Windows launcher/manifest files → `system-files` bucket
+- Issue attachments and common-fix attachments → `issue-attachments` bucket (common fixes use `cf/<fix_id>/` prefix)
+
+**Email:**
+- Emails are sent synchronously on approve/reject. If SMTP is misconfigured, the endpoint still returns success but logs the error.
+
+**`is_windows_based` systems:**
+- Have `windows_launcher_url` and `windows_manifest_url` fields; shown in a separate section on the homepage; exempt from `primary_url`/`primary_label` requirement on creation.
+
+**`is_task` systems:**
+- Task launcher entries shown in a separate section on the portal; also exempt from `primary_url` requirement.
+
+**Resolution types** (used in common-issues analytics):
+- `quick` = no linked item; `dev_item` = `dev_item_id` set; `task` = `task_id` or `user_task_id` set; `duplicate` = `is_duplicate` flag set.
+
+**User roles:**
+- `is_admin`, `is_developer`, `is_management`, `is_department_head` are boolean columns on the `users` table.
+- Dev-performance endpoint filters `is_developer.eq.true OR is_admin.eq.true` and excludes `is_management`.
+
+**Share URLs (from prior session):**
 - Teams: `https://teams.microsoft.com/share?href=<encoded>&msgText=<encoded>`
-- Messenger: `fb-messenger://share?link=<encoded>` (deep link, only works if FB Messenger desktop app is installed)
+- Messenger: `fb-messenger://share?link=<encoded>` (deep link, requires FB Messenger desktop app)
+
+**PDF export (from prior session):**
+- `issExportPDF()` in `static/admin.js` opens a new window, writes HTML, auto-calls `window.print()` after 600ms delay.
+- Uses `_issFilteredRows` which is updated by both `issApplyFilters()` and `issApplyFilters_noReset()`.
 
 **Supabase MCP:**
-- DB migrations applied via mcp__supabase__apply_migration. Columns dev_items.assigned_to and tasks.assigned_to were added in this session.
-- Project is connected — MCP tools are available for future schema changes.
-
-**PDF export behavior:**
-- issExportPDF() opens a new window, writes HTML, then auto-calls window.print() after 600ms delay
-- Uses _issFilteredRows which is set by both issApplyFilters() and issApplyFilters_noReset() — if the user changes filters, the export always reflects the current view
-- Falls back to _issuesCache if _issFilteredRows is empty (e.g. page just loaded, filter not yet triggered)
-- The "Print / Save PDF" button inside the report has .no-print class so it disappears during actual printing
-
-**Promote modal assignee behavior:**
-- When an assignee is selected in the main issue edit modal (#issueAssignedTo) via onIssueAssigneeChange(), status auto-advances to in_progress only if current status is open or new — it does not downgrade resolved/closed issues.
-- The promote modal (#promoteModal) adds the assignee to the newly created dev_item or task; the backend also patches issue.status = in_progress and issue.assigned_to when an assignee is provided.
-
-**Confirmed fix flow:**
-- Public endpoint: GET /api/public/issues/:id/confirm-fix (no auth required)
-- After confirming, a ?confirmed=1 query param is added to the URL and #confirmedBanner is shown at the top of the ticket page
-- Admin/workspace modals show confirmed fix status read-only (not actionable from those views)
-
-**KPI card overflow fix:**
-- .iss-kpi-card had overflow: hidden which clipped the absolutely-positioned tooltip children. Changed to overflow: visible. The ::before accent bar (2px top strip) stays within bounds so no visual regression from this change.
-
-**Pending count badge fix:**
-- .admin-sb-badge has min-width: 18px; height: 18px with gold background — an empty badge renders as a visible gold circle. Fixed by adding style="display:none;" to the #pendingCount HTML initial state, matching how the issues count badges initialize. JS shows it when count > 0.
+- DB migrations can be applied via `mcp__supabase__apply_migration`. Prior session added `dev_items.assigned_to` and `tasks.assigned_to` columns.
+- MCP tools are available for future schema changes.

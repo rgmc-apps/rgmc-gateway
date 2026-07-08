@@ -92,6 +92,9 @@ async function _fetchAndPopulateSubcategories(category) {
   const label = document.getElementById('riSubcategoryLabel');
   if (!sel) return;
 
+  // Clear immediately so a stale value can't sneak through while the fetch is in flight
+  document.getElementById('riSiteName').value = '';
+
   const isSoftware = category === 'Software/Application';
   if (label) {
     label.innerHTML = (isSoftware ? 'Affected System' : 'Item / Subcategory')
@@ -112,9 +115,6 @@ async function _fetchAndPopulateSubcategories(category) {
   } catch {
     sel.innerHTML = '<option value="" disabled selected>Failed to load</option>';
   }
-
-  // Clear site_name since selection changed
-  document.getElementById('riSiteName').value = '';
 }
 
 function riOnCategoryChange() {
@@ -125,6 +125,8 @@ function riOnCategoryChange() {
 function riOnSubcategoryChange() {
   const val = document.getElementById('riSubcategory').value;
   document.getElementById('riSiteName').value = val;
+  const errEl = document.getElementById('riSubcategoryError');
+  if (errEl) errEl.style.display = 'none';
 }
 
 /* ── Payload help modal ───────────────────────────────────── */
@@ -151,6 +153,9 @@ async function riSubmit(e) {
   if (!siteName) {
     if (subGroupShown) {
       const subSel = document.getElementById('riSubcategory');
+      const errEl  = document.getElementById('riSubcategoryError');
+      if (errEl) errEl.style.display = 'block';
+      subSel.scrollIntoView({ behavior: 'smooth', block: 'center' });
       subSel.focus();
       subSel.classList.add('input-shake');
       setTimeout(() => subSel.classList.remove('input-shake'), 400);
