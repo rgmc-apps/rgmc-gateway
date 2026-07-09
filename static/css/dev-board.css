@@ -552,3 +552,193 @@
   color: var(--text-primary);
 }
 
+/* ══════════════════════════════════════════════════════════════════════════════
+   Parked items section
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.parked-section {
+  margin-top: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.parked-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: rgba(255,255,255,0.025);
+  border-bottom: 1px solid var(--border);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Epics view
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.epic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+  padding-top: 4px;
+}
+
+.epic-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.epic-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(99,102,241,0.25);
+}
+
+.epic-card-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.epic-status-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 100px;
+  text-transform: uppercase;
+}
+.es-planning  { background: rgba(99,102,241,0.18); color: #a5b4fc; }
+.es-active    { background: rgba(34,197,94,0.18);  color: #4ade80; }
+.es-on-hold   { background: rgba(245,158,11,0.18); color: #fbbf24; }
+.es-done      { background: rgba(148,163,184,0.14); color: #94a3b8; }
+.es-cancelled { background: rgba(239,68,68,0.15);  color: #f87171; }
+
+.epic-inactive-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 100px;
+  text-transform: uppercase;
+  background: rgba(107,114,128,0.18);
+  color: #9ca3af;
+}
+
+.epic-card-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+.epic-card-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.epic-card-sys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.epic-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+}
+.epic-card-item-count {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.epic-card-date {
+  color: var(--text-muted);
+}
+
+/* ── Epic items list (right pane of epic modal) ── */
+
+.epic-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  max-height: 440px;
+  padding: 2px 0;
+}
+
+.epic-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  font-size: 12.5px;
+}
+.epic-item-row:hover {
+  background: var(--bg-secondary);
+  border-color: var(--accent);
+}
+.epic-item-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.epic-item-title {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.epic-item-parked {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 100px;
+  text-transform: uppercase;
+  background: rgba(107,114,128,0.18);
+  color: #9ca3af;
+}
+
+/* ── Inline form helpers ── */
+.form-group-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.form-checkbox {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.form-label-inline {
+  margin-bottom: 0;
+  cursor: pointer;
+}
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+

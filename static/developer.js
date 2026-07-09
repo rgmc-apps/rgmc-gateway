@@ -72,9 +72,12 @@ let _filter              = 'all'; // 'all' | 'mine'
 let _doneRemarksCallback = null;
 let _devActionsCache     = null;
 let _devResPendingFiles  = [];
-let _viewMode            = 'kanban'; // 'kanban' | 'list' | 'analytics'
+let _viewMode            = 'kanban'; // 'kanban' | 'list' | 'analytics' | 'epics'
 let _listSort            = { col: 'status', dir: 'asc' };
 let _listFiltersPopulated = false;
+let _epics               = [];
+let _editingEpicId       = null;
+let _addItemToEpicId     = null;
 
 const DONE_WEEKS_KEY = 'dev-done-weeks';
 let _doneWeeks = Math.max(1, parseInt(localStorage.getItem(DONE_WEEKS_KEY) || '2', 10));
@@ -105,9 +108,11 @@ function setViewMode(mode) {
   document.getElementById('devKanbanView').style.display    = mode === 'kanban'    ? '' : 'none';
   document.getElementById('devListView').style.display      = mode === 'list'      ? '' : 'none';
   document.getElementById('devAnalyticsView').style.display = mode === 'analytics' ? '' : 'none';
+  document.getElementById('devEpicsView').style.display      = mode === 'epics'     ? '' : 'none';
 
   if (mode === 'list')      renderListView();
   if (mode === 'analytics') renderAnalytics();
+  if (mode === 'epics')     renderEpicsView();
 }
 
 /* ── Profile dropdown ── */
@@ -220,16 +225,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   initColArcs();
   initPhysicsDrag();
-  loadMembers().then(() => loadSystems()).then(() => loadItems()).then(() => hidePageLoader());
+  loadMembers().then(() => loadSystems()).then(() => Promise.all([loadItems(), loadEpics()])).then(() => hidePageLoader());
 
   const doneWeeksInput = document.getElementById('doneWeeksInput');
   if (doneWeeksInput) doneWeeksInput.value = _doneWeeks;
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeDoneRemarksModal(); closeDetailModal(); closeAddSystemModal(); closeArchiveModal(); closeProfileMenu(); }
+    if (e.key === 'Escape') { closeDoneRemarksModal(); closeDetailModal(); closeEpicModal(); closeAddSystemModal(); closeArchiveModal(); closeProfileMenu(); }
   });
   document.addEventListener('click', e => {
-    if (!e.target.closest('#sysMultiWrap')) closeSysDropdown();
+    if (!e.target.closest('#sysMultiWrap'))     closeSysDropdown();
+    if (!e.target.closest('#epicSysMultiWrap')) closeEpicSysDropdown();
     closeProfileMenu();
   });
 
@@ -470,7 +476,7 @@ const STATUSES = ['pending', 'ongoing', 'coding', 'testing', 'done'];
 function renderBoard() {
   const counts = {};
   const me      = loadSession()?.username || '';
-  const visible = _filter === 'mine' ? _items.filter(i => i.created_by === me) : _items;
+  const visible = (_filter === 'mine' ? _items.filter(i => i.created_by === me) : _items).filter(i => !i.is_parked);
 
   STATUSES.forEach(status => {
     const col  = document.getElementById(`cards-${status}`);
@@ -512,6 +518,7 @@ function renderBoard() {
   // Keep other views in sync when visible
   if (_viewMode === 'list')      renderListView();
   if (_viewMode === 'analytics') renderAnalytics();
+  if (_viewMode === 'epics')     renderEpicsView();
 }
 
 const TYPE_CLASS = {
@@ -827,6 +834,21 @@ function openDetailModal(idOrNull) {
   document.getElementById('itemEstEnd').value   = item?.estimated_end_date ?? '';
   _buildSystemChecklist(_parseSystemIds(item ?? {}));
 
+  // Epic dropdown
+  const epicSel = document.getElementById('itemEpic');
+  if (epicSel) {
+    epicSel.innerHTML = '<option value="">— None —</option>' +
+      _epics.filter(e => e.is_active !== false).map(e =>
+        `<option value="${escHtml(e.epic_id)}">${escHtml(e.epic_name)}</option>`
+      ).join('');
+    epicSel.value = item?.epic_id ?? '';
+  }
+  // is_parked checkbox
+  const parkedCb = document.getElementById('itemIsParked');
+  if (parkedCb) parkedCb.checked = !!item?.is_parked;
+  // If opened from epic context, pre-select that epic
+  if (_addItemToEpicId && !item && epicSel) epicSel.value = _addItemToEpicId;
+
   // Item type — handle "Others: ..." case
   const savedType = item?.dev_item_type ?? '';
   const knownTypes = ['New Feature','Improvement','Bug Fix','Admin Task','Discussion','Maintenance','Others'];
@@ -860,9 +882,10 @@ function openDetailModal(idOrNull) {
 
   resetItemForm();
   const detailModal = document.getElementById('itemDetailModal');
-  // If archive modal is open, elevate detail modal above it (archive is later in DOM)
+  // Elevate above archive or epic modal if either is open
   const archiveOpen = document.getElementById('archiveModal').classList.contains('open');
-  detailModal.style.zIndex = archiveOpen ? '1100' : '';
+  const epicOpen    = document.getElementById('epicDetailModal')?.classList.contains('open');
+  detailModal.style.zIndex = (archiveOpen || epicOpen) ? '1100' : '';
   detailModal.classList.add('open');
   document.body.style.overflow = 'hidden';
   setTimeout(() => document.getElementById('itemTitle').focus(), 60);
@@ -1035,6 +1058,8 @@ async function _execSaveItem(remarks, actionIds = [], files = []) {
     estimated_end_date: document.getElementById('itemEstEnd').value || null,
     actual_end_date,
     dev_item_type:      devItemType,
+    epic_id:            document.getElementById('itemEpic')?.value || null,
+    is_parked:          document.getElementById('itemIsParked')?.checked ?? false,
   };
   if (remarks) payload.remarks = remarks;
   if (newStatus === 'done') {
@@ -1083,9 +1108,20 @@ async function _execSaveItem(remarks, actionIds = [], files = []) {
     } else {
       _items.push(saved);
     }
+    const wasEditing   = !!_editingId;
+    const savedEpicId  = payload.epic_id;
     renderBoard();
     closeDetailModal();
-    showToast(`Item ${_editingId ? 'updated' : 'created'}.`);
+    showToast(`Item ${wasEditing ? 'updated' : 'created'}.`);
+    // Refresh epic items pane if epic modal is open
+    if (_editingEpicId && (savedEpicId === _editingEpicId)) {
+      _refreshEpicItems(_editingEpicId);
+    }
+    if (_addItemToEpicId) {
+      const epicId = _addItemToEpicId;
+      _addItemToEpicId = null;
+      _refreshEpicItems(epicId);
+    }
   } catch (err) {
     document.getElementById('itemFormLoading').style.display = 'none';
     document.getElementById('itemFormActions').style.display = '';
@@ -1421,7 +1457,26 @@ function renderListView() {
   if (_viewMode !== 'list') return;
   _populateListFilters();
 
-  const items = _getListItems();
+  const allItems = _getListItems();
+  const items    = allItems.filter(i => !i.is_parked);
+
+  // Parked items — apply same non-status filters independently
+  const me        = loadSession()?.username || '';
+  const searchVal = (document.getElementById('listSearch')?.value || '').toLowerCase().trim();
+  const typeF     = document.getElementById('listTypeFilter')?.value  || '';
+  const devF      = document.getElementById('listDevFilter')?.value   || '';
+  const sysF      = document.getElementById('listSysFilter')?.value   || '';
+  let parked = (_filter === 'mine' ? _items.filter(i => i.created_by === me) : _items.slice())
+    .filter(i => i.is_parked);
+  if (searchVal) parked = parked.filter(i =>
+    (i.title || '').toLowerCase().includes(searchVal) ||
+    (i.dev_item_code || '').toLowerCase().includes(searchVal) ||
+    (i.dev_item_type || '').toLowerCase().includes(searchVal));
+  if (typeF) parked = parked.filter(i => typeF === 'Others'
+    ? (i.dev_item_type || '').startsWith('Others')
+    : (i.dev_item_type || '') === typeF);
+  if (devF)  parked = parked.filter(i => i.created_by === devF);
+  if (sysF)  parked = parked.filter(i => _parseSystemIds(i).includes(sysF));
 
   const countEl = document.getElementById('listCount');
   if (countEl) countEl.textContent = `${items.length} item${items.length !== 1 ? 's' : ''}`;
@@ -1486,6 +1541,48 @@ function renderListView() {
       <td class="dlt-td">${elapsed !== null ? `<span class="dlt-elapsed-val">${elapsed}d</span>` : `<span class="dlt-muted">—</span>`}</td>
     </tr>`;
   }).join('');
+
+  // Parked section
+  const parkedSection = document.getElementById('parkedSection');
+  const parkedCount   = document.getElementById('parkedCount');
+  const parkedBody    = document.getElementById('parkedListBody');
+  if (parkedSection) parkedSection.style.display = parked.length ? '' : 'none';
+  if (parkedCount)   parkedCount.textContent = `${parked.length} item${parked.length !== 1 ? 's' : ''}`;
+  if (parkedBody) {
+    parkedBody.innerHTML = parked.length
+      ? parked.map(item => {
+          const sysIds    = _parseSystemIds(item);
+          const sysNames  = sysIds.map(id => _systems.find(s => s.id === id)?.name).filter(Boolean);
+          const elapsed   = daysElapsed(item);
+          const m         = _members[item.created_by] || {};
+          const devName   = m.displayName || item.created_by || '—';
+          const devInit   = (devName.charAt(0) || '?').toUpperCase();
+          const rawType   = item.dev_item_type || '';
+          const typeDisp  = rawType.startsWith('Others: ') ? rawType.slice('Others: '.length) : rawType;
+          const typeCls   = TYPE_CLASS[rawType] || (rawType ? 'ktype-others' : '');
+          const sysHtml   = sysNames.length
+            ? sysNames.slice(0, 3).map(n => `<span class="kcard-system-tag">${escHtml(n)}</span>`).join('')
+              + (sysNames.length > 3 ? `<span class="kcard-system-tag">+${sysNames.length - 3}</span>` : '')
+            : `<span class="dlt-muted">—</span>`;
+          const avatarHtml = m.avatarUrl
+            ? `<img src="${m.avatarUrl}" class="dlt-avatar" alt="${escHtml(devInit)}">`
+            : `<div class="dlt-avatar dlt-avatar-initial">${escHtml(devInit)}</div>`;
+          return `<tr class="dlt-row" onclick="openDetailModal('${escHtml(item.id)}')">
+            <td class="dlt-td dlt-code">${item.dev_item_code ? escHtml(item.dev_item_code) : '—'}</td>
+            <td class="dlt-td">
+              <div class="dlt-title-text">${escHtml(item.title)}</div>
+              ${item.description ? `<div class="dlt-desc-preview">${escHtml(_descPreview(item.description, 75))}</div>` : ''}
+            </td>
+            <td class="dlt-td">${rawType ? `<span class="kcard-type-badge ${typeCls}">${escHtml(typeDisp)}</span>` : `<span class="dlt-muted">—</span>`}</td>
+            <td class="dlt-td"><div class="dlt-sys-tags">${sysHtml}</div></td>
+            <td class="dlt-td"><div class="dlt-dev-cell">${avatarHtml}<span class="dlt-dev-name">${escHtml(devName)}</span></div></td>
+            <td class="dlt-td dlt-date">${fmtDate(item.start_date)}</td>
+            <td class="dlt-td dlt-date">${fmtDate(item.estimated_end_date)}</td>
+            <td class="dlt-td">${elapsed !== null ? `<span class="dlt-elapsed-val">${elapsed}d</span>` : `<span class="dlt-muted">—</span>`}</td>
+          </tr>`;
+        }).join('')
+      : `<tr><td colspan="8" class="dlt-empty">No parked items match the filters.</td></tr>`;
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -1703,4 +1800,323 @@ function _renderAnaDevChart(items) {
     </thead>
     <tbody>${rows}</tbody>
   </table>`;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Epics
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Epic systems dropdown (mirrors item sys dropdown with epic- prefix) ── */
+function _buildEpicSysChecklist(selectedIds = []) {
+  const dropdown = document.getElementById('epicSysMultiDropdown');
+  if (!dropdown) return;
+  if (!_systems.length) {
+    dropdown.innerHTML = '<div class="sys-multi-empty">No systems available.</div>';
+    _updateEpicSysLabel([]);
+    return;
+  }
+  dropdown.innerHTML = _systems.map(s => {
+    const checked = selectedIds.includes(s.id);
+    return `<label class="sys-multi-item${checked ? ' checked' : ''}">
+      <input type="checkbox" value="${escHtml(s.id)}" ${checked ? 'checked' : ''}
+             onchange="this.closest('.sys-multi-item').classList.toggle('checked',this.checked);_updateEpicSysLabel()">
+      <span>${escHtml(s.name)}</span>
+    </label>`;
+  }).join('');
+  _updateEpicSysLabel(selectedIds);
+}
+
+function _getSelectedEpicSystemIds() {
+  const dropdown = document.getElementById('epicSysMultiDropdown');
+  if (!dropdown) return [];
+  return Array.from(dropdown.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+}
+
+function _updateEpicSysLabel(ids) {
+  const label = document.getElementById('epicSysMultiLabel');
+  if (!label) return;
+  const selected = ids !== undefined ? ids : _getSelectedEpicSystemIds();
+  if (!selected.length) {
+    label.textContent = '— None —';
+    label.classList.add('is-placeholder');
+    return;
+  }
+  label.textContent = selected.map(id => _systems.find(s => s.id === id)?.name || id).join(', ');
+  label.classList.remove('is-placeholder');
+}
+
+function toggleEpicSysDropdown() {
+  const dropdown = document.getElementById('epicSysMultiDropdown');
+  const wrap     = document.getElementById('epicSysMultiWrap');
+  if (!dropdown) return;
+  const opening = !dropdown.classList.contains('open');
+  dropdown.classList.toggle('open', opening);
+  wrap?.classList.toggle('is-open', opening);
+}
+
+function closeEpicSysDropdown() {
+  document.getElementById('epicSysMultiDropdown')?.classList.remove('open');
+  document.getElementById('epicSysMultiWrap')?.classList.remove('is-open');
+}
+
+/* ── Load epics ── */
+async function loadEpics() {
+  try {
+    const res = await fetch('/api/dev/epics', { headers: authHeaders() });
+    if (res.ok) _epics = await res.json();
+  } catch { /* non-fatal */ }
+}
+
+/* ── Epics view ── */
+const EPIC_STATUS_LABEL = { planning: 'Planning', active: 'Active', on_hold: 'On Hold', done: 'Done', cancelled: 'Cancelled' };
+const EPIC_STATUS_CLS   = { planning: 'es-planning', active: 'es-active', on_hold: 'es-on-hold', done: 'es-done', cancelled: 'es-cancelled' };
+
+function renderEpicsView() {
+  if (_viewMode !== 'epics') return;
+
+  const search  = (document.getElementById('epicSearch')?.value  || '').toLowerCase().trim();
+  const statusF = document.getElementById('epicStatusFilter')?.value || '';
+
+  let epics = _epics.slice();
+  if (search)  epics = epics.filter(e => (e.epic_name || '').toLowerCase().includes(search) || (e.epic_description || '').toLowerCase().includes(search));
+  if (statusF) epics = epics.filter(e => e.epic_status === statusF);
+
+  const countEl = document.getElementById('epicCount');
+  if (countEl) countEl.textContent = `${epics.length} epic${epics.length !== 1 ? 's' : ''}`;
+
+  const grid = document.getElementById('epicGrid');
+  if (!grid) return;
+
+  if (!epics.length) {
+    grid.innerHTML = '<div class="dlt-empty">No epics found.</div>';
+    return;
+  }
+
+  grid.innerHTML = epics.map(e => {
+    const sysIds   = Array.isArray(e.system_ids) ? e.system_ids : [];
+    const sysNames = sysIds.map(id => _systems.find(s => s.id === id)?.name).filter(Boolean);
+    const itemCount = _items.filter(i => i.epic_id === e.epic_id).length;
+    const cls = EPIC_STATUS_CLS[e.epic_status] || 'es-planning';
+    const lbl = EPIC_STATUS_LABEL[e.epic_status] || e.epic_status;
+
+    return `<div class="epic-card" onclick="openEpicModal('${escHtml(e.epic_id)}')">
+      <div class="epic-card-top">
+        <span class="epic-status-badge ${cls}">${escHtml(lbl)}</span>
+        ${!e.is_active ? '<span class="epic-inactive-badge">Inactive</span>' : ''}
+      </div>
+      <div class="epic-card-name">${escHtml(e.epic_name)}</div>
+      ${e.epic_description ? `<div class="epic-card-desc">${escHtml(_descPreview(e.epic_description, 100))}</div>` : ''}
+      ${sysNames.length ? `<div class="epic-card-sys">${sysNames.map(n => `<span class="kcard-system-tag">${escHtml(n)}</span>`).join('')}</div>` : ''}
+      <div class="epic-card-footer">
+        <span class="epic-card-item-count">
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          ${itemCount} item${itemCount !== 1 ? 's' : ''}
+        </span>
+        <span class="epic-card-date">${fmtDate(e.date_created)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ── Epic detail modal ── */
+function openEpicModal(epicIdOrNull) {
+  const epic = epicIdOrNull ? _epics.find(e => e.epic_id === epicIdOrNull) : null;
+  _editingEpicId = epic?.epic_id ?? null;
+
+  document.getElementById('epicModalTitle').textContent = epic ? 'Edit Epic' : 'New Epic';
+  document.getElementById('epicModalMeta').textContent  = epic
+    ? `Created ${fmtDate(epic.date_created)}`
+    : 'Fill in the details below';
+  document.getElementById('epicName').value   = epic?.epic_name        ?? '';
+  document.getElementById('epicStatus').value = epic?.epic_status      ?? 'planning';
+  document.getElementById('epicDesc').value   = epic?.epic_description ?? '';
+  document.getElementById('epicIsActive').checked = epic?.is_active !== false;
+
+  _buildEpicSysChecklist(Array.isArray(epic?.system_ids) ? epic.system_ids : []);
+
+  const deleteBtn  = document.getElementById('epicDeleteBtn');
+  const addItemBtn = document.getElementById('epicAddItemBtn');
+  const itemsList  = document.getElementById('epicItemsList');
+
+  if (epic) {
+    if (deleteBtn)  deleteBtn.style.display  = '';
+    if (addItemBtn) addItemBtn.style.display = '';
+    if (itemsList)  itemsList.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
+    _refreshEpicItems(epic.epic_id);
+  } else {
+    if (deleteBtn)  deleteBtn.style.display  = 'none';
+    if (addItemBtn) addItemBtn.style.display = 'none';
+    if (itemsList)  itemsList.innerHTML = '<div class="dlt-empty">Save the epic first to link items.</div>';
+  }
+
+  _resetEpicForm();
+  document.getElementById('epicDetailModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('epicName').focus(), 60);
+}
+
+function closeEpicModal() {
+  closeEpicSysDropdown();
+  document.getElementById('epicDetailModal').classList.remove('open');
+  const anyOpen = document.querySelector('.modal-overlay.open:not(#epicDetailModal)');
+  if (!anyOpen) document.body.style.overflow = '';
+  _editingEpicId   = null;
+  _addItemToEpicId = null;
+}
+
+function overlayCloseEpic(e) {
+  if (e.target === document.getElementById('epicDetailModal')) closeEpicModal();
+}
+
+function _resetEpicForm() {
+  document.getElementById('epicFormLoading').style.display = 'none';
+  document.getElementById('epicFormError').style.display   = 'none';
+  document.getElementById('epicSaveBtn').disabled          = false;
+}
+
+async function _refreshEpicItems(epicId) {
+  const listEl = document.getElementById('epicItemsList');
+  if (!listEl) return;
+  try {
+    const res = await fetch(`/api/dev/epics/${encodeURIComponent(epicId)}/items`, { headers: authHeaders() });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    const items = await res.json();
+    // Merge into _items so detail modal can find them
+    items.forEach(item => { if (!_items.find(i => i.id === item.id)) _items.push(item); });
+    listEl.innerHTML = items.length
+      ? items.map(item => _renderEpicItemRow(item)).join('')
+      : '<div class="dlt-empty">No items linked to this epic yet.</div>';
+  } catch (err) {
+    listEl.innerHTML = `<div class="admin-error" style="margin:8px;">${escHtml(err.message)}</div>`;
+  }
+}
+
+function _renderEpicItemRow(item) {
+  const statusCls = {
+    pending: 'dp-s-pending', ongoing: 'dp-s-ongoing', coding: 'dp-s-coding',
+    testing: 'dp-s-testing', done: 'dp-s-done',
+  }[item.status] || '';
+  return `<div class="epic-item-row" onclick="openItemFromEpic('${escHtml(item.id)}')">
+    <div class="epic-item-left">
+      ${item.dev_item_code ? `<span class="kcard-code" style="font-size:11px;margin-right:6px;">${escHtml(item.dev_item_code)}</span>` : ''}
+      <span class="epic-item-title">${escHtml(item.title)}</span>
+      ${item.is_parked ? '<span class="epic-item-parked">Parked</span>' : ''}
+    </div>
+    <span class="dp-item-status ${statusCls}">${escHtml(item.status)}</span>
+  </div>`;
+}
+
+async function saveEpic() {
+  const name = document.getElementById('epicName').value.trim();
+  if (!name) {
+    document.getElementById('epicFormError').textContent   = 'Epic name is required.';
+    document.getElementById('epicFormError').style.display = '';
+    return;
+  }
+
+  const wasNew = !_editingEpicId;
+  const payload = {
+    epic_name:        name,
+    epic_status:      document.getElementById('epicStatus').value,
+    epic_description: document.getElementById('epicDesc').value.trim() || null,
+    system_ids:       _getSelectedEpicSystemIds(),
+    is_active:        document.getElementById('epicIsActive').checked,
+  };
+
+  document.getElementById('epicFormLoading').style.display = '';
+  document.getElementById('epicSaveBtn').disabled          = true;
+  document.getElementById('epicFormError').style.display   = 'none';
+
+  try {
+    let res;
+    if (_editingEpicId) {
+      res = await fetch(`/api/dev/epics/${encodeURIComponent(_editingEpicId)}`, {
+        method:  'PATCH',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload),
+      });
+    } else {
+      res = await fetch('/api/dev/epics', {
+        method:  'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload),
+      });
+    }
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    const saved = await res.json();
+
+    if (wasNew) {
+      _epics.unshift(saved);
+      _editingEpicId = saved.epic_id;
+      document.getElementById('epicModalTitle').textContent  = 'Edit Epic';
+      document.getElementById('epicModalMeta').textContent   = `Created ${fmtDate(saved.date_created)}`;
+      document.getElementById('epicDeleteBtn').style.display  = '';
+      document.getElementById('epicAddItemBtn').style.display = '';
+      document.getElementById('epicItemsList').innerHTML      = '<div class="dlt-empty">No items linked to this epic yet.</div>';
+    } else {
+      const idx = _epics.findIndex(e => e.epic_id === saved.epic_id);
+      if (idx !== -1) _epics[idx] = saved;
+      _refreshEpicItems(saved.epic_id);
+    }
+
+    // Refresh epic select in item form if it's open
+    const epicSel = document.getElementById('itemEpic');
+    if (epicSel) {
+      const curVal = epicSel.value;
+      epicSel.innerHTML = '<option value="">— None —</option>' +
+        _epics.filter(e => e.is_active !== false).map(e =>
+          `<option value="${escHtml(e.epic_id)}">${escHtml(e.epic_name)}</option>`
+        ).join('');
+      epicSel.value = curVal;
+    }
+
+    renderEpicsView();
+    showToast(`Epic ${wasNew ? 'created' : 'updated'}.`);
+  } catch (err) {
+    document.getElementById('epicFormError').textContent   = err.message;
+    document.getElementById('epicFormError').style.display = '';
+  } finally {
+    document.getElementById('epicFormLoading').style.display = 'none';
+    document.getElementById('epicSaveBtn').disabled          = false;
+  }
+}
+
+async function deleteEpicFromDetail() {
+  if (!_editingEpicId) return;
+  const epic = _epics.find(e => e.epic_id === _editingEpicId);
+  if (!await showConfirm({
+    title:       'Delete Epic',
+    message:     `Delete "${epic?.epic_name || 'this epic'}"?`,
+    detail:      'Linked dev items will be unlinked. This cannot be undone.',
+    confirmText: 'Delete',
+    danger:      true,
+  })) return;
+  const id = _editingEpicId;
+  closeEpicModal();
+  try {
+    const res = await fetch(`/api/dev/epics/${encodeURIComponent(id)}`, {
+      method:  'DELETE',
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    _epics = _epics.filter(e => e.epic_id !== id);
+    _items.forEach(i => { if (i.epic_id === id) i.epic_id = null; });
+    renderEpicsView();
+    showToast('Epic deleted.');
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+function addItemToEpicModal() {
+  if (!_editingEpicId) return;
+  _addItemToEpicId = _editingEpicId;
+  openDetailModal(null);
+}
+
+function openItemFromEpic(itemId) {
+  openDetailModal(itemId);
+  // Ensure item detail modal floats above epic modal
+  const detailModal = document.getElementById('itemDetailModal');
+  if (detailModal) detailModal.style.zIndex = '1100';
 }

@@ -50,15 +50,20 @@ def dev_create_item():
     raw_ids    = data.get("system_ids") or []
     system_ids = [s for s in raw_ids if s] if isinstance(raw_ids, list) else []
     system_id  = system_ids[0] if len(system_ids) == 1 else None
+    raw_status = (data.get("status") or "pending").strip()
+    if raw_status not in ("pending", "ongoing", "coding", "testing", "done"):
+        raw_status = "pending"
     item = {
         "title":              title,
         "description":        (data.get("description") or "").strip() or None,
-        "status":             "pending",
+        "status":             raw_status,
         "system_id":          system_id,
         "system_ids":         system_ids or None,
         "start_date":         data.get("start_date") or None,
         "estimated_end_date": data.get("estimated_end_date") or None,
         "dev_item_type":      (data.get("dev_item_type") or "").strip() or None,
+        "epic_id":            data.get("epic_id") or None,
+        "is_parked":          bool(data.get("is_parked", False)),
         "created_by":         username,
     }
     try:
@@ -87,7 +92,7 @@ def dev_update_item(item_id):
         return jsonify(err[0]), err[1]
     data    = request.get_json(silent=True) or {}
     remarks = (data.get("remarks") or "").strip()
-    allowed = {"title", "description", "status", "system_id", "system_ids", "start_date", "estimated_end_date", "actual_end_date", "dev_item_type", "resolution_action_ids", "resolution_attachment_urls"}
+    allowed = {"title", "description", "status", "system_id", "system_ids", "start_date", "estimated_end_date", "actual_end_date", "dev_item_type", "resolution_action_ids", "resolution_attachment_urls", "epic_id", "is_parked"}
     patch   = {k: v for k, v in data.items() if k in allowed}
     if "system_ids" in patch:
         ids = [s for s in (patch["system_ids"] or []) if s]
@@ -329,3 +334,107 @@ def dev_get_members():
         current_app.logger.error("dev_get_members failed: %s", exc)
         return jsonify({"error": "Failed to fetch members"}), 500
     return jsonify(rows or [])
+
+
+# ── Epics ──────────────────────────────────────────────────────────────────────
+
+@developer_bp.get("/api/dev/epics")
+def dev_get_epics():
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/epics", params={
+            "select": "*",
+            "order":  "date_created.desc",
+        })
+        return jsonify(rows or [])
+    except Exception as exc:
+        current_app.logger.error("dev_get_epics failed: %s", exc)
+        return jsonify({"error": "Failed to fetch epics"}), 500
+
+
+@developer_bp.post("/api/dev/epics")
+def dev_create_epic():
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    data = request.get_json(silent=True) or {}
+    name = (data.get("epic_name") or "").strip()
+    if not name:
+        return jsonify({"error": "Epic name is required"}), 400
+    raw_ids    = data.get("system_ids") or []
+    system_ids = [s for s in raw_ids if s] if isinstance(raw_ids, list) else []
+    epic_status = (data.get("epic_status") or "planning").strip()
+    if epic_status not in ("planning", "active", "on_hold", "done", "cancelled"):
+        epic_status = "planning"
+    payload = {
+        "epic_name":        name,
+        "epic_description": (data.get("epic_description") or "").strip() or None,
+        "system_ids":       system_ids or None,
+        "epic_status":      epic_status,
+        "is_active":        bool(data.get("is_active", True)),
+    }
+    try:
+        rows = supabase_req("POST", "/epics", data=payload)
+        return jsonify(rows[0] if rows else {}), 201
+    except Exception as exc:
+        current_app.logger.error("dev_create_epic failed: %s", exc)
+        return jsonify({"error": "Failed to create epic"}), 500
+
+
+@developer_bp.route("/api/dev/epics/<string:epic_id>", methods=["PATCH"])
+def dev_update_epic(epic_id):
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    data    = request.get_json(silent=True) or {}
+    allowed = {"epic_name", "epic_description", "system_ids", "epic_status", "is_active"}
+    patch   = {k: v for k, v in data.items() if k in allowed}
+    if "system_ids" in patch:
+        ids = [s for s in (patch["system_ids"] or []) if s]
+        patch["system_ids"] = ids or None
+    if "epic_status" in patch and patch["epic_status"] not in ("planning", "active", "on_hold", "done", "cancelled"):
+        return jsonify({"error": "Invalid epic_status"}), 400
+    if not patch:
+        return jsonify({"error": "No valid fields to update"}), 400
+    patch["date_modified"] = datetime.now(timezone.utc).isoformat()
+    try:
+        rows = supabase_req("PATCH", "/epics", data=patch, params={"epic_id": f"eq.{epic_id}"})
+        return jsonify(rows[0] if rows else {})
+    except Exception as exc:
+        current_app.logger.error("dev_update_epic failed: %s", exc)
+        return jsonify({"error": "Failed to update epic"}), 500
+
+
+@developer_bp.delete("/api/dev/epics/<string:epic_id>")
+def dev_delete_epic(epic_id):
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        # Unlink any dev items pointing to this epic first
+        supabase_req("PATCH", "/dev_items", data={"epic_id": None},
+                     params={"epic_id": f"eq.{epic_id}"})
+        supabase_req("DELETE", "/epics", params={"epic_id": f"eq.{epic_id}"})
+        return jsonify({"success": True})
+    except Exception as exc:
+        current_app.logger.error("dev_delete_epic failed: %s", exc)
+        return jsonify({"error": "Failed to delete epic"}), 500
+
+
+@developer_bp.get("/api/dev/epics/<string:epic_id>/items")
+def dev_get_epic_items(epic_id):
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/dev_items", params={
+            "epic_id": f"eq.{epic_id}",
+            "select":  "*",
+            "order":   "created_at.asc",
+        })
+        return jsonify(rows or [])
+    except Exception as exc:
+        current_app.logger.error("dev_get_epic_items failed: %s", exc)
+        return jsonify({"error": "Failed to fetch epic items"}), 500
