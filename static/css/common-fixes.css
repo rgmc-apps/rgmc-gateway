@@ -767,6 +767,24 @@
 
 .cf-detail-edit-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
 
+.cf-detail-share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  border: 1px solid var(--gold-border);
+  background: rgba(196,151,42,0.08);
+  color: var(--gold);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.cf-detail-share-btn:hover { background: rgba(196,151,42,0.16); }
+
 .cf-detail-delete-btn {
   display: inline-flex;
   align-items: center;

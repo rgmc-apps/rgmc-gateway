@@ -642,6 +642,206 @@
     </div>
   </div>
 
+  <!-- Onboarding Tour -->
+  <div id="tourOverlay" class="tour-overlay" role="dialog" aria-modal="true" aria-labelledby="tourHeadline">
+    <div class="tour-modal">
+
+      <!-- Header -->
+      <div class="tour-head">
+        <div class="tour-brand">
+          <div class="tour-brand-mark">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2 4 5v6c0 5 3.5 9.4 8 11 4.5-1.6 8-6 8-11V5l-8-3z"/>
+              <path d="M9 12l2 2 4-4"/>
+            </svg>
+          </div>
+          <div class="tour-brand-name">RGMC <span>Gateway</span></div>
+        </div>
+        <button class="tour-skip" id="tourSkip" onclick="tourDismiss()">Skip tour &nbsp;→</button>
+      </div>
+
+      <!-- Slide 1: Welcome -->
+      <div class="tour-slide active" data-slide="0">
+        <div class="tour-body">
+          <div class="tour-content">
+            <div class="tour-step-chip">Getting started</div>
+            <h2 class="tour-headline" id="tourHeadline">Welcome to<br/><em>RGMC Gateway</em></h2>
+            <p class="tour-sub">This quick tour will show you everything available to you — from launching systems to tracking your issues.</p>
+            <div class="tour-cta-row">
+              <button class="btn-tour-primary" onclick="tourGoTo(1)">
+                Start Tour
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+              </button>
+              <button class="btn-tour-ghost" onclick="tourDismiss()">Skip for now</button>
+            </div>
+          </div>
+          <div class="tour-illus" aria-hidden="true">
+            <div class="tour-illus-inner">
+              <div class="tour-arch">
+                <div class="arch-glow"></div>
+                <svg viewBox="0 0 120 150" fill="none">
+                  <line x1="0" y1="140" x2="120" y2="140" stroke="var(--gold)" stroke-opacity="0.35" stroke-width="1" stroke-dasharray="3 4"/>
+                  <path d="M12 140 V63 A48 48 0 0 1 108 63 V140" stroke="var(--text-muted)" stroke-width="2.2" stroke-linecap="round" stroke-opacity="0.5"/>
+                  <path d="M26 140 V67 A34 34 0 0 1 94 67 V140" stroke="var(--gold)" stroke-width="1.8" stroke-linecap="round"/>
+                  <rect x="36" y="79" width="48" height="61" rx="2" fill="url(#tg1)"/>
+                  <circle cx="60" cy="30" r="4" fill="var(--gold)"/>
+                  <circle cx="60" cy="30" r="8" stroke="var(--gold)" stroke-opacity="0.4" stroke-width="1" fill="none"/>
+                  <defs>
+                    <linearGradient id="tg1" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0" stop-color="#C4972A" stop-opacity="0.35"/>
+                      <stop offset="1" stop-color="#C4972A" stop-opacity="0.04"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 2: Systems -->
+      <div class="tour-slide" data-slide="1">
+        <div class="tour-body">
+          <div class="tour-content">
+            <div class="tour-step-chip">Step 2 of 5</div>
+            <h2 class="tour-headline">Browse &amp; Launch<br/>Your Systems</h2>
+            <p class="tour-sub">Access every RGMC and SBIC system from one place. Switch between Card view and Compact list view.</p>
+            <ul class="tour-features">
+              <li>RGMC, SBIC, and NAV sites in one portal</li>
+              <li>Card view for quick visual scanning</li>
+              <li>Compact view for fast keyboard navigation</li>
+            </ul>
+          </div>
+          <div class="tour-illus" aria-hidden="true">
+            <div class="tour-illus-inner">
+              <div class="tour-illus-cards">
+                <div class="tour-illus-card">
+                  <div class="tour-illus-card-dot"></div>
+                  <div class="tour-illus-card-lines"><span></span><span></span></div>
+                  <span class="tour-illus-badge rgmc">RGMC</span>
+                </div>
+                <div class="tour-illus-card">
+                  <div class="tour-illus-card-dot" style="background:var(--success)"></div>
+                  <div class="tour-illus-card-lines"><span></span><span></span></div>
+                  <span class="tour-illus-badge sbic">SBIC</span>
+                </div>
+                <div class="tour-illus-card">
+                  <div class="tour-illus-card-dot" style="background:var(--text-secondary)"></div>
+                  <div class="tour-illus-card-lines"><span></span><span></span></div>
+                  <span class="tour-illus-badge nav">NAV</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 3: Report -->
+      <div class="tour-slide" data-slide="2">
+        <div class="tour-body">
+          <div class="tour-content">
+            <div class="tour-step-chip">Step 3 of 5</div>
+            <h2 class="tour-headline">Report Problems<br/>in Seconds</h2>
+            <p class="tour-sub">Fill a detailed problem report — attach screenshots, set priority, describe the issue. IT gets notified instantly.</p>
+            <ul class="tour-features">
+              <li>Report from any system card directly</li>
+              <li>Attach screenshots and files</li>
+              <li>Track your report status in your workspace</li>
+            </ul>
+          </div>
+          <div class="tour-illus" aria-hidden="true">
+            <div class="tour-illus-inner">
+              <div class="tour-illus-form">
+                <div class="tour-illus-form-row"></div>
+                <div class="tour-illus-form-row"></div>
+                <div class="tour-illus-form-row" style="height:52px"></div>
+                <div class="tour-illus-form-btn"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 4: Workspace -->
+      <div class="tour-slide" data-slide="3">
+        <div class="tour-body">
+          <div class="tour-content">
+            <div class="tour-step-chip">Step 4 of 5</div>
+            <h2 class="tour-headline">Track Issues in<br/>Your Workspace</h2>
+            <p class="tour-sub">Your personal hub for all active issues. See team issues, your own, and tasks — all with live status tracking.</p>
+            <ul class="tour-features">
+              <li>View all your open and resolved issues</li>
+              <li>See real-time status updates</li>
+              <li>Access from your profile menu anytime</li>
+            </ul>
+          </div>
+          <div class="tour-illus" aria-hidden="true">
+            <div class="tour-illus-inner">
+              <div class="tour-illus-list">
+                <div class="tour-illus-row">
+                  <div class="tour-illus-status open"></div>
+                  <div class="tour-illus-row-line" style="width:65%;flex:none"></div>
+                  <div class="tour-illus-row-line" style="width:25%;flex:none;margin-left:auto"></div>
+                </div>
+                <div class="tour-illus-row">
+                  <div class="tour-illus-status pending"></div>
+                  <div class="tour-illus-row-line" style="width:55%;flex:none"></div>
+                  <div class="tour-illus-row-line" style="width:20%;flex:none;margin-left:auto"></div>
+                </div>
+                <div class="tour-illus-row">
+                  <div class="tour-illus-status done"></div>
+                  <div class="tour-illus-row-line" style="width:70%;flex:none"></div>
+                  <div class="tour-illus-row-line" style="width:18%;flex:none;margin-left:auto"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 5: Done -->
+      <div class="tour-slide" data-slide="4">
+        <div class="tour-body">
+          <div class="tour-content">
+            <div class="tour-step-chip">You're all set</div>
+            <h2 class="tour-headline">Ready to<br/><em>Get Started</em></h2>
+            <p class="tour-sub">You now know your way around. Access systems, report issues, and track everything from your workspace.</p>
+            <div class="tour-cta-row">
+              <button class="btn-tour-primary" onclick="tourDismiss()">
+                Get Started
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="tour-illus" aria-hidden="true">
+            <div class="tour-illus-inner">
+              <div class="tour-illus-done">
+                <div class="tour-illus-check">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div class="tour-illus-done-text">All set</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="tour-foot" id="tourFoot">
+        <button class="btn-tour-back hidden" id="tourBack" onclick="tourGoBack()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+          Back
+        </button>
+        <div class="tour-dots" id="tourDots"></div>
+        <button class="btn-tour-next" id="tourNext" onclick="tourGoNext()">
+          Next
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
   <script>
     // Site list for JS filtering — populated server-side
     const ALL_SITES = {{ sites | tojson }};

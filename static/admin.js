@@ -4819,8 +4819,58 @@ function copyIssShareLink() {
 }
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeIssShareModal();
+  if (e.key === 'Escape') { closeIssShareModal(); closeCfShareModal(); }
 });
+
+/* ── Common Fix Share Modal ── */
+function openCfShareModal(fixId) {
+  const fix = (_cfCache || []).find(f => f.fix_id === fixId);
+  if (!fix) return;
+
+  const url    = window.location.origin + '/fixes/' + encodeURIComponent(fix.fix_id);
+  const label  = fix.fix_name || 'Common Fix';
+  const system = fix.system_name ? fix.system_name + ' — ' : '';
+  const sub    = system + label;
+  const msgTxt = label + '\n' + url;
+
+  document.getElementById('cfShareModalSub').textContent = sub;
+  document.getElementById('cfShareLinkInput').value      = url;
+  document.getElementById('cfShareCopied').classList.remove('visible');
+  document.getElementById('cfShareCopyBtn').textContent  = 'Copy';
+
+  document.getElementById('cfShareWa').href        = 'https://api.whatsapp.com/send?text='       + encodeURIComponent(msgTxt);
+  document.getElementById('cfShareViber').href     = 'viber://forward?text='                     + encodeURIComponent(msgTxt);
+  document.getElementById('cfShareTg').href        = 'https://t.me/share/url?url='               + encodeURIComponent(url) + '&text=' + encodeURIComponent(label);
+  document.getElementById('cfShareEmail').href     = 'mailto:?subject='                          + encodeURIComponent(label) + '&body=' + encodeURIComponent('Common fix link:\n' + url);
+  document.getElementById('cfShareTeams').href     = 'https://teams.microsoft.com/share?href='   + encodeURIComponent(url) + '&msgText=' + encodeURIComponent(label);
+  document.getElementById('cfShareMessenger').href = 'fb-messenger://share?link='                + encodeURIComponent(url);
+
+  document.getElementById('cfShareModal').classList.add('active');
+  document.body.style.overflow = 'hidden';
+
+  navigator.clipboard.writeText(url).then(() => {
+    document.getElementById('cfShareCopied').classList.add('visible');
+  }).catch(() => {});
+}
+
+function closeCfShareModal() {
+  document.getElementById('cfShareModal').classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+function copyCfShareLink() {
+  const url = document.getElementById('cfShareLinkInput').value;
+  navigator.clipboard.writeText(url).then(() => {
+    document.getElementById('cfShareCopied').classList.add('visible');
+    const btn = document.getElementById('cfShareCopyBtn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+  }).catch(() => {
+    const input = document.getElementById('cfShareLinkInput');
+    input.select();
+    document.execCommand('copy');
+  });
+}
 
 /* ════════════════════════════════════════════════════════════════
    COMMON FIXES
@@ -5075,6 +5125,10 @@ async function openCfDetail(fixId) {
           ${fix.system_name ? `<span class="cf-system-badge">${escHtml(fix.system_name)}</span>` : ''}
         </div>
         <div class="cf-detail-actions">
+          <button class="cf-detail-share-btn" onclick="openCfShareModal('${escHtml(fix.fix_id)}')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            Share
+          </button>
           <button class="cf-detail-edit-btn" onclick="openCfModal('${escHtml(fix.fix_id)}')">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Edit

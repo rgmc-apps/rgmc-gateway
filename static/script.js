@@ -350,8 +350,66 @@ function initGate() {
   const session = loadSession();
   if (session && session.username && Array.isArray(session.systems)) {
     applySession(session);
+    _refreshSessionSilently(session.username);
   }
   // else: gate stays visible (default)
+}
+
+async function _refreshSessionSilently(username) {
+  try {
+    const form = new FormData();
+    form.append('username', username);
+    const res = await fetch('/verify-username', { method: 'POST', body: form });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.success) return;
+
+    const current = loadSession();
+    if (!current) return;
+
+    const freshSystems = data.systems || [];
+    const oldSystems   = current.systems || [];
+
+    const systemsChanged =
+      freshSystems.length !== oldSystems.length ||
+      freshSystems.some(s => !oldSystems.includes(s)) ||
+      oldSystems.some(s => !freshSystems.includes(s));
+
+    const updatedSession = {
+      ...current,
+      systems:          freshSystems,
+      isAdmin:          data.is_admin           || false,
+      isDeveloper:      data.is_developer       || false,
+      isManagement:     data.is_management      || false,
+      isDepartmentHead: data.is_department_head || false,
+    };
+    saveSession(updatedSession);
+
+    if (!systemsChanged) return;
+
+    // Re-apply card filtering with fresh system list
+    filterSystems(freshSystems);
+
+    // If compact view is active, update row visibility in place
+    const main = document.getElementById('mainContent');
+    if (main && main.classList.contains('is-compact')) {
+      const approvedSet = new Set(freshSystems.map(s => s.toLowerCase()));
+      document.querySelectorAll('.st-row').forEach(row => {
+        const name    = (row.querySelector('.st-name')?.textContent || '').toLowerCase();
+        const visible = approvedSet.has(name);
+        row.dataset.approved = String(visible);
+        row.style.display    = visible ? '' : 'none';
+      });
+      // Update section visibility for compact tables
+      document.querySelectorAll('.section:not(.health-section)').forEach(section => {
+        const hasVisible = Array.from(section.querySelectorAll('.st-row'))
+          .some(r => r.dataset.approved !== 'false' && r.style.display !== 'none');
+        section.style.display = hasVisible ? '' : 'none';
+      });
+    }
+  } catch {
+    // Non-fatal: silent background refresh failed
+  }
 }
 
 function applySession(session) {
@@ -492,6 +550,9 @@ function applySession(session) {
   refreshHealth();
   setInterval(refreshHealth, 60000);
   setInterval(updateLastUpdated, 10000);
+
+  // 7. Show onboarding tour if not yet seen by this user
+  _maybeShowTour(session);
 }
 
 function filterSystems(approvedSystems) {
@@ -757,6 +818,86 @@ async function submitAdditionalAccess(e) {
     show('addlFormError');
     document.getElementById('addlErrorMsg').textContent = 'Network error — please try again.';
   }
+}
+
+/* ── Onboarding Tour ── */
+
+const TOUR_KEY    = 'rgmc_tour_done';
+const TOUR_SLIDES = 5;
+let   _tourSlide  = 0;
+
+function _tourSeenKey(username) {
+  return `${TOUR_KEY}_${username}`;
+}
+
+function _hasTourBeenSeen(username) {
+  return !!localStorage.getItem(_tourSeenKey(username));
+}
+
+function _markTourSeen(username) {
+  localStorage.setItem(_tourSeenKey(username), '1');
+}
+
+function _maybeShowTour(session) {
+  if (!session?.username) return;
+  if (_hasTourBeenSeen(session.username)) return;
+  // Defer until after applySession finishes painting the portal
+  setTimeout(() => showTour(session.username), 400);
+}
+
+function showTour(username) {
+  _tourSlide = 0;
+  _tourRenderSlide();
+  document.getElementById('tourOverlay')?.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function tourDismiss() {
+  const session = loadSession();
+  if (session?.username) _markTourSeen(session.username);
+  const overlay = document.getElementById('tourOverlay');
+  if (overlay) overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function tourGoTo(index) {
+  _tourSlide = Math.max(0, Math.min(TOUR_SLIDES - 1, index));
+  _tourRenderSlide();
+}
+
+function tourGoNext() {
+  if (_tourSlide < TOUR_SLIDES - 1) tourGoTo(_tourSlide + 1);
+}
+
+function tourGoBack() {
+  if (_tourSlide > 0) tourGoTo(_tourSlide - 1);
+}
+
+function _tourRenderSlide() {
+  // Show/hide slides
+  document.querySelectorAll('#tourOverlay .tour-slide').forEach((el, i) => {
+    el.classList.toggle('active', i === _tourSlide);
+  });
+
+  // Dots
+  const dotsEl = document.getElementById('tourDots');
+  if (dotsEl) {
+    dotsEl.innerHTML = Array.from({ length: TOUR_SLIDES }, (_, i) =>
+      `<span class="tour-dot${i === _tourSlide ? ' active' : ''}" onclick="tourGoTo(${i})" aria-label="Slide ${i + 1}"></span>`
+    ).join('');
+  }
+
+  // Back button
+  const backBtn = document.getElementById('tourBack');
+  if (backBtn) backBtn.classList.toggle('hidden', _tourSlide === 0);
+
+  // Next button — hide on last slide (it has its own CTA)
+  const nextBtn = document.getElementById('tourNext');
+  if (nextBtn) nextBtn.style.display = _tourSlide === TOUR_SLIDES - 1 ? 'none' : '';
+
+  // Skip link — hide on last slide
+  const skipBtn = document.getElementById('tourSkip');
+  if (skipBtn) skipBtn.style.visibility = _tourSlide === TOUR_SLIDES - 1 ? 'hidden' : '';
 }
 
 /* ── Companies dropdown ── */

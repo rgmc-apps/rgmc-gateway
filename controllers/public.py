@@ -305,6 +305,31 @@ def public_still_having_issues(issue_id):
     return jsonify({"success": True})
 
 
+@public_bp.get("/fixes/<fix_id>")
+def fix_view(fix_id):
+    return render_template("fix_view.html", fix_id=fix_id)
+
+
+@public_bp.get("/api/public/common-fixes/<fix_id>")
+def get_public_common_fix(fix_id):
+    rows = supabase_req("GET", "/common_fixes", params={
+        "fix_id": f"eq.{fix_id}",
+        "select": "fix_id,fix_name,system_id,problem_desc,fix_description,fix_attachments,created_at",
+    })
+    if not rows:
+        return jsonify({"error": "Not found"}), 404
+    fix = rows[0]
+    if fix.get("system_id"):
+        systems = supabase_req("GET", "/systems", params={
+            "id":     f"eq.{fix['system_id']}",
+            "select": "name",
+        })
+        fix["system_name"] = systems[0]["name"] if systems else ""
+    else:
+        fix["system_name"] = ""
+    return jsonify(fix)
+
+
 @public_bp.get("/api/public/dev-items/<item_id>")
 def get_public_dev_item(item_id):
     rows = supabase_req("GET", "/dev_items", params={
