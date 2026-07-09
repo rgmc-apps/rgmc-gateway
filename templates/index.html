@@ -669,7 +669,7 @@
           <div class="tour-content">
             <div class="tour-step-chip">Getting started</div>
             <h2 class="tour-headline" id="tourHeadline">Welcome to<br/><em>RGMC Gateway</em></h2>
-            <p class="tour-sub">This quick tour will show you everything available to you — from launching systems to tracking your issues.</p>
+            <p class="tour-sub">Your single access point for every RGMC Group system, IT support, and team tools. This tour covers everything available to you — takes about 2 minutes.</p>
             <div class="tour-cta-row">
               <button class="btn-tour-primary" onclick="tourGoTo(1)">
                 Start Tour
@@ -706,32 +706,38 @@
       <div class="tour-slide" data-slide="1">
         <div class="tour-body">
           <div class="tour-content">
-            <div class="tour-step-chip">Step 2 of 5</div>
-            <h2 class="tour-headline">Browse &amp; Launch<br/>Your Systems</h2>
-            <p class="tour-sub">Access every RGMC and SBIC system from one place. Switch between Card view and Compact list view.</p>
+            <div class="tour-step-chip">Step 1 of 7</div>
+            <h2 class="tour-headline">Launch Any System<br/>Instantly</h2>
+            <p class="tour-sub">Every RGMC Group system is organized here by company and type. Click a card to open it — no remembering URLs, no hunting through bookmarks.</p>
             <ul class="tour-features">
               <li>RGMC, SBIC, and NAV sites in one portal</li>
-              <li>Card view for quick visual scanning</li>
-              <li>Compact view for fast keyboard navigation</li>
+              <li>Card view shows system status and description at a glance</li>
+              <li>Compact list fits more on screen for fast scanning</li>
+              <li>Only systems you have access to are shown</li>
             </ul>
           </div>
           <div class="tour-illus" aria-hidden="true">
             <div class="tour-illus-inner">
-              <div class="tour-illus-cards">
-                <div class="tour-illus-card">
-                  <div class="tour-illus-card-dot"></div>
-                  <div class="tour-illus-card-lines"><span></span><span></span></div>
-                  <span class="tour-illus-badge rgmc">RGMC</span>
+              <div class="tour-illus-compact">
+                <div class="tour-illus-compact-row">
+                  <div class="tour-illus-compact-dot" style="background:var(--gold)"></div>
+                  <div class="tour-illus-compact-line" style="width:58%"></div>
+                  <span class="tour-illus-compact-badge rgmc" style="background:rgba(196,151,42,0.12);color:var(--gold)">RGMC</span>
                 </div>
-                <div class="tour-illus-card">
-                  <div class="tour-illus-card-dot" style="background:var(--success)"></div>
-                  <div class="tour-illus-card-lines"><span></span><span></span></div>
-                  <span class="tour-illus-badge sbic">SBIC</span>
+                <div class="tour-illus-compact-row">
+                  <div class="tour-illus-compact-dot" style="background:var(--success)"></div>
+                  <div class="tour-illus-compact-line" style="width:62%"></div>
+                  <span class="tour-illus-compact-badge sbic" style="background:rgba(82,168,112,0.12);color:#52A870">SBIC</span>
                 </div>
-                <div class="tour-illus-card">
-                  <div class="tour-illus-card-dot" style="background:var(--text-secondary)"></div>
-                  <div class="tour-illus-card-lines"><span></span><span></span></div>
-                  <span class="tour-illus-badge nav">NAV</span>
+                <div class="tour-illus-compact-row">
+                  <div class="tour-illus-compact-dot" style="background:var(--gold)"></div>
+                  <div class="tour-illus-compact-line" style="width:50%"></div>
+                  <span class="tour-illus-compact-badge rgmc" style="background:rgba(196,151,42,0.12);color:var(--gold)">RGMC</span>
+                </div>
+                <div class="tour-illus-compact-row">
+                  <div class="tour-illus-compact-dot" style="background:var(--text-secondary)"></div>
+                  <div class="tour-illus-compact-line" style="width:55%"></div>
+                  <span class="tour-illus-compact-badge nav" style="background:rgba(255,255,255,0.06);color:var(--text-secondary)">NAV</span>
                 </div>
               </div>
             </div>
@@ -739,43 +745,141 @@
         </div>
       </div>
 
-      <!-- Slide 3: Report -->
+      <!-- Slide 3: Health Monitor -->
       <div class="tour-slide" data-slide="2">
         <div class="tour-body">
           <div class="tour-content">
-            <div class="tour-step-chip">Step 3 of 5</div>
-            <h2 class="tour-headline">Report Problems<br/>in Seconds</h2>
-            <p class="tour-sub">Fill a detailed problem report — attach screenshots, set priority, describe the issue. IT gets notified instantly.</p>
+            <div class="tour-step-chip">Step 2 of 7</div>
+            <h2 class="tour-headline">Live System Status,<br/>Always Visible</h2>
+            <p class="tour-sub">The health panel shows real-time connectivity for all APIs and backend services. Know instantly whether a system is up before you try to use it.</p>
             <ul class="tour-features">
-              <li>Report from any system card directly</li>
-              <li>Attach screenshots and files</li>
-              <li>Track your report status in your workspace</li>
+              <li>Green = connected, Red = unreachable or erroring</li>
+              <li>Covers CRM, ERP, trade systems, and third-party APIs</li>
+              <li>Expand any entry to see individual endpoint status</li>
+              <li>Auto-refreshes in the background — no manual reload needed</li>
+            </ul>
+          </div>
+          <div class="tour-illus" aria-hidden="true">
+            <div class="tour-illus-inner">
+              <div class="tour-illus-health">
+                <div class="tour-illus-health-row">
+                  <div class="tour-illus-health-dot ok"></div>
+                  <div class="tour-illus-health-info">
+                    <div class="tour-illus-health-line main"></div>
+                    <div class="tour-illus-health-line sub"></div>
+                  </div>
+                  <div class="tour-illus-health-pill ok">Online</div>
+                </div>
+                <div class="tour-illus-health-row">
+                  <div class="tour-illus-health-dot ok"></div>
+                  <div class="tour-illus-health-info">
+                    <div class="tour-illus-health-line main" style="width:62%"></div>
+                    <div class="tour-illus-health-line sub" style="width:42%"></div>
+                  </div>
+                  <div class="tour-illus-health-pill ok">Online</div>
+                </div>
+                <div class="tour-illus-health-row">
+                  <div class="tour-illus-health-dot err"></div>
+                  <div class="tour-illus-health-info">
+                    <div class="tour-illus-health-line main" style="width:48%"></div>
+                    <div class="tour-illus-health-line sub" style="width:30%"></div>
+                  </div>
+                  <div class="tour-illus-health-pill err">Error</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 4: Report -->
+      <div class="tour-slide" data-slide="3">
+        <div class="tour-body">
+          <div class="tour-content">
+            <div class="tour-step-chip">Step 3 of 7</div>
+            <h2 class="tour-headline">File a Problem Report<br/>in Under a Minute</h2>
+            <p class="tour-sub">When something breaks, report it from the portal and IT gets notified immediately. No emails, no calls — just fill the form and submit.</p>
+            <ul class="tour-features">
+              <li>Select the affected system and error category</li>
+              <li>Set priority: Low, Medium, High, or Critical</li>
+              <li>Attach screenshots, files, or error logs directly</li>
+              <li>Your report gets a ticket number you can track anytime</li>
             </ul>
           </div>
           <div class="tour-illus" aria-hidden="true">
             <div class="tour-illus-inner">
               <div class="tour-illus-form">
                 <div class="tour-illus-form-row"></div>
-                <div class="tour-illus-form-row"></div>
-                <div class="tour-illus-form-row" style="height:52px"></div>
-                <div class="tour-illus-form-btn"></div>
+                <div class="tour-illus-form-row" style="height:26px"></div>
+                <div class="tour-illus-form-row" style="height:56px"></div>
+                <div style="display:flex;gap:7px;margin-top:2px">
+                  <div style="height:26px;flex:1;background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--radius-sm)"></div>
+                  <div class="tour-illus-form-btn" style="margin:0;width:60px"></div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Slide 4: Workspace -->
-      <div class="tour-slide" data-slide="3">
+      <!-- Slide 5: Common Fixes -->
+      <div class="tour-slide" data-slide="4">
         <div class="tour-body">
           <div class="tour-content">
-            <div class="tour-step-chip">Step 4 of 5</div>
-            <h2 class="tour-headline">Track Issues in<br/>Your Workspace</h2>
-            <p class="tour-sub">Your personal hub for all active issues. See team issues, your own, and tasks — all with live status tracking.</p>
+            <div class="tour-step-chip">Step 4 of 7</div>
+            <h2 class="tour-headline">Browse Known<br/>Solutions First</h2>
+            <p class="tour-sub">The Common Fixes library documents step-by-step solutions for recurring IT issues — written by the IT team so you can resolve problems without waiting.</p>
             <ul class="tour-features">
-              <li>View all your open and resolved issues</li>
-              <li>See real-time status updates</li>
-              <li>Access from your profile menu anytime</li>
+              <li>Searchable by system or problem type</li>
+              <li>Step-by-step instructions with supporting screenshots</li>
+              <li>Share a fix link directly with a colleague</li>
+              <li>If nothing works, file a report from the same flow</li>
+            </ul>
+          </div>
+          <div class="tour-illus" aria-hidden="true">
+            <div class="tour-illus-inner">
+              <div class="tour-illus-fix">
+                <div class="tour-illus-fix-head">
+                  <div class="tour-illus-fix-wrench">
+                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                  </div>
+                  <div class="tour-illus-fix-title-lines">
+                    <div class="tour-illus-fix-title-line"></div>
+                    <div class="tour-illus-fix-title-line" style="width:45%;opacity:0.4"></div>
+                  </div>
+                </div>
+                <div class="tour-illus-fix-body">
+                  <div class="tour-illus-fix-step">
+                    <span class="tour-illus-fix-num">1</span>
+                    <div class="tour-illus-fix-step-line"></div>
+                  </div>
+                  <div class="tour-illus-fix-step">
+                    <span class="tour-illus-fix-num">2</span>
+                    <div class="tour-illus-fix-step-line" style="width:55%"></div>
+                  </div>
+                  <div class="tour-illus-fix-step">
+                    <span class="tour-illus-fix-num">3</span>
+                    <div class="tour-illus-fix-step-line" style="width:70%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 6: Workspace -->
+      <div class="tour-slide" data-slide="5">
+        <div class="tour-body">
+          <div class="tour-content">
+            <div class="tour-step-chip">Step 5 of 7</div>
+            <h2 class="tour-headline">All Your Issues,<br/>One View</h2>
+            <p class="tour-sub">Your Workspace shows every ticket you've filed, their current status, and any updates from IT. You'll always know exactly where your issue stands.</p>
+            <ul class="tour-features">
+              <li>Tabs for Open, Pending, Resolved, and Closed tickets</li>
+              <li>Ticket number, system name, and creation date at a glance</li>
+              <li>Open any ticket to see the full thread and IT's resolution notes</li>
+              <li>Confirm a fix or flag it as unresolved directly from the ticket</li>
             </ul>
           </div>
           <div class="tour-illus" aria-hidden="true">
@@ -783,18 +887,27 @@
               <div class="tour-illus-list">
                 <div class="tour-illus-row">
                   <div class="tour-illus-status open"></div>
-                  <div class="tour-illus-row-line" style="width:65%;flex:none"></div>
-                  <div class="tour-illus-row-line" style="width:25%;flex:none;margin-left:auto"></div>
+                  <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+                    <div class="tour-illus-row-line" style="width:70%;opacity:0.55"></div>
+                    <div class="tour-illus-row-line" style="width:40%;opacity:0.3"></div>
+                  </div>
+                  <div style="font-size:8px;font-weight:700;font-family:var(--font-ui);padding:2px 7px;border-radius:8px;background:rgba(196,151,42,0.12);color:var(--gold);white-space:nowrap">Open</div>
                 </div>
                 <div class="tour-illus-row">
                   <div class="tour-illus-status pending"></div>
-                  <div class="tour-illus-row-line" style="width:55%;flex:none"></div>
-                  <div class="tour-illus-row-line" style="width:20%;flex:none;margin-left:auto"></div>
+                  <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+                    <div class="tour-illus-row-line" style="width:58%;opacity:0.55"></div>
+                    <div class="tour-illus-row-line" style="width:35%;opacity:0.3"></div>
+                  </div>
+                  <div style="font-size:8px;font-weight:700;font-family:var(--font-ui);padding:2px 7px;border-radius:8px;background:rgba(234,179,8,0.1);color:var(--warning);white-space:nowrap">Pending</div>
                 </div>
                 <div class="tour-illus-row">
                   <div class="tour-illus-status done"></div>
-                  <div class="tour-illus-row-line" style="width:70%;flex:none"></div>
-                  <div class="tour-illus-row-line" style="width:18%;flex:none;margin-left:auto"></div>
+                  <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+                    <div class="tour-illus-row-line" style="width:65%;opacity:0.55"></div>
+                    <div class="tour-illus-row-line" style="width:30%;opacity:0.3"></div>
+                  </div>
+                  <div style="font-size:8px;font-weight:700;font-family:var(--font-ui);padding:2px 7px;border-radius:8px;background:rgba(82,168,112,0.12);color:var(--success);white-space:nowrap">Resolved</div>
                 </div>
               </div>
             </div>
@@ -802,13 +915,51 @@
         </div>
       </div>
 
-      <!-- Slide 5: Done -->
-      <div class="tour-slide" data-slide="4">
+      <!-- Slide 7: Helpdesk -->
+      <div class="tour-slide" data-slide="6">
+        <div class="tour-body">
+          <div class="tour-content">
+            <div class="tour-step-chip">Step 6 of 7</div>
+            <h2 class="tour-headline">IT Requests Beyond<br/>Problem Reports</h2>
+            <p class="tour-sub">Need new software, a hardware fix, account access, or general IT help? Submit a helpdesk request and it routes to the right IT team member automatically.</p>
+            <ul class="tour-features">
+              <li>Categories: Software, Hardware, Access &amp; Account, General IT</li>
+              <li>Pick a subcategory for precise routing — fewer back-and-forth emails</li>
+              <li>Describe your need and set urgency level</li>
+              <li>Track your request with a ticket number, just like any issue</li>
+            </ul>
+          </div>
+          <div class="tour-illus" aria-hidden="true">
+            <div class="tour-illus-inner">
+              <div class="tour-illus-helpdesk">
+                <div class="tour-illus-hd-label"></div>
+                <div class="tour-illus-hd-select">
+                  <div class="tour-illus-hd-select-line"></div>
+                  <div class="tour-illus-hd-select-caret"></div>
+                </div>
+                <div class="tour-illus-hd-label" style="margin-top:4px"></div>
+                <div class="tour-illus-hd-select">
+                  <div class="tour-illus-hd-select-line" style="width:50%"></div>
+                  <div class="tour-illus-hd-select-caret"></div>
+                </div>
+                <div class="tour-illus-hd-textarea"></div>
+                <div class="tour-illus-hd-foot">
+                  <div class="tour-illus-hd-tag">#HDK-1024</div>
+                  <div class="tour-illus-hd-btn"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 8: Done -->
+      <div class="tour-slide" data-slide="7">
         <div class="tour-body">
           <div class="tour-content">
             <div class="tour-step-chip">You're all set</div>
             <h2 class="tour-headline">Ready to<br/><em>Get Started</em></h2>
-            <p class="tour-sub">You now know your way around. Access systems, report issues, and track everything from your workspace.</p>
+            <p class="tour-sub">You now know your way around RGMC Gateway. Everything you need is one click away — launch systems, check health, file reports, and track your work here.</p>
             <div class="tour-cta-row">
               <button class="btn-tour-primary" onclick="tourDismiss()">
                 Get Started
@@ -822,7 +973,7 @@
                 <div class="tour-illus-check">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
-                <div class="tour-illus-done-text">All set</div>
+                <div class="tour-illus-done-text">7 features covered</div>
               </div>
             </div>
           </div>

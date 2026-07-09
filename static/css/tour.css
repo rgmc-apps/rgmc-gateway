@@ -493,3 +493,205 @@
   .tour-slide.entering .tour-cta-row,
   .tour-slide.entering .tour-illus-inner { animation: none !important; }
 }
+
+/* ── Health monitor illustration ─────────────────────────────── */
+.tour-illus-health {
+  width: 82%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tour-illus-health-row {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.tour-illus-health-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex: 0 0 8px;
+}
+.tour-illus-health-dot.ok  { background: var(--success); box-shadow: 0 0 5px rgba(82,168,112,0.5); }
+.tour-illus-health-dot.err { background: #f87171; box-shadow: 0 0 5px rgba(248,113,113,0.4); }
+.tour-illus-health-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.tour-illus-health-line { height: 5px; border-radius: 2px; background: var(--text-muted); opacity: 0.4; }
+.tour-illus-health-line.main { width: 55%; opacity: 0.6; }
+.tour-illus-health-line.sub  { width: 35%; }
+.tour-illus-health-pill {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 10px;
+  flex: 0 0 auto;
+}
+.tour-illus-health-pill.ok  { background: rgba(82,168,112,0.15); color: var(--success); }
+.tour-illus-health-pill.err { background: rgba(248,113,113,0.12); color: #f87171; }
+
+/* ── Common fix illustration ─────────────────────────────────── */
+.tour-illus-fix {
+  width: 80%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-top: 2px solid var(--gold);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.tour-illus-fix-head {
+  padding: 10px 13px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tour-illus-fix-wrench {
+  width: 18px; height: 18px;
+  border-radius: 5px;
+  background: rgba(196,151,42,0.15);
+  display: grid;
+  place-items: center;
+  color: var(--gold);
+  flex-shrink: 0;
+}
+.tour-illus-fix-title-lines { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.tour-illus-fix-title-line  { height: 5px; border-radius: 2px; background: var(--text-muted); opacity: 0.5; }
+.tour-illus-fix-title-line:first-child { width: 70%; opacity: 0.7; }
+.tour-illus-fix-body { padding: 9px 13px; display: flex; flex-direction: column; gap: 7px; }
+.tour-illus-fix-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tour-illus-fix-num {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: rgba(196,151,42,0.15);
+  color: var(--gold);
+  font-size: 8px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  flex: 0 0 16px;
+  font-family: var(--font-ui);
+}
+.tour-illus-fix-step-line { height: 4px; border-radius: 2px; background: var(--text-muted); opacity: 0.35; flex: 1; }
+
+/* ── Helpdesk illustration ───────────────────────────────────── */
+.tour-illus-helpdesk {
+  width: 78%;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.tour-illus-hd-label {
+  height: 5px;
+  border-radius: 2px;
+  background: var(--text-muted);
+  opacity: 0.35;
+  width: 38%;
+  margin-bottom: 2px;
+}
+.tour-illus-hd-select {
+  height: 28px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 6px;
+}
+.tour-illus-hd-select-line { height: 4px; border-radius: 2px; background: var(--text-muted); opacity: 0.3; flex: 1; }
+.tour-illus-hd-select-caret { width: 7px; height: 7px; border-right: 1.5px solid var(--text-muted); border-bottom: 1.5px solid var(--text-muted); transform: rotate(45deg) translateY(-2px); opacity: 0.4; }
+.tour-illus-hd-textarea {
+  height: 46px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+.tour-illus-hd-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+.tour-illus-hd-tag {
+  font-size: 9px;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  color: var(--gold);
+  background: rgba(196,151,42,0.1);
+  border-radius: 10px;
+  padding: 2px 8px;
+  letter-spacing: 0.04em;
+}
+.tour-illus-hd-btn {
+  height: 22px;
+  width: 56px;
+  background: var(--gold);
+  border-radius: var(--radius-pill);
+  opacity: 0.8;
+}
+
+/* ── Compact view illustration ───────────────────────────────── */
+.tour-illus-compact {
+  width: 82%;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.tour-illus-compact-row {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tour-illus-compact-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex: 0 0 6px;
+}
+.tour-illus-compact-line { height: 4px; border-radius: 2px; background: var(--text-muted); opacity: 0.4; flex: 1; }
+.tour-illus-compact-badge {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 8px;
+  flex: 0 0 auto;
+}
+
+/* ── Admin tour — dark-surface overrides ─────────────────────── */
+.admin-tour-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.admin-tour-overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+.admin-tour-overlay .tour-modal {
+  transform: translateY(12px) scale(0.98);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.admin-tour-overlay.open .tour-modal {
+  transform: translateY(0) scale(1);
+}

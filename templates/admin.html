@@ -101,6 +101,10 @@
           <span class="admin-sb-label">Tasks Board</span>
           <svg class="admin-sb-external-icon" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </a>
+        <button class="admin-sb-item" onclick="adminTourShow()" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-family:var(--font-ui);">
+          <svg class="admin-sb-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <span class="admin-sb-label">Admin Tour</span>
+        </button>
       </div>
     </nav>
 
@@ -1936,6 +1940,440 @@
   {% if open_issue_id %}
   <script>window._OPEN_ISSUE_ID = {{ open_issue_id | tojson }};</script>
   {% endif %}
+
+  <!-- ── Admin Tour ── -->
+  <div id="adminTourOverlay" class="admin-tour-overlay" role="dialog" aria-modal="true" aria-labelledby="adminTourHeadline">
+    <div class="tour-modal">
+
+      <div class="tour-head">
+        <div class="tour-brand">
+          <div class="tour-brand-mark">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2 4 5v6c0 5 3.5 9.4 8 11 4.5-1.6 8-6 8-11V5l-8-3z"/>
+              <path d="M9 12l2 2 4-4"/>
+            </svg>
+          </div>
+          <div class="tour-brand-name">RGMC <span>Gateway</span> <span style="color:var(--text-muted);font-weight:400;letter-spacing:0.08em;">Admin</span></div>
+        </div>
+        <button class="tour-skip" id="adminTourSkip" onclick="adminTourDismiss()">Skip tour &nbsp;→</button>
+      </div>
+
+      <div class="tour-viewport">
+      <div id="adminTourTrack" class="tour-track">
+
+      <!-- Admin Slide 1: Welcome -->
+      <div class="tour-slide" data-slide="0">
+        <div class="tour-body">
+          <div class="tour-content">
+            <div class="tour-step-chip">Admin access</div>
+            <h2 class="tour-headline" id="adminTourHeadline">Welcome to the<br/><em>Admin Portal</em></h2>
+            <p class="tour-sub">You have full administrative access to RGMC Gateway. This tour walks through every panel and what you can accomplish in each — takes about 3 minutes.</p>
+            <div class="tour-cta-row">
+              <button class="btn-tour-primary" onclick="adminTourGoTo(1)">
+                Start Admin Tour
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+              </button>
+              <button class="btn-tour-ghost" onclick="adminTourDismiss()">Skip for now</button>
+            </div>
+          </div>
+          <div class="tour-illus" aria-hidden="true">
+            <div class="tour-illus-inner">
+              <div class="tour-illus-list">
+                <div class="tour-illus-row">
+                  <div class="tour-illus-status open"></div>
+                  <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+                    <div class="tour-illus-row-line" style="width:68%;opacity:0.6"></div>
+                    <div class="tour-illus-row-line" style="width:38%;opacity:0.3"></div>
+                  </div>
+                  <div style="font-size:8px;font-weight:700;font-family:var(--font-ui);padding:2px 7px;border-radius:8px;background:rgba(196,151,42,0.12);color:var(--gold);white-space:nowrap">Requests</div>
+                </div>
+                <div class="tour-illus-row">
+                  <div class="tour-illus-status done"></div>
+                  <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+                    <div class="tour-illus-row-line" style="width:55%;opacity:0.6"></div>
+                    <div class="tour-illus-row-line" style="width:32%;opacity:0.3"></div>
+                  </div>
+                  <div style="font-size:8px;font-weight:700;font-family:var(--font-ui);padding:2px 7px;border-radius:8px;background:rgba(82,168,112,0.12);color:var(--success);white-space:nowrap">Issues</div>
+                </div>
+                <div class="tour-illus-row">
+                  <div class="tour-illus-status pending"></div>
+                  <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+                    <div class="tour-illus-row-line" style="width:62%;opacity:0.6"></div>
+                    <div class="tour-illus-row-line" style="width:28%;opacity:0.3"></div>
+                  </div>
+                  <div style="font-size:8px;font-weight:700;font-family:var(--font-ui);padding:2px 7px;border-radius:8px;background:rgba(234,179,8,0.1);color:var(--warning);white-space:nowrap">Users</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Slide 2: Requests -->
+      <div class="tour-slide" data-slide="1">
+        <div class="tour-body">
+          <div class="tour-content">
+            <div class="tour-step-chip">Step 1 of 8 &mdash; Requests</div>
+            <h2 class="tour-headline">Review &amp; Approve<br/>Access Requests</h2>
+            <p class="tour-sub">When staff need access to a new system, they submit a request from the portal. You review each request, approve or reject it, and their access updates automatically.</p>
+            <ul class="tour-features">
+              <li>See requester name, department, company, and systems requested</li>
+              <li>Approve with one click — portal access is instant</li>
+              <li>Reject with an optional reason sent back to the requester</li>
+              <li>The gold badge on the sidebar counts pending reviews</li>
+              <li>Approved users can log in immediately — no manual setup needed</li>
+            </ul>
+          </div>
+          <div class="tour-illus" aria-hidden="true">
+            <div class="tour-illus-inner">
+              <div class="tour-illus-list">
+                <div class="tour-illus-row" style="flex-direction:column;align-items:flex-start;gap:6px;">
+                  <div style="display:flex;align-items:center;gap:7px;width:100%">
+                    <div class="tour-illus-status open"></div>
+                    <div class="tour-illus-row-line" style="width:50%;opacity:0.6"></div>
+                    <div style="margin-left:auto;font-size:8px;font-weight:700;padding:2px 7px;border-radius:8px;background:rgba(196,151,42,0.12);color:var(--gold);font-family:var(--font-ui)">Pending</div>
+                  </div>
+                  <div style="display:flex;gap:5px;padding-left:15px;width:100%">
+                    <div style="height:20px;flex:1;background:rgba(82,168,112,0.15);border:1px solid rgba(82,168,112,0.3);border-radius:5px;display:grid;place-items:center">
+                      <div class="tour-illus-row-line" style="width:40%;opacity:0.7;background:var(--success)"></div>
+                    </div>
+                    <div style="height:20px;flex:1;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.25);border-radius:5px;display:grid;place-items:center">
+                      <div class="tour-illus-row-line" style="width:35%;opacity:0.7;background:#f87171"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="tour-illus-row" style="flex-direction:column;align-items:flex-start;gap:6px;">
+                  <div style="display:flex;align-items:center;gap:7px;width:100%">
+                    <div class="tour-illus-status open"></div>
+                    <div class="tour-illus-row-line" style="width:44%;opacity:0.6"></div>
+                    <div style="margin-left:auto;font-size:8px;font-weight:700;padding:2px 7px;border-radius:8px;background:rgba(196,151,42,0.12);color:var(--gold);font-family:var(--font-ui)">Pending</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Slide 3: Issues -->
+      <div class="tour-slide" data-slide="2">
+        <div class="tour-body">
+          <div class="tour-content">
+            <div class="tour-step-chip">Step 2 of 8 &mdash; Issues</div>
+            <h2 class="tour-headline">Manage the Full<br/>Issue Lifecycle</h2>
+            <p class="tour-sub">The central queue for all reported IT problems. Every ticket flows through here — from first report to resolution. Full filtering, search, and bulk operations available.</p>
+            <ul class="tour-features">
+              <li>Filter by status, priority, site, assigned staff, or date range</li>
+              <li>Assign issues to specific IT team members from the detail view</li>
+              <li>Add resolution notes and mark issues closed when fixed</li>
+              <li>Tickets automatically reopen if the reporter flags the fix as unsuccessful</li>
+              <li>Share a public ticket link with the reporter for status visibility</li>
+              <li>Red badge shows open issue count; pulse badge highlights new arrivals</li>
+            </ul>
+          </div>
+          <div class="tour-illus" aria-hidden="true">
+            <div class="tour-illus-inner">
+              <div class="tour-illus-list">
+                <div class="tour-illus-row">
+                  <div class="tour-illus-status" style="background:#f87171"></div>
+                  <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+                    <div class="tour-illus-row-line" style="width:65%;opacity:0.6"></div>
+                    <div class="tour-illus-row-line" style="width:38%;opacity:0.3"></div>
+                  </div>
+                  <div style="font-size:8px;font-weight:700;font-family:var(--font-ui);padding:2px 7px;border-radius:8px;background:rgba(248,113,113,0.12);color:#f87171;white-space:nowrap">Critical</div>
+                </div>
+                <div class="tour-illus-row">
+                  <div class="tour-illus-status open"></div>
+                  <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+                    <div class="tour-illus-row-line" style="width:55%;opacity:0.6"></div>
+                    <div class="tour-illus-row-line" style="width:30%;opacity:0.3"></div>
+                  </div>
+                  <div style="font-size:8px;font-weight:700;font-family:var(--font-ui);padding:2px 7px;border-radius:8px;background:rgba(196,151,42,0.12);color:var(--gold);white-space:nowrap">High</div>
+                </div>
+                <div class="tour-illus-row">
+                  <div class="tour-illus-status pending"></div>
+                  <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+                    <div class="tour-illus-row-line" style="width:70%;opacity:0.6"></div>
+                    <div class="tour-illus-row-line" style="width:42%;opacity:0.3"></div>
+                  </div>
+                  <div style="font-size:8px;font-weight:700;font-family:var(--font-ui);padding:2px 7px;border-radius:8px;background:rgba(234,179,8,0.1);color:var(--warning);white-space:nowrap">Medium</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Slide 4: Common Issues & Fixes -->
+      <div class="tour-slide" data-slide="3">
+        <div class="tour-body">
+          <div class="tour-content">
+            <div class="tour-step-chip">Step 3 of 8 &mdash; Knowledge Base</div>
+            <h2 class="tour-headline">Build the IT<br/>Knowledge Base</h2>
+            <p class="tour-sub">Document recurring problems and their solutions. When the same issue appears repeatedly, a Common Fix lets staff self-resolve — reducing ticket volume significantly.</p>
+            <ul class="tour-features">
+              <li>Common Issues: catalog patterns you see repeatedly across teams</li>
+              <li>Common Fixes: write step-by-step resolution guides per system</li>
+              <li>Link fixes to related issues so patterns surface automatically</li>
+              <li>Staff can browse and share fix pages publicly — no login required</li>
+              <li>Rich editor supports screenshots, numbered steps, and formatted text</li>
+            </ul>
+          </div>
+          <div class="tour-illus" aria-hidden="true">
+            <div class="tour-illus-inner">
+              <div class="tour-illus-fix">
+                <div class="tour-illus-fix-head">
+                  <div class="tour-illus-fix-wrench">
+                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                  </div>
+                  <div class="tour-illus-fix-title-lines">
+                    <div class="tour-illus-fix-title-line"></div>
+                    <div class="tour-illus-fix-title-line" style="width:40%"></div>
+                  </div>
+                </div>
+                <div class="tour-illus-fix-body">
+                  <div class="tour-illus-fix-step"><span class="tour-illus-fix-num">1</span><div class="tour-illus-fix-step-line"></div></div>
+                  <div class="tour-illus-fix-step"><span class="tour-illus-fix-num">2</span><div class="tour-illus-fix-step-line" style="width:60%"></div></div>
+                  <div class="tour-illus-fix-step"><span class="tour-illus-fix-num">3</span><div class="tour-illus-fix-step-line" style="width:75%"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Slide 5: Users -->
+      <div class="tour-slide" data-slide="4">
+        <div class="tour-body">
+          <div class="tour-content">
+            <div class="tour-step-chip">Step 4 of 8 &mdash; Users</div>
+            <h2 class="tour-headline">Control Who Has<br/>Access to What</h2>
+            <p class="tour-sub">Manage every portal user — view their access, expand or restrict system permissions, change roles, or deactivate accounts. All changes take effect immediately without any restart.</p>
+            <ul class="tour-features">
+              <li>Search users by name, display name, email, or department</li>
+              <li>View and edit each user's system access list directly</li>
+              <li>Assign admin, developer, management, or department head roles</li>
+              <li>Deactivate accounts without deleting their ticket history</li>
+              <li>See Viber number, company, and department for each user</li>
+            </ul>
+          </div>
+          <div class="tour-illus" aria-hidden="true">
+            <div class="tour-illus-inner">
+              <div class="tour-illus-list">
+                <div class="tour-illus-row">
+                  <div style="width:26px;height:26px;border-radius:50%;background:rgba(196,151,42,0.15);border:1px solid rgba(196,151,42,0.3);flex:0 0 26px;display:grid;place-items:center">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="var(--gold)" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  </div>
+                  <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+                    <div class="tour-illus-row-line" style="width:58%;opacity:0.6"></div>
+                    <div class="tour-illus-row-line" style="width:34%;opacity:0.3"></div>
+                  </div>
+                  <div style="font-size:8px;font-weight:700;font-family:var(--font-ui);padding:2px 7px;border-radius:8px;background:rgba(196,151,42,0.12);color:var(--gold)">Admin</div>
+                </div>
+                <div class="tour-illus-row">
+                  <div style="width:26px;height:26px;border-radius:50%;background:var(--bg-hover,rgba(255,255,255,0.05));border:1px solid var(--border-subtle);flex:0 0 26px;display:grid;place-items:center">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="var(--text-secondary)" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  </div>
+                  <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+                    <div class="tour-illus-row-line" style="width:52%;opacity:0.6"></div>
+                    <div class="tour-illus-row-line" style="width:28%;opacity:0.3"></div>
+                  </div>
+                  <div style="font-size:8px;font-weight:700;font-family:var(--font-ui);padding:2px 7px;border-radius:8px;background:rgba(82,168,112,0.1);color:var(--success)">Dev</div>
+                </div>
+                <div class="tour-illus-row">
+                  <div style="width:26px;height:26px;border-radius:50%;background:var(--bg-hover,rgba(255,255,255,0.05));border:1px solid var(--border-subtle);flex:0 0 26px;display:grid;place-items:center">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="var(--text-secondary)" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  </div>
+                  <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+                    <div class="tour-illus-row-line" style="width:62%;opacity:0.6"></div>
+                    <div class="tour-illus-row-line" style="width:36%;opacity:0.3"></div>
+                  </div>
+                  <div style="font-size:8px;font-weight:700;font-family:var(--font-ui);padding:2px 7px;border-radius:8px;background:var(--bg-hover,rgba(255,255,255,0.05));color:var(--text-muted)">Staff</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Slide 6: Systems -->
+      <div class="tour-slide" data-slide="5">
+        <div class="tour-body">
+          <div class="tour-content">
+            <div class="tour-step-chip">Step 5 of 8 &mdash; Systems</div>
+            <h2 class="tour-headline">Configure What<br/>Staff Sees on the Portal</h2>
+            <p class="tour-sub">Every card on the main portal is a system entry you control. Add, edit, disable, or reorder systems here. Changes are reflected immediately for all users without a restart.</p>
+            <ul class="tour-features">
+              <li>Enable or disable systems from appearing on the portal</li>
+              <li>Set display order, company group (RGMC / SBIC / NAV), and category</li>
+              <li>Configure primary URL, backup URL, and display label</li>
+              <li>Mark entries as Windows-based or Task-type for correct grouping</li>
+              <li>Add task systems for cross-team IT workflow entries</li>
+            </ul>
+          </div>
+          <div class="tour-illus" aria-hidden="true">
+            <div class="tour-illus-inner">
+              <div class="tour-illus-compact">
+                <div class="tour-illus-compact-row">
+                  <div class="tour-illus-compact-dot" style="background:var(--success)"></div>
+                  <div class="tour-illus-compact-line"></div>
+                  <span class="tour-illus-compact-badge" style="background:rgba(82,168,112,0.12);color:var(--success);font-size:8px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:1px 6px;border-radius:8px;font-family:var(--font-ui)">Active</span>
+                </div>
+                <div class="tour-illus-compact-row">
+                  <div class="tour-illus-compact-dot" style="background:var(--success)"></div>
+                  <div class="tour-illus-compact-line" style="width:55%"></div>
+                  <span class="tour-illus-compact-badge" style="background:rgba(82,168,112,0.12);color:var(--success);font-size:8px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:1px 6px;border-radius:8px;font-family:var(--font-ui)">Active</span>
+                </div>
+                <div class="tour-illus-compact-row" style="opacity:0.5">
+                  <div class="tour-illus-compact-dot" style="background:var(--text-muted)"></div>
+                  <div class="tour-illus-compact-line" style="width:48%"></div>
+                  <span class="tour-illus-compact-badge" style="background:var(--bg-hover,rgba(255,255,255,0.05));color:var(--text-muted);font-size:8px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:1px 6px;border-radius:8px;font-family:var(--font-ui)">Hidden</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Slide 7: Developer Performance -->
+      <div class="tour-slide" data-slide="6">
+        <div class="tour-body">
+          <div class="tour-content">
+            <div class="tour-step-chip">Step 6 of 8 &mdash; Developers</div>
+            <h2 class="tour-headline">Track Team<br/>Performance</h2>
+            <p class="tour-sub">The Developers panel gives you a clear picture of each IT team member's contribution — issues handled, resolution speed, and activity volume. Data-driven staffing decisions start here.</p>
+            <ul class="tour-features">
+              <li>Per-developer issue resolution counts and open-to-closed ratios</li>
+              <li>Average resolution time — spot who resolves issues fastest</li>
+              <li>Active vs. resolved issue breakdown per team member</li>
+              <li>Sort by any metric column to find leaders and bottlenecks</li>
+              <li>Use with the developer board for a complete picture</li>
+            </ul>
+          </div>
+          <div class="tour-illus" aria-hidden="true">
+            <div class="tour-illus-inner">
+              <div class="tour-illus-health">
+                <div class="tour-illus-health-row">
+                  <div style="width:26px;height:26px;border-radius:50%;background:rgba(196,151,42,0.12);border:1px solid rgba(196,151,42,0.25);flex:0 0 26px;display:grid;place-items:center">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="var(--gold)" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  </div>
+                  <div class="tour-illus-health-info">
+                    <div class="tour-illus-health-line main"></div>
+                    <div class="tour-illus-health-line sub" style="width:60%;background:var(--gold);opacity:0.3"></div>
+                  </div>
+                  <div class="tour-illus-health-pill ok">24 closed</div>
+                </div>
+                <div class="tour-illus-health-row">
+                  <div style="width:26px;height:26px;border-radius:50%;background:var(--bg-hover,rgba(255,255,255,0.04));border:1px solid var(--border-subtle);flex:0 0 26px;display:grid;place-items:center">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="var(--text-secondary)" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  </div>
+                  <div class="tour-illus-health-info">
+                    <div class="tour-illus-health-line main" style="width:48%"></div>
+                    <div class="tour-illus-health-line sub" style="width:32%"></div>
+                  </div>
+                  <div class="tour-illus-health-pill ok" style="background:rgba(82,168,112,0.12);color:var(--success)">17 closed</div>
+                </div>
+                <div class="tour-illus-health-row">
+                  <div style="width:26px;height:26px;border-radius:50%;background:var(--bg-hover,rgba(255,255,255,0.04));border:1px solid var(--border-subtle);flex:0 0 26px;display:grid;place-items:center">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="var(--text-secondary)" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  </div>
+                  <div class="tour-illus-health-info">
+                    <div class="tour-illus-health-line main" style="width:55%"></div>
+                    <div class="tour-illus-health-line sub" style="width:28%"></div>
+                  </div>
+                  <div class="tour-illus-health-pill ok" style="background:rgba(82,168,112,0.12);color:var(--success)">11 closed</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Slide 8: Configurations -->
+      <div class="tour-slide" data-slide="7">
+        <div class="tour-body">
+          <div class="tour-content">
+            <div class="tour-step-chip">Step 7 of 8 &mdash; Config</div>
+            <h2 class="tour-headline">Manage Reference<br/>Data Site-Wide</h2>
+            <p class="tour-sub">The Configurations panel is where you maintain every dropdown and reference value used across the portal. Changing a value here updates it everywhere immediately.</p>
+            <ul class="tour-features">
+              <li>Request categories and subcategory groupings for the helpdesk</li>
+              <li>Company records used on access requests and issue reports</li>
+              <li>Department records for user profile and issue categorization</li>
+              <li>Hardware brands for equipment-related helpdesk requests</li>
+              <li>Non-software items: printers, peripherals, and other hardware types</li>
+            </ul>
+          </div>
+          <div class="tour-illus" aria-hidden="true">
+            <div class="tour-illus-inner">
+              <div class="tour-illus-helpdesk">
+                <div class="tour-illus-hd-label"></div>
+                <div class="tour-illus-hd-select" style="height:24px">
+                  <div class="tour-illus-hd-select-line"></div>
+                </div>
+                <div class="tour-illus-hd-label" style="margin-top:5px"></div>
+                <div class="tour-illus-hd-select" style="height:24px">
+                  <div class="tour-illus-hd-select-line" style="width:45%"></div>
+                </div>
+                <div class="tour-illus-hd-label" style="margin-top:5px"></div>
+                <div class="tour-illus-hd-select" style="height:24px">
+                  <div class="tour-illus-hd-select-line" style="width:60%"></div>
+                </div>
+                <div class="tour-illus-hd-foot" style="margin-top:8px">
+                  <div class="tour-illus-hd-tag">6 categories</div>
+                  <div class="tour-illus-hd-btn" style="width:44px;height:20px"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Slide 9: Done -->
+      <div class="tour-slide" data-slide="8">
+        <div class="tour-body">
+          <div class="tour-content">
+            <div class="tour-step-chip">You're all set</div>
+            <h2 class="tour-headline">Ready to<br/><em>Administrate</em></h2>
+            <p class="tour-sub">All panels have keyboard-accessible search and filter controls. Badge counts on the sidebar update in real time so you always know where attention is needed.</p>
+            <div class="tour-cta-row">
+              <button class="btn-tour-primary" onclick="adminTourDismiss()">
+                Go to Dashboard
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="tour-illus" aria-hidden="true">
+            <div class="tour-illus-inner">
+              <div class="tour-illus-done">
+                <div class="tour-illus-check">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div class="tour-illus-done-text">8 panels covered</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      </div><!-- /adminTourTrack -->
+      </div><!-- /tour-viewport -->
+
+      <div class="tour-foot">
+        <button class="btn-tour-back hidden" id="adminTourBack" onclick="adminTourGoBack()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+          Back
+        </button>
+        <div class="tour-dots" id="adminTourDots"></div>
+        <button class="btn-tour-next" id="adminTourNext" onclick="adminTourGoNext()">
+          Next
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
   <script src="/static/admin.js"></script>
 </body>
 </html>

@@ -823,7 +823,7 @@ async function submitAdditionalAccess(e) {
 /* ── Onboarding Tour ── */
 
 const TOUR_KEY    = 'rgmc_tour_done';
-const TOUR_SLIDES = 5;
+const TOUR_SLIDES = 8;
 let   _tourSlide  = 0;
 let   _tourEnterTimer = null;
 

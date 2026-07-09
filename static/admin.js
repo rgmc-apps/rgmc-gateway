@@ -4768,6 +4768,73 @@ function _buildPrintHtml(dev, opts = {}) {
   </div>`;
 }
 
+/* ── Admin Tour ── */
+
+const ADMIN_TOUR_SLIDES = 9;
+const ADMIN_TOUR_KEY    = 'rgmc_admin_tour_done';
+let   _adminTourSlide   = 0;
+let   _adminTourEnterTimer = null;
+
+function adminTourShow() {
+  _adminTourSlide = 0;
+  _adminTourRender();
+  document.getElementById('adminTourOverlay')?.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function adminTourDismiss() {
+  document.getElementById('adminTourOverlay')?.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function adminTourGoTo(index) {
+  _adminTourSlide = Math.max(0, Math.min(ADMIN_TOUR_SLIDES - 1, index));
+  _adminTourRender();
+}
+
+function adminTourGoNext() {
+  if (_adminTourSlide < ADMIN_TOUR_SLIDES - 1) adminTourGoTo(_adminTourSlide + 1);
+}
+
+function adminTourGoBack() {
+  if (_adminTourSlide > 0) adminTourGoTo(_adminTourSlide - 1);
+}
+
+function _adminTourRender() {
+  const track = document.getElementById('adminTourTrack');
+  if (track) {
+    track.style.transform = `translateX(-${_adminTourSlide * 100}%)`;
+    clearTimeout(_adminTourEnterTimer);
+    track.querySelectorAll('.tour-slide').forEach(s => s.classList.remove('entering'));
+    const incoming = track.children[_adminTourSlide];
+    if (incoming) {
+      _adminTourEnterTimer = setTimeout(() => incoming.classList.add('entering'), 40);
+    }
+  }
+
+  const dotsEl = document.getElementById('adminTourDots');
+  if (dotsEl) {
+    dotsEl.innerHTML = Array.from({ length: ADMIN_TOUR_SLIDES }, (_, i) =>
+      `<span class="tour-dot${i === _adminTourSlide ? ' active' : ''}" onclick="adminTourGoTo(${i})" aria-label="Slide ${i + 1}"></span>`
+    ).join('');
+  }
+
+  const backBtn = document.getElementById('adminTourBack');
+  if (backBtn) backBtn.classList.toggle('hidden', _adminTourSlide === 0);
+
+  const nextBtn = document.getElementById('adminTourNext');
+  if (nextBtn) nextBtn.style.display = _adminTourSlide === ADMIN_TOUR_SLIDES - 1 ? 'none' : '';
+
+  const skipBtn = document.getElementById('adminTourSkip');
+  if (skipBtn) skipBtn.style.visibility = _adminTourSlide === ADMIN_TOUR_SLIDES - 1 ? 'hidden' : '';
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('adminTourOverlay')?.classList.contains('open')) {
+    adminTourDismiss();
+  }
+});
+
 /* ── Issue Share Modal ── */
 function openIssueShareModal() {
   const issue = _issuesCache.find(i => i.id === _editingIssueId);
