@@ -825,6 +825,7 @@ async function submitAdditionalAccess(e) {
 const TOUR_KEY    = 'rgmc_tour_done';
 const TOUR_SLIDES = 5;
 let   _tourSlide  = 0;
+let   _tourEnterTimer = null;
 
 function _tourSeenKey(username) {
   return `${TOUR_KEY}_${username}`;
@@ -874,10 +875,19 @@ function tourGoBack() {
 }
 
 function _tourRenderSlide() {
-  // Show/hide slides
-  document.querySelectorAll('#tourOverlay .tour-slide').forEach((el, i) => {
-    el.classList.toggle('active', i === _tourSlide);
-  });
+  // Drive the slide track
+  const track = document.getElementById('tourTrack');
+  if (track) {
+    track.style.transform = `translateX(-${_tourSlide * 100}%)`;
+
+    // Stagger content in: clear any pending timer, strip class, re-add after tick
+    clearTimeout(_tourEnterTimer);
+    track.querySelectorAll('.tour-slide').forEach(s => s.classList.remove('entering'));
+    const incoming = track.children[_tourSlide];
+    if (incoming) {
+      _tourEnterTimer = setTimeout(() => incoming.classList.add('entering'), 40);
+    }
+  }
 
   // Dots
   const dotsEl = document.getElementById('tourDots');
