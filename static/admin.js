@@ -1529,6 +1529,25 @@ function _dismissLiveToast() {
   if (el) el.remove();
 }
 
+function _renderIssueKpiCounts(rows) {
+  const open     = rows.filter(i => i.status === 'open').length;
+  const progress = rows.filter(i => i.status === 'in_progress').length;
+  const terminal = rows.filter(i => ['resolved','closed'].includes(i.status));
+  const nc       = _lastAdminVisit ? rows.filter(i => i.created_at && i.created_at > _lastAdminVisit).length : 0;
+  _setText('issKpiTotal',     rows.length);
+  _setText('issKpiOpen',      open);
+  _setText('issKpiProgress',  progress);
+  _setText('issKpiResolved',  terminal.length);
+  _setText('issKpiDevItem',   rows.filter(i => i.dev_item_id).length);
+  _setText('issKpiTask',      rows.filter(i => i.task_id).length);
+  _setText('issKpiUserTask',  rows.filter(i => i.user_task_id).length);
+  _setText('issKpiConfirmed', terminal.filter(i => i.confirmed_fix).length);
+  _setText('issKpiAwaiting',  terminal.filter(i => !i.confirmed_fix).length);
+  _setText('issKpiNew',       nc);
+  const newCard = document.getElementById('issKpiNewCard');
+  if (newCard) newCard.style.display = nc > 0 ? '' : 'none';
+}
+
 function _renderIssueKpis(all, newCount) {
   const total     = all.length;
   const open      = all.filter(i => i.status === 'open').length;
@@ -1663,6 +1682,7 @@ function issApplyFilters() {
   _issFilteredRows = rows;
   _renderIssueTable(rows);
   _renderIssueAnalytics(rows);
+  _renderIssueKpiCounts(rows);
 }
 
 function issClearSearch() {
@@ -1771,6 +1791,7 @@ function issApplyFilters_noReset() {
   _issFilteredRows = rows;
   _renderIssueTable(rows);
   _renderIssueAnalytics(rows);
+  _renderIssueKpiCounts(rows);
 }
 
 function issExportPDF() {

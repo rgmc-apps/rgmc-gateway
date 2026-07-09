@@ -1020,7 +1020,7 @@
 }
 .iss-kpi-tooltip {
   position: absolute;
-  bottom: calc(100% + 10px);
+  top: calc(100% + 8px);
   right: -6px;
   width: 210px;
   background: var(--bg-card);
@@ -1034,7 +1034,7 @@
   box-shadow: 0 10px 30px rgba(0,0,0,0.2);
   opacity: 0;
   pointer-events: none;
-  transform: translateY(6px);
+  transform: translateY(-6px);
   transition: opacity 0.18s ease, transform 0.18s ease;
   z-index: 200;
 }
@@ -1047,10 +1047,10 @@
 .iss-kpi-tooltip::after {
   content: '';
   position: absolute;
-  top: 100%;
+  bottom: 100%;
   right: 9px;
   border: 6px solid transparent;
-  border-top-color: var(--border);
+  border-bottom-color: var(--border);
 }
 .iss-kpi-tooltip-name {
   font-size: 10px;
