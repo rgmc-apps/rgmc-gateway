@@ -851,6 +851,38 @@ function showTour(username) {
   _tourRenderSlide();
   document.getElementById('tourOverlay')?.classList.add('open');
   document.body.style.overflow = 'hidden';
+  _initTourSwipe();
+}
+
+// ── Tour swipe / drag navigation ──────────────────────────────────
+let _tourDragStart = null;
+
+function _initTourSwipe() {
+  const vp = document.querySelector('#tourOverlay .tour-viewport');
+  if (!vp || vp.dataset.swipeReady) return;
+  vp.dataset.swipeReady = '1';
+
+  vp.addEventListener('touchstart', e => {
+    _tourDragStart = e.touches[0].clientX;
+  }, { passive: true });
+  vp.addEventListener('touchend', e => {
+    if (_tourDragStart === null) return;
+    const dx = e.changedTouches[0].clientX - _tourDragStart;
+    if (Math.abs(dx) > 48) (dx < 0 ? tourGoNext : tourGoBack)();
+    _tourDragStart = null;
+  }, { passive: true });
+
+  vp.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'touch') return;
+    _tourDragStart = e.clientX;
+    vp.setPointerCapture(e.pointerId);
+  });
+  vp.addEventListener('pointerup', e => {
+    if (_tourDragStart === null || e.pointerType === 'touch') return;
+    const dx = e.clientX - _tourDragStart;
+    if (Math.abs(dx) > 48) (dx < 0 ? tourGoNext : tourGoBack)();
+    _tourDragStart = null;
+  });
 }
 
 function tourDismiss() {
@@ -1111,6 +1143,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Keyboard: Esc closes modals and profile menu
   document.addEventListener('keydown', e => {
+    const tourOpen = document.getElementById('tourOverlay')?.classList.contains('open');
+    if (tourOpen) {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); tourGoNext(); return; }
+      if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   { e.preventDefault(); tourGoBack(); return; }
+      if (e.key === 'Escape') { tourDismiss(); return; }
+    }
     if (e.key === 'Escape') {
       closeReport();
       closeAccessRequest();

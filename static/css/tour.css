@@ -670,6 +670,38 @@
   flex: 0 0 auto;
 }
 
+/* ── Screenshot frame ────────────────────────────────────────── */
+.tour-ss-frame {
+  position: absolute;
+  inset: 12px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.22), 0 0 0 1px rgba(0,0,0,0.08);
+}
+.tour-ss-frame::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 52%;
+  background: linear-gradient(transparent, var(--bg-card-inner));
+  pointer-events: none;
+}
+.tour-ss-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top left;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Grab cursor on viewport to hint swipeability */
+.tour-viewport { cursor: grab; }
+.tour-viewport:active { cursor: grabbing; }
+
 /* ── Admin tour — dark-surface overrides ─────────────────────── */
 .admin-tour-overlay {
   position: fixed;

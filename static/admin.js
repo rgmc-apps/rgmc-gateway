@@ -4780,6 +4780,37 @@ function adminTourShow() {
   _adminTourRender();
   document.getElementById('adminTourOverlay')?.classList.add('open');
   document.body.style.overflow = 'hidden';
+  _initAdminTourSwipe();
+}
+
+let _adminTourDragStart = null;
+
+function _initAdminTourSwipe() {
+  const vp = document.querySelector('#adminTourOverlay .tour-viewport');
+  if (!vp || vp.dataset.swipeReady) return;
+  vp.dataset.swipeReady = '1';
+
+  vp.addEventListener('touchstart', e => {
+    _adminTourDragStart = e.touches[0].clientX;
+  }, { passive: true });
+  vp.addEventListener('touchend', e => {
+    if (_adminTourDragStart === null) return;
+    const dx = e.changedTouches[0].clientX - _adminTourDragStart;
+    if (Math.abs(dx) > 48) (dx < 0 ? adminTourGoNext : adminTourGoBack)();
+    _adminTourDragStart = null;
+  }, { passive: true });
+
+  vp.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'touch') return;
+    _adminTourDragStart = e.clientX;
+    vp.setPointerCapture(e.pointerId);
+  });
+  vp.addEventListener('pointerup', e => {
+    if (_adminTourDragStart === null || e.pointerType === 'touch') return;
+    const dx = e.clientX - _adminTourDragStart;
+    if (Math.abs(dx) > 48) (dx < 0 ? adminTourGoNext : adminTourGoBack)();
+    _adminTourDragStart = null;
+  });
 }
 
 function adminTourDismiss() {
@@ -4830,8 +4861,10 @@ function _adminTourRender() {
 }
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && document.getElementById('adminTourOverlay')?.classList.contains('open')) {
-    adminTourDismiss();
+  if (document.getElementById('adminTourOverlay')?.classList.contains('open')) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); adminTourGoNext(); return; }
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   { e.preventDefault(); adminTourGoBack(); return; }
+    if (e.key === 'Escape') { adminTourDismiss(); return; }
   }
 });
 
