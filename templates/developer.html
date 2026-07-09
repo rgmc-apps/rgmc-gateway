@@ -42,6 +42,20 @@
         <p class="admin-page-sub">Track and move items across the development pipeline.</p>
       </div>
       <div class="dev-page-actions">
+        <div class="dev-view-switcher">
+          <button class="dev-view-btn active" data-view="kanban" onclick="setViewMode('kanban')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+            Kanban
+          </button>
+          <button class="dev-view-btn" data-view="list" onclick="setViewMode('list')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            Dev Items
+          </button>
+          <button class="dev-view-btn" data-view="analytics" onclick="setViewMode('analytics')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            Analytics
+          </button>
+        </div>
         <div class="dev-filter-tabs">
           <button class="dev-filter-tab active" data-filter="all"  onclick="setFilter('all')">All</button>
           <button class="dev-filter-tab"        data-filter="mine" onclick="setFilter('mine')">My Issues</button>
@@ -81,6 +95,7 @@
     </div>
 
     <!-- Kanban board -->
+    <div id="devKanbanView">
     <div class="kanban-board" id="kanbanBoard">
       <div class="kanban-col" id="col-pending" data-status="pending">
         <div class="kanban-col-header">
@@ -136,6 +151,126 @@
           </div>
         </div>
         <div class="kanban-cards" id="cards-done"></div>
+      </div>
+    </div><!-- /kanban-board -->
+    </div><!-- /devKanbanView -->
+
+    <!-- ── Dev Items list view ── -->
+    <div id="devListView" class="dev-view-panel" style="display:none;">
+      <div class="dev-list-toolbar">
+        <div class="dev-list-search-wrap">
+          <svg class="dev-list-search-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="listSearch" class="dev-list-search" type="search" placeholder="Search title, code, type…" oninput="renderListView()">
+        </div>
+        <select id="listStatusFilter" class="dev-list-select" onchange="renderListView()">
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="ongoing">Ongoing</option>
+          <option value="coding">Coding</option>
+          <option value="testing">Testing</option>
+          <option value="done">Done</option>
+        </select>
+        <select id="listTypeFilter" class="dev-list-select" onchange="renderListView()">
+          <option value="">All Types</option>
+          <option value="New Feature">New Feature</option>
+          <option value="Improvement">Improvement</option>
+          <option value="Bug Fix">Bug Fix</option>
+          <option value="Admin Task">Admin Task</option>
+          <option value="Discussion">Discussion</option>
+          <option value="Maintenance">Maintenance</option>
+          <option value="Others">Others</option>
+        </select>
+        <select id="listDevFilter" class="dev-list-select" onchange="renderListView()">
+          <option value="">All Developers</option>
+        </select>
+        <select id="listSysFilter" class="dev-list-select" onchange="renderListView()">
+          <option value="">All Systems</option>
+        </select>
+        <span class="dev-list-count-badge" id="listCount"></span>
+      </div>
+      <div class="dev-list-table-wrap">
+        <table class="dev-list-table">
+          <thead>
+            <tr>
+              <th class="dlt-th dlt-th-code" data-col="dev_item_code" onclick="sortListBy('dev_item_code')">
+                Code <span class="dlt-sort-icon" id="sort-dev_item_code"></span>
+              </th>
+              <th class="dlt-th dlt-th-title" data-col="title" onclick="sortListBy('title')">
+                Title <span class="dlt-sort-icon" id="sort-title"></span>
+              </th>
+              <th class="dlt-th" data-col="status" onclick="sortListBy('status')">
+                Status <span class="dlt-sort-icon" id="sort-status"></span>
+              </th>
+              <th class="dlt-th" data-col="dev_item_type" onclick="sortListBy('dev_item_type')">
+                Type <span class="dlt-sort-icon" id="sort-dev_item_type"></span>
+              </th>
+              <th class="dlt-th" data-col="systems" onclick="sortListBy('systems')">
+                Systems <span class="dlt-sort-icon" id="sort-systems"></span>
+              </th>
+              <th class="dlt-th" data-col="created_by" onclick="sortListBy('created_by')">
+                Developer <span class="dlt-sort-icon" id="sort-created_by"></span>
+              </th>
+              <th class="dlt-th" data-col="start_date" onclick="sortListBy('start_date')">
+                Start <span class="dlt-sort-icon" id="sort-start_date"></span>
+              </th>
+              <th class="dlt-th" data-col="estimated_end_date" onclick="sortListBy('estimated_end_date')">
+                Est. End <span class="dlt-sort-icon" id="sort-estimated_end_date"></span>
+              </th>
+              <th class="dlt-th" data-col="elapsed" onclick="sortListBy('elapsed')">
+                Elapsed <span class="dlt-sort-icon" id="sort-elapsed"></span>
+              </th>
+            </tr>
+          </thead>
+          <tbody id="devListBody">
+            <tr><td colspan="9" class="dlt-empty">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Analytics view ── -->
+    <div id="devAnalyticsView" class="dev-view-panel" style="display:none;">
+      <div class="ana-kpi-strip" id="anaKpiStrip"></div>
+      <div class="ana-charts-grid">
+        <div class="ana-card">
+          <div class="ana-card-hd">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Item Type Breakdown
+          </div>
+          <div class="ana-chart-body" id="anaTypeChart"><div class="ana-loading"><div class="spinner"></div></div></div>
+        </div>
+        <div class="ana-card">
+          <div class="ana-card-hd">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Item Aging (Active Only)
+          </div>
+          <div class="ana-chart-body" id="anaAgingChart"><div class="ana-loading"><div class="spinner"></div></div></div>
+        </div>
+        <div class="ana-card">
+          <div class="ana-card-hd">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Time Elapsed Distribution
+          </div>
+          <div class="ana-chart-body" id="anaElapsedChart"><div class="ana-loading"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+      <div class="ana-charts-grid ana-charts-grid--1col">
+        <div class="ana-card">
+          <div class="ana-card-hd">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Items Completed per Month
+          </div>
+          <div class="ana-chart-body" id="anaMonthChart"><div class="ana-loading"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+      <div class="ana-charts-grid ana-charts-grid--1col">
+        <div class="ana-card">
+          <div class="ana-card-hd">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Developer Workload by Status
+          </div>
+          <div class="ana-chart-body" id="anaDevChart"><div class="ana-loading"><div class="spinner"></div></div></div>
+        </div>
       </div>
     </div>
 

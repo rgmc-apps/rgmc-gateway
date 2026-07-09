@@ -72,6 +72,9 @@ let _filter              = 'all'; // 'all' | 'mine'
 let _doneRemarksCallback = null;
 let _devActionsCache     = null;
 let _devResPendingFiles  = [];
+let _viewMode            = 'kanban'; // 'kanban' | 'list' | 'analytics'
+let _listSort            = { col: 'status', dir: 'asc' };
+let _listFiltersPopulated = false;
 
 const DONE_WEEKS_KEY = 'dev-done-weeks';
 let _doneWeeks = Math.max(1, parseInt(localStorage.getItem(DONE_WEEKS_KEY) || '2', 10));
@@ -91,6 +94,20 @@ function setFilter(f) {
     btn.classList.toggle('active', btn.dataset.filter === f);
   });
   renderBoard();
+}
+
+/* ── View mode ── */
+function setViewMode(mode) {
+  _viewMode = mode;
+  document.querySelectorAll('.dev-view-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.view === mode);
+  });
+  document.getElementById('devKanbanView').style.display    = mode === 'kanban'    ? '' : 'none';
+  document.getElementById('devListView').style.display      = mode === 'list'      ? '' : 'none';
+  document.getElementById('devAnalyticsView').style.display = mode === 'analytics' ? '' : 'none';
+
+  if (mode === 'list')      renderListView();
+  if (mode === 'analytics') renderAnalytics();
 }
 
 /* ── Profile dropdown ── */
@@ -491,6 +508,10 @@ function renderBoard() {
          </div>`;
   });
   updateColArcs(counts);
+
+  // Keep other views in sync when visible
+  if (_viewMode === 'list')      renderListView();
+  if (_viewMode === 'analytics') renderAnalytics();
 }
 
 const TYPE_CLASS = {
@@ -1297,4 +1318,389 @@ async function addLog() {
     document.getElementById('logAddError').style.display  = '';
     document.getElementById('logAddErrorMsg').textContent = err.message;
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Dev Items — List View
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+const STATUS_ORDER_MAP = { pending: 0, ongoing: 1, coding: 2, testing: 3, done: 4 };
+
+function sortListBy(col) {
+  if (_listSort.col === col) {
+    _listSort.dir = _listSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    _listSort.col = col;
+    _listSort.dir = col === 'status' ? 'asc' : (col === 'elapsed' ? 'desc' : 'asc');
+  }
+  renderListView();
+}
+
+function _getListItems() {
+  const me = loadSession()?.username || '';
+  let items = _filter === 'mine' ? _items.filter(i => i.created_by === me) : _items.slice();
+
+  const search  = (document.getElementById('listSearch')?.value       || '').toLowerCase().trim();
+  const statusF = document.getElementById('listStatusFilter')?.value  || '';
+  const typeF   = document.getElementById('listTypeFilter')?.value    || '';
+  const devF    = document.getElementById('listDevFilter')?.value     || '';
+  const sysF    = document.getElementById('listSysFilter')?.value     || '';
+
+  if (search) {
+    items = items.filter(i =>
+      (i.title         || '').toLowerCase().includes(search) ||
+      (i.dev_item_code || '').toLowerCase().includes(search) ||
+      (i.dev_item_type || '').toLowerCase().includes(search)
+    );
+  }
+  if (statusF) items = items.filter(i => i.status === statusF);
+  if (typeF)   items = items.filter(i => {
+    const t = i.dev_item_type || '';
+    return typeF === 'Others' ? t.startsWith('Others') : t === typeF;
+  });
+  if (devF)    items = items.filter(i => i.created_by === devF);
+  if (sysF)    items = items.filter(i => _parseSystemIds(i).includes(sysF));
+
+  const col = _listSort.col;
+  const dir = _listSort.dir === 'asc' ? 1 : -1;
+
+  items.sort((a, b) => {
+    let av, bv;
+    if (col === 'status') {
+      av = STATUS_ORDER_MAP[a.status] ?? 99;
+      bv = STATUS_ORDER_MAP[b.status] ?? 99;
+    } else if (col === 'elapsed') {
+      av = daysElapsed(a) ?? -1;
+      bv = daysElapsed(b) ?? -1;
+    } else if (col === 'systems') {
+      const sa = _parseSystemIds(a), sb = _parseSystemIds(b);
+      av = sa.length ? (_systems.find(s => s.id === sa[0])?.name || '').toLowerCase() : '';
+      bv = sb.length ? (_systems.find(s => s.id === sb[0])?.name || '').toLowerCase() : '';
+    } else if (col === 'created_by') {
+      av = (_members[a.created_by]?.displayName || a.created_by || '').toLowerCase();
+      bv = (_members[b.created_by]?.displayName || b.created_by || '').toLowerCase();
+    } else {
+      av = (a[col] || '').toString().toLowerCase();
+      bv = (b[col] || '').toString().toLowerCase();
+    }
+    if (av < bv) return -dir;
+    if (av > bv) return  dir;
+    return 0;
+  });
+
+  return items;
+}
+
+function _populateListFilters() {
+  if (_listFiltersPopulated) return;
+  _listFiltersPopulated = true;
+
+  const devSel = document.getElementById('listDevFilter');
+  if (devSel) {
+    const devs = [...new Set(_items.map(i => i.created_by).filter(Boolean))].sort();
+    devs.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value       = d;
+      opt.textContent = _members[d]?.displayName || d;
+      devSel.appendChild(opt);
+    });
+  }
+
+  const sysSel = document.getElementById('listSysFilter');
+  if (sysSel) {
+    _systems.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value       = s.id;
+      opt.textContent = s.name;
+      sysSel.appendChild(opt);
+    });
+  }
+}
+
+function renderListView() {
+  if (_viewMode !== 'list') return;
+  _populateListFilters();
+
+  const items = _getListItems();
+
+  const countEl = document.getElementById('listCount');
+  if (countEl) countEl.textContent = `${items.length} item${items.length !== 1 ? 's' : ''}`;
+
+  // Update sort icons
+  ['dev_item_code','title','status','dev_item_type','systems','created_by','start_date','estimated_end_date','elapsed'].forEach(col => {
+    const el = document.getElementById(`sort-${col}`);
+    if (!el) return;
+    el.textContent = _listSort.col === col ? (_listSort.dir === 'asc' ? '↑' : '↓') : '';
+  });
+
+  const tbody = document.getElementById('devListBody');
+  if (!tbody) return;
+
+  if (!items.length) {
+    tbody.innerHTML = `<tr><td colspan="9" class="dlt-empty">No items match the current filters.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = items.map(item => {
+    const sysIds    = _parseSystemIds(item);
+    const sysNames  = sysIds.map(id => _systems.find(s => s.id === id)?.name).filter(Boolean);
+    const elapsed   = daysElapsed(item);
+    const overdue   = item.estimated_end_date && !item.actual_end_date &&
+                      new Date(item.estimated_end_date + 'T00:00:00') < new Date();
+    const m         = _members[item.created_by] || {};
+    const devName   = m.displayName || item.created_by || '—';
+    const devInit   = (devName.charAt(0) || '?').toUpperCase();
+
+    const statusCls = {
+      pending: 'dp-s-pending', ongoing: 'dp-s-ongoing', coding: 'dp-s-coding',
+      testing: 'dp-s-testing', done: 'dp-s-done',
+    }[item.status] || '';
+
+    const rawType    = item.dev_item_type || '';
+    const typeDisp   = rawType.startsWith('Others: ') ? rawType.slice('Others: '.length) : rawType;
+    const typeCls    = TYPE_CLASS[rawType] || (rawType ? 'ktype-others' : '');
+
+    const sysHtml = sysNames.length
+      ? sysNames.slice(0, 3).map(n => `<span class="kcard-system-tag">${escHtml(n)}</span>`).join('')
+        + (sysNames.length > 3 ? `<span class="kcard-system-tag">+${sysNames.length - 3}</span>` : '')
+      : `<span class="dlt-muted">—</span>`;
+
+    const avatarHtml = m.avatarUrl
+      ? `<img src="${m.avatarUrl}" class="dlt-avatar" alt="${escHtml(devInit)}">`
+      : `<div class="dlt-avatar dlt-avatar-initial">${escHtml(devInit)}</div>`;
+
+    return `<tr class="dlt-row" onclick="openDetailModal('${escHtml(item.id)}')">
+      <td class="dlt-td dlt-code">${item.dev_item_code ? escHtml(item.dev_item_code) : '—'}</td>
+      <td class="dlt-td">
+        <div class="dlt-title-text">${escHtml(item.title)}</div>
+        ${item.description ? `<div class="dlt-desc-preview">${escHtml(_descPreview(item.description, 75))}</div>` : ''}
+      </td>
+      <td class="dlt-td"><span class="dp-item-status ${statusCls}">${escHtml(item.status)}</span></td>
+      <td class="dlt-td">${rawType ? `<span class="kcard-type-badge ${typeCls}">${escHtml(typeDisp)}</span>` : `<span class="dlt-muted">—</span>`}</td>
+      <td class="dlt-td"><div class="dlt-sys-tags">${sysHtml}</div></td>
+      <td class="dlt-td">
+        <div class="dlt-dev-cell">${avatarHtml}<span class="dlt-dev-name">${escHtml(devName)}</span></div>
+      </td>
+      <td class="dlt-td dlt-date">${fmtDate(item.start_date)}</td>
+      <td class="dlt-td dlt-date${overdue ? ' dlt-overdue' : ''}">${fmtDate(item.estimated_end_date)}${overdue ? ' ⚠' : ''}</td>
+      <td class="dlt-td">${elapsed !== null ? `<span class="dlt-elapsed-val">${elapsed}d</span>` : `<span class="dlt-muted">—</span>`}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Analytics view
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+function renderAnalytics() {
+  if (_viewMode !== 'analytics') return;
+  const me    = loadSession()?.username || '';
+  const items = _filter === 'mine' ? _items.filter(i => i.created_by === me) : _items;
+  _renderAnaKpis(items);
+  _renderAnaTypeChart(items);
+  _renderAnaAgingChart(items);
+  _renderAnaElapsedChart(items);
+  _renderAnaMonthChart(items);
+  _renderAnaDevChart(items);
+}
+
+function _renderAnaKpis(items) {
+  const strip = document.getElementById('anaKpiStrip');
+  if (!strip) return;
+
+  const total   = items.length;
+  const active  = items.filter(i => i.status !== 'done').length;
+  const done    = items.filter(i => i.status === 'done').length;
+  const overdue = items.filter(i =>
+    i.estimated_end_date && !i.actual_end_date &&
+    new Date(i.estimated_end_date + 'T00:00:00') < new Date()
+  ).length;
+
+  const withElapsed = items.filter(i => daysElapsed(i) !== null);
+  const avgElapsed  = withElapsed.length
+    ? Math.round(withElapsed.reduce((s, i) => s + daysElapsed(i), 0) / withElapsed.length)
+    : null;
+  const maxElapsed  = withElapsed.length
+    ? Math.max(...withElapsed.map(i => daysElapsed(i)))
+    : null;
+
+  strip.innerHTML = `
+    <div class="ana-kpi-card">
+      <div class="ana-kpi-n">${total}</div>
+      <div class="ana-kpi-lbl">Total Items</div>
+    </div>
+    <div class="ana-kpi-card ana-kpi-active">
+      <div class="ana-kpi-n">${active}</div>
+      <div class="ana-kpi-lbl">Active</div>
+    </div>
+    <div class="ana-kpi-card ana-kpi-done">
+      <div class="ana-kpi-n">${done}</div>
+      <div class="ana-kpi-lbl">Completed</div>
+    </div>
+    <div class="ana-kpi-card${overdue > 0 ? ' ana-kpi-warn' : ''}">
+      <div class="ana-kpi-n">${overdue}</div>
+      <div class="ana-kpi-lbl">Overdue</div>
+    </div>
+    <div class="ana-kpi-card">
+      <div class="ana-kpi-n">${avgElapsed !== null ? avgElapsed + 'd' : '—'}</div>
+      <div class="ana-kpi-lbl">Avg Elapsed</div>
+    </div>
+    <div class="ana-kpi-card">
+      <div class="ana-kpi-n">${maxElapsed !== null ? maxElapsed + 'd' : '—'}</div>
+      <div class="ana-kpi-lbl">Max Elapsed</div>
+    </div>`;
+}
+
+function _anaBarRows(data) {
+  const max = Math.max(...data.map(d => d.value), 1);
+  return data.map(d => {
+    const pct = (d.value / max * 100).toFixed(1);
+    return `<div class="ana-bar-row">
+      <div class="ana-bar-label" title="${escHtml(d.label)}">${escHtml(d.label)}</div>
+      <div class="ana-bar-track">
+        <div class="ana-bar-fill" style="width:${pct}%;background:${d.color};"></div>
+      </div>
+      <div class="ana-bar-count">${d.value}</div>
+    </div>`;
+  }).join('');
+}
+
+function _renderAnaTypeChart(items) {
+  const el = document.getElementById('anaTypeChart');
+  if (!el) return;
+  const counts = {};
+  items.forEach(i => {
+    const t = i.dev_item_type || 'Unspecified';
+    counts[t] = (counts[t] || 0) + 1;
+  });
+  const TYPE_CLR = {
+    'New Feature': '#22d3ee', 'Improvement': '#60a5fa', 'Bug Fix': '#f87171',
+    'Admin Task': '#fbbf24', 'Discussion': '#c4b5fd', 'Maintenance': '#94a3b8',
+    'Unspecified': '#6b7280',
+  };
+  const data = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([label, value]) => ({
+    label: label.startsWith('Others: ') ? label.slice('Others: '.length) : label,
+    value,
+    color: TYPE_CLR[label] || '#a78bfa',
+  }));
+  el.innerHTML = data.length ? _anaBarRows(data) : '<div class="ana-no-data">No data.</div>';
+}
+
+function _renderAnaAgingChart(items) {
+  const el = document.getElementById('anaAgingChart');
+  if (!el) return;
+  const active = items.filter(i => i.status !== 'done' && i.start_date);
+  const buckets = [
+    { label: '0–7 days',    min: 0,  max: 7,          color: '#4ade80', count: 0 },
+    { label: '8–14 days',   min: 8,  max: 14,         color: '#facc15', count: 0 },
+    { label: '15–30 days',  min: 15, max: 30,         color: '#fb923c', count: 0 },
+    { label: '31–60 days',  min: 31, max: 60,         color: '#f87171', count: 0 },
+    { label: '60+ days',    min: 61, max: Infinity,   color: '#e11d48', count: 0 },
+  ];
+  active.forEach(i => {
+    const d = daysElapsed(i);
+    if (d === null) return;
+    const b = buckets.find(b => d >= b.min && d <= b.max);
+    if (b) b.count++;
+  });
+  const data = buckets.map(b => ({ label: b.label, value: b.count, color: b.color }));
+  el.innerHTML = data.some(d => d.value > 0)
+    ? _anaBarRows(data)
+    : '<div class="ana-no-data">No active items with start dates.</div>';
+}
+
+function _renderAnaElapsedChart(items) {
+  const el = document.getElementById('anaElapsedChart');
+  if (!el) return;
+  const buckets = [
+    { label: '1 day',       min: 0,  max: 1,         color: '#4ade80', count: 0 },
+    { label: '2–7 days',    min: 2,  max: 7,         color: '#a3e635', count: 0 },
+    { label: '1–2 weeks',   min: 8,  max: 14,        color: '#facc15', count: 0 },
+    { label: '2–4 weeks',   min: 15, max: 28,        color: '#fb923c', count: 0 },
+    { label: '1–2 months',  min: 29, max: 60,        color: '#f87171', count: 0 },
+    { label: '2+ months',   min: 61, max: Infinity,  color: '#e11d48', count: 0 },
+  ];
+  items.forEach(i => {
+    const d = daysElapsed(i);
+    if (d === null) return;
+    const b = buckets.find(b => d >= b.min && d <= b.max);
+    if (b) b.count++;
+  });
+  const data = buckets.map(b => ({ label: b.label, value: b.count, color: b.color }));
+  el.innerHTML = data.some(d => d.value > 0)
+    ? _anaBarRows(data)
+    : '<div class="ana-no-data">No items with start dates.</div>';
+}
+
+function _renderAnaMonthChart(items) {
+  const el = document.getElementById('anaMonthChart');
+  if (!el) return;
+  const done = items.filter(i => i.actual_end_date);
+  if (!done.length) {
+    el.innerHTML = '<div class="ana-no-data">No completed items yet.</div>';
+    return;
+  }
+  const months = {};
+  done.forEach(i => { const k = i.actual_end_date.slice(0, 7); months[k] = (months[k] || 0) + 1; });
+  const keys = Object.keys(months).sort().slice(-12);
+  const data = keys.map(k => {
+    const [y, m] = k.split('-');
+    return {
+      label: new Date(+y, +m - 1, 1).toLocaleDateString('en-PH', { month: 'short', year: '2-digit' }),
+      value: months[k],
+      color: '#4ade80',
+    };
+  });
+  el.innerHTML = _anaBarRows(data);
+}
+
+function _renderAnaDevChart(items) {
+  const el = document.getElementById('anaDevChart');
+  if (!el) return;
+  const devs = {};
+  items.forEach(i => {
+    const d = i.created_by || 'Unassigned';
+    if (!devs[d]) devs[d] = { pending: 0, ongoing: 0, coding: 0, testing: 0, done: 0 };
+    if (devs[d][i.status] !== undefined) devs[d][i.status]++;
+  });
+  if (!Object.keys(devs).length) { el.innerHTML = '<div class="ana-no-data">No data.</div>'; return; }
+
+  const STATUS_CLR = {
+    pending: '#9ca3af', ongoing: '#c084fc', coding: '#60a5fa', testing: '#fbbf24', done: '#4ade80',
+  };
+
+  const rows = Object.entries(devs)
+    .sort((a, b) => Object.values(b[1]).reduce((s, v) => s + v, 0) - Object.values(a[1]).reduce((s, v) => s + v, 0))
+    .map(([dev, counts]) => {
+      const m       = _members[dev] || {};
+      const name    = m.displayName || dev;
+      const init    = (name.charAt(0) || '?').toUpperCase();
+      const total   = Object.values(counts).reduce((s, v) => s + v, 0);
+      const avatar  = m.avatarUrl
+        ? `<img src="${m.avatarUrl}" class="dlt-avatar" alt="${escHtml(init)}">`
+        : `<div class="dlt-avatar dlt-avatar-initial">${escHtml(init)}</div>`;
+      const cells   = ['pending','ongoing','coding','testing','done'].map(s =>
+        `<td class="ana-dev-stat" style="color:${STATUS_CLR[s]};">${counts[s] || '—'}</td>`
+      ).join('');
+      return `<tr class="ana-dev-row">
+        <td class="ana-dev-name-cell">${avatar}<span>${escHtml(name)}</span></td>
+        ${cells}
+        <td class="ana-dev-total">${total}</td>
+      </tr>`;
+    }).join('');
+
+  el.innerHTML = `<table class="ana-dev-table">
+    <thead>
+      <tr>
+        <th>Developer</th>
+        <th style="color:#9ca3af">Pending</th>
+        <th style="color:#c084fc">Ongoing</th>
+        <th style="color:#60a5fa">Coding</th>
+        <th style="color:#fbbf24">Testing</th>
+        <th style="color:#4ade80">Done</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>`;
 }
