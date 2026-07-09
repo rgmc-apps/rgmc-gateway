@@ -5,7 +5,7 @@ from flask import Blueprint, request, jsonify, current_app, render_template
 from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
 from services.supabase import supabase_req, resolve_action_names
 from services.guards import _require_admin
-from services.email import send_report_email, send_issue_resolved_email, send_issue_assigned_email, send_helpdesk_email, send_helpdesk_confirmation_email
+from services.email import send_report_email, send_issue_resolved_email, send_issue_assigned_email, send_helpdesk_email, send_helpdesk_confirmation_email, send_issue_promoted_to_epic_email
 
 issues_bp = Blueprint("issues", __name__)
 
@@ -497,6 +497,77 @@ def admin_promote_issue_to_task(issue_id):
             current_app.logger.error("promote-task link issue failed: %s", exc)
 
     return jsonify({"success": True, "task_id": task_id})
+
+
+@issues_bp.post("/api/admin/issues/<issue_id>/promote-epic")
+def admin_promote_issue_to_epic(issue_id):
+    admin_username, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/issues", params={"id": f"eq.{issue_id}", "select": "*"})
+    except Exception as exc:
+        current_app.logger.error("promote-epic fetch issue failed: %s", exc)
+        return jsonify({"error": "Failed to fetch issue"}), 500
+    if not rows:
+        return jsonify({"error": "Issue not found"}), 404
+
+    issue = rows[0]
+    if issue.get("epic_id"):
+        return jsonify({"error": "Already promoted to an epic"}), 409
+
+    epic_name = (issue.get("title") or
+                 f"[{issue['site_name']}] {issue['description'][:80]}{'…' if len(issue['description']) > 80 else ''}")
+    epic_desc = (
+        f"Reported by {issue['employee_name']} ({issue['company_name']}, {issue.get('department', '')})\n"
+        f"Email: {issue['email']}\n\n"
+        f"{issue['description']}"
+    )
+    epic_data = {
+        "epic_name":        epic_name,
+        "epic_description": epic_desc,
+        "epic_status":      "planning",
+        "is_active":        True,
+    }
+    try:
+        new_epic = supabase_req("POST", "/epics", data=epic_data,
+                                extra_headers={"Prefer": "return=representation"})
+    except Exception as exc:
+        current_app.logger.error("promote-epic create epic failed: %s", exc)
+        return jsonify({"error": "Failed to create epic"}), 500
+
+    epic_id = new_epic[0]["epic_id"] if new_epic else None
+    if epic_id:
+        try:
+            supabase_req("PATCH", "/issues", data={"epic_id": epic_id},
+                         params={"id": f"eq.{issue_id}"})
+        except Exception as exc:
+            current_app.logger.error("promote-epic link issue failed: %s", exc)
+
+        # Email notification (fire-and-forget)
+        try:
+            admin_rows = supabase_req("GET", "/users",
+                                      params={"username": f"eq.{admin_username}", "select": "first_name,last_name,display_name"})
+            admin_info = admin_rows[0] if admin_rows else {}
+            promoted_by = (
+                admin_info.get("display_name") or
+                f"{admin_info.get('first_name','')} {admin_info.get('last_name','')}".strip() or
+                admin_username
+            )
+            send_issue_promoted_to_epic_email(issue, new_epic[0], promoted_by)
+        except Exception as exc:
+            current_app.logger.warning("promote-epic email failed: %s", exc)
+
+        # Bot notification (fire-and-forget)
+        try:
+            from services.it_bot import notify_issue_promoted_to_epic
+            updated_issue = dict(issue)
+            updated_issue["epic_id"] = epic_id
+            notify_issue_promoted_to_epic(updated_issue, new_epic[0])
+        except Exception as exc:
+            current_app.logger.warning("promote-epic bot notify failed: %s", exc)
+
+    return jsonify({"success": True, "epic_id": epic_id})
 
 
 @issues_bp.get("/api/issues/<issue_id>/activity")

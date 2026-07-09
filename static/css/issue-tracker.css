@@ -33,6 +33,7 @@
 .iss-kpi--dev::before       { background: rgba(96,165,250,0.7); }
 .iss-kpi--task::before      { background: rgba(167,139,250,0.7); }
 .iss-kpi--user-task::before { background: rgba(129,140,248,0.7); }
+.iss-kpi--epic::before      { background: rgba(99,102,241,0.7);  }
 .iss-kpi--confirmed::before { background: rgba(52,211,153,0.85); }
 .iss-kpi--awaiting::before  { background: rgba(251,146,60,0.7); }
 
@@ -362,6 +363,7 @@
 .iss-connected-cell .badge-dev,
 .iss-connected-cell .badge-task,
 .iss-connected-cell .badge-user-task,
+.iss-connected-cell .badge-epic,
 .iss-connected-cell .badge-duplicate,
 .iss-connected-cell .badge-linked { font-size: 11px; padding: 2px 7px; }
 

@@ -951,6 +951,88 @@ def send_helpdesk_confirmation_email(form_data: dict, ticket_number: str | None,
     return _smtp_send(msg, [user_email])
 
 
+def send_issue_promoted_to_epic_email(issue: dict, epic: dict, promoted_by_name: str) -> bool:
+    developer_email = EMAIL_CONFIG["developer_email"]
+    if not developer_email:
+        logger.warning("DEVELOPER_EMAIL not set — skipping promote-epic email")
+        return False
+
+    from_addr   = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    it_email    = developer_email
+    site_name   = issue.get("site_name", "Unknown System")
+    raw_desc    = issue.get("description", "")
+    title       = issue.get("title") or raw_desc[:80] + ("…" if len(raw_desc) > 80 else "")
+    epic_name   = epic.get("epic_name", "")
+    epic_id     = epic.get("epic_id", "")
+    ticket_number = issue.get("ticket_number") or ""
+
+    def _he(s): return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    ticket_row = f"""
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;width:140px;border-bottom:1px solid #e2e8f0;">TICKET</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:monospace;font-weight:700;">{_he(ticket_number)}</td>
+        </tr>""" if ticket_number else ""
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:620px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid #C4972A;">
+      <h2 style="margin:0;font-size:22px;color:#C4972A;">Issue Promoted to Epic</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">{_he(site_name)}</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 20px;font-size:15px;line-height:1.7;color:#374151;">
+        <strong>{_he(promoted_by_name)}</strong> promoted an issue to an epic on the Developer Board.
+      </p>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;border-radius:8px;overflow:hidden;">
+        {ticket_row}
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;width:140px;border-bottom:1px solid #e2e8f0;">SYSTEM</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:600;">{_he(site_name)}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">REPORTER</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">{_he(issue.get('employee_name', ''))}</td>
+        </tr>
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">COMPANY</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">{_he(issue.get('company_name', ''))}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">ISSUE</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:600;">{_he(title)}</td>
+        </tr>
+      </table>
+
+      <div style="background:#1a120a;border:1px solid rgba(196,151,42,0.35);border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+        <div style="font-size:11px;font-weight:700;color:rgba(196,151,42,0.75);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">Epic Created</div>
+        <div style="font-size:15px;font-weight:700;color:#C4972A;">{_he(epic_name)}</div>
+        {f'<div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px;font-family:monospace;">{_he(epic_id[:8])}…</div>' if epic_id else ''}
+      </div>
+
+      <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">
+        You can manage this epic on the Developer Board at
+        <a href="mailto:{_he(it_email)}" style="color:#C4972A;text-decoration:none;font-weight:600;">{_he(it_email)}</a>.
+      </p>
+      {_ticket_btn_html(issue.get("id"))}
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    msg            = MIMEMultipart("alternative")
+    msg["Subject"] = f"[Issue → Epic] {title} — {site_name}"
+    msg["From"]    = from_addr
+    msg["To"]      = it_email
+    msg["Reply-To"] = issue.get("email", from_addr)
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [it_email])
+
+
 def _full_name(record: dict) -> str:
     mi    = record.get("middle_initial", "").strip()
     parts = [record.get("first_name", ""), mi + "." if mi else "", record.get("last_name", "")]

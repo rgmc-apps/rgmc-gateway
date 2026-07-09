@@ -46,6 +46,34 @@ def notify_ticket_updated(ticket: dict, changes: dict) -> None:
         logger.warning("IT bot notify_ticket_updated failed: %s", exc)
 
 
+def notify_issue_promoted_to_epic(ticket: dict, epic: dict) -> None:
+    """POST issue.promoted_to_epic event to the IT bot. Fire-and-forget — never raises."""
+    if not _ready():
+        return
+    try:
+        requests.post(
+            f"{IT_BOT_URL.rstrip('/')}/api/notify/ticket-updated",
+            headers=_headers(),
+            json={
+                "event":  "ticket.updated",
+                "ticket": ticket,
+                "changes": {
+                    "epic_id": {
+                        "from": None,
+                        "to":   epic.get("epic_id"),
+                    },
+                    "promoted_to_epic": {
+                        "from": None,
+                        "to":   epic.get("epic_name"),
+                    },
+                },
+            },
+            timeout=5,
+        )
+    except Exception as exc:
+        logger.warning("IT bot notify_issue_promoted_to_epic failed: %s", exc)
+
+
 def build_changes(before: dict, patch: dict) -> dict:
     """Return a TicketChanges dict comparing before-state to patch fields."""
     changes = {}

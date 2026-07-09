@@ -1541,6 +1541,7 @@ function _renderIssueKpiCounts(rows) {
   _setText('issKpiDevItem',   rows.filter(i => i.dev_item_id).length);
   _setText('issKpiTask',      rows.filter(i => i.task_id).length);
   _setText('issKpiUserTask',  rows.filter(i => i.user_task_id).length);
+  _setText('issKpiEpic',      rows.filter(i => i.epic_id).length);
   _setText('issKpiConfirmed', terminal.filter(i => i.confirmed_fix).length);
   _setText('issKpiAwaiting',  terminal.filter(i => !i.confirmed_fix).length);
   _setText('issKpiNew',       nc);
@@ -1556,6 +1557,7 @@ function _renderIssueKpis(all, newCount) {
   const devItem   = all.filter(i => i.dev_item_id).length;
   const task      = all.filter(i => i.task_id).length;
   const userTask  = all.filter(i => i.user_task_id).length;
+  const epic      = all.filter(i => i.epic_id).length;
   const terminal  = all.filter(i => ['resolved','closed'].includes(i.status));
   const confirmed = terminal.filter(i => i.confirmed_fix).length;
   const awaiting  = terminal.filter(i => !i.confirmed_fix).length;
@@ -1566,6 +1568,7 @@ function _renderIssueKpis(all, newCount) {
   _setText('issKpiDevItem',   devItem);
   _setText('issKpiTask',      task);
   _setText('issKpiUserTask',  userTask);
+  _setText('issKpiEpic',      epic);
   _setText('issKpiConfirmed', confirmed);
   _setText('issKpiAwaiting',  awaiting);
 
@@ -2097,8 +2100,9 @@ function renderIssueRow(issue) {
   const devBadge      = issue.dev_item_id  ? '<span class="badge-dev"   title="Linked to dev item">Dev Item</span>' : '';
   const taskBadge     = issue.task_id      ? '<span class="badge-task"  title="Linked to task">Task</span>'         : '';
   const userTaskBadge = issue.user_task_id ? '<span class="badge-user-task" title="Linked to user task">User Task</span>' : '';
+  const epicBadge     = issue.epic_id      ? '<span class="badge-epic"  title="Promoted to epic">Epic</span>'       : '';
   const linkedBadge   = issue.linked_issue_id ? (issue.is_duplicate ? '<span class="badge-duplicate">Duplicate</span>' : '<span class="badge-linked">Linked</span>') : '';
-  const connectedHtml = [devBadge, taskBadge, userTaskBadge, linkedBadge].filter(Boolean).join(' ') || '<span class="text-muted">—</span>';
+  const connectedHtml = [devBadge, taskBadge, userTaskBadge, epicBadge, linkedBadge].filter(Boolean).join(' ') || '<span class="text-muted">—</span>';
 
   const isTerminalStatus = ['resolved', 'closed'].includes((issue.status || '').toLowerCase());
   const confirmedCell    = isTerminalStatus
@@ -2224,6 +2228,16 @@ async function openIssueModal(id) {
     userTaskGroup.style.display = 'none';
   }
 
+  // Epic link
+  const epicGroup   = document.getElementById('issueEpicGroup');
+  const epicDisplay = document.getElementById('issueEpicDisplay');
+  if (issue.epic_id && epicGroup && epicDisplay) {
+    epicGroup.style.display = '';
+    epicDisplay.innerHTML   = `<span class="badge-epic">Epic</span> <span class="iss-link-ref">${escHtml(issue.epic_id.slice(0, 8))}…</span>`;
+  } else if (epicGroup) {
+    epicGroup.style.display = 'none';
+  }
+
   // Linked issue / duplicate display
   const linkGroup   = document.getElementById('issueLinkGroup');
   const linkLabel   = document.getElementById('issueLinkLabel');
@@ -2243,8 +2257,8 @@ async function openIssueModal(id) {
   }
 
   // Actions submenu state: hide all promote options once any promotion exists
-  const anyPromoted = !!(issue.dev_item_id || issue.task_id || issue.user_task_id);
-  ['issPromoteDevBtn', 'issPromoteTaskBtn', 'issPromoteUserTaskBtn'].forEach(id => {
+  const anyPromoted = !!(issue.dev_item_id || issue.task_id || issue.user_task_id || issue.epic_id);
+  ['issPromoteDevBtn', 'issPromoteTaskBtn', 'issPromoteUserTaskBtn', 'issPromoteEpicBtn'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = anyPromoted ? 'none' : '';
   });
@@ -2652,6 +2666,36 @@ function onIssueAssigneeChange() {
 
 async function promoteIssueToDevItem()  { openPromoteModal('dev');  }
 async function promoteIssueToTask()     { openPromoteModal('task'); }
+
+async function promoteIssueToEpic() {
+  if (!_editingIssueId) return;
+  _closeIssActionsMenu();
+  if (!await showConfirm({
+    title:       'Promote to Epic',
+    message:     'Create a Developer Board epic from this issue?',
+    detail:      'The issue title and description will be used to create a new epic in Planning status.',
+    confirmText: 'Promote',
+  })) return;
+  document.getElementById('issueModalActions').style.display = 'none';
+  document.getElementById('issueModalLoading').style.display = '';
+  document.getElementById('issueModalError').style.display   = 'none';
+  try {
+    const res = await fetch(`/api/admin/issues/${encodeURIComponent(_editingIssueId)}/promote-epic`, {
+      method:  'POST',
+      headers: authHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Promote failed');
+    closeIssueModal();
+    showToast('Issue promoted to epic.');
+    loadIssues(_currentIssueStatus);
+  } catch (err) {
+    document.getElementById('issueModalLoading').style.display = 'none';
+    document.getElementById('issueModalActions').style.display = '';
+    document.getElementById('issueModalError').style.display   = '';
+    document.getElementById('issueModalErrorMsg').textContent  = err.message;
+  }
+}
 
 async function promoteIssueToUserTask() {
   if (!_editingIssueId) return;
