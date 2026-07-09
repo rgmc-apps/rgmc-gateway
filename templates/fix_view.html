@@ -206,8 +206,36 @@
       font-size: 14px;
       line-height: 1.8;
       color: var(--text-secondary);
-      white-space: pre-wrap;
       margin: 0;
+      word-break: break-word;
+    }
+    .fix-desc p    { margin: 0 0 6px; }
+    .fix-desc p:last-child { margin-bottom: 0; }
+    .fix-desc h2   { font-size: 16px; font-weight: 700; color: var(--gold); margin: 10px 0 4px; font-family: var(--font-display); }
+    .fix-desc h3   { font-size: 14px; font-weight: 600; color: var(--text-primary); margin: 8px 0 3px; }
+    .fix-desc ul, .fix-desc ol { padding-left: 20px; margin: 6px 0; }
+    .fix-desc li   { margin: 3px 0; }
+    .fix-desc ul li { list-style-type: disc; }
+    .fix-desc ul li li { list-style-type: circle; }
+    .fix-desc ol li { list-style-type: decimal; }
+    .fix-desc strong { font-weight: 700; color: var(--text-primary); }
+    .fix-desc em { font-style: italic; }
+    .fix-desc u  { text-decoration: underline; }
+    .fix-desc s  { text-decoration: line-through; }
+    .fix-desc a  { color: var(--gold); }
+    .fix-desc blockquote {
+      border-left: 2px solid var(--gold);
+      padding-left: 12px;
+      margin: 6px 0;
+      color: var(--text-secondary);
+      font-style: italic;
+      opacity: 0.85;
+    }
+    .fix-desc code {
+      background: rgba(196,151,42,0.1);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 0.9em;
     }
 
     /* ── Attachments ── */
@@ -506,12 +534,12 @@
 
       <div id="problemSection" class="fix-section" style="display:none;">
         <div class="section-label">Problem Description</div>
-        <p id="problemDesc" class="fix-desc"></p>
+        <div id="problemDesc" class="fix-desc"></div>
       </div>
 
       <div id="fixSection" class="fix-section" style="display:none;">
         <div class="section-label">Fix Description</div>
-        <p id="fixDesc" class="fix-desc"></p>
+        <div id="fixDesc" class="fix-desc"></div>
       </div>
 
       <div id="attachmentsSection" class="fix-section" style="display:none;">
@@ -665,14 +693,14 @@
 
       // Problem description
       if (fix.problem_desc) {
-        document.getElementById('problemDesc').textContent       = fix.problem_desc;
-        document.getElementById('problemSection').style.display  = '';
+        document.getElementById('problemDesc').innerHTML          = fix.problem_desc;
+        document.getElementById('problemSection').style.display   = '';
       }
 
       // Fix description
       if (fix.fix_description) {
-        document.getElementById('fixDesc').textContent       = fix.fix_description;
-        document.getElementById('fixSection').style.display  = '';
+        document.getElementById('fixDesc').innerHTML          = fix.fix_description;
+        document.getElementById('fixSection').style.display   = '';
       }
 
       // Attachments

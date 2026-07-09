@@ -326,8 +326,35 @@
       font-size: 14px;
       line-height: 1.8;
       color: var(--text-secondary);
-      white-space: pre-wrap;
       margin: 0;
+      word-break: break-word;
+    }
+    .desc-text p, .resolution-notes p { margin: 0 0 6px; }
+    .desc-text p:last-child, .resolution-notes p:last-child { margin-bottom: 0; }
+    .desc-text h2, .resolution-notes h2 { font-size: 16px; font-weight: 700; color: var(--gold); margin: 10px 0 4px; }
+    .desc-text h3, .resolution-notes h3 { font-size: 14px; font-weight: 600; color: var(--text-primary); margin: 8px 0 3px; }
+    .desc-text ul, .desc-text ol, .resolution-notes ul, .resolution-notes ol { padding-left: 20px; margin: 6px 0; }
+    .desc-text li, .resolution-notes li { margin: 3px 0; }
+    .desc-text ul li, .resolution-notes ul li { list-style-type: disc; }
+    .desc-text ul li li, .resolution-notes ul li li { list-style-type: circle; }
+    .desc-text ol li, .resolution-notes ol li { list-style-type: decimal; }
+    .desc-text strong, .resolution-notes strong { font-weight: 700; color: var(--text-primary); }
+    .desc-text em, .resolution-notes em { font-style: italic; }
+    .desc-text u,  .resolution-notes u  { text-decoration: underline; }
+    .desc-text s,  .resolution-notes s  { text-decoration: line-through; }
+    .desc-text a,  .resolution-notes a  { color: var(--gold); }
+    .desc-text blockquote, .resolution-notes blockquote {
+      border-left: 2px solid var(--gold);
+      padding-left: 12px;
+      margin: 6px 0;
+      font-style: italic;
+      opacity: 0.85;
+    }
+    .desc-text code, .resolution-notes code {
+      background: rgba(196,151,42,0.1);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 0.9em;
     }
     .error-code-box {
       margin-top: 14px;
@@ -1066,7 +1093,7 @@
 
       <div class="ticket-desc-section">
         <div class="section-label">Description</div>
-        <p id="descText" class="desc-text"></p>
+        <div id="descText" class="desc-text"></div>
         <div id="errorCodeBox" class="error-code-box" style="display:none;">
           <div class="ec-label">Error Code</div>
           <div id="errorCodeVal" class="ec-val"></div>
@@ -1084,7 +1111,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           <span id="resolutionMeta"></span>
         </div>
-        <p id="resolutionNotes" class="resolution-notes"></p>
+        <div id="resolutionNotes" class="resolution-notes"></div>
       </div>
 
       <div id="confirmFixSection" class="ticket-confirm" style="display:none;">
@@ -1404,7 +1431,7 @@
       });
 
       // Description
-      document.getElementById('descText').textContent = issue.description || '';
+      document.getElementById('descText').innerHTML = issue.description || '';
 
       // Error code
       if (issue.error_code) {
@@ -1420,7 +1447,7 @@
         ].filter(Boolean).join(' on ');
         document.getElementById('resolutionMeta').textContent = resMeta;
         if (issue.resolution_notes) {
-          document.getElementById('resolutionNotes').textContent = issue.resolution_notes;
+          document.getElementById('resolutionNotes').innerHTML = issue.resolution_notes;
         } else {
           document.getElementById('resolutionNotes').style.display = 'none';
         }
