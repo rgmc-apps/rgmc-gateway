@@ -1319,6 +1319,12 @@ async function saveNewSystem(e) {
     const currentSelected = _getSelectedSystemIds();
     currentSelected.push(saved.id);
     _buildSystemChecklist(currentSelected);
+    // Also refresh epic sys dropdown if the epic modal is open
+    if (document.getElementById('epicDetailModal')?.classList.contains('open')) {
+      const epicSelected = _getSelectedEpicSystemIds();
+      epicSelected.push(saved.id);
+      _buildEpicSysChecklist(epicSelected);
+    }
     closeAddSystemModal();
     showToast(`System "${name}" added.`);
   } catch (err) {
