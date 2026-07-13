@@ -46,6 +46,66 @@ def notify_ticket_updated(ticket: dict, changes: dict) -> None:
         logger.warning("IT bot notify_ticket_updated failed: %s", exc)
 
 
+def notify_issue_promoted_to_dev(ticket: dict, dev_item: dict) -> None:
+    """POST issue.promoted_to_dev event to the IT bot. Fire-and-forget — never raises."""
+    if not _ready():
+        return
+    try:
+        requests.post(
+            f"{IT_BOT_URL.rstrip('/')}/api/notify/ticket-updated",
+            headers=_headers(),
+            json={
+                "event":  "ticket.updated",
+                "ticket": ticket,
+                "changes": {
+                    "dev_item_id": {
+                        "from": None,
+                        "to":   dev_item.get("id"),
+                    },
+                    "promoted_to_dev": {
+                        "from": None,
+                        "to":   dev_item.get("dev_item_code") or dev_item.get("title"),
+                    },
+                    **({"assigned_to": {"from": None, "to": ticket.get("assigned_to")}}
+                       if ticket.get("assigned_to") else {}),
+                },
+            },
+            timeout=5,
+        )
+    except Exception as exc:
+        logger.warning("IT bot notify_issue_promoted_to_dev failed: %s", exc)
+
+
+def notify_issue_promoted_to_task(ticket: dict, task: dict) -> None:
+    """POST issue.promoted_to_task event to the IT bot. Fire-and-forget — never raises."""
+    if not _ready():
+        return
+    try:
+        requests.post(
+            f"{IT_BOT_URL.rstrip('/')}/api/notify/ticket-updated",
+            headers=_headers(),
+            json={
+                "event":  "ticket.updated",
+                "ticket": ticket,
+                "changes": {
+                    "task_id": {
+                        "from": None,
+                        "to":   task.get("id"),
+                    },
+                    "promoted_to_task": {
+                        "from": None,
+                        "to":   task.get("task_name"),
+                    },
+                    **({"assigned_to": {"from": None, "to": ticket.get("assigned_to")}}
+                       if ticket.get("assigned_to") else {}),
+                },
+            },
+            timeout=5,
+        )
+    except Exception as exc:
+        logger.warning("IT bot notify_issue_promoted_to_task failed: %s", exc)
+
+
 def notify_issue_promoted_to_epic(ticket: dict, epic: dict) -> None:
     """POST issue.promoted_to_epic event to the IT bot. Fire-and-forget — never raises."""
     if not _ready():

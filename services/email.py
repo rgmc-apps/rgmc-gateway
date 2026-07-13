@@ -1033,6 +1033,171 @@ def send_issue_promoted_to_epic_email(issue: dict, epic: dict, promoted_by_name:
     return _smtp_send(msg, [it_email])
 
 
+def send_issue_promoted_to_dev_email(issue: dict, dev_item: dict, assignee_name: str, promoted_by_name: str) -> bool:
+    developer_email = EMAIL_CONFIG["developer_email"]
+    if not developer_email:
+        logger.warning("DEVELOPER_EMAIL not set — skipping promote-dev email")
+        return False
+
+    from_addr     = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    site_name     = issue.get("site_name", "Unknown System")
+    raw_desc      = issue.get("description", "")
+    title         = issue.get("title") or raw_desc[:80] + ("…" if len(raw_desc) > 80 else "")
+    item_title    = dev_item.get("title", title)
+    item_id       = dev_item.get("id", "")
+    item_code     = dev_item.get("dev_item_code", "")
+    ticket_number = issue.get("ticket_number") or ""
+
+    def _he(s): return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    ticket_row = f"""
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;width:140px;border-bottom:1px solid #e2e8f0;">TICKET</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:monospace;font-weight:700;">{_he(ticket_number)}</td>
+        </tr>""" if ticket_number else ""
+
+    assignee_row = f"""
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">ASSIGNED TO</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:600;">{_he(assignee_name)}</td>
+        </tr>""" if assignee_name else ""
+
+    item_code_display = f'<div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px;font-family:monospace;">{_he(item_code)}</div>' if item_code else (
+        f'<div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px;font-family:monospace;">{_he(item_id[:8])}…</div>' if item_id else ""
+    )
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:620px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid #C4972A;">
+      <h2 style="margin:0;font-size:22px;color:#C4972A;">Issue Promoted to Dev Item</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">{_he(site_name)}</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 20px;font-size:15px;line-height:1.7;color:#374151;">
+        <strong>{_he(promoted_by_name)}</strong> promoted an issue to a Dev Board item.
+      </p>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;border-radius:8px;overflow:hidden;">
+        {ticket_row}
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;width:140px;border-bottom:1px solid #e2e8f0;">SYSTEM</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:600;">{_he(site_name)}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">REPORTER</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">{_he(issue.get('employee_name', ''))}</td>
+        </tr>
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">ISSUE</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:600;">{_he(title)}</td>
+        </tr>
+        {assignee_row}
+      </table>
+
+      <div style="background:#1a120a;border:1px solid rgba(196,151,42,0.35);border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+        <div style="font-size:11px;font-weight:700;color:rgba(196,151,42,0.75);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">Dev Item Created</div>
+        <div style="font-size:15px;font-weight:700;color:#C4972A;">{_he(item_title)}</div>
+        {item_code_display}
+      </div>
+
+      {_ticket_btn_html(issue.get("id"))}
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    msg            = MIMEMultipart("alternative")
+    msg["Subject"] = f"[Issue → Dev Item] {title} — {site_name}"
+    msg["From"]    = from_addr
+    msg["To"]      = developer_email
+    msg["Reply-To"] = issue.get("email", from_addr)
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [developer_email])
+
+
+def send_issue_promoted_to_task_email(issue: dict, task: dict, assignee_name: str, promoted_by_name: str) -> bool:
+    developer_email = EMAIL_CONFIG["developer_email"]
+    if not developer_email:
+        logger.warning("DEVELOPER_EMAIL not set — skipping promote-task email")
+        return False
+
+    from_addr     = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    site_name     = issue.get("site_name", "Unknown System")
+    raw_desc      = issue.get("description", "")
+    title         = issue.get("title") or raw_desc[:80] + ("…" if len(raw_desc) > 80 else "")
+    task_name     = task.get("task_name", title)
+    task_id       = task.get("id", "")
+    ticket_number = issue.get("ticket_number") or ""
+
+    def _he(s): return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    ticket_row = f"""
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;width:140px;border-bottom:1px solid #e2e8f0;">TICKET</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:monospace;font-weight:700;">{_he(ticket_number)}</td>
+        </tr>""" if ticket_number else ""
+
+    assignee_row = f"""
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">ASSIGNED TO</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:600;">{_he(assignee_name)}</td>
+        </tr>""" if assignee_name else ""
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:620px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid #C4972A;">
+      <h2 style="margin:0;font-size:22px;color:#C4972A;">Issue Promoted to Task</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">{_he(site_name)}</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 20px;font-size:15px;line-height:1.7;color:#374151;">
+        <strong>{_he(promoted_by_name)}</strong> promoted an issue to an Admin Task.
+      </p>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;border-radius:8px;overflow:hidden;">
+        {ticket_row}
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;width:140px;border-bottom:1px solid #e2e8f0;">SYSTEM</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:600;">{_he(site_name)}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">REPORTER</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">{_he(issue.get('employee_name', ''))}</td>
+        </tr>
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">ISSUE</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:600;">{_he(title)}</td>
+        </tr>
+        {assignee_row}
+      </table>
+
+      <div style="background:#1a120a;border:1px solid rgba(196,151,42,0.35);border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+        <div style="font-size:11px;font-weight:700;color:rgba(196,151,42,0.75);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">Task Created</div>
+        <div style="font-size:15px;font-weight:700;color:#C4972A;">{_he(task_name)}</div>
+        {f'<div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px;font-family:monospace;">{_he(task_id[:8])}…</div>' if task_id else ""}
+      </div>
+
+      {_ticket_btn_html(issue.get("id"))}
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    msg            = MIMEMultipart("alternative")
+    msg["Subject"] = f"[Issue → Task] {title} — {site_name}"
+    msg["From"]    = from_addr
+    msg["To"]      = developer_email
+    msg["Reply-To"] = issue.get("email", from_addr)
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [developer_email])
+
+
 def _full_name(record: dict) -> str:
     mi    = record.get("middle_initial", "").strip()
     parts = [record.get("first_name", ""), mi + "." if mi else "", record.get("last_name", "")]

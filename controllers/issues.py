@@ -5,7 +5,7 @@ from flask import Blueprint, request, jsonify, current_app, render_template
 from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
 from services.supabase import supabase_req, resolve_action_names
 from services.guards import _require_admin
-from services.email import send_report_email, send_issue_resolved_email, send_issue_assigned_email, send_helpdesk_email, send_helpdesk_confirmation_email, send_issue_promoted_to_epic_email
+from services.email import send_report_email, send_issue_resolved_email, send_issue_assigned_email, send_helpdesk_email, send_helpdesk_confirmation_email, send_issue_promoted_to_epic_email, send_issue_promoted_to_dev_email, send_issue_promoted_to_task_email
 
 issues_bp = Blueprint("issues", __name__)
 
@@ -292,7 +292,7 @@ def admin_patch_issue(issue_id):
     if err:
         return jsonify(err[0]), err[1]
     body    = request.get_json(silent=True) or {}
-    allowed = {"status", "assigned_to", "title", "resolution_notes", "resolved_by", "request_to_department_id", "resolution_action_ids", "resolution_attachment_urls"}
+    allowed = {"status", "assigned_to", "title", "resolution_notes", "resolved_by", "request_to_department_id", "resolution_action_ids", "resolution_attachment_urls", "resolution_remarks"}
     patch   = {k: v for k, v in body.items() if k in allowed}
     if not patch:
         return jsonify({"error": "Nothing to update"}), 400
@@ -426,16 +426,59 @@ def admin_promote_issue(issue_id):
         return jsonify({"error": "Failed to create dev item"}), 500
 
     dev_item_id = new_item[0]["id"] if new_item else None
+    new_dev_item = new_item[0] if new_item else {}
     if dev_item_id:
         issue_patch = {"dev_item_id": dev_item_id}
         if assignee:
-            issue_patch["status"] = "in_progress"
-            if not issue.get("assigned_to"):
-                issue_patch["assigned_to"] = assignee
+            issue_patch["status"]      = "in_progress"
+            issue_patch["assigned_to"] = assignee  # always update assigned_to
         try:
             supabase_req("PATCH", "/issues", data=issue_patch, params={"id": f"eq.{issue_id}"})
         except Exception as exc:
             current_app.logger.error("promote link issue failed: %s", exc)
+
+        # Fetch admin + assignee display names
+        try:
+            usernames = list(filter(None, [admin_username, assignee]))
+            user_rows = supabase_req("GET", "/users", params={
+                "username": f"in.({','.join(usernames)})",
+                "select":   "username,first_name,last_name,display_name,email",
+            }) if usernames else []
+            admin_info    = next((u for u in (user_rows or []) if u["username"] == admin_username), {})
+            assignee_info = next((u for u in (user_rows or []) if u["username"] == assignee), {}) if assignee else {}
+            promoted_by   = (
+                admin_info.get("display_name") or
+                f"{admin_info.get('first_name','')} {admin_info.get('last_name','')}".strip() or
+                admin_username
+            )
+            assignee_name = (
+                f"{assignee_info.get('first_name','')} {assignee_info.get('last_name','')}".strip() or
+                assignee or ""
+            )
+        except Exception as exc:
+            current_app.logger.warning("promote: user lookup failed: %s", exc)
+            promoted_by, assignee_name, assignee_info = admin_username, assignee or "", {}
+
+        # Email to IT team
+        try:
+            send_issue_promoted_to_dev_email(issue, new_dev_item, assignee_name, promoted_by)
+        except Exception as exc:
+            current_app.logger.warning("promote dev email failed: %s", exc)
+
+        # Assignment email to the assigned developer
+        if assignee and assignee_info:
+            try:
+                send_issue_assigned_email(issue, assignee_info, promoted_by)
+            except Exception as exc:
+                current_app.logger.warning("promote dev assigned email failed: %s", exc)
+
+        # Bot notification
+        try:
+            from services.it_bot import notify_issue_promoted_to_dev
+            updated_issue = {**issue, **issue_patch}
+            notify_issue_promoted_to_dev(updated_issue, new_dev_item)
+        except Exception as exc:
+            current_app.logger.warning("promote dev bot notify failed: %s", exc)
 
     return jsonify({"success": True, "dev_item_id": dev_item_id})
 
@@ -484,17 +527,60 @@ def admin_promote_issue_to_task(issue_id):
         current_app.logger.error("promote-task create task failed: %s", exc)
         return jsonify({"error": "Failed to create task"}), 500
 
-    task_id = new_task[0]["id"] if new_task else None
+    task_id  = new_task[0]["id"] if new_task else None
+    new_task_obj = new_task[0] if new_task else {}
     if task_id:
         issue_patch = {"task_id": task_id}
         if assignee:
-            issue_patch["status"] = "in_progress"
-            if not issue.get("assigned_to"):
-                issue_patch["assigned_to"] = assignee
+            issue_patch["status"]      = "in_progress"
+            issue_patch["assigned_to"] = assignee  # always update assigned_to
         try:
             supabase_req("PATCH", "/issues", data=issue_patch, params={"id": f"eq.{issue_id}"})
         except Exception as exc:
             current_app.logger.error("promote-task link issue failed: %s", exc)
+
+        # Fetch admin + assignee display names
+        try:
+            usernames = list(filter(None, [admin_username, assignee]))
+            user_rows = supabase_req("GET", "/users", params={
+                "username": f"in.({','.join(usernames)})",
+                "select":   "username,first_name,last_name,display_name,email",
+            }) if usernames else []
+            admin_info    = next((u for u in (user_rows or []) if u["username"] == admin_username), {})
+            assignee_info = next((u for u in (user_rows or []) if u["username"] == assignee), {}) if assignee else {}
+            promoted_by   = (
+                admin_info.get("display_name") or
+                f"{admin_info.get('first_name','')} {admin_info.get('last_name','')}".strip() or
+                admin_username
+            )
+            assignee_name = (
+                f"{assignee_info.get('first_name','')} {assignee_info.get('last_name','')}".strip() or
+                assignee or ""
+            )
+        except Exception as exc:
+            current_app.logger.warning("promote-task: user lookup failed: %s", exc)
+            promoted_by, assignee_name, assignee_info = admin_username, assignee or "", {}
+
+        # Email to IT team
+        try:
+            send_issue_promoted_to_task_email(issue, new_task_obj, assignee_name, promoted_by)
+        except Exception as exc:
+            current_app.logger.warning("promote-task email failed: %s", exc)
+
+        # Assignment email to the assigned developer
+        if assignee and assignee_info:
+            try:
+                send_issue_assigned_email(issue, assignee_info, promoted_by)
+            except Exception as exc:
+                current_app.logger.warning("promote-task assigned email failed: %s", exc)
+
+        # Bot notification
+        try:
+            from services.it_bot import notify_issue_promoted_to_task
+            updated_issue = {**issue, **issue_patch}
+            notify_issue_promoted_to_task(updated_issue, new_task_obj)
+        except Exception as exc:
+            current_app.logger.warning("promote-task bot notify failed: %s", exc)
 
     return jsonify({"success": True, "task_id": task_id})
 

@@ -2256,6 +2256,14 @@ async function openIssueModal(id) {
     linkDisplay.innerHTML   = '';
   }
 
+  // Resolution remarks — visible only when the issue has no linked board item
+  const isLinked = !!(issue.dev_item_id || issue.task_id || issue.user_task_id);
+  const remarksGroup = document.getElementById('issueRemarksGroup');
+  if (remarksGroup) {
+    remarksGroup.style.display = isLinked ? 'none' : '';
+    document.getElementById('issueResolutionRemarks').value = issue.resolution_remarks || '';
+  }
+
   // Actions submenu state: hide all promote options once any promotion exists
   const anyPromoted = !!(issue.dev_item_id || issue.task_id || issue.user_task_id || issue.epic_id);
   ['issPromoteDevBtn', 'issPromoteTaskBtn', 'issPromoteUserTaskBtn', 'issPromoteEpicBtn'].forEach(id => {
@@ -2574,6 +2582,9 @@ async function saveIssuePatch() {
       resolved_by:                isTerminal ? (document.getElementById('issueResolvedBy').value.trim() || null)      : undefined,
       resolution_action_ids:      isTerminal ? _getCheckedActionIds('issueActionsGrid')                               : undefined,
       resolution_attachment_urls: isTerminal ? resAttachUrls                                                          : undefined,
+      resolution_remarks:         document.getElementById('issueRemarksGroup')?.style.display !== 'none'
+                                    ? (document.getElementById('issueResolutionRemarks').value.trim() || null)
+                                    : undefined,
     };
     // Strip undefined keys so they don't get sent as "undefined"
     Object.keys(body).forEach(k => body[k] === undefined && delete body[k]);
