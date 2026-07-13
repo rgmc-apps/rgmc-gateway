@@ -53,6 +53,7 @@ def dev_create_item():
     raw_status = (data.get("status") or "pending").strip()
     if raw_status not in ("pending", "ongoing", "coding", "testing", "done"):
         raw_status = "pending"
+    assigned_to = (data.get("assigned_to") or "").strip() or username
     item = {
         "title":              title,
         "description":        (data.get("description") or "").strip() or None,
@@ -65,6 +66,7 @@ def dev_create_item():
         "epic_id":            data.get("epic_id") or None,
         "is_parked":          bool(data.get("is_parked", False)),
         "created_by":         username,
+        "assigned_to":        assigned_to,
     }
     try:
         rows    = supabase_req("POST", "/dev_items", data=item)
@@ -92,7 +94,7 @@ def dev_update_item(item_id):
         return jsonify(err[0]), err[1]
     data    = request.get_json(silent=True) or {}
     remarks = (data.get("remarks") or "").strip()
-    allowed = {"title", "description", "status", "system_id", "system_ids", "start_date", "estimated_end_date", "actual_end_date", "dev_item_type", "resolution_action_ids", "resolution_attachment_urls", "epic_id", "is_parked"}
+    allowed = {"title", "description", "status", "system_id", "system_ids", "start_date", "estimated_end_date", "actual_end_date", "dev_item_type", "resolution_action_ids", "resolution_attachment_urls", "epic_id", "is_parked", "assigned_to"}
     patch   = {k: v for k, v in data.items() if k in allowed}
     if "system_ids" in patch:
         ids = [s for s in (patch["system_ids"] or []) if s]

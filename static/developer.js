@@ -476,7 +476,7 @@ const STATUSES = ['pending', 'ongoing', 'coding', 'testing', 'done'];
 function renderBoard() {
   const counts = {};
   const me      = loadSession()?.username || '';
-  const visible = (_filter === 'mine' ? _items.filter(i => i.created_by === me) : _items).filter(i => !i.is_parked);
+  const visible = (_filter === 'mine' ? _items.filter(i => i.assigned_to === me || i.created_by === me) : _items).filter(i => !i.is_parked);
 
   STATUSES.forEach(status => {
     const col  = document.getElementById(`cards-${status}`);
@@ -576,7 +576,12 @@ function renderCard(item, idx = 0) {
           ${elapsed} day${elapsed !== 1 ? 's' : ''} elapsed
         </span>` : ''}
       </div>
-      ${authorBubble(item.created_by)}
+      <div class="kcard-assignee-wrap">
+        ${authorBubble(item.assigned_to || item.created_by)}
+        ${item.assigned_to && item.assigned_to !== item.created_by
+          ? `<span class="kcard-assignee-label" title="Assigned to ${escHtml(_members[item.assigned_to]?.displayName || item.assigned_to)}"></span>`
+          : ''}
+      </div>
     </div>
     <div class="kcard-actions">
       ${statusIdx > 0
@@ -849,6 +854,18 @@ function openDetailModal(idOrNull) {
   // If opened from epic context, pre-select that epic
   if (_addItemToEpicId && !item && epicSel) epicSel.value = _addItemToEpicId;
 
+  // Assigned To dropdown — populated from _members
+  const assignSel = document.getElementById('itemAssignedTo');
+  if (assignSel) {
+    const me = loadSession()?.username || '';
+    assignSel.innerHTML = '<option value="">— Unassigned —</option>' +
+      Object.entries(_members).map(([uname, m]) =>
+        `<option value="${escHtml(uname)}">${escHtml(m.displayName || uname)}</option>`
+      ).join('');
+    // Default new items to the current user
+    assignSel.value = item?.assigned_to ?? me;
+  }
+
   // Item type — handle "Others: ..." case
   const savedType = item?.dev_item_type ?? '';
   const knownTypes = ['New Feature','Improvement','Bug Fix','Admin Task','Discussion','Maintenance','Others'];
@@ -1060,6 +1077,7 @@ async function _execSaveItem(remarks, actionIds = [], files = []) {
     dev_item_type:      devItemType,
     epic_id:            document.getElementById('itemEpic')?.value || null,
     is_parked:          document.getElementById('itemIsParked')?.checked ?? false,
+    assigned_to:        document.getElementById('itemAssignedTo')?.value || null,
   };
   if (remarks) payload.remarks = remarks;
   if (newStatus === 'done') {
@@ -1380,7 +1398,7 @@ function sortListBy(col) {
 
 function _getListItems() {
   const me = loadSession()?.username || '';
-  let items = _filter === 'mine' ? _items.filter(i => i.created_by === me) : _items.slice();
+  let items = _filter === 'mine' ? _items.filter(i => i.assigned_to === me || i.created_by === me) : _items.slice();
 
   const search  = (document.getElementById('listSearch')?.value       || '').toLowerCase().trim();
   const statusF = document.getElementById('listStatusFilter')?.value  || '';
@@ -1400,7 +1418,7 @@ function _getListItems() {
     const t = i.dev_item_type || '';
     return typeF === 'Others' ? t.startsWith('Others') : t === typeF;
   });
-  if (devF)    items = items.filter(i => i.created_by === devF);
+  if (devF)    items = items.filter(i => i.assigned_to === devF || i.created_by === devF);
   if (sysF)    items = items.filter(i => _parseSystemIds(i).includes(sysF));
 
   const col = _listSort.col;
@@ -1419,8 +1437,10 @@ function _getListItems() {
       av = sa.length ? (_systems.find(s => s.id === sa[0])?.name || '').toLowerCase() : '';
       bv = sb.length ? (_systems.find(s => s.id === sb[0])?.name || '').toLowerCase() : '';
     } else if (col === 'created_by') {
-      av = (_members[a.created_by]?.displayName || a.created_by || '').toLowerCase();
-      bv = (_members[b.created_by]?.displayName || b.created_by || '').toLowerCase();
+      const au = a.assigned_to || a.created_by || '';
+      const bu = b.assigned_to || b.created_by || '';
+      av = (_members[au]?.displayName || au).toLowerCase();
+      bv = (_members[bu]?.displayName || bu).toLowerCase();
     } else {
       av = (a[col] || '').toString().toLowerCase();
       bv = (b[col] || '').toString().toLowerCase();
@@ -1439,8 +1459,16 @@ function _populateListFilters() {
 
   const devSel = document.getElementById('listDevFilter');
   if (devSel) {
-    const devs = [...new Set(_items.map(i => i.created_by).filter(Boolean))].sort();
-    devs.forEach(d => {
+    const devUsernames = new Set([
+      ...Object.keys(_members),
+      ..._items.map(i => i.assigned_to).filter(Boolean),
+      ..._items.map(i => i.created_by).filter(Boolean),
+    ]);
+    [...devUsernames].sort((a, b) => {
+      const an = (_members[a]?.displayName || a).toLowerCase();
+      const bn = (_members[b]?.displayName || b).toLowerCase();
+      return an < bn ? -1 : an > bn ? 1 : 0;
+    }).forEach(d => {
       const opt = document.createElement('option');
       opt.value       = d;
       opt.textContent = _members[d]?.displayName || d;
@@ -1472,7 +1500,7 @@ function renderListView() {
   const typeF     = document.getElementById('listTypeFilter')?.value  || '';
   const devF      = document.getElementById('listDevFilter')?.value   || '';
   const sysF      = document.getElementById('listSysFilter')?.value   || '';
-  let parked = (_filter === 'mine' ? _items.filter(i => i.created_by === me) : _items.slice())
+  let parked = (_filter === 'mine' ? _items.filter(i => i.assigned_to === me || i.created_by === me) : _items.slice())
     .filter(i => i.is_parked);
   if (searchVal) parked = parked.filter(i =>
     (i.title || '').toLowerCase().includes(searchVal) ||
@@ -1481,7 +1509,7 @@ function renderListView() {
   if (typeF) parked = parked.filter(i => typeF === 'Others'
     ? (i.dev_item_type || '').startsWith('Others')
     : (i.dev_item_type || '') === typeF);
-  if (devF)  parked = parked.filter(i => i.created_by === devF);
+  if (devF)  parked = parked.filter(i => i.assigned_to === devF || i.created_by === devF);
   if (sysF)  parked = parked.filter(i => _parseSystemIds(i).includes(sysF));
 
   const countEl = document.getElementById('listCount');
@@ -1508,8 +1536,9 @@ function renderListView() {
     const elapsed   = daysElapsed(item);
     const overdue   = item.estimated_end_date && !item.actual_end_date &&
                       new Date(item.estimated_end_date + 'T00:00:00') < new Date();
-    const m         = _members[item.created_by] || {};
-    const devName   = m.displayName || item.created_by || '—';
+    const assignee  = item.assigned_to || item.created_by;
+    const m         = _members[assignee] || {};
+    const devName   = m.displayName || assignee || '—';
     const devInit   = (devName.charAt(0) || '?').toUpperCase();
 
     const statusCls = {
@@ -1560,8 +1589,9 @@ function renderListView() {
           const sysIds    = _parseSystemIds(item);
           const sysNames  = sysIds.map(id => _systems.find(s => s.id === id)?.name).filter(Boolean);
           const elapsed   = daysElapsed(item);
-          const m         = _members[item.created_by] || {};
-          const devName   = m.displayName || item.created_by || '—';
+          const assignee  = item.assigned_to || item.created_by;
+          const m         = _members[assignee] || {};
+          const devName   = m.displayName || assignee || '—';
           const devInit   = (devName.charAt(0) || '?').toUpperCase();
           const rawType   = item.dev_item_type || '';
           const typeDisp  = rawType.startsWith('Others: ') ? rawType.slice('Others: '.length) : rawType;
@@ -1598,7 +1628,7 @@ function renderListView() {
 function renderAnalytics() {
   if (_viewMode !== 'analytics') return;
   const me    = loadSession()?.username || '';
-  const items = _filter === 'mine' ? _items.filter(i => i.created_by === me) : _items;
+  const items = _filter === 'mine' ? _items.filter(i => i.assigned_to === me || i.created_by === me) : _items;
   _renderAnaKpis(items);
   _renderAnaTypeChart(items);
   _renderAnaAgingChart(items);
@@ -2023,8 +2053,9 @@ function _renderEpicItemRow(item) {
   const overdue = item.estimated_end_date && !item.actual_end_date &&
     new Date(item.estimated_end_date + 'T00:00:00') < new Date();
 
-  const m        = _members[item.created_by] || {};
-  const devName  = m.displayName || item.created_by || '';
+  const assignee = item.assigned_to || item.created_by;
+  const m        = _members[assignee] || {};
+  const devName  = m.displayName || assignee || '';
   const initial  = (devName.charAt(0) || '?').toUpperCase();
   const avatarHtml = m.avatarUrl
     ? `<img src="${escHtml(m.avatarUrl)}" class="epic-item-avatar" alt="${escHtml(initial)}">`
