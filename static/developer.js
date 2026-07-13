@@ -1956,16 +1956,19 @@ function openEpicModal(epicIdOrNull) {
   const deleteBtn  = document.getElementById('epicDeleteBtn');
   const addItemBtn = document.getElementById('epicAddItemBtn');
   const itemsList  = document.getElementById('epicItemsList');
+  const countEl    = document.getElementById('epicItemsCount');
 
   if (epic) {
     if (deleteBtn)  deleteBtn.style.display  = '';
     if (addItemBtn) addItemBtn.style.display = '';
     if (itemsList)  itemsList.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
+    if (countEl)    countEl.textContent = '';
     _refreshEpicItems(epic.epic_id);
   } else {
     if (deleteBtn)  deleteBtn.style.display  = 'none';
     if (addItemBtn) addItemBtn.style.display = 'none';
     if (itemsList)  itemsList.innerHTML = '<div class="dlt-empty">Save the epic first to link items.</div>';
+    if (countEl)    countEl.textContent = '';
   }
 
   _resetEpicForm();
@@ -1994,14 +1997,15 @@ function _resetEpicForm() {
 }
 
 async function _refreshEpicItems(epicId) {
-  const listEl = document.getElementById('epicItemsList');
+  const listEl   = document.getElementById('epicItemsList');
+  const countEl  = document.getElementById('epicItemsCount');
   if (!listEl) return;
   try {
     const res = await fetch(`/api/dev/epics/${encodeURIComponent(epicId)}/items`, { headers: authHeaders() });
     if (!res.ok) throw new Error((await res.json()).error || 'Failed');
     const items = await res.json();
-    // Merge into _items so detail modal can find them
     items.forEach(item => { if (!_items.find(i => i.id === item.id)) _items.push(item); });
+    if (countEl) countEl.textContent = items.length || '';
     listEl.innerHTML = items.length
       ? items.map(item => _renderEpicItemRow(item)).join('')
       : '<div class="dlt-empty">No items linked to this epic yet.</div>';
@@ -2015,11 +2019,45 @@ function _renderEpicItemRow(item) {
     pending: 'dp-s-pending', ongoing: 'dp-s-ongoing', coding: 'dp-s-coding',
     testing: 'dp-s-testing', done: 'dp-s-done',
   }[item.status] || '';
+
+  const overdue = item.estimated_end_date && !item.actual_end_date &&
+    new Date(item.estimated_end_date + 'T00:00:00') < new Date();
+
+  const m        = _members[item.created_by] || {};
+  const devName  = m.displayName || item.created_by || '';
+  const initial  = (devName.charAt(0) || '?').toUpperCase();
+  const avatarHtml = m.avatarUrl
+    ? `<img src="${escHtml(m.avatarUrl)}" class="epic-item-avatar" alt="${escHtml(initial)}">`
+    : `<div class="epic-item-avatar epic-item-avatar-initial">${escHtml(initial)}</div>`;
+
+  const elapsed = daysElapsed(item);
+  let dateHtml = '';
+  if (item.actual_end_date) {
+    dateHtml = `<span class="epic-item-date epic-item-date--done">
+      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Done ${fmtDate(item.actual_end_date)}</span>`;
+  } else if (item.estimated_end_date) {
+    dateHtml = `<span class="epic-item-date${overdue ? ' epic-item-date--overdue' : ''}">
+      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      ${overdue ? 'Overdue · ' : 'Due '}${fmtDate(item.estimated_end_date)}</span>`;
+  } else if (elapsed !== null) {
+    dateHtml = `<span class="epic-item-date">
+      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      ${elapsed}d elapsed</span>`;
+  }
+
   return `<div class="epic-item-row" onclick="openItemFromEpic('${escHtml(item.id)}')">
-    <div class="epic-item-left">
-      ${item.dev_item_code ? `<span class="kcard-code" style="font-size:11px;margin-right:6px;">${escHtml(item.dev_item_code)}</span>` : ''}
-      <span class="epic-item-title">${escHtml(item.title)}</span>
-      ${item.is_parked ? '<span class="epic-item-parked">Parked</span>' : ''}
+    <div class="epic-item-main">
+      <div class="epic-item-top">
+        ${item.dev_item_code ? `<span class="epic-item-code">${escHtml(item.dev_item_code)}</span>` : ''}
+        <span class="epic-item-title">${escHtml(item.title)}</span>
+        ${item.is_parked ? '<span class="epic-item-parked">Parked</span>' : ''}
+      </div>
+      <div class="epic-item-meta">
+        ${typeBadge(item.dev_item_type)}
+        ${devName ? `<span class="epic-item-assignee">${avatarHtml}<span>${escHtml(devName)}</span></span>` : ''}
+        ${dateHtml}
+      </div>
     </div>
     <span class="dp-item-status ${statusCls}">${escHtml(item.status)}</span>
   </div>`;

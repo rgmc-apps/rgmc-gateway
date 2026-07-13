@@ -668,17 +668,27 @@
           <div class="item-detail-form">
             <div class="form-group">
               <label class="form-label" for="epicName">Epic Name</label>
-              <input class="form-input" type="text" id="epicName" placeholder="Name this epic…">
+              <input class="form-input epic-name-input" type="text" id="epicName" placeholder="Name this epic…">
             </div>
-            <div class="form-group">
-              <label class="form-label" for="epicStatus">Status</label>
-              <select class="form-input" id="epicStatus">
-                <option value="planning">Planning</option>
-                <option value="active">Active</option>
-                <option value="on_hold">On Hold</option>
-                <option value="done">Done</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
+            <!-- Status + Active on one row -->
+            <div class="epic-form-meta-row">
+              <div class="form-group">
+                <label class="form-label" for="epicStatus">Status</label>
+                <select class="form-input" id="epicStatus">
+                  <option value="planning">Planning</option>
+                  <option value="active">Active</option>
+                  <option value="on_hold">On Hold</option>
+                  <option value="done">Done</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+              <div class="form-group epic-active-group">
+                <label class="form-label">Visibility</label>
+                <div class="epic-active-toggle">
+                  <input type="checkbox" class="form-checkbox" id="epicIsActive" checked>
+                  <label class="form-label form-label-inline" for="epicIsActive">Mark as active</label>
+                </div>
+              </div>
             </div>
             <div class="form-group">
               <label class="form-label">Systems <span class="form-label-hint">(optional)</span></label>
@@ -696,19 +706,16 @@
                 </button>
               </div>
             </div>
-            <div class="form-group">
+            <div class="form-group epic-desc-group">
               <label class="form-label" for="epicDesc">Description</label>
-              <textarea class="form-input form-textarea" id="epicDesc" rows="5" placeholder="Describe the epic, goals, scope…"></textarea>
-            </div>
-            <div class="form-group form-group-inline">
-              <input type="checkbox" class="form-checkbox" id="epicIsActive" checked>
-              <label class="form-label form-label-inline" for="epicIsActive">Active</label>
+              <textarea class="form-input form-textarea" id="epicDesc" rows="6" placeholder="Describe the epic, goals, scope, and success criteria…"></textarea>
             </div>
           </div>
           <!-- Right: linked dev items -->
           <div class="item-detail-log">
             <div class="detail-log-header">
-              <span>Linked Dev Items</span>
+              <span>Dev Items</span>
+              <span class="epic-items-header-count" id="epicItemsCount"></span>
               <button type="button" class="btn-add-system" id="epicAddItemBtn" onclick="addItemToEpicModal()" style="display:none;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Add Item
