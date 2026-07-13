@@ -327,8 +327,36 @@
           New Epic
         </button>
       </div>
-      <div class="epic-grid" id="epicGrid">
-        <div class="dlt-empty">Loading…</div>
+      <div id="epicSectionsWrap">
+        <!-- Active Epics -->
+        <div class="epic-section" id="epicActiveSection" style="display:none;">
+          <div class="epic-section-header">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <span class="epic-section-title">Active Epics</span>
+            <span class="epic-section-badge epic-section-badge--active" id="epicActiveCount">0</span>
+          </div>
+          <div class="epic-grid" id="epicActiveGrid"></div>
+        </div>
+        <!-- Planning & On Hold -->
+        <div class="epic-section" id="epicOtherSection" style="display:none;">
+          <div class="epic-section-header">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span class="epic-section-title">Planning &amp; On Hold</span>
+            <span class="epic-section-badge" id="epicOtherCount">0</span>
+          </div>
+          <div class="epic-grid" id="epicOtherGrid"></div>
+        </div>
+        <!-- Done Epics -->
+        <div class="epic-section" id="epicDoneSection" style="display:none;">
+          <div class="epic-section-header">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <span class="epic-section-title">Done Epics</span>
+            <span class="epic-section-badge epic-section-badge--done" id="epicDoneCount">0</span>
+          </div>
+          <div class="epic-grid" id="epicDoneGrid"></div>
+        </div>
+        <!-- Empty state -->
+        <div class="dlt-empty" id="epicEmptyState" style="display:none;">No epics found.</div>
       </div>
     </div>
 

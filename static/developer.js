@@ -1877,6 +1877,41 @@ async function loadEpics() {
 const EPIC_STATUS_LABEL = { planning: 'Planning', active: 'Active', on_hold: 'On Hold', done: 'Done', cancelled: 'Cancelled' };
 const EPIC_STATUS_CLS   = { planning: 'es-planning', active: 'es-active', on_hold: 'es-on-hold', done: 'es-done', cancelled: 'es-cancelled' };
 
+function _epicCardHtml(e) {
+  const sysIds    = Array.isArray(e.system_ids) ? e.system_ids : [];
+  const sysNames  = sysIds.map(id => _systems.find(s => s.id === id)?.name).filter(Boolean);
+  const itemCount = _items.filter(i => i.epic_id === e.epic_id).length;
+  const cls = EPIC_STATUS_CLS[e.epic_status] || 'es-planning';
+  const lbl = EPIC_STATUS_LABEL[e.epic_status] || e.epic_status;
+  return `<div class="epic-card" onclick="openEpicModal('${escHtml(e.epic_id)}')">
+    <div class="epic-card-top">
+      <span class="epic-status-badge ${cls}">${escHtml(lbl)}</span>
+      ${!e.is_active ? '<span class="epic-inactive-badge">Inactive</span>' : ''}
+    </div>
+    <div class="epic-card-name">${escHtml(e.epic_name)}</div>
+    ${e.epic_description ? `<div class="epic-card-desc">${escHtml(_descPreview(e.epic_description, 100))}</div>` : ''}
+    ${sysNames.length ? `<div class="epic-card-sys">${sysNames.map(n => `<span class="kcard-system-tag">${escHtml(n)}</span>`).join('')}</div>` : ''}
+    <div class="epic-card-footer">
+      <span class="epic-card-item-count">
+        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+        ${itemCount} item${itemCount !== 1 ? 's' : ''}
+      </span>
+      <span class="epic-card-date">${fmtDate(e.date_created)}</span>
+    </div>
+  </div>`;
+}
+
+function _renderEpicSection(sectionId, gridId, countId, epics) {
+  const section = document.getElementById(sectionId);
+  const grid    = document.getElementById(gridId);
+  const countEl = document.getElementById(countId);
+  if (!section || !grid) return;
+  if (!epics.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  if (countEl) countEl.textContent = epics.length;
+  grid.innerHTML = epics.map(_epicCardHtml).join('');
+}
+
 function renderEpicsView() {
   if (_viewMode !== 'epics') return;
 
@@ -1890,38 +1925,16 @@ function renderEpicsView() {
   const countEl = document.getElementById('epicCount');
   if (countEl) countEl.textContent = `${epics.length} epic${epics.length !== 1 ? 's' : ''}`;
 
-  const grid = document.getElementById('epicGrid');
-  if (!grid) return;
+  const active = epics.filter(e => e.epic_status === 'active');
+  const done   = epics.filter(e => e.epic_status === 'done' || e.epic_status === 'cancelled');
+  const other  = epics.filter(e => !['active', 'done', 'cancelled'].includes(e.epic_status));
 
-  if (!epics.length) {
-    grid.innerHTML = '<div class="dlt-empty">No epics found.</div>';
-    return;
-  }
+  _renderEpicSection('epicActiveSection', 'epicActiveGrid', 'epicActiveCount', active);
+  _renderEpicSection('epicOtherSection',  'epicOtherGrid',  'epicOtherCount',  other);
+  _renderEpicSection('epicDoneSection',   'epicDoneGrid',   'epicDoneCount',   done);
 
-  grid.innerHTML = epics.map(e => {
-    const sysIds   = Array.isArray(e.system_ids) ? e.system_ids : [];
-    const sysNames = sysIds.map(id => _systems.find(s => s.id === id)?.name).filter(Boolean);
-    const itemCount = _items.filter(i => i.epic_id === e.epic_id).length;
-    const cls = EPIC_STATUS_CLS[e.epic_status] || 'es-planning';
-    const lbl = EPIC_STATUS_LABEL[e.epic_status] || e.epic_status;
-
-    return `<div class="epic-card" onclick="openEpicModal('${escHtml(e.epic_id)}')">
-      <div class="epic-card-top">
-        <span class="epic-status-badge ${cls}">${escHtml(lbl)}</span>
-        ${!e.is_active ? '<span class="epic-inactive-badge">Inactive</span>' : ''}
-      </div>
-      <div class="epic-card-name">${escHtml(e.epic_name)}</div>
-      ${e.epic_description ? `<div class="epic-card-desc">${escHtml(_descPreview(e.epic_description, 100))}</div>` : ''}
-      ${sysNames.length ? `<div class="epic-card-sys">${sysNames.map(n => `<span class="kcard-system-tag">${escHtml(n)}</span>`).join('')}</div>` : ''}
-      <div class="epic-card-footer">
-        <span class="epic-card-item-count">
-          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
-          ${itemCount} item${itemCount !== 1 ? 's' : ''}
-        </span>
-        <span class="epic-card-date">${fmtDate(e.date_created)}</span>
-      </div>
-    </div>`;
-  }).join('');
+  const emptyEl = document.getElementById('epicEmptyState');
+  if (emptyEl) emptyEl.style.display = epics.length ? 'none' : '';
 }
 
 /* ── Epic detail modal ── */
