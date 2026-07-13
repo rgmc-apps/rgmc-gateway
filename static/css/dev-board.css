@@ -918,3 +918,54 @@
   font-size: 12px;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════════
+   Epic modal layout corrections
+   Scoped to #epicDetailModal so shared gate.css / modal.css styles are untouched
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* 1. Remove the 24px side padding that issue-tracker.css puts on .modal-body;
+      wire it into the modal-xl flex column so it fills available space. */
+#epicDetailModal .modal-body {
+  padding: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 2. Let the 2-col grid fill the modal-body flex space instead of a fixed 520px. */
+#epicDetailModal .item-detail-body {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+}
+
+/* 3. The form column:
+      - overflow: visible so the sys-multi dropdown is never clipped by
+        this scroll container (modal-xl's overflow:hidden is the true boundary).
+      - proper bottom padding so the description textarea bottom isn't flush
+        against the edge before the sticky footer. */
+#epicDetailModal .item-detail-form {
+  overflow: visible;
+  padding-bottom: 24px;
+}
+
+/* 4. Keep the items list column self-contained (scroll within column). */
+#epicDetailModal .item-detail-log {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 5. Elevate the sys dropdown above all modal siblings so nothing covers it. */
+#epicDetailModal .sys-multi-dropdown {
+  z-index: 500;
+}
+
+/* 6. Match active-toggle height to the select input (~42px) so the meta row
+      columns align cleanly. */
+.epic-active-toggle {
+  height: 42px;
+}
+
