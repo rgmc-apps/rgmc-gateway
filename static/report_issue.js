@@ -159,6 +159,9 @@ async function riSubmit(e) {
       subSel.focus();
       subSel.classList.add('input-shake');
       setTimeout(() => subSel.classList.remove('input-shake'), 400);
+    } else {
+      document.getElementById('riError').style.display   = 'flex';
+      document.getElementById('riErrorMsg').textContent  = 'Could not determine the affected system. Please refresh the page and try again.';
     }
     return;
   }
@@ -169,13 +172,15 @@ async function riSubmit(e) {
     editorWrap.classList.add('input-shake');
     editorWrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
     setTimeout(() => editorWrap.classList.remove('input-shake'), 400);
+    document.getElementById('riError').style.display  = 'flex';
+    document.getElementById('riErrorMsg').textContent = 'Please fill in the Problem Description field.';
     return;
   }
 
+  document.getElementById('riError').style.display       = 'none';
   document.getElementById('riFormActions').style.display = 'none';
   document.getElementById('riLoading').style.display     = 'flex';
   document.getElementById('riSuccess').style.display     = 'none';
-  document.getElementById('riError').style.display       = 'none';
 
   const form = document.getElementById('riForm');
   const fd   = new FormData(form);
@@ -253,19 +258,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   const errorCode = (params.get('error')   || '').trim();
   const payload   = (params.get('payload') || '').trim();
 
-  // Always load categories and default to Software/Application
-  await _fetchAndPopulateCategories();
-
+  // Set subcategory group visibility immediately (before async fetches) so the
+  // form is never in a state where it silently rejects submission because the
+  // group is still hidden while categories are loading.
   if (system) {
-    // System pre-filled from URL param — show strip, hide subcategory picker
-    document.getElementById('riSiteName').value         = system;
-    document.getElementById('riSystemName').textContent = system;
-    document.getElementById('riSystemStrip').style.display    = 'flex';
+    document.getElementById('riSiteName').value              = system;
+    document.getElementById('riSystemName').textContent      = system;
+    document.getElementById('riSystemStrip').style.display   = 'flex';
     document.getElementById('riSubcategoryGroup').style.display = 'none';
   } else {
-    // No param — show the subcategory dropdown and load default subcategories
     document.getElementById('riSystemStrip').style.display      = 'none';
     document.getElementById('riSubcategoryGroup').style.display = 'flex';
+  }
+
+  // Load categories (and then subcategories for the default category)
+  await _fetchAndPopulateCategories();
+
+  if (!system) {
     const defaultCat = document.getElementById('riCategory').value;
     if (defaultCat) await _fetchAndPopulateSubcategories(defaultCat);
   }
