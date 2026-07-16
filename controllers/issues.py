@@ -5,7 +5,7 @@ from flask import Blueprint, request, jsonify, current_app, render_template
 from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
 from services.supabase import supabase_req, resolve_action_names
 from services.guards import _require_admin
-from services.email import send_report_email, send_issue_resolved_email, send_issue_assigned_email, send_helpdesk_email, send_helpdesk_confirmation_email, send_issue_promoted_to_epic_email, send_issue_promoted_to_dev_email, send_issue_promoted_to_task_email
+from services.email import send_report_email, send_issue_resolved_email, send_issue_assigned_email, send_helpdesk_email, send_helpdesk_confirmation_email, send_issue_promoted_to_epic_email, send_issue_promoted_to_dev_email, send_issue_promoted_to_task_email, send_issue_comment_email
 
 issues_bp = Blueprint("issues", __name__)
 
@@ -764,7 +764,20 @@ def post_issue_comment(issue_id):
             "username": username,
             "comment":  comment,
         }, extra_headers={"Prefer": "return=representation"})
-        return jsonify({"success": True, "comment": rows[0] if rows else {}})
+        saved = rows[0] if rows else {}
+
+        # Notify the reporter by email — best-effort, never blocks the response
+        try:
+            issue_rows = supabase_req("GET", "/issues", params={
+                "id":     f"eq.{issue_id}",
+                "select": "id,email,employee_name,site_name,ticket_number,title,description",
+            })
+            if issue_rows:
+                send_issue_comment_email(issue_rows[0], comment, username)
+        except Exception as email_exc:
+            current_app.logger.warning("Comment email notification failed: %s", email_exc)
+
+        return jsonify({"success": True, "comment": saved})
     except Exception as exc:
         current_app.logger.error("post_issue_comment failed: %s", exc)
         return jsonify({"error": "Failed to save comment"}), 500

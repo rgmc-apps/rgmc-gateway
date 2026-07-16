@@ -969,3 +969,192 @@
   height: 42px;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════════
+   Epic Detail Page View  (#epicPageView)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.epic-page-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  animation: fadeInUp 0.18s var(--ease, ease) both;
+}
+
+/* ── Nav bar ── */
+.epic-page-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 12px;
+}
+.epic-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px 6px 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.epic-back-btn:hover {
+  background: rgba(196,151,42,0.08);
+  border-color: rgba(196,151,42,0.35);
+  color: var(--gold);
+}
+.epic-page-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.epic-page-edit-btn,
+.epic-page-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.epic-page-edit-btn {
+  background: rgba(196,151,42,0.1);
+  border-color: rgba(196,151,42,0.25);
+  color: var(--gold);
+}
+.epic-page-edit-btn:hover {
+  background: rgba(196,151,42,0.18);
+  border-color: rgba(196,151,42,0.5);
+}
+.epic-page-delete-btn {
+  background: rgba(248,113,113,0.08);
+  border-color: rgba(248,113,113,0.2);
+  color: #f87171;
+}
+.epic-page-delete-btn:hover {
+  background: rgba(248,113,113,0.15);
+  border-color: rgba(248,113,113,0.4);
+}
+
+/* ── Header block ── */
+.epic-page-header-block {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 16px;
+}
+.epic-page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.epic-page-star-icon {
+  color: var(--gold);
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+.epic-page-name {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.25;
+}
+.epic-page-desc {
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  line-height: 1.55;
+  margin: 4px 0 10px;
+}
+.epic-page-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.epic-meta-item {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.epic-page-systems {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.epic-page-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.epic-progress-stats {
+  flex-shrink: 0;
+  min-width: 80px;
+}
+.epic-progress-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.epic-progress-track-wrap {
+  flex: 1;
+}
+.epic-page-progress-track {
+  height: 5px;
+  background: rgba(255,255,255,0.06);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+.epic-page-progress-fill {
+  height: 100%;
+  background: var(--gold);
+  border-radius: var(--radius-pill);
+  transition: width 0.4s ease;
+}
+
+/* ── Items section ── */
+.epic-page-items-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.epic-items-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.epic-items-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.epic-items-section-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.dev-list-table-wrap {
+  overflow-x: auto;
+}
+

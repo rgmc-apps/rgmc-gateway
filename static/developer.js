@@ -78,6 +78,8 @@ let _listFiltersPopulated = false;
 let _epics               = [];
 let _editingEpicId       = null;
 let _addItemToEpicId     = null;
+let _epicPageId          = null;
+let _epicPageItems       = [];
 
 const DONE_WEEKS_KEY = 'dev-done-weeks';
 let _doneWeeks = Math.max(1, parseInt(localStorage.getItem(DONE_WEEKS_KEY) || '2', 10));
@@ -109,6 +111,13 @@ function setViewMode(mode) {
   document.getElementById('devListView').style.display      = mode === 'list'      ? '' : 'none';
   document.getElementById('devAnalyticsView').style.display = mode === 'analytics' ? '' : 'none';
   document.getElementById('devEpicsView').style.display      = mode === 'epics'     ? '' : 'none';
+  // Hide epic detail page when navigating away
+  if (mode !== 'epics') {
+    const epv = document.getElementById('epicPageView');
+    if (epv) epv.style.display = 'none';
+    _epicPageId    = null;
+    _epicPageItems = [];
+  }
 
   if (mode === 'list')      renderListView();
   if (mode === 'analytics') renderAnalytics();
@@ -917,6 +926,7 @@ function closeDetailModal() {
   const anyOpen = document.querySelector('.modal-overlay.open:not(#itemDetailModal)');
   if (!anyOpen) document.body.style.overflow = '';
   _editingId = null;
+  if (_epicPageId) _loadEpicPageItems(_epicPageId);
 }
 
 function overlayCloseDetail(e) {
@@ -1913,7 +1923,7 @@ function _epicCardHtml(e) {
   const itemCount = _items.filter(i => i.epic_id === e.epic_id).length;
   const cls = EPIC_STATUS_CLS[e.epic_status] || 'es-planning';
   const lbl = EPIC_STATUS_LABEL[e.epic_status] || e.epic_status;
-  return `<div class="epic-card" onclick="openEpicModal('${escHtml(e.epic_id)}')">
+  return `<div class="epic-card" onclick="openEpicPage('${escHtml(e.epic_id)}')">
     <div class="epic-card-top">
       <span class="epic-status-badge ${cls}">${escHtml(lbl)}</span>
       ${!e.is_active ? '<span class="epic-inactive-badge">Inactive</span>' : ''}
@@ -2145,6 +2155,7 @@ async function saveEpic() {
       const idx = _epics.findIndex(e => e.epic_id === saved.epic_id);
       if (idx !== -1) _epics[idx] = saved;
       _refreshEpicItems(saved.epic_id);
+      if (_epicPageId === saved.epic_id) _populateEpicPage(saved);
     }
 
     // Refresh epic select in item form if it's open
@@ -2207,4 +2218,175 @@ function openItemFromEpic(itemId) {
   // Ensure item detail modal floats above epic modal
   const detailModal = document.getElementById('itemDetailModal');
   if (detailModal) detailModal.style.zIndex = '1100';
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Epic Detail Page
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+function openEpicPage(epicId) {
+  const epic = _epics.find(e => e.epic_id === epicId);
+  if (!epic) return;
+  _epicPageId    = epicId;
+  _epicPageItems = [];
+  _populateEpicPage(epic);
+  document.getElementById('devEpicsView').style.display = 'none';
+  document.getElementById('epicPageView').style.display = '';
+  _loadEpicPageItems(epicId);
+}
+
+function closeEpicPage() {
+  _epicPageId    = null;
+  _epicPageItems = [];
+  document.getElementById('epicPageView').style.display  = 'none';
+  document.getElementById('devEpicsView').style.display  = '';
+  renderEpicsView();
+}
+
+function _populateEpicPage(epic) {
+  const cls = EPIC_STATUS_CLS[epic.epic_status] || 'es-planning';
+  const lbl = EPIC_STATUS_LABEL[epic.epic_status] || epic.epic_status;
+
+  const titleEl = document.getElementById('epicPageTitle');
+  if (titleEl) titleEl.textContent = epic.epic_name || '';
+
+  const statusEl = document.getElementById('epicPageStatus');
+  if (statusEl) { statusEl.textContent = lbl; statusEl.className = `epic-status-badge ${cls}`; }
+
+  const activeEl = document.getElementById('epicPageActiveFlag');
+  if (activeEl) activeEl.style.display = epic.is_active !== false ? 'none' : '';
+
+  const descEl = document.getElementById('epicPageDesc');
+  if (descEl) {
+    if (epic.epic_description) { descEl.textContent = epic.epic_description; descEl.style.display = ''; }
+    else                        { descEl.style.display = 'none'; }
+  }
+
+  const dateEl = document.getElementById('epicPageDate');
+  if (dateEl) dateEl.textContent = `Created ${fmtDate(epic.date_created)}`;
+
+  const sysEl = document.getElementById('epicPageSystems');
+  if (sysEl) {
+    const sysIds   = Array.isArray(epic.system_ids) ? epic.system_ids : [];
+    const sysNames = sysIds.map(id => _systems.find(s => s.id === id)?.name).filter(Boolean);
+    sysEl.innerHTML = sysNames.map(n => `<span class="kcard-system-tag">${escHtml(n)}</span>`).join('');
+  }
+}
+
+function _updateEpicPageProgress() {
+  const total = _epicPageItems.length;
+  const done  = _epicPageItems.filter(i => i.status === 'done').length;
+  const pct   = total ? Math.round((done / total) * 100) : 0;
+
+  const fillEl = document.getElementById('epicPageProgressFill');
+  const textEl = document.getElementById('epicPageProgressText');
+  if (fillEl) fillEl.style.width = `${pct}%`;
+  if (textEl) textEl.textContent = total ? `${done} / ${total} done (${pct}%)` : 'No items yet';
+}
+
+async function _loadEpicPageItems(epicId) {
+  const tbody   = document.getElementById('epicPageItemsBody');
+  const countEl = document.getElementById('epicPageItemCount');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="9" class="dlt-empty">Loading…</td></tr>';
+  try {
+    const res = await fetch(`/api/dev/epics/${encodeURIComponent(epicId)}/items`, { headers: authHeaders() });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    _epicPageItems = await res.json();
+    _epicPageItems.forEach(item => {
+      const idx = _items.findIndex(i => i.id === item.id);
+      if (idx !== -1) _items[idx] = item; else _items.push(item);
+    });
+    if (countEl) countEl.textContent = _epicPageItems.length || '';
+    _updateEpicPageProgress();
+    renderEpicPageItems();
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="9" class="dlt-empty">${escHtml(err.message)}</td></tr>`;
+  }
+}
+
+function renderEpicPageItems() {
+  const tbody = document.getElementById('epicPageItemsBody');
+  if (!tbody) return;
+  const search  = (document.getElementById('epicPageSearch')?.value || '').toLowerCase().trim();
+  const statusF = document.getElementById('epicPageStatusFilter')?.value || '';
+
+  let items = _epicPageItems.slice();
+  if (search)  items = items.filter(i => (i.title || '').toLowerCase().includes(search) || (i.dev_item_code || '').toLowerCase().includes(search));
+  if (statusF) items = items.filter(i => i.status === statusF);
+
+  if (!items.length) {
+    tbody.innerHTML = `<tr><td colspan="9" class="dlt-empty">${_epicPageItems.length ? 'No items match filters.' : 'No items linked to this epic yet.'}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = items.map(_renderEpicPageRow).join('');
+}
+
+function _renderEpicPageRow(item) {
+  const statusCls = {
+    pending: 'dp-s-pending', ongoing: 'dp-s-ongoing', coding: 'dp-s-coding',
+    testing: 'dp-s-testing', done: 'dp-s-done',
+  }[item.status] || '';
+
+  const overdue  = item.estimated_end_date && !item.actual_end_date &&
+    new Date(item.estimated_end_date + 'T00:00:00') < new Date();
+  const assignee = item.assigned_to || item.created_by;
+  const m        = _members[assignee] || {};
+  const devName  = m.displayName || assignee || '';
+  const sysIds   = _parseSystemIds(item);
+  const sysName  = sysIds.length ? (_systems.find(s => s.id === sysIds[0])?.name || '') : '';
+  const elapsed  = daysElapsed(item);
+
+  return `<tr class="dlt-row" onclick="openDetailModal('${escHtml(item.id)}')">
+    <td class="dlt-td dlt-th-code">${item.dev_item_code ? `<span class="epic-item-code">${escHtml(item.dev_item_code)}</span>` : '<span style="color:var(--text-muted);">—</span>'}</td>
+    <td class="dlt-td dlt-th-title">
+      <span>${escHtml(item.title)}</span>
+      ${item.is_parked ? '<span class="epic-item-parked" style="margin-left:6px;">Parked</span>' : ''}
+    </td>
+    <td class="dlt-td">${typeBadge(item.dev_item_type)}</td>
+    <td class="dlt-td"><span class="dp-item-status ${statusCls}">${escHtml(item.status)}</span></td>
+    <td class="dlt-td" style="font-size:12.5px;color:var(--text-secondary);">${devName ? escHtml(devName) : '<span style="color:var(--text-muted);">—</span>'}</td>
+    <td class="dlt-td" style="color:var(--text-muted);font-size:12px;">${item.date_started ? fmtDate(item.date_started) : '—'}</td>
+    <td class="dlt-td" style="color:${overdue ? '#f87171' : 'var(--text-muted)'};font-size:12px;">${item.estimated_end_date ? fmtDate(item.estimated_end_date) : '—'}</td>
+    <td class="dlt-td" style="color:var(--text-muted);font-size:12px;">${elapsed !== null ? `${elapsed}d` : '—'}</td>
+    <td class="dlt-td">${sysName ? `<span class="kcard-system-tag" style="font-size:11px;">${escHtml(sysName)}</span>` : '<span style="color:var(--text-muted);">—</span>'}</td>
+  </tr>`;
+}
+
+function addItemToEpicPage() {
+  if (!_epicPageId) return;
+  _addItemToEpicId = _epicPageId;
+  openDetailModal(null);
+}
+
+function editCurrentEpic() {
+  if (!_epicPageId) return;
+  openEpicModal(_epicPageId);
+}
+
+async function deleteCurrentEpic() {
+  if (!_epicPageId) return;
+  const id   = _epicPageId;
+  const epic = _epics.find(e => e.epic_id === id);
+  if (!await showConfirm({
+    title:       'Delete Epic',
+    message:     `Delete "${epic?.epic_name || 'this epic'}"?`,
+    detail:      'Linked dev items will be unlinked. This cannot be undone.',
+    confirmText: 'Delete',
+    danger:      true,
+  })) return;
+  closeEpicPage();
+  try {
+    const res = await fetch(`/api/dev/epics/${encodeURIComponent(id)}`, {
+      method:  'DELETE',
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    _epics = _epics.filter(e => e.epic_id !== id);
+    _items.forEach(i => { if (i.epic_id === id) i.epic_id = null; });
+    renderEpicsView();
+    showToast('Epic deleted.');
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
 }
