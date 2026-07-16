@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design Ref — Epic Modal · Card View</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --navy:       #1B2D4F;
+  --navy-md:    #243B67;
+  --navy-lt:    #2E4F88;
+  --amber:      #C5900A;
+  --amber-lt:   #F0B429;
+  --amber-bg:   #FFF8E7;
+  --white:      #FFFFFF;
+  --surface:    #F3F6FB;
+  --surface-2:  #E8EDF5;
+  --border:     #D0D9E8;
+  --border-lt:  #E8EDF5;
+  --text-1:     #1A2540;
+  --text-2:     #3D5375;
+  --text-3:     #6B7FA3;
+  --text-4:     #A8B9D0;
+
+  --s-active:     #1B7A3E; --s-active-bg:  #E6F5EC;
+  --s-plan:       #1451A8; --s-plan-bg:    #E8F0FC;
+  --s-hold:       #B5560A; --s-hold-bg:    #FDF0E6;
+  --s-done:       #374151; --s-done-bg:    #EAECF0;
+
+  --it-pending:   #6B7FA3; --it-pending-bg:#EEF1F8;
+  --it-ongoing:   #1451A8; --it-ongoing-bg:#E8F0FC;
+  --it-coding:    #7C3AED; --it-coding-bg: #F0EAFF;
+  --it-testing:   #B5560A; --it-testing-bg:#FDF0E6;
+  --it-done:      #1B7A3E; --it-done-bg:   #E6F5EC;
+
+  --tp-feature:  #1451A8; --tp-feature-bg:#E8F0FC;
+  --tp-bug:      #C0392B; --tp-bug-bg:    #FDECEB;
+  --tp-improve:  #1B7A3E; --tp-improve-bg:#E6F5EC;
+  --tp-admin:    #6B7FA3; --tp-admin-bg:  #EEF1F8;
+  --tp-discuss:  #7C3AED; --tp-discuss-bg:#F0EAFF;
+  --tp-maint:    #B5560A; --tp-maint-bg:  #FDF0E6;
+
+  --radius-sm: 4px; --radius: 6px; --radius-lg: 10px; --radius-xl: 14px;
+  --shadow-sm: 0 1px 3px rgba(27,45,79,.08);
+  --shadow:    0 2px 8px rgba(27,45,79,.11);
+  --shadow-lg: 0 8px 36px rgba(27,45,79,.18);
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+body {
+  font-family: var(--font);
+  background: linear-gradient(135deg, #0F1C33 0%, #1B2D4F 100%);
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh; padding: 24px;
+}
+
+/* ── MODAL ── */
+.modal {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  width: 100%; max-width: 1140px;
+  display: flex; flex-direction: column;
+  max-height: calc(100vh - 48px);
+  overflow: hidden;
+}
+
+/* ── HEADER ── */
+.mhd {
+  background: var(--navy);
+  padding: 0 24px;
+  display: flex; align-items: center; gap: 14px;
+  height: 58px; flex-shrink: 0;
+}
+.mhd-icon {
+  width: 34px; height: 34px; border-radius: var(--radius);
+  background: rgba(255,255,255,.10);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.mhd-info { flex: 1; min-width: 0; }
+.mhd-title {
+  font-size: 15px; font-weight: 600; color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mhd-meta { font-size: 11px; color: rgba(255,255,255,.45); margin-top: 1px; }
+.mhd-tags { display: flex; gap: 6px; flex-shrink: 0; }
+.mhd-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 500;
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.12);
+  color: rgba(255,255,255,.7);
+  white-space: nowrap;
+}
+.mhd-tag.status-tag {
+  background: rgba(197,144,10,.22);
+  border-color: rgba(197,144,10,.38);
+  color: var(--amber-lt);
+}
+.mhd-tag.status-tag::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--amber-lt);
+}
+.mhd-close {
+  width: 30px; height: 30px; border-radius: var(--radius);
+  background: rgba(255,255,255,.08); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,.55); flex-shrink: 0;
+}
+
+/* ── PROGRESS BANNER ── */
+.pbar-banner {
+  background: var(--navy-md);
+  padding: 10px 24px;
+  display: flex; align-items: center; gap: 20px; flex-shrink: 0;
+}
+.pbar-label { font-size: 10.5px; color: rgba(255,255,255,.5); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 4px; }
+.pbar-track {
+  height: 6px; background: rgba(255,255,255,.12); border-radius: 20px;
+  overflow: hidden; width: 220px;
+}
+.pbar-fill { height: 100%; border-radius: 20px; background: linear-gradient(90deg, #2ECC71 0%, #27AE60 100%); }
+.pbar-pct { font-size: 15px; font-weight: 700; color: #fff; margin-top: 2px; }
+.pbanner-stats { display: flex; gap: 12px; margin-left: auto; }
+.pbs {
+  display: flex; flex-direction: column; align-items: center;
+  background: rgba(255,255,255,.08); border-radius: var(--radius);
+  padding: 6px 14px; border: 1px solid rgba(255,255,255,.10);
+}
+.pbs-val { font-size: 17px; font-weight: 700; color: #fff; line-height: 1; }
+.pbs-lbl { font-size: 9.5px; color: rgba(255,255,255,.45); text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
+.pbs.done-s .pbs-val  { color: #5EE88A; }
+.pbs.prog-s .pbs-val  { color: #88B8FF; }
+.pbs.pend-s .pbs-val  { color: rgba(255,255,255,.55); }
+
+/* ── TOOLBAR ── */
+.toolbar {
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  display: flex; align-items: center; gap: 12px;
+  height: 44px; flex-shrink: 0;
+}
+.view-toggle { display: flex; gap: 0; }
+.vt-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px; font-size: 12px;
+  border: 1px solid var(--border); cursor: pointer;
+  background: var(--surface); color: var(--text-3);
+  transition: all .12s;
+}
+.vt-btn:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.vt-btn:last-child  { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin-left: -1px; }
+.vt-btn.active {
+  background: var(--navy); border-color: var(--navy);
+  color: #fff; font-weight: 500; z-index: 1;
+}
+.filter-tabs { display: flex; gap: 0; margin-left: 6px; }
+.ft-tab {
+  padding: 5px 12px; font-size: 12px;
+  border: 1px solid var(--border); cursor: pointer;
+  background: var(--white); color: var(--text-3);
+  transition: all .12s;
+  display: flex; align-items: center; gap: 5px;
+}
+.ft-tab:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.ft-tab:last-child  { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin-left: -1px; }
+.ft-tab.active { background: var(--navy); border-color: var(--navy); color: #fff; z-index: 1; }
+.ft-count {
+  font-size: 10px; font-weight: 600; padding: 0 5px; border-radius: 20px;
+  background: rgba(255,255,255,.2); color: rgba(255,255,255,.8);
+}
+.ft-tab:not(.active) .ft-count { background: var(--surface-2); color: var(--text-3); }
+.toolbar-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.search-mini {
+  display: flex; align-items: center; gap: 7px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 5px 10px;
+  font-size: 11.5px; color: var(--text-3); width: 170px;
+}
+.btn-add {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--amber); color: var(--navy);
+  border: none; border-radius: var(--radius-sm);
+  padding: 6px 14px; font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+}
+
+/* ── BODY ── */
+.mbody { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+
+/* LEFT META PANEL */
+.mpanel {
+  width: 264px; min-width: 264px;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  overflow-y: auto; flex-shrink: 0;
+  display: flex; flex-direction: column;
+}
+.mpanel::-webkit-scrollbar { width: 4px; }
+.mpanel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 20px; }
+
+.mpanel-section { padding: 14px 16px; border-bottom: 1px solid var(--border-lt); }
+.mpanel-label {
+  font-size: 10px; font-weight: 700; letter-spacing: .8px;
+  text-transform: uppercase; color: var(--text-4); margin-bottom: 10px;
+}
+.mfield { margin-bottom: 10px; }
+.mfield:last-child { margin-bottom: 0; }
+.mfield-lbl { font-size: 10.5px; font-weight: 600; color: var(--text-3); margin-bottom: 3px; }
+.mfield-input {
+  width: 100%; background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 6px 9px;
+  font-size: 12px; color: var(--text-1); font-family: var(--font);
+}
+.mfield-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%236B7FA3' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center; padding-right: 26px;
+}
+.mfield-textarea { resize: vertical; min-height: 64px; line-height: 1.45; }
+.status-row {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 6px 9px;
+}
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--s-active); flex-shrink: 0; }
+.status-row select { flex: 1; border: none; background: transparent; font-family: var(--font); font-size: 12px; color: var(--text-1); }
+.toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 7px 9px;
+}
+.toggle-lbl { font-size: 12px; color: var(--text-1); }
+.tog {
+  width: 32px; height: 18px; border-radius: 20px; background: var(--s-active);
+  position: relative; cursor: pointer; flex-shrink: 0;
+}
+.tog::after {
+  content: ''; position: absolute; width: 14px; height: 14px;
+  background: #fff; border-radius: 50%; top: 2px; right: 2px;
+}
+.sys-pills { display: flex; flex-wrap: wrap; gap: 4px; background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 8px; min-height: 34px; }
+.sys-pill { display: inline-flex; align-items: center; gap: 4px; background: var(--s-plan-bg); color: var(--s-plan); font-size: 10.5px; font-weight: 500; padding: 2px 7px; border-radius: var(--radius-sm); }
+.mpanel-actions { padding: 14px 16px; margin-top: auto; display: flex; flex-direction: column; gap: 5px; border-top: 1px solid var(--border-lt); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 500; border: 1px solid transparent; cursor: pointer; padding: 7px 12px; font-family: var(--font); }
+.btn-primary   { background: var(--amber); color: var(--navy); font-weight: 600; }
+.btn-secondary { background: var(--white); border-color: var(--border); color: var(--text-2); }
+.btn-danger    { background: var(--white); border-color: #F0C0BC; color: #C0392B; }
+
+/* RIGHT CARDS PANEL */
+.cards-panel { flex: 1; overflow-y: auto; padding: 16px 20px; }
+.cards-panel::-webkit-scrollbar { width: 4px; }
+.cards-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 20px; }
+
+/* GROUP HEADER */
+.group-hd {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 10px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-lt);
+}
+.group-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.group-dot.active  { background: var(--s-plan); }
+.group-dot.pending { background: var(--it-pending); }
+.group-dot.done    { background: var(--s-active); }
+.group-name { font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--text-2); }
+.group-cnt {
+  background: var(--surface-2); color: var(--text-3);
+  font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 20px;
+}
+.group-cnt.active-cnt  { background: var(--s-plan-bg);   color: var(--s-plan); }
+.group-cnt.pending-cnt { background: var(--it-pending-bg); color: var(--it-pending); }
+.group-cnt.done-cnt    { background: var(--s-active-bg);  color: var(--s-active); }
+
+.cards-group { margin-bottom: 22px; }
+
+/* ITEM CARDS GRID */
+.cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 10px; }
+
+/* DEV ITEM CARD */
+.item-card {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden;
+  box-shadow: var(--shadow-sm); cursor: pointer;
+  transition: box-shadow .15s, border-color .15s;
+  display: flex; flex-direction: column;
+}
+.item-card:hover { box-shadow: var(--shadow); border-color: #B8C8E0; }
+.item-card.done-card { opacity: .65; }
+.item-card.done-card:hover { opacity: 1; }
+
+/* Card status stripe */
+.card-stripe { height: 3px; width: 100%; flex-shrink: 0; }
+.stripe-pending { background: var(--it-pending); }
+.stripe-ongoing { background: var(--it-ongoing); }
+.stripe-coding  { background: var(--it-coding); }
+.stripe-testing { background: var(--it-testing); }
+.stripe-done    { background: var(--s-active); }
+
+.card-top {
+  padding: 12px 14px 10px;
+  display: flex; flex-direction: column; gap: 8px; flex: 1;
+}
+.card-row1 { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.card-badges { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.type-badge {
+  display: inline-flex; align-items: center;
+  font-size: 9.5px; font-weight: 700; letter-spacing: .3px;
+  padding: 2px 7px; border-radius: var(--radius-sm); white-space: nowrap;
+}
+.tp-feature { background: var(--tp-feature-bg); color: var(--tp-feature); }
+.tp-bug     { background: var(--tp-bug-bg);     color: var(--tp-bug);     }
+.tp-improve { background: var(--tp-improve-bg); color: var(--tp-improve); }
+.tp-admin   { background: var(--tp-admin-bg);   color: var(--tp-admin);   }
+.tp-discuss { background: var(--tp-discuss-bg); color: var(--tp-discuss); }
+.tp-maint   { background: var(--tp-maint-bg);   color: var(--tp-maint);   }
+
+.issue-ref {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 9.5px; font-weight: 600; color: var(--text-3);
+  background: var(--surface); border: 1px solid var(--border);
+  padding: 2px 6px; border-radius: var(--radius-sm);
+}
+
+.status-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 20px; white-space: nowrap;
+}
+.status-pill::before { content: ''; width: 5px; height: 5px; border-radius: 50%; }
+.pill-pending { background: var(--it-pending-bg); color: var(--it-pending); }
+.pill-pending::before { background: var(--it-pending); }
+.pill-ongoing { background: var(--it-ongoing-bg); color: var(--it-ongoing); }
+.pill-ongoing::before { background: var(--it-ongoing); }
+.pill-coding  { background: var(--it-coding-bg);  color: var(--it-coding);  }
+.pill-coding::before  { background: var(--it-coding); }
+.pill-testing { background: var(--it-testing-bg); color: var(--it-testing); }
+.pill-testing::before { background: var(--it-testing); }
+.pill-done    { background: var(--it-done-bg);    color: var(--it-done);    }
+.pill-done::before    { background: var(--it-done); }
+
+.card-title {
+  font-size: 13px; font-weight: 600; color: var(--text-1); line-height: 1.35;
+}
+.done-card .card-title { text-decoration: line-through; color: var(--text-3); }
+.card-desc {
+  font-size: 11.5px; color: var(--text-3); line-height: 1.45;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.card-meta {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font-size: 11px; color: var(--text-3);
+}
+.meta-item { display: flex; align-items: center; gap: 4px; }
+.meta-item svg { flex-shrink: 0; }
+.meta-item strong { color: var(--text-2); font-weight: 600; }
+
+/* assignee chip */
+.assignee-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 2px 8px 2px 2px;
+  font-size: 11px; color: var(--text-2); font-weight: 500;
+}
+.av {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--navy-md); color: #fff;
+  font-size: 8.5px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.av.g { background: var(--s-active); }
+.av.b { background: var(--s-plan); }
+.av.p { background: var(--it-coding); }
+.av.a { background: var(--amber); color: var(--navy); }
+
+/* Card footer */
+.card-footer {
+  padding: 8px 14px;
+  border-top: 1px solid var(--border-lt);
+  background: var(--surface);
+  display: flex; align-items: center; gap: 10px;
+}
+.cf-dates { font-size: 10.5px; color: var(--text-3); }
+.cf-dates strong { color: var(--text-2); font-weight: 500; }
+.cf-dates .sep { margin: 0 4px; color: var(--border); }
+.cf-actions { margin-left: auto; display: flex; gap: 4px; }
+.cf-btn {
+  width: 24px; height: 24px; border-radius: var(--radius-sm);
+  background: transparent; border: 1px solid transparent;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: var(--text-3);
+}
+.cf-btn:hover { background: var(--white); border-color: var(--border); color: var(--navy); }
+.overdue { color: #C0392B !important; font-weight: 600; }
+.soon    { color: var(--s-hold) !important; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="modal">
+
+  <!-- Header -->
+  <div class="mhd">
+    <div class="mhd-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F0B429" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    </div>
+    <div class="mhd-info">
+      <div class="mhd-title">Garment AI — Attribute Enrichment V2</div>
+      <div class="mhd-meta">Epic · Created Jun 2, 2026 · Last updated Jul 15, 2026</div>
+    </div>
+    <div class="mhd-tags">
+      <span class="mhd-tag status-tag">Active</span>
+      <span class="mhd-tag">Garment AI</span>
+      <span class="mhd-tag">Production</span>
+    </div>
+    <button class="mhd-close">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <!-- Progress Banner -->
+  <div class="pbar-banner">
+    <div>
+      <div class="pbar-label">Overall Progress</div>
+      <div class="pbar-track"><div class="pbar-fill" style="width:64%"></div></div>
+    </div>
+    <div class="pbar-pct">64%</div>
+    <div class="pbanner-stats">
+      <div class="pbs"><div class="pbs-val">14</div><div class="pbs-lbl">Total</div></div>
+      <div class="pbs done-s"><div class="pbs-val">9</div><div class="pbs-lbl">Done</div></div>
+      <div class="pbs prog-s"><div class="pbs-val">3</div><div class="pbs-lbl">Active</div></div>
+      <div class="pbs pend-s"><div class="pbs-val">2</div><div class="pbs-lbl">Pending</div></div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="view-toggle">
+      <button class="vt-btn active">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Cards
+      </button>
+      <button class="vt-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        List
+      </button>
+    </div>
+    <div class="filter-tabs">
+      <div class="ft-tab active">All <span class="ft-count">14</span></div>
+      <div class="ft-tab">Active <span class="ft-count">3</span></div>
+      <div class="ft-tab">Pending <span class="ft-count">2</span></div>
+      <div class="ft-tab">Done <span class="ft-count">9</span></div>
+    </div>
+    <div class="toolbar-right">
+      <div class="search-mini">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Search items…
+      </div>
+      <button class="btn-add">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Item
+      </button>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="mbody">
+
+    <!-- Left Meta Panel -->
+    <aside class="mpanel">
+      <div class="mpanel-section">
+        <div class="mpanel-label">Epic Details</div>
+        <div class="mfield">
+          <div class="mfield-lbl">Name</div>
+          <input class="mfield-input" type="text" value="Garment AI — Attribute Enrichment V2">
+        </div>
+        <div class="mfield">
+          <div class="mfield-lbl">Description</div>
+          <textarea class="mfield-input mfield-textarea">Upgrade attribute prediction pipeline with new training data. Bulk re-tagging tool and API v2 rollout for downstream systems.</textarea>
+        </div>
+        <div class="mfield">
+          <div class="mfield-lbl">Status</div>
+          <div class="status-row">
+            <div class="status-dot"></div>
+            <select>
+              <option selected>Active</option>
+              <option>Planning</option>
+              <option>On Hold</option>
+              <option>Done</option>
+              <option>Cancelled</option>
+            </select>
+          </div>
+        </div>
+        <div class="mfield">
+          <div class="mfield-lbl">Visibility</div>
+          <div class="toggle-row">
+            <span class="toggle-lbl">Show in Active view</span>
+            <div class="tog"></div>
+          </div>
+        </div>
+      </div>
+      <div class="mpanel-section">
+        <div class="mpanel-label">Systems</div>
+        <div class="sys-pills">
+          <span class="sys-pill">Garment AI ×</span>
+          <span class="sys-pill">Production System ×</span>
+        </div>
+      </div>
+      <div class="mpanel-section">
+        <div class="mpanel-label">Timeline</div>
+        <div class="mfield">
+          <div class="mfield-lbl">Start Date</div>
+          <input class="mfield-input" type="date" value="2026-06-02">
+        </div>
+        <div class="mfield">
+          <div class="mfield-lbl">Target End</div>
+          <input class="mfield-input" type="date" value="2026-08-15">
+        </div>
+      </div>
+      <div class="mpanel-section">
+        <div class="mpanel-label">Audit</div>
+        <div class="mfield">
+          <div class="mfield-lbl">Created By</div>
+          <div style="font-size:12px; color:var(--text-1)">Erwin A. · Jun 2, 2026</div>
+        </div>
+        <div class="mfield">
+          <div class="mfield-lbl">Last Modified</div>
+          <div style="font-size:12px; color:var(--text-3)">Jul 15, 2026</div>
+        </div>
+      </div>
+      <div class="mpanel-actions">
+        <button class="btn btn-primary">Save Changes</button>
+        <button class="btn btn-secondary">Discard</button>
+        <button class="btn btn-danger">Delete Epic</button>
+      </div>
+    </aside>
+
+    <!-- Right Cards Panel -->
+    <div class="cards-panel">
+
+      <!-- ACTIVE GROUP -->
+      <div class="cards-group">
+        <div class="group-hd">
+          <div class="group-dot active"></div>
+          <span class="group-name">In Progress</span>
+          <span class="group-cnt active-cnt">3</span>
+        </div>
+        <div class="cards-grid">
+
+          <!-- Card 1 — Coding -->
+          <div class="item-card">
+            <div class="card-stripe stripe-coding"></div>
+            <div class="card-top">
+              <div class="card-row1">
+                <div class="card-badges">
+                  <span class="type-badge tp-feature">New Feature</span>
+                  <span class="issue-ref">
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    #0041
+                  </span>
+                </div>
+                <span class="status-pill pill-coding">Coding</span>
+              </div>
+              <div class="card-title">Bulk re-tagging tool — batch attribute update UI</div>
+              <div class="card-desc">Batch interface to update predicted attributes across multiple garments. Admin-gated. Supports CSV export of before/after diffs.</div>
+              <div class="card-meta">
+                <div class="assignee-chip">
+                  <div class="av b">EA</div>
+                  Erwin A.
+                </div>
+                <div class="meta-item">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <span class="soon">Jul 28</span>
+                </div>
+              </div>
+            </div>
+            <div class="card-footer">
+              <div class="cf-dates">Started <strong>Jun 10</strong><span class="sep">·</span>Due <strong class="soon">Jul 28</strong></div>
+              <div class="cf-actions">
+                <button class="cf-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                <button class="cf-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2 — Ongoing -->
+          <div class="item-card">
+            <div class="card-stripe stripe-ongoing"></div>
+            <div class="card-top">
+              <div class="card-row1">
+                <div class="card-badges">
+                  <span class="type-badge tp-improve">Improvement</span>
+                </div>
+                <span class="status-pill pill-ongoing">Ongoing</span>
+              </div>
+              <div class="card-title">Prediction API v2 — new endpoint schema &amp; versioning</div>
+              <div class="card-desc">RESTful API v2 with backward-compatible shim. New fields: confidence_score, model_version, attribute_category, fallback_label.</div>
+              <div class="card-meta">
+                <div class="assignee-chip">
+                  <div class="av">MR</div>
+                  Marc R.
+                </div>
+                <div class="meta-item">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  Aug 1
+                </div>
+              </div>
+            </div>
+            <div class="card-footer">
+              <div class="cf-dates">Started <strong>Jun 18</strong><span class="sep">·</span>Due <strong>Aug 1</strong></div>
+              <div class="cf-actions">
+                <button class="cf-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                <button class="cf-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3 — Testing -->
+          <div class="item-card">
+            <div class="card-stripe stripe-testing"></div>
+            <div class="card-top">
+              <div class="card-row1">
+                <div class="card-badges">
+                  <span class="type-badge tp-maint">Maintenance</span>
+                </div>
+                <span class="status-pill pill-testing">Testing</span>
+              </div>
+              <div class="card-title">Model retraining pipeline — CI integration &amp; scheduling</div>
+              <div class="card-desc">Automated nightly retraining triggered via Cloud Scheduler. Output validation gates before promoting to production model slot.</div>
+              <div class="card-meta">
+                <div class="assignee-chip"><div class="av g">EA</div>Erwin A.</div>
+                <div class="meta-item">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  Aug 8
+                </div>
+              </div>
+            </div>
+            <div class="card-footer">
+              <div class="cf-dates">Started <strong>Jul 1</strong><span class="sep">·</span>Due <strong>Aug 8</strong></div>
+              <div class="cf-actions">
+                <button class="cf-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                <button class="cf-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- PENDING GROUP -->
+      <div class="cards-group">
+        <div class="group-hd">
+          <div class="group-dot pending"></div>
+          <span class="group-name">Pending</span>
+          <span class="group-cnt pending-cnt">2</span>
+        </div>
+        <div class="cards-grid">
+
+          <div class="item-card">
+            <div class="card-stripe stripe-pending"></div>
+            <div class="card-top">
+              <div class="card-row1">
+                <div class="card-badges"><span class="type-badge tp-feature">New Feature</span></div>
+                <span class="status-pill pill-pending">Pending</span>
+              </div>
+              <div class="card-title">Downstream migration — Consignment App to API v2</div>
+              <div class="card-desc">Update Consignment Web App to consume Garment AI API v2. Blocked until new endpoint schema is finalized and documented.</div>
+              <div class="card-meta">
+                <div class="assignee-chip"><div class="av a">KD</div>Kim D.</div>
+                <div class="meta-item" style="color:#C0392B; font-size:10.5px; font-weight:600;">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  Blocked
+                </div>
+              </div>
+            </div>
+            <div class="card-footer">
+              <div class="cf-dates">Due <strong>Aug 15</strong></div>
+              <div class="cf-actions">
+                <button class="cf-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="item-card">
+            <div class="card-stripe stripe-pending"></div>
+            <div class="card-top">
+              <div class="card-row1">
+                <div class="card-badges"><span class="type-badge tp-admin">Admin Task</span></div>
+                <span class="status-pill pill-pending">Pending</span>
+              </div>
+              <div class="card-title">Internal API v2 changelog — developer documentation</div>
+              <div class="card-desc">Write changelog and migration guide for dev teams. Cover breaking changes, new fields, deprecations, and code samples.</div>
+              <div class="card-meta">
+                <div class="assignee-chip"><div class="av b">EA</div>Erwin A.</div>
+              </div>
+            </div>
+            <div class="card-footer">
+              <div class="cf-dates">No due date set</div>
+              <div class="cf-actions">
+                <button class="cf-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- DONE GROUP -->
+      <div class="cards-group">
+        <div class="group-hd">
+          <div class="group-dot done"></div>
+          <span class="group-name">Completed</span>
+          <span class="group-cnt done-cnt">9</span>
+        </div>
+        <div class="cards-grid">
+
+          <div class="item-card done-card">
+            <div class="card-stripe stripe-done"></div>
+            <div class="card-top">
+              <div class="card-row1">
+                <div class="card-badges"><span class="type-badge tp-improve">Improvement</span></div>
+                <span class="status-pill pill-done">Done</span>
+              </div>
+              <div class="card-title">Training data pipeline — deduplicate &amp; validate</div>
+              <div class="card-desc">Deduplication logic against attribute history table. Validation pass filters blank and malformed attribute values before ingestion.</div>
+              <div class="card-meta">
+                <div class="assignee-chip"><div class="av">MR</div>Marc R.</div>
+              </div>
+            </div>
+            <div class="card-footer">
+              <div class="cf-dates">Jun 2 – <strong>Jun 14</strong></div>
+              <div class="cf-actions">
+                <button class="cf-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="item-card done-card">
+            <div class="card-stripe stripe-done"></div>
+            <div class="card-top">
+              <div class="card-row1">
+                <div class="card-badges">
+                  <span class="type-badge tp-feature">New Feature</span>
+                  <span class="issue-ref">#0038</span>
+                </div>
+                <span class="status-pill pill-done">Done</span>
+              </div>
+              <div class="card-title">Attribute model v2 — training run &amp; evaluation report</div>
+              <div class="card-meta">
+                <div class="assignee-chip"><div class="av g">EA</div>Erwin A.</div>
+              </div>
+            </div>
+            <div class="card-footer">
+              <div class="cf-dates">Jun 10 – <strong>Jun 30</strong></div>
+            </div>
+          </div>
+
+          <div class="item-card done-card">
+            <div class="card-stripe stripe-done"></div>
+            <div class="card-top">
+              <div class="card-row1">
+                <div class="card-badges"><span class="type-badge tp-bug">Bug Fix</span></div>
+                <span class="status-pill pill-done">Done</span>
+              </div>
+              <div class="card-title">Fix: blank attribute rows not filtered before training</div>
+              <div class="card-meta">
+                <div class="assignee-chip"><div class="av b">EA</div>Erwin A.</div>
+              </div>
+            </div>
+            <div class="card-footer">
+              <div class="cf-dates">Jun 22 – <strong>Jun 23</strong></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div><!-- /cards-panel -->
+  </div><!-- /mbody -->
+</div>
+</body>
+</html>
