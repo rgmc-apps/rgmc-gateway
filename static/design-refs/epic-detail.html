@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design Ref — Epic Detail View (ERP Classic)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy:        #1B2D4F;
+    --navy-light:  #243B67;
+    --slate:       #3D5375;
+    --amber:       #C5900A;
+    --amber-light: #F0B429;
+    --amber-bg:    #FFF8E7;
+    --white:       #FFFFFF;
+    --surface:     #F3F6FB;
+    --surface-2:   #E8EDF5;
+    --border:      #D0D9E8;
+    --border-light:#E8EDF5;
+    --text-1:      #1A2540;
+    --text-2:      #3D5375;
+    --text-3:      #6B7FA3;
+    --text-4:      #97A8C0;
+
+    --s-active:   #1B7A3E; --s-active-bg:  #E6F5EC;
+    --s-plan:     #1451A8; --s-plan-bg:    #E8F0FC;
+    --s-hold:     #B5560A; --s-hold-bg:    #FDF0E6;
+    --s-done:     #374151; --s-done-bg:    #EAECF0;
+    --s-cancel:   #9CA3AF; --s-cancel-bg:  #F3F4F6;
+
+    /* item statuses */
+    --is-pending: #6B7FA3; --is-pending-bg: #EEF1F8;
+    --is-ongoing: #1451A8; --is-ongoing-bg: #E8F0FC;
+    --is-coding:  #7C3AED; --is-coding-bg:  #F0EAFF;
+    --is-testing: #B5560A; --is-testing-bg: #FDF0E6;
+    --is-done:    #1B7A3E; --is-done-bg:    #E6F5EC;
+
+    /* types */
+    --t-feature: #1451A8; --t-feature-bg: #E8F0FC;
+    --t-bug:     #C0392B; --t-bug-bg:     #FDECEB;
+    --t-improve: #1B7A3E; --t-improve-bg: #E6F5EC;
+    --t-admin:   #6B7FA3; --t-admin-bg:   #EEF1F8;
+    --t-discuss: #7C3AED; --t-discuss-bg: #F0EAFF;
+    --t-maint:   #B5560A; --t-maint-bg:   #FDF0E6;
+
+    --radius-sm: 3px;
+    --radius:    6px;
+    --radius-lg: 10px;
+    --shadow-sm: 0 1px 3px rgba(27,45,79,.08);
+    --shadow:    0 2px 8px rgba(27,45,79,.12);
+    --shadow-lg: 0 8px 32px rgba(27,45,79,.16);
+    --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    font-family: var(--font);
+    background: rgba(27, 45, 79, .45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  /* ── Modal shell ── */
+  .modal-shell {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    width: 100%;
+    max-width: 1100px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    max-height: calc(100vh - 48px);
+  }
+
+  /* ── Modal header ── */
+  .modal-header {
+    background: var(--navy);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .modal-icon {
+    width: 32px; height: 32px;
+    background: rgba(255,255,255,.12);
+    border-radius: var(--radius);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .modal-icon svg { color: var(--amber-light); }
+  .modal-title { flex: 1; }
+  .modal-title h2 {
+    font-size: 15px; font-weight: 600; color: #fff;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 580px;
+  }
+  .modal-title .meta {
+    font-size: 11px; color: rgba(255,255,255,.5);
+    margin-top: 1px;
+  }
+  .modal-header-right {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .modal-tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(255,255,255,.10);
+    border: 1px solid rgba(255,255,255,.12);
+    color: rgba(255,255,255,.75);
+    font-size: 11px; font-weight: 500;
+    padding: 3px 10px; border-radius: 20px;
+  }
+  .modal-tag.amber { background: rgba(197,144,10,.25); border-color: rgba(197,144,10,.4); color: var(--amber-light); }
+  .modal-close {
+    width: 28px; height: 28px;
+    border-radius: var(--radius);
+    background: rgba(255,255,255,.08);
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(255,255,255,.6);
+  }
+  .modal-close:hover { background: rgba(255,255,255,.15); color: #fff; }
+
+  /* ── Progress banner ── */
+  .progress-banner {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-shrink: 0;
+  }
+  .pbar-wrap {
+    flex: 1;
+  }
+  .pbar-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 5px;
+  }
+  .pbar-label { font-size: 11px; color: var(--text-3); }
+  .pbar-pct   { font-size: 13px; font-weight: 700; color: var(--navy); }
+  .pbar-track {
+    height: 6px; background: var(--surface-2); border-radius: 20px; overflow: hidden;
+  }
+  .pbar-fill {
+    height: 100%; border-radius: 20px;
+    background: linear-gradient(90deg, var(--s-active) 0%, #3CAD62 100%);
+  }
+  .stat-chips {
+    display: flex; gap: 8px; flex-shrink: 0;
+  }
+  .stat-chip {
+    display: flex; align-items: center; gap: 5px;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+  .stat-chip .val { font-size: 16px; font-weight: 700; line-height: 1; }
+  .stat-chip .lbl { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: .4px; margin-top: 1px; }
+  .stat-chip.green .val { color: var(--s-active); }
+  .stat-chip.blue  .val { color: var(--s-plan); }
+  .stat-chip.amber .val { color: var(--amber); }
+  .stat-chip.muted .val { color: var(--text-3); }
+
+  /* ── Body ── */
+  .modal-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* ── LEFT — Metadata panel ── */
+  .meta-panel {
+    width: 280px;
+    min-width: 280px;
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+  }
+  .meta-panel::-webkit-scrollbar { width: 4px; }
+  .meta-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 20px; }
+
+  .meta-section {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .meta-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .8px;
+    text-transform: uppercase;
+    color: var(--text-4);
+    margin-bottom: 10px;
+  }
+  .meta-field {
+    margin-bottom: 12px;
+  }
+  .meta-field:last-child { margin-bottom: 0; }
+  .field-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--text-3);
+    margin-bottom: 4px;
+  }
+  .field-value {
+    font-size: 12.5px;
+    color: var(--text-1);
+    line-height: 1.4;
+  }
+  .field-value.muted { color: var(--text-3); font-style: italic; }
+
+  .field-input {
+    width: 100%;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    font-size: 12.5px;
+    color: var(--text-1);
+    outline: none;
+    font-family: var(--font);
+  }
+  .field-input:focus { border-color: var(--navy); }
+  .field-textarea {
+    resize: vertical;
+    min-height: 72px;
+  }
+  .field-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7FA3' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    padding-right: 28px;
+  }
+
+  .status-select-wrap {
+    position: relative;
+  }
+  .status-dot-indicator {
+    position: absolute;
+    left: 10px; top: 50%; transform: translateY(-50%);
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--s-active);
+    pointer-events: none;
+  }
+  .status-select-wrap .field-input { padding-left: 24px; }
+
+  /* toggle */
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 7px 10px;
+  }
+  .toggle-label { font-size: 12px; color: var(--text-1); }
+  .toggle-switch {
+    width: 32px; height: 18px;
+    background: var(--s-active);
+    border-radius: 20px;
+    position: relative;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    width: 14px; height: 14px;
+    background: white;
+    border-radius: 50%;
+    top: 2px; right: 2px;
+    transition: right .15s;
+  }
+
+  /* sys multi tags */
+  .sys-tag-field {
+    display: flex; flex-wrap: wrap; gap: 4px;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 6px 8px;
+    min-height: 36px;
+  }
+  .sys-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--s-plan-bg);
+    color: var(--s-plan);
+    font-size: 10.5px; font-weight: 500;
+    padding: 2px 7px;
+    border-radius: var(--radius-sm);
+  }
+  .sys-pill .remove {
+    cursor: pointer; opacity: .6; font-size: 12px; line-height: 1;
+  }
+
+  /* meta footer actions */
+  .meta-actions {
+    padding: 14px 18px;
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-top: 1px solid var(--border-light);
+  }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    border-radius: var(--radius);
+    font-size: 12px; font-weight: 500;
+    border: 1px solid transparent;
+    cursor: pointer;
+    padding: 7px 14px;
+    font-family: var(--font);
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--amber); color: var(--navy); font-weight: 600; }
+  .btn-secondary { background: var(--white); border-color: var(--border); color: var(--text-2); }
+  .btn-danger { background: var(--white); border-color: #F0C0BC; color: #C0392B; }
+
+  /* ── RIGHT — Items panel ── */
+  .items-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  /* Toolbar */
+  .items-toolbar {
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--white);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .toolbar-tabs {
+    display: flex; gap: 0;
+  }
+  .toolbar-tab {
+    display: flex; align-items: center; gap: 5px;
+    padding: 5px 12px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    color: var(--text-3);
+    background: var(--white);
+    transition: all .12s;
+    white-space: nowrap;
+  }
+  .toolbar-tab:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+  .toolbar-tab:last-child  { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin-left: -1px; }
+  .toolbar-tab:not(:first-child):not(:last-child) { margin-left: -1px; }
+  .toolbar-tab.active {
+    background: var(--navy);
+    border-color: var(--navy);
+    color: #fff;
+    font-weight: 500;
+    z-index: 1;
+  }
+  .tab-mini-count {
+    background: rgba(255,255,255,.2);
+    font-size: 10px; font-weight: 600;
+    padding: 0 5px;
+    border-radius: 20px;
+  }
+  .toolbar-tab:not(.active) .tab-mini-count {
+    background: var(--surface-2);
+    color: var(--text-3);
+  }
+  .toolbar-spacer { flex: 1; }
+  .search-inline {
+    display: flex; align-items: center; gap: 7px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 5px 10px;
+    font-size: 12px;
+    color: var(--text-3);
+    width: 180px;
+  }
+
+  /* Table */
+  .items-table-wrap {
+    flex: 1;
+    overflow-y: auto;
+  }
+  .items-table-wrap::-webkit-scrollbar { width: 4px; }
+  .items-table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 20px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+  thead {
+    position: sticky; top: 0; z-index: 1;
+    background: var(--surface);
+  }
+  th {
+    padding: 8px 12px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    color: var(--text-3);
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+  th:hover { color: var(--navy); }
+  th .sort-icon { display: inline-block; margin-left: 3px; opacity: .4; }
+  th.sorted .sort-icon { opacity: 1; color: var(--amber); }
+
+  td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: middle;
+  }
+  tr:hover td { background: var(--surface); }
+  tr.done-row td { opacity: .6; }
+  tr.done-row:hover td { opacity: 1; }
+
+  .item-title-cell {
+    display: flex; align-items: flex-start; gap: 8px;
+    min-width: 0;
+  }
+  .item-title-main {
+    font-weight: 500;
+    color: var(--text-1);
+    line-height: 1.3;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 260px;
+  }
+  .item-title-sub {
+    font-size: 11px; color: var(--text-3);
+    margin-top: 1px;
+  }
+
+  .type-badge {
+    display: inline-flex; align-items: center;
+    font-size: 10px; font-weight: 600; letter-spacing: .3px;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+  }
+  .type-feature { background: var(--t-feature-bg); color: var(--t-feature); }
+  .type-bug     { background: var(--t-bug-bg);     color: var(--t-bug);     }
+  .type-improve { background: var(--t-improve-bg); color: var(--t-improve); }
+  .type-admin   { background: var(--t-admin-bg);   color: var(--t-admin);   }
+  .type-discuss { background: var(--t-discuss-bg); color: var(--t-discuss); }
+  .type-maint   { background: var(--t-maint-bg);   color: var(--t-maint);   }
+
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10.5px; font-weight: 600;
+    padding: 2px 8px; border-radius: 20px;
+    white-space: nowrap;
+  }
+  .status-pill::before {
+    content: ''; width: 5px; height: 5px; border-radius: 50%;
+  }
+  .pill-pending { background: var(--is-pending-bg); color: var(--is-pending); }
+  .pill-pending::before { background: var(--is-pending); }
+  .pill-ongoing { background: var(--is-ongoing-bg); color: var(--is-ongoing); }
+  .pill-ongoing::before { background: var(--is-ongoing); }
+  .pill-coding  { background: var(--is-coding-bg);  color: var(--is-coding);  }
+  .pill-coding::before  { background: var(--is-coding); }
+  .pill-testing { background: var(--is-testing-bg); color: var(--is-testing); }
+  .pill-testing::before { background: var(--is-testing); }
+  .pill-done    { background: var(--is-done-bg);    color: var(--is-done);    }
+  .pill-done::before    { background: var(--is-done); }
+
+  .assignee-cell {
+    display: flex; align-items: center; gap: 7px;
+    white-space: nowrap;
+  }
+  .avatar-sm {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--navy-light, #243B67);
+    color: #fff;
+    font-size: 9px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .avatar-sm.green { background: var(--s-active); }
+  .avatar-sm.blue  { background: var(--s-plan); }
+  .avatar-sm.purple{ background: var(--is-coding); }
+
+  .date-cell { font-size: 11.5px; color: var(--text-3); white-space: nowrap; }
+  .date-cell.overdue { color: #C0392B; font-weight: 500; }
+  .date-cell.soon    { color: var(--s-hold); font-weight: 500; }
+
+  .row-actions {
+    display: flex; align-items: center; gap: 4px;
+    opacity: 0;
+    transition: opacity .12s;
+  }
+  tr:hover .row-actions { opacity: 1; }
+  .row-btn {
+    width: 26px; height: 26px;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-3);
+  }
+  .row-btn:hover { background: var(--surface-2); border-color: var(--border); color: var(--navy); }
+
+  /* done strikethrough */
+  tr.done-row .item-title-main { text-decoration: line-through; color: var(--text-3); }
+
+  /* Add item row */
+  .add-item-row td {
+    padding: 8px 12px;
+    border-bottom: none;
+  }
+  .add-item-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text-3);
+    cursor: pointer;
+    padding: 5px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px dashed var(--border);
+    background: transparent;
+    font-family: var(--font);
+    transition: all .12s;
+  }
+  .add-item-btn:hover {
+    border-color: var(--amber);
+    color: var(--amber);
+    background: var(--amber-bg);
+  }
+
+  /* items footer */
+  .items-footer {
+    padding: 10px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--white);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 11.5px;
+    color: var(--text-3);
+    flex-shrink: 0;
+  }
+  .items-footer strong { color: var(--text-2); }
+  .footer-right { margin-left: auto; display: flex; gap: 6px; }
+</style>
+</head>
+<body>
+
+<div class="modal-shell">
+
+  <!-- Modal Header -->
+  <div class="modal-header">
+    <div class="modal-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    </div>
+    <div class="modal-title">
+      <h2>Garment AI — Attribute Enrichment V2</h2>
+      <div class="meta">Epic · Created Jun 2, 2026 · Last updated Jul 12, 2026</div>
+    </div>
+    <div class="modal-header-right">
+      <span class="modal-tag amber">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+        Active
+      </span>
+      <span class="modal-tag">Garment AI</span>
+      <span class="modal-tag">Production System</span>
+      <button class="modal-close">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Progress Banner -->
+  <div class="progress-banner">
+    <div class="pbar-wrap">
+      <div class="pbar-row">
+        <span class="pbar-label">Overall progress</span>
+        <span class="pbar-pct">64%</span>
+      </div>
+      <div class="pbar-track"><div class="pbar-fill" style="width:64%"></div></div>
+    </div>
+    <div class="stat-chips">
+      <div class="stat-chip muted">
+        <div>
+          <div class="val">14</div>
+          <div class="lbl">Total</div>
+        </div>
+      </div>
+      <div class="stat-chip green">
+        <div>
+          <div class="val">9</div>
+          <div class="lbl">Done</div>
+        </div>
+      </div>
+      <div class="stat-chip blue">
+        <div>
+          <div class="val">3</div>
+          <div class="lbl">Active</div>
+        </div>
+      </div>
+      <div class="stat-chip amber">
+        <div>
+          <div class="val">2</div>
+          <div class="lbl">Pending</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Body: Left meta + Right items -->
+  <div class="modal-body">
+
+    <!-- LEFT: Metadata -->
+    <aside class="meta-panel">
+      <div class="meta-section">
+        <div class="meta-section-label">Epic Details</div>
+
+        <div class="meta-field">
+          <div class="field-label">Epic Name</div>
+          <input class="field-input" type="text" value="Garment AI — Attribute Enrichment V2">
+        </div>
+
+        <div class="meta-field">
+          <div class="field-label">Description</div>
+          <textarea class="field-input field-textarea">Upgrade attribute prediction pipeline with new training data. Includes bulk re-tagging tool and API v2 rollout for downstream systems.</textarea>
+        </div>
+
+        <div class="meta-field">
+          <div class="field-label">Status</div>
+          <div class="status-select-wrap">
+            <div class="status-dot-indicator"></div>
+            <select class="field-input field-select">
+              <option>Active</option>
+              <option>Planning</option>
+              <option>On Hold</option>
+              <option>Done</option>
+              <option>Cancelled</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="meta-field">
+          <div class="field-label">Visibility</div>
+          <div class="toggle-row">
+            <span class="toggle-label">Show in Active view</span>
+            <div class="toggle-switch"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="meta-section">
+        <div class="meta-section-label">Systems</div>
+        <div class="meta-field">
+          <div class="sys-tag-field">
+            <span class="sys-pill">
+              Garment AI
+              <span class="remove">×</span>
+            </span>
+            <span class="sys-pill">
+              Production System
+              <span class="remove">×</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="meta-section">
+        <div class="meta-section-label">Timeline</div>
+        <div class="meta-field">
+          <div class="field-label">Start Date</div>
+          <input class="field-input" type="date" value="2026-06-02">
+        </div>
+        <div class="meta-field">
+          <div class="field-label">Target End Date</div>
+          <input class="field-input" type="date" value="2026-08-15">
+        </div>
+      </div>
+
+      <div class="meta-section">
+        <div class="meta-section-label">Audit</div>
+        <div class="meta-field">
+          <div class="field-label">Created By</div>
+          <div class="field-value">Erwin A. · Jun 2, 2026</div>
+        </div>
+        <div class="meta-field">
+          <div class="field-label">Last Modified</div>
+          <div class="field-value muted">Jul 12, 2026</div>
+        </div>
+      </div>
+
+      <div class="meta-actions">
+        <button class="btn btn-primary">Save Changes</button>
+        <button class="btn btn-secondary">Cancel</button>
+        <button class="btn btn-danger">Delete Epic</button>
+      </div>
+    </aside>
+
+    <!-- RIGHT: Dev Items -->
+    <div class="items-panel">
+
+      <!-- Toolbar -->
+      <div class="items-toolbar">
+        <div class="toolbar-tabs">
+          <div class="toolbar-tab active">
+            All
+            <span class="tab-mini-count">14</span>
+          </div>
+          <div class="toolbar-tab">
+            Ongoing
+            <span class="tab-mini-count">3</span>
+          </div>
+          <div class="toolbar-tab">
+            Pending
+            <span class="tab-mini-count">2</span>
+          </div>
+          <div class="toolbar-tab">
+            Done
+            <span class="tab-mini-count">9</span>
+          </div>
+        </div>
+        <div class="toolbar-spacer"></div>
+        <div class="search-inline">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Search items…
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="items-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:28px; padding-right:0"></th>
+              <th style="width:120px">Type <span class="sort-icon">↕</span></th>
+              <th>Title <span class="sort-icon sorted">↑</span></th>
+              <th style="width:130px">Assigned To</th>
+              <th style="width:100px">Status <span class="sort-icon">↕</span></th>
+              <th style="width:90px">Start</th>
+              <th style="width:90px">End / Due</th>
+              <th style="width:52px"></th>
+            </tr>
+          </thead>
+          <tbody>
+
+            <!-- Ongoing items -->
+            <tr>
+              <td><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></td>
+              <td><span class="type-badge type-feature">New Feature</span></td>
+              <td>
+                <div class="item-title-cell">
+                  <div>
+                    <div class="item-title-main">Bulk re-tagging tool — batch attribute update UI</div>
+                    <div class="item-title-sub">Linked to Issue #0041</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="assignee-cell">
+                  <div class="avatar-sm blue">EA</div>
+                  Erwin A.
+                </div>
+              </td>
+              <td><span class="status-pill pill-coding">Coding</span></td>
+              <td class="date-cell">Jun 10</td>
+              <td class="date-cell soon">Jul 28</td>
+              <td>
+                <div class="row-actions">
+                  <button class="row-btn" title="Edit">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </button>
+                  <button class="row-btn" title="Open">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></td>
+              <td><span class="type-badge type-improve">Improvement</span></td>
+              <td>
+                <div class="item-title-cell">
+                  <div>
+                    <div class="item-title-main">Prediction API v2 — new endpoint schema</div>
+                    <div class="item-title-sub">Backend · No linked issue</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="assignee-cell">
+                  <div class="avatar-sm">MR</div>
+                  Marc R.
+                </div>
+              </td>
+              <td><span class="status-pill pill-ongoing">Ongoing</span></td>
+              <td class="date-cell">Jun 18</td>
+              <td class="date-cell soon">Aug 1</td>
+              <td>
+                <div class="row-actions">
+                  <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                  <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></td>
+              <td><span class="type-badge type-maint">Maintenance</span></td>
+              <td>
+                <div class="item-title-cell">
+                  <div>
+                    <div class="item-title-main">Model retraining pipeline — CI integration</div>
+                    <div class="item-title-sub">DevOps · No linked issue</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="assignee-cell">
+                  <div class="avatar-sm green">EA</div>
+                  Erwin A.
+                </div>
+              </td>
+              <td><span class="status-pill pill-testing">Testing</span></td>
+              <td class="date-cell">Jul 1</td>
+              <td class="date-cell">Aug 8</td>
+              <td>
+                <div class="row-actions">
+                  <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                  <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Pending -->
+            <tr>
+              <td><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" opacity=".4"><circle cx="12" cy="12" r="10"/></svg></td>
+              <td><span class="type-badge type-feature">New Feature</span></td>
+              <td>
+                <div class="item-title-cell">
+                  <div>
+                    <div class="item-title-main">Downstream system migration — Consignment App</div>
+                    <div class="item-title-sub">Blocked by API v2 item above</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="assignee-cell">
+                  <div class="avatar-sm">KD</div>
+                  Kim D.
+                </div>
+              </td>
+              <td><span class="status-pill pill-pending">Pending</span></td>
+              <td class="date-cell">—</td>
+              <td class="date-cell">Aug 15</td>
+              <td>
+                <div class="row-actions">
+                  <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" opacity=".4"><circle cx="12" cy="12" r="10"/></svg></td>
+              <td><span class="type-badge type-admin">Admin Task</span></td>
+              <td>
+                <div class="item-title-cell">
+                  <div>
+                    <div class="item-title-main">Documentation — internal API v2 changelog</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="assignee-cell">
+                  <div class="avatar-sm blue">EA</div>
+                  Erwin A.
+                </div>
+              </td>
+              <td><span class="status-pill pill-pending">Pending</span></td>
+              <td class="date-cell">—</td>
+              <td class="date-cell">—</td>
+              <td>
+                <div class="row-actions">
+                  <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Done items (muted) -->
+            <tr class="done-row">
+              <td>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:#1B7A3E"><polyline points="20 6 9 17 4 12"/></svg>
+              </td>
+              <td><span class="type-badge type-improve">Improvement</span></td>
+              <td>
+                <div class="item-title-cell">
+                  <div>
+                    <div class="item-title-main">Training data pipeline — deduplicate + validate</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="assignee-cell">
+                  <div class="avatar-sm">MR</div>
+                  Marc R.
+                </div>
+              </td>
+              <td><span class="status-pill pill-done">Done</span></td>
+              <td class="date-cell">Jun 2</td>
+              <td class="date-cell">Jun 14</td>
+              <td></td>
+            </tr>
+
+            <tr class="done-row">
+              <td><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:#1B7A3E"><polyline points="20 6 9 17 4 12"/></svg></td>
+              <td><span class="type-badge type-feature">New Feature</span></td>
+              <td>
+                <div class="item-title-cell"><div>
+                  <div class="item-title-main">Attribute model v2 — training run & evaluation</div>
+                </div></div>
+              </td>
+              <td><div class="assignee-cell"><div class="avatar-sm green">EA</div>Erwin A.</div></td>
+              <td><span class="status-pill pill-done">Done</span></td>
+              <td class="date-cell">Jun 10</td>
+              <td class="date-cell">Jun 30</td>
+              <td></td>
+            </tr>
+
+            <tr class="done-row">
+              <td><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:#1B7A3E"><polyline points="20 6 9 17 4 12"/></svg></td>
+              <td><span class="type-badge type-bug">Bug Fix</span></td>
+              <td>
+                <div class="item-title-cell"><div>
+                  <div class="item-title-main">Fix: blank attribute rows not filtered before training</div>
+                  <div class="item-title-sub">Linked to Issue #0038</div>
+                </div></div>
+              </td>
+              <td><div class="assignee-cell"><div class="avatar-sm blue">EA</div>Erwin A.</div></td>
+              <td><span class="status-pill pill-done">Done</span></td>
+              <td class="date-cell">Jun 22</td>
+              <td class="date-cell">Jun 23</td>
+              <td></td>
+            </tr>
+
+            <tr class="done-row">
+              <td><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:#1B7A3E"><polyline points="20 6 9 17 4 12"/></svg></td>
+              <td><span class="type-badge type-improve">Improvement</span></td>
+              <td>
+                <div class="item-title-cell"><div>
+                  <div class="item-title-main">Garment AI dashboard — v2 confidence score display</div>
+                </div></div>
+              </td>
+              <td><div class="assignee-cell"><div class="avatar-sm">KD</div>Kim D.</div></td>
+              <td><span class="status-pill pill-done">Done</span></td>
+              <td class="date-cell">Jun 28</td>
+              <td class="date-cell">Jul 5</td>
+              <td></td>
+            </tr>
+
+            <tr class="done-row">
+              <td><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:#1B7A3E"><polyline points="20 6 9 17 4 12"/></svg></td>
+              <td><span class="type-badge type-maint">Maintenance</span></td>
+              <td>
+                <div class="item-title-cell"><div>
+                  <div class="item-title-main">Legacy v1 API — deprecation notice + sunset date</div>
+                </div></div>
+              </td>
+              <td><div class="assignee-cell"><div class="avatar-sm green">EA</div>Erwin A.</div></td>
+              <td><span class="status-pill pill-done">Done</span></td>
+              <td class="date-cell">Jul 1</td>
+              <td class="date-cell">Jul 3</td>
+              <td></td>
+            </tr>
+
+            <!-- Add item -->
+            <tr class="add-item-row">
+              <td colspan="8">
+                <button class="add-item-btn">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Add Dev Item to Epic
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Table footer -->
+      <div class="items-footer">
+        Showing <strong>14</strong> items &bull; <strong>9</strong> done &bull; <strong>3</strong> active &bull; <strong>2</strong> pending
+        <div class="footer-right">
+          <span style="color:var(--text-4); font-size:11px">Sort by status · Date</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /modal-body -->
+</div>
+
+</body>
+</html>

@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design Ref — Epics Overview (ERP Classic)</title>
+<style>
+  /* ── Reset ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ── Tokens ── */
+  :root {
+    --navy:        #1B2D4F;
+    --navy-light:  #243B67;
+    --navy-dim:    #162240;
+    --slate:       #3D5375;
+    --amber:       #C5900A;
+    --amber-light: #F0B429;
+    --amber-bg:    #FFF8E7;
+    --white:       #FFFFFF;
+    --surface:     #F3F6FB;
+    --surface-2:   #E8EDF5;
+    --border:      #D0D9E8;
+    --border-light:#E8EDF5;
+    --text-1:      #1A2540;
+    --text-2:      #3D5375;
+    --text-3:      #6B7FA3;
+    --text-4:      #97A8C0;
+
+    /* status */
+    --s-active:   #1B7A3E;
+    --s-active-bg:#E6F5EC;
+    --s-plan:     #1451A8;
+    --s-plan-bg:  #E8F0FC;
+    --s-hold:     #B5560A;
+    --s-hold-bg:  #FDF0E6;
+    --s-done:     #374151;
+    --s-done-bg:  #EAECF0;
+    --s-cancel:   #9CA3AF;
+    --s-cancel-bg:#F3F4F6;
+
+    --radius-sm: 4px;
+    --radius:    6px;
+    --radius-lg: 10px;
+    --shadow-sm: 0 1px 3px rgba(27,45,79,.08), 0 1px 2px rgba(27,45,79,.06);
+    --shadow:    0 2px 8px rgba(27,45,79,.10), 0 1px 3px rgba(27,45,79,.07);
+    --shadow-lg: 0 4px 16px rgba(27,45,79,.12), 0 2px 6px rgba(27,45,79,.08);
+    --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--surface);
+    color: var(--text-1);
+    font-size: 13px;
+    line-height: 1.5;
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 220px;
+    min-width: 220px;
+    background: var(--navy);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  .sidebar-logo {
+    padding: 20px 18px 16px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  .sidebar-logo .logo-mark {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo-icon {
+    width: 30px; height: 30px;
+    background: var(--amber);
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px; color: var(--navy);
+    letter-spacing: -.5px;
+    flex-shrink: 0;
+  }
+  .logo-text {
+    font-size: 13px; font-weight: 600;
+    color: #fff; letter-spacing: .3px;
+  }
+  .logo-sub {
+    font-size: 10px; color: rgba(255,255,255,.45);
+    letter-spacing: .5px; text-transform: uppercase;
+  }
+
+  .sidebar-section {
+    padding: 14px 0 4px;
+  }
+  .sidebar-section-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,.35);
+    padding: 0 18px 6px;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 18px;
+    font-size: 12.5px;
+    color: rgba(255,255,255,.65);
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all .15s;
+    text-decoration: none;
+  }
+  .nav-item:hover { background: rgba(255,255,255,.06); color: rgba(255,255,255,.9); }
+  .nav-item.active {
+    background: rgba(255,255,255,.10);
+    color: #fff;
+    border-left-color: var(--amber);
+    font-weight: 500;
+  }
+  .nav-item svg { flex-shrink: 0; opacity: .8; }
+  .nav-badge {
+    margin-left: auto;
+    background: rgba(255,255,255,.15);
+    color: rgba(255,255,255,.8);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 20px;
+  }
+  .nav-badge.accent {
+    background: var(--amber);
+    color: var(--navy);
+  }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 14px 18px;
+    border-top: 1px solid rgba(255,255,255,.08);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .user-avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--amber);
+    color: var(--navy);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .user-info .name { font-size: 12px; color: #fff; font-weight: 500; }
+  .user-info .role { font-size: 10px; color: rgba(255,255,255,.45); }
+
+  /* ── Main ── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  .breadcrumb {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text-3);
+  }
+  .breadcrumb .current { color: var(--text-1); font-weight: 600; font-size: 14px; }
+  .breadcrumb-sep { color: var(--border); }
+
+  .topbar-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .search-box {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0 12px;
+    height: 32px;
+    width: 220px;
+    color: var(--text-3);
+    font-size: 12.5px;
+  }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    border-radius: var(--radius);
+    font-size: 12.5px; font-weight: 500;
+    border: 1px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    padding: 0 14px;
+    height: 32px;
+  }
+  .btn-primary {
+    background: var(--amber);
+    color: var(--navy);
+    font-weight: 600;
+  }
+  .btn-ghost {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--text-2);
+  }
+
+  /* ── View tabs ── */
+  .view-tabs {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    gap: 0;
+    flex-shrink: 0;
+  }
+  .view-tab {
+    display: flex; align-items: center; gap: 6px;
+    padding: 10px 16px;
+    font-size: 12.5px;
+    color: var(--text-3);
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all .15s;
+  }
+  .view-tab:hover { color: var(--text-1); }
+  .view-tab.active {
+    color: var(--navy);
+    font-weight: 600;
+    border-bottom-color: var(--amber);
+  }
+  .tab-count {
+    background: var(--surface-2);
+    color: var(--text-3);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 20px;
+  }
+  .view-tab.active .tab-count {
+    background: var(--amber-bg);
+    color: var(--amber);
+  }
+
+  /* ── Content area ── */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+  }
+
+  /* ── Epic section ── */
+  .epic-section { margin-bottom: 28px; }
+
+  .epic-section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .section-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .section-dot.active  { background: var(--s-active); }
+  .section-dot.other   { background: var(--s-hold); }
+  .section-dot.done    { background: var(--s-done); }
+
+  .epic-section-header h3 {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+    color: var(--text-2);
+  }
+  .section-count {
+    background: var(--surface-2);
+    color: var(--text-3);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+  .section-count.active-count {
+    background: var(--s-active-bg);
+    color: var(--s-active);
+  }
+  .epic-section-header .section-action {
+    margin-left: auto;
+    font-size: 11.5px;
+    color: var(--text-3);
+    cursor: pointer;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .epic-section-header .section-action:hover { color: var(--navy); }
+
+  /* ── Epic Cards Grid ── */
+  .epic-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 12px;
+  }
+  .epic-grid.compact {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+
+  /* ── Epic Card ── */
+  .epic-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow .15s, border-color .15s;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+  }
+  .epic-card:hover {
+    box-shadow: var(--shadow);
+    border-color: #b8c8e0;
+  }
+
+  .card-accent {
+    height: 3px;
+    width: 100%;
+    flex-shrink: 0;
+  }
+  .card-accent.active  { background: linear-gradient(90deg, var(--s-active) 0%, #2E9D51 100%); }
+  .card-accent.planning { background: linear-gradient(90deg, var(--s-plan) 0%, #3B72D6 100%); }
+  .card-accent.on_hold { background: linear-gradient(90deg, var(--s-hold) 0%, #E07030 100%); }
+  .card-accent.done    { background: var(--border); }
+  .card-accent.cancelled { background: var(--border-light); }
+
+  .card-body {
+    padding: 14px 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .card-header-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .epic-name {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-1);
+    line-height: 1.3;
+    flex: 1;
+  }
+  .epic-desc {
+    font-size: 11.5px;
+    color: var(--text-3);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-top: 2px;
+  }
+
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10.5px; font-weight: 600; letter-spacing: .3px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .status-badge::before {
+    content: '';
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .badge-active   { background: var(--s-active-bg);  color: var(--s-active);  }
+  .badge-active::before   { background: var(--s-active); }
+  .badge-planning { background: var(--s-plan-bg);    color: var(--s-plan);    }
+  .badge-planning::before { background: var(--s-plan); }
+  .badge-on_hold  { background: var(--s-hold-bg);   color: var(--s-hold);   }
+  .badge-on_hold::before  { background: var(--s-hold); }
+  .badge-done     { background: var(--s-done-bg);   color: var(--s-done);   }
+  .badge-done::before     { background: var(--s-done); }
+  .badge-cancelled{ background: var(--s-cancel-bg); color: var(--s-cancel); }
+
+  /* Progress row */
+  .progress-row {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .progress-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-3);
+  }
+  .progress-meta strong { color: var(--text-2); }
+  .progress-bar-track {
+    height: 5px;
+    background: var(--surface-2);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    border-radius: 20px;
+    background: linear-gradient(90deg, var(--s-active) 0%, #3CAD62 100%);
+    transition: width .3s;
+  }
+  .progress-bar-fill.low { background: linear-gradient(90deg, var(--s-plan) 0%, #4A85E0 100%); }
+  .progress-bar-fill.hold { background: linear-gradient(90deg, var(--s-hold) 0%, #E07030 100%); }
+
+  /* System tags */
+  .sys-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .sys-tag {
+    display: inline-flex; align-items: center;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-2);
+    font-size: 10.5px;
+    padding: 1px 7px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* Card footer */
+  .card-footer {
+    padding: 10px 16px;
+    border-top: 1px solid var(--border-light);
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .footer-stat {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: var(--text-3);
+  }
+  .footer-stat svg { flex-shrink: 0; }
+  .footer-stat strong { color: var(--text-2); font-weight: 600; }
+  .footer-link {
+    margin-left: auto;
+    font-size: 11.5px;
+    color: var(--navy);
+    font-weight: 500;
+    display: flex; align-items: center; gap: 3px;
+  }
+  .footer-link:hover { color: var(--amber); }
+
+  .assignees {
+    display: flex;
+  }
+  .assignee-dot {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--navy-light);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--white);
+    margin-right: -6px;
+    flex-shrink: 0;
+  }
+  .assignee-dot:nth-child(2) { background: #1451A8; }
+  .assignee-dot:nth-child(3) { background: var(--s-active); }
+
+  /* Done section — muted */
+  .epic-section.done-section .epic-card {
+    opacity: .7;
+  }
+  .epic-section.done-section .epic-card:hover { opacity: 1; }
+
+  /* Empty state */
+  .empty-section {
+    background: var(--white);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--text-4);
+    font-size: 12.5px;
+  }
+
+  /* Scrollbar */
+  .content::-webkit-scrollbar { width: 5px; }
+  .content::-webkit-scrollbar-track { background: transparent; }
+  .content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 20px; }
+
+  /* KPI strip */
+  .kpi-strip {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .kpi-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 18px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    box-shadow: var(--shadow-sm);
+  }
+  .kpi-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--navy);
+    line-height: 1;
+  }
+  .kpi-label {
+    font-size: 11px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    font-weight: 600;
+  }
+  .kpi-sub {
+    font-size: 10.5px;
+    color: var(--text-4);
+    margin-top: 2px;
+  }
+  .kpi-card.accent-border { border-left: 3px solid var(--amber); }
+  .kpi-card.green-border  { border-left: 3px solid var(--s-active); }
+  .kpi-card.blue-border   { border-left: 3px solid var(--s-plan); }
+  .kpi-card.muted-border  { border-left: 3px solid var(--border); }
+
+  /* item count pills in card meta */
+  .item-counts {
+    display: flex; align-items: center; gap: 6px;
+    flex-wrap: wrap;
+  }
+  .count-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10.5px; font-weight: 600;
+    padding: 2px 7px;
+    border-radius: var(--radius-sm);
+  }
+  .chip-done    { background: var(--s-done-bg); color: var(--s-done); }
+  .chip-ongoing { background: var(--s-plan-bg); color: var(--s-plan); }
+  .chip-pending { background: var(--surface-2); color: var(--text-3); }
+  .chip-total   { background: var(--amber-bg);  color: var(--amber);  }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon">RG</div>
+      <div>
+        <div class="logo-text">RGMC Gateway</div>
+        <div class="logo-sub">Developer Board</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Workspace</div>
+    <a class="nav-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Kanban Board
+    </a>
+    <a class="nav-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      List View
+      <span class="nav-badge">34</span>
+    </a>
+    <a class="nav-item active">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      Epics
+      <span class="nav-badge accent">6</span>
+    </a>
+    <a class="nav-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Analytics
+    </a>
+    <a class="nav-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Activity
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Issue Tracking</div>
+    <a class="nav-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Issue Queue
+      <span class="nav-badge">12</span>
+    </a>
+    <a class="nav-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Common Fixes
+    </a>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="user-avatar">EA</div>
+    <div class="user-info">
+      <div class="name">Erwin A.</div>
+      <div class="role">Developer</div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="breadcrumb">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <span class="current">Epics</span>
+    </div>
+    <div class="topbar-right">
+      <div class="search-box">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Search epics…
+      </div>
+      <button class="btn btn-ghost">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+        Filter
+      </button>
+      <button class="btn btn-primary">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        New Epic
+      </button>
+    </div>
+  </header>
+
+  <!-- Status filter tabs -->
+  <nav class="view-tabs">
+    <div class="view-tab active">
+      All Epics
+      <span class="tab-count">6</span>
+    </div>
+    <div class="view-tab">
+      Active
+      <span class="tab-count">2</span>
+    </div>
+    <div class="view-tab">
+      Planning
+      <span class="tab-count">2</span>
+    </div>
+    <div class="view-tab">
+      On Hold
+      <span class="tab-count">1</span>
+    </div>
+    <div class="view-tab">
+      Done / Cancelled
+      <span class="tab-count">1</span>
+    </div>
+  </nav>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- KPI Strip -->
+    <div class="kpi-strip">
+      <div class="kpi-card accent-border">
+        <div class="kpi-value">6</div>
+        <div class="kpi-label">Total Epics</div>
+        <div class="kpi-sub">Across all statuses</div>
+      </div>
+      <div class="kpi-card green-border">
+        <div class="kpi-value">34</div>
+        <div class="kpi-label">Dev Items</div>
+        <div class="kpi-sub">22 done · 12 in progress</div>
+      </div>
+      <div class="kpi-card blue-border">
+        <div class="kpi-value">64%</div>
+        <div class="kpi-label">Avg. Progress</div>
+        <div class="kpi-sub">Across active epics</div>
+      </div>
+      <div class="kpi-card muted-border">
+        <div class="kpi-value">2</div>
+        <div class="kpi-label">Completing Soon</div>
+        <div class="kpi-sub">Within 14 days</div>
+      </div>
+    </div>
+
+    <!-- ACTIVE EPICS -->
+    <div class="epic-section">
+      <div class="epic-section-header">
+        <span class="section-dot active"></span>
+        <h3>Active Epics</h3>
+        <span class="section-count active-count">2</span>
+        <span class="section-action">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Epic
+        </span>
+      </div>
+      <div class="epic-grid">
+
+        <!-- Card 1 — Active -->
+        <div class="epic-card">
+          <div class="card-accent active"></div>
+          <div class="card-body">
+            <div class="card-header-row">
+              <div>
+                <div class="epic-name">Garment AI — Attribute Enrichment V2</div>
+                <div class="epic-desc">Upgrade attribute prediction pipeline with new training data. Includes bulk re-tagging tool and API v2 rollout.</div>
+              </div>
+              <span class="status-badge badge-active">Active</span>
+            </div>
+            <div class="progress-row">
+              <div class="progress-meta">
+                <span>Progress</span>
+                <span><strong>9</strong> / 14 items done</span>
+              </div>
+              <div class="progress-bar-track">
+                <div class="progress-bar-fill" style="width:64%"></div>
+              </div>
+            </div>
+            <div class="item-counts">
+              <span class="count-chip chip-total">14 items</span>
+              <span class="count-chip chip-done">9 done</span>
+              <span class="count-chip chip-ongoing">3 ongoing</span>
+              <span class="count-chip chip-pending">2 pending</span>
+            </div>
+            <div class="sys-tags">
+              <span class="sys-tag">Garment AI</span>
+              <span class="sys-tag">Production System</span>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="footer-stat">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Due <strong>Aug 15</strong>
+            </div>
+            <div class="footer-stat">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              <div class="assignees">
+                <div class="assignee-dot">EA</div>
+                <div class="assignee-dot">MR</div>
+              </div>
+            </div>
+            <span class="footer-link">
+              View Details
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </span>
+          </div>
+        </div>
+
+        <!-- Card 2 — Active -->
+        <div class="epic-card">
+          <div class="card-accent active"></div>
+          <div class="card-body">
+            <div class="card-header-row">
+              <div>
+                <div class="epic-name">SBIC Invoice Separator — Batch Mode</div>
+                <div class="epic-desc">Implement multi-file batch processing, auto-split by entity code, and improved error reporting with downloadable log.</div>
+              </div>
+              <span class="status-badge badge-active">Active</span>
+            </div>
+            <div class="progress-row">
+              <div class="progress-meta">
+                <span>Progress</span>
+                <span><strong>5</strong> / 8 items done</span>
+              </div>
+              <div class="progress-bar-track">
+                <div class="progress-bar-fill" style="width:62%"></div>
+              </div>
+            </div>
+            <div class="item-counts">
+              <span class="count-chip chip-total">8 items</span>
+              <span class="count-chip chip-done">5 done</span>
+              <span class="count-chip chip-ongoing">2 ongoing</span>
+              <span class="count-chip chip-pending">1 pending</span>
+            </div>
+            <div class="sys-tags">
+              <span class="sys-tag">Invoice Separator</span>
+              <span class="sys-tag">PO Uploader</span>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="footer-stat">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Due <strong>Jul 31</strong>
+            </div>
+            <div class="footer-stat">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              <div class="assignees">
+                <div class="assignee-dot">JL</div>
+                <div class="assignee-dot">EA</div>
+                <div class="assignee-dot">KD</div>
+              </div>
+            </div>
+            <span class="footer-link">
+              View Details
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- PLANNING / ON HOLD -->
+    <div class="epic-section">
+      <div class="epic-section-header">
+        <span class="section-dot other"></span>
+        <h3>Planning &amp; On Hold</h3>
+        <span class="section-count">3</span>
+      </div>
+      <div class="epic-grid">
+
+        <!-- Card — Planning -->
+        <div class="epic-card">
+          <div class="card-accent planning"></div>
+          <div class="card-body">
+            <div class="card-header-row">
+              <div>
+                <div class="epic-name">Inventory App — Mobile PWA</div>
+                <div class="epic-desc">Progressive Web App wrapper for the inventory module. Offline-first barcode scan support.</div>
+              </div>
+              <span class="status-badge badge-planning">Planning</span>
+            </div>
+            <div class="progress-row">
+              <div class="progress-meta">
+                <span>Progress</span>
+                <span><strong>1</strong> / 6 items done</span>
+              </div>
+              <div class="progress-bar-track">
+                <div class="progress-bar-fill low" style="width:16%"></div>
+              </div>
+            </div>
+            <div class="item-counts">
+              <span class="count-chip chip-total">6 items</span>
+              <span class="count-chip chip-done">1 done</span>
+              <span class="count-chip chip-pending">5 pending</span>
+            </div>
+            <div class="sys-tags">
+              <span class="sys-tag">Inventory App</span>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="footer-stat">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Starts <strong>Aug 1</strong>
+            </div>
+            <div class="footer-stat">
+              <div class="assignees">
+                <div class="assignee-dot">EA</div>
+              </div>
+            </div>
+            <span class="footer-link">
+              View Details
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </span>
+          </div>
+        </div>
+
+        <!-- Card — Planning -->
+        <div class="epic-card">
+          <div class="card-accent planning"></div>
+          <div class="card-body">
+            <div class="card-header-row">
+              <div>
+                <div class="epic-name">Gateway — SSO Integration</div>
+                <div class="epic-desc">Replace username-only auth with Active Directory SSO. All systems to share a unified session token.</div>
+              </div>
+              <span class="status-badge badge-planning">Planning</span>
+            </div>
+            <div class="progress-row">
+              <div class="progress-meta">
+                <span>Progress</span>
+                <span><strong>0</strong> / 5 items done</span>
+              </div>
+              <div class="progress-bar-track">
+                <div class="progress-bar-fill low" style="width:0%"></div>
+              </div>
+            </div>
+            <div class="item-counts">
+              <span class="count-chip chip-total">5 items</span>
+              <span class="count-chip chip-pending">5 pending</span>
+            </div>
+            <div class="sys-tags">
+              <span class="sys-tag">RGMC Gateway</span>
+              <span class="sys-tag">All Systems</span>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="footer-stat">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              TBD
+            </div>
+            <span class="footer-link">
+              View Details
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </span>
+          </div>
+        </div>
+
+        <!-- Card — On Hold -->
+        <div class="epic-card">
+          <div class="card-accent on_hold"></div>
+          <div class="card-body">
+            <div class="card-header-row">
+              <div>
+                <div class="epic-name">Consignment Web App — Reporting Module</div>
+                <div class="epic-desc">Advanced sales and stock reports with PDF export. On hold pending data model finalization from finance team.</div>
+              </div>
+              <span class="status-badge badge-on_hold">On Hold</span>
+            </div>
+            <div class="progress-row">
+              <div class="progress-meta">
+                <span>Progress</span>
+                <span><strong>3</strong> / 7 items done</span>
+              </div>
+              <div class="progress-bar-track">
+                <div class="progress-bar-fill hold" style="width:42%"></div>
+              </div>
+            </div>
+            <div class="item-counts">
+              <span class="count-chip chip-total">7 items</span>
+              <span class="count-chip chip-done">3 done</span>
+              <span class="count-chip chip-pending">4 pending</span>
+            </div>
+            <div class="sys-tags">
+              <span class="sys-tag">Consignment App</span>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="footer-stat">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              On Hold since <strong>Jun 20</strong>
+            </div>
+            <span class="footer-link">
+              View Details
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- DONE -->
+    <div class="epic-section done-section">
+      <div class="epic-section-header">
+        <span class="section-dot done"></span>
+        <h3>Completed</h3>
+        <span class="section-count">1</span>
+      </div>
+      <div class="epic-grid compact">
+        <div class="epic-card">
+          <div class="card-accent done"></div>
+          <div class="card-body">
+            <div class="card-header-row">
+              <div>
+                <div class="epic-name">Developer Board — Epics Feature</div>
+                <div class="epic-desc">Full epics implementation: CRUD, kanban integration, item assignment, promote-to-epic workflow.</div>
+              </div>
+              <span class="status-badge badge-done">Done</span>
+            </div>
+            <div class="progress-row">
+              <div class="progress-meta">
+                <span>Completed</span>
+                <span><strong>12</strong> / 12 items</span>
+              </div>
+              <div class="progress-bar-track">
+                <div class="progress-bar-fill" style="width:100%"></div>
+              </div>
+            </div>
+            <div class="item-counts">
+              <span class="count-chip chip-total">12 items</span>
+              <span class="count-chip chip-done">12 done</span>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="footer-stat">Completed <strong>Jul 13, 2026</strong></div>
+            <span class="footer-link">
+              View Archive
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+</body>
+</html>
