@@ -2754,7 +2754,8 @@ function openIssueLinkModal() {
   );
   document.querySelectorAll('.iss-link-tab-panel').forEach(p => p.style.display = 'none');
   document.getElementById('issueLinkTabIssue').style.display = '';
-  document.getElementById('issueLinkIsDuplicate').checked = false;
+  document.getElementById('issueLinkIsDuplicate').checked    = false;
+  document.getElementById('issueLinkDevIsDuplicate').checked = false;
   document.getElementById('issueLinkIssueSearch').value   = '';
   document.getElementById('issueLinkTaskSearch').value    = '';
   document.getElementById('issueLinkDevSearch').value     = '';
@@ -2813,11 +2814,17 @@ function _issueLinkUpdateSelected() {
 function _issueLinkUpdateConfirmBtn() {
   const btn      = document.getElementById('issueLinkConfirmBtn');
   const labelEl  = document.getElementById('issueLinkConfirmLabel');
-  const isDup    = document.getElementById('issueLinkIsDuplicate')?.checked;
+  const isIssueTab = _linkTab === 'issue';
+  const isDevTab   = _linkTab === 'dev_item';
+  const isDup      = isIssueTab
+    ? document.getElementById('issueLinkIsDuplicate')?.checked
+    : isDevTab
+      ? document.getElementById('issueLinkDevIsDuplicate')?.checked
+      : false;
   const enabled  = !!_linkSelectedId;
   btn.disabled   = !enabled;
-  if (_linkTab === 'issue' && isDup) {
-    labelEl.textContent = 'Mark Duplicate & Resolve';
+  if (isDup && (isIssueTab || isDevTab)) {
+    labelEl.textContent = isIssueTab ? 'Mark Duplicate & Resolve' : 'Mark Duplicate & Track';
     btn.classList.add('btn-modal-danger');
   } else {
     labelEl.textContent = 'Link';
@@ -2927,7 +2934,13 @@ function _selectLinkItem(id, label) {
 
 async function confirmIssueLink() {
   if (!_linkSelectedId || !_editingIssueId) return;
-  const isDup   = _linkTab === 'issue' && document.getElementById('issueLinkIsDuplicate').checked;
+  const isIssueTab = _linkTab === 'issue';
+  const isDevTab   = _linkTab === 'dev_item';
+  const isDup      = isIssueTab
+    ? document.getElementById('issueLinkIsDuplicate').checked
+    : isDevTab
+      ? document.getElementById('issueLinkDevIsDuplicate').checked
+      : false;
   const loadEl  = document.getElementById('issueLinkLoading');
   const errEl   = document.getElementById('issueLinkError');
   const actEl   = document.getElementById('issueLinkConfirmBtn');
@@ -2942,7 +2955,11 @@ async function confirmIssueLink() {
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Link failed');
     closeIssueLinkModal();
-    showToast(isDup ? 'Marked as duplicate and resolved.' : 'Issue linked.');
+    showToast(
+      isDup && isIssueTab ? 'Marked as duplicate and resolved.' :
+      isDup && isDevTab   ? 'Marked as duplicate — status will follow the dev item.' :
+      'Issue linked.'
+    );
     // Reload issues and re-open modal with fresh data
     await loadIssues(_currentIssueStatus);
     setTimeout(() => openIssueModal(_editingIssueId), 0);
@@ -4847,6 +4864,31 @@ function _buildPrintHtml(dev, opts = {}) {
 /* ── Admin Tour ── */
 
 const ADMIN_TOUR_SLIDES = 9;
+/* ── Mobile sidebar toggle ── */
+function toggleAdminSidebar() {
+  const sidebar   = document.getElementById('adminSidebar');
+  const backdrop  = document.getElementById('adminSidebarBackdrop');
+  const isOpen    = sidebar?.classList.contains('mobile-open');
+  sidebar?.classList.toggle('mobile-open');
+  backdrop?.classList.toggle('active');
+  document.body.style.overflow = isOpen ? '' : 'hidden';
+}
+
+function closeAdminSidebar() {
+  document.getElementById('adminSidebar')?.classList.remove('mobile-open');
+  document.getElementById('adminSidebarBackdrop')?.classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+/* Close sidebar when a nav item is clicked on mobile */
+document.addEventListener('click', e => {
+  const sidebar = document.getElementById('adminSidebar');
+  if (!sidebar?.classList.contains('mobile-open')) return;
+  if (e.target.closest('.admin-sb-item') && !e.target.closest('.admin-sb-mobile-close')) {
+    closeAdminSidebar();
+  }
+});
+
 const ADMIN_TOUR_KEY    = 'rgmc_admin_tour_done';
 let   _adminTourSlide   = 0;
 let   _adminTourEnterTimer = null;
@@ -4930,7 +4972,17 @@ function _adminTourRender() {
   if (backBtn) backBtn.classList.toggle('hidden', _adminTourSlide === 0);
 
   const nextBtn = document.getElementById('adminTourNext');
-  if (nextBtn) nextBtn.style.display = _adminTourSlide === ADMIN_TOUR_SLIDES - 1 ? 'none' : '';
+  if (nextBtn) {
+    const isLast = _adminTourSlide === ADMIN_TOUR_SLIDES - 1;
+    nextBtn.style.display = '';
+    if (isLast) {
+      nextBtn.innerHTML = 'Exit Tour <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+      nextBtn.onclick = adminTourDismiss;
+    } else {
+      nextBtn.innerHTML = 'Next <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+      nextBtn.onclick = adminTourGoNext;
+    }
+  }
 
   const skipBtn = document.getElementById('adminTourSkip');
   if (skipBtn) skipBtn.style.visibility = _adminTourSlide === ADMIN_TOUR_SLIDES - 1 ? 'hidden' : '';

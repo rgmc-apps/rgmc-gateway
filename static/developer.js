@@ -240,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (doneWeeksInput) doneWeeksInput.value = _doneWeeks;
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeDoneRemarksModal(); closeDetailModal(); closeEpicModal(); closeAddSystemModal(); closeArchiveModal(); closeProfileMenu(); }
+    if (e.key === 'Escape') { closeDoneRemarksModal(); closeDetailModal(); closeEpicModal(); closeAddSystemModal(); closeArchiveModal(); closeProfileMenu(); closeEpicPage(); }
   });
   document.addEventListener('click', e => {
     if (!e.target.closest('#sysMultiWrap'))     closeSysDropdown();
@@ -846,6 +846,8 @@ function openDetailModal(idOrNull) {
   document.getElementById('itemStatus').value   = item?.status ?? 'pending';
   document.getElementById('itemStart').value    = item?.start_date ?? '';
   document.getElementById('itemEstEnd').value   = item?.estimated_end_date ?? '';
+  const _spEl = document.getElementById('itemStoryPoints');
+  if (_spEl) _spEl.value = item?.story_points != null ? item.story_points : '';
   _buildSystemChecklist(_parseSystemIds(item ?? {}));
 
   // Epic dropdown
@@ -1083,6 +1085,7 @@ async function _execSaveItem(remarks, actionIds = [], files = []) {
     system_ids:         _getSelectedSystemIds(),
     start_date:         document.getElementById('itemStart').value || null,
     estimated_end_date: document.getElementById('itemEstEnd').value || null,
+    story_points:       (v => v !== '' && v !== null ? parseInt(v, 10) : null)(document.getElementById('itemStoryPoints')?.value ?? ''),
     actual_end_date,
     dev_item_type:      devItemType,
     epic_id:            document.getElementById('itemEpic')?.value || null,
@@ -1401,7 +1404,7 @@ function sortListBy(col) {
     _listSort.dir = _listSort.dir === 'asc' ? 'desc' : 'asc';
   } else {
     _listSort.col = col;
-    _listSort.dir = col === 'status' ? 'asc' : (col === 'elapsed' ? 'desc' : 'asc');
+    _listSort.dir = col === 'status' ? 'asc' : (col === 'elapsed' || col === 'story_points' ? 'desc' : 'asc');
   }
   renderListView();
 }
@@ -1442,6 +1445,9 @@ function _getListItems() {
     } else if (col === 'elapsed') {
       av = daysElapsed(a) ?? -1;
       bv = daysElapsed(b) ?? -1;
+    } else if (col === 'story_points') {
+      av = a.story_points ?? -1;
+      bv = b.story_points ?? -1;
     } else if (col === 'systems') {
       const sa = _parseSystemIds(a), sb = _parseSystemIds(b);
       av = sa.length ? (_systems.find(s => s.id === sa[0])?.name || '').toLowerCase() : '';
@@ -1526,7 +1532,7 @@ function renderListView() {
   if (countEl) countEl.textContent = `${items.length} item${items.length !== 1 ? 's' : ''}`;
 
   // Update sort icons
-  ['dev_item_code','title','status','dev_item_type','systems','created_by','start_date','estimated_end_date','elapsed'].forEach(col => {
+  ['dev_item_code','title','status','dev_item_type','systems','created_by','start_date','estimated_end_date','story_points','elapsed'].forEach(col => {
     const el = document.getElementById(`sort-${col}`);
     if (!el) return;
     el.textContent = _listSort.col === col ? (_listSort.dir === 'asc' ? '↑' : '↓') : '';
@@ -1583,6 +1589,7 @@ function renderListView() {
       </td>
       <td class="dlt-td dlt-date">${fmtDate(item.start_date)}</td>
       <td class="dlt-td dlt-date${overdue ? ' dlt-overdue' : ''}">${fmtDate(item.estimated_end_date)}${overdue ? ' ⚠' : ''}</td>
+      <td class="dlt-td">${item.story_points != null ? `<span class="dlt-sp">${item.story_points}<span class="dlt-sp-suffix">pt</span></span>` : `<span class="dlt-muted">—</span>`}</td>
       <td class="dlt-td">${elapsed !== null ? `<span class="dlt-elapsed-val">${elapsed}d</span>` : `<span class="dlt-muted">—</span>`}</td>
     </tr>`;
   }).join('');
@@ -1624,10 +1631,11 @@ function renderListView() {
             <td class="dlt-td"><div class="dlt-dev-cell">${avatarHtml}<span class="dlt-dev-name">${escHtml(devName)}</span></div></td>
             <td class="dlt-td dlt-date">${fmtDate(item.start_date)}</td>
             <td class="dlt-td dlt-date">${fmtDate(item.estimated_end_date)}</td>
+            <td class="dlt-td">${item.story_points != null ? `<span class="dlt-sp">${item.story_points}<span class="dlt-sp-suffix">pt</span></span>` : `<span class="dlt-muted">—</span>`}</td>
             <td class="dlt-td">${elapsed !== null ? `<span class="dlt-elapsed-val">${elapsed}d</span>` : `<span class="dlt-muted">—</span>`}</td>
           </tr>`;
         }).join('')
-      : `<tr><td colspan="8" class="dlt-empty">No parked items match the filters.</td></tr>`;
+      : `<tr><td colspan="9" class="dlt-empty">No parked items match the filters.</td></tr>`;
   }
 }
 
@@ -2097,6 +2105,7 @@ function _renderEpicItemRow(item) {
       <div class="epic-item-meta">
         ${typeBadge(item.dev_item_type)}
         ${devName ? `<span class="epic-item-assignee">${avatarHtml}<span>${escHtml(devName)}</span></span>` : ''}
+        ${item.story_points != null ? `<span class="epic-item-sp">${item.story_points}pt</span>` : ''}
         ${dateHtml}
       </div>
     </div>
@@ -2288,7 +2297,7 @@ async function _loadEpicPageItems(epicId) {
   const tbody   = document.getElementById('epicPageItemsBody');
   const countEl = document.getElementById('epicPageItemCount');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="9" class="dlt-empty">Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="10" class="dlt-empty">Loading…</td></tr>';
   try {
     const res = await fetch(`/api/dev/epics/${encodeURIComponent(epicId)}/items`, { headers: authHeaders() });
     if (!res.ok) throw new Error((await res.json()).error || 'Failed');
@@ -2301,7 +2310,7 @@ async function _loadEpicPageItems(epicId) {
     _updateEpicPageProgress();
     renderEpicPageItems();
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="9" class="dlt-empty">${escHtml(err.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" class="dlt-empty">${escHtml(err.message)}</td></tr>`;
   }
 }
 
@@ -2316,7 +2325,7 @@ function renderEpicPageItems() {
   if (statusF) items = items.filter(i => i.status === statusF);
 
   if (!items.length) {
-    tbody.innerHTML = `<tr><td colspan="9" class="dlt-empty">${_epicPageItems.length ? 'No items match filters.' : 'No items linked to this epic yet.'}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" class="dlt-empty">${_epicPageItems.length ? 'No items match filters.' : 'No items linked to this epic yet.'}</td></tr>`;
     return;
   }
   tbody.innerHTML = items.map(_renderEpicPageRow).join('');
@@ -2348,6 +2357,7 @@ function _renderEpicPageRow(item) {
     <td class="dlt-td" style="font-size:12.5px;color:var(--text-secondary);">${devName ? escHtml(devName) : '<span style="color:var(--text-muted);">—</span>'}</td>
     <td class="dlt-td" style="color:var(--text-muted);font-size:12px;">${item.date_started ? fmtDate(item.date_started) : '—'}</td>
     <td class="dlt-td" style="color:${overdue ? '#f87171' : 'var(--text-muted)'};font-size:12px;">${item.estimated_end_date ? fmtDate(item.estimated_end_date) : '—'}</td>
+    <td class="dlt-td">${item.story_points != null ? `<span class="dlt-sp">${item.story_points}<span class="dlt-sp-suffix">pt</span></span>` : `<span class="dlt-muted">—</span>`}</td>
     <td class="dlt-td" style="color:var(--text-muted);font-size:12px;">${elapsed !== null ? `${elapsed}d` : '—'}</td>
     <td class="dlt-td">${sysName ? `<span class="kcard-system-tag" style="font-size:11px;">${escHtml(sysName)}</span>` : '<span style="color:var(--text-muted);">—</span>'}</td>
   </tr>`;

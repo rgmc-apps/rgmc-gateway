@@ -1,0 +1,400 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   Mobile Responsiveness — additive only; desktop layout unchanged.
+   Breakpoints: 900px (large tablet), 768px (tablet), 640px (mobile), 480px (small)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Header actions wrapper (hamburger + user) ── */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ── Hamburger & sidebar backdrop — hidden on desktop ── */
+.admin-menu-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.admin-menu-toggle:hover {
+  background: rgba(196,151,42,0.1);
+  border-color: var(--gold-border);
+  color: var(--gold);
+}
+
+.admin-sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 149;
+  background: rgba(0,0,0,0.62);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+.admin-sidebar-backdrop.active { display: block; }
+
+.admin-sb-mobile-close {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+  line-height: 1;
+}
+.admin-sb-mobile-close:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+
+/* ══════════════════════════════════════════════════════════════
+   ≤ 900px  — Large tablet
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  /* Admin content gets breathing room when sidebar present */
+  .admin-content { padding: 28px 24px 56px; }
+
+  /* Kanban already has its own breakpoints — just trim gaps */
+  .dev-stats-bar { gap: 6px; }
+
+  /* Admin tabs start allowing scroll */
+  .admin-tabs {
+    overflow-x: auto;
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .admin-tabs::-webkit-scrollbar { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ≤ 768px  — Tablet / phablet
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* ── Global layout ── */
+  .main { padding: 100px 18px 60px; gap: 44px; }
+  .site-header { padding: 14px 16px; }
+  .header-inner { padding: 8px 10px 8px 16px; gap: 8px; max-width: 100%; }
+  .header-tagline, .header-divider { display: none; }
+  .header-logo-img { height: 26px; }
+  .section-title { font-size: 22px; }
+
+  /* ── Admin layout: sidebar → mobile drawer ── */
+  .admin-menu-toggle { display: flex; }
+  .admin-sb-mobile-close { display: flex; }
+
+  .admin-main.has-sidebar {
+    display: block;
+    padding: 0;
+    margin: 0;
+    max-width: 100%;
+  }
+
+  .admin-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 150;
+    height: 100dvh;
+    width: 264px;
+    transform: translateX(-100%);
+    transition: transform 0.3s var(--ease-spring);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding-top: 16px;
+  }
+  .admin-sidebar.mobile-open { transform: translateX(0); box-shadow: 8px 0 40px rgba(0,0,0,0.6); }
+
+  .admin-content {
+    padding: 100px 16px 56px;
+    min-height: 100vh;
+  }
+
+  /* ── Admin header in header-user area ── */
+  .header-user .admin-menu-toggle { margin-right: 4px; }
+
+  /* ── Admin tabs ── */
+  .admin-tabs {
+    overflow-x: auto;
+    width: 100%;
+    flex-shrink: 0;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .admin-tabs::-webkit-scrollbar { display: none; }
+  .admin-tab { white-space: nowrap; }
+
+  /* ── Admin status sub-tabs ── */
+  .admin-status-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .admin-status-tabs::-webkit-scrollbar { display: none; }
+  .status-tab { white-space: nowrap; flex-shrink: 0; }
+
+  /* ── Admin toolbar ── */
+  .admin-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .admin-toolbar-search-wrap { min-width: 0; flex: 1 1 160px; }
+  .admin-toolbar-search { width: 100%; }
+  .admin-toolbar-search:focus { width: 100%; }
+
+  /* ── Admin table: allow horizontal scroll ── */
+  .admin-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* ── Issue tracker KPI strip ── */
+  .iss-kpi-strip { gap: 8px; }
+  .iss-kpi-card { min-width: 90px; padding: 10px 12px; }
+  .iss-kpi-val { font-size: 22px; }
+
+  /* ── Issue filter bar ── */
+  .iss-filter-bar { flex-wrap: wrap; gap: 7px; }
+  .iss-filter-search-wrap { min-width: 0; flex: 1 1 180px; }
+
+  /* ── Status sub-tabs on issue tracker ── */
+  .admin-status-tabs { gap: 4px; }
+
+  /* ── Dev board page header ── */
+  .dev-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .dev-page-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  /* ── Dev view mode buttons + filter tabs ── */
+  .dev-view-switcher {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .dev-view-switcher::-webkit-scrollbar { display: none; }
+
+  /* ── Dev list table ── */
+  .dev-list-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .dev-list-table { min-width: 760px; }
+
+  /* ── Epic page view ── */
+  .epic-page-nav { flex-wrap: wrap; gap: 8px; }
+  .epic-page-nav-actions { flex-wrap: wrap; }
+  .epic-page-header-block { padding: 16px 18px; }
+  .epic-page-title-row { gap: 8px; }
+  .epic-page-name { font-size: 18px; }
+
+  /* ── Epic items toolbar ── */
+  .epic-items-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .epic-items-toolbar-left { flex: 1; }
+  .dev-list-search-wrap { flex: 1 1 160px; }
+
+  /* ── Dev epics grid ── */
+  .epic-cards-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) !important; }
+
+  /* ── Modal sizing ── */
+  .modal-overlay { padding: 12px; }
+  .modal { border-radius: var(--radius); }
+  .modal-lg  { max-width: 100%; }
+  .modal-xl  { max-width: 100%; overflow-y: auto; height: auto; display: block; }
+  .item-detail-body { grid-template-columns: 1fr !important; height: auto; max-height: none; }
+  .item-detail-log  { border-left: none; border-top: 1px solid var(--border-subtle); height: 300px; }
+  .detail-new .item-detail-log { display: none !important; }
+
+  /* ── Tour modal ── */
+  .tour-modal { width: calc(100% - 24px); max-height: calc(100dvh - 24px); }
+  .tour-body { flex-direction: column; min-height: auto; }
+  .tour-content { padding: 24px 24px 0; }
+  .tour-illus { height: 200px; }
+  .tour-head { padding: 14px 18px; }
+  .tour-foot { padding: 14px 18px; }
+
+  /* ── Admin tour ── */
+  .admin-tour-overlay .tour-modal { width: calc(100% - 24px); }
+  .admin-tour-overlay .tour-body { flex-direction: column; }
+  .admin-tour-overlay .tour-illus { height: 180px; }
+
+  /* ── Profile page ── */
+  .profile-grid { grid-template-columns: 1fr !important; }
+
+  /* ── Report issue form ── */
+  .ri-form-grid { grid-template-columns: 1fr !important; }
+
+  /* ── Helpdesk modal ── */
+  .hd-ticket-types { gap: 6px; }
+
+  /* ── Workspace tabs ── */
+  .ws-subtabs-row {
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .ws-subtabs-row::-webkit-scrollbar { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ≤ 640px  — Mobile
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+
+  /* ── Global ── */
+  .main { padding: 92px 14px 52px; gap: 36px; }
+  .header-inner { padding: 8px 8px 8px 14px; gap: 8px; }
+  .header-username { display: none; }
+  .btn-header-access { font-size: 11px; padding: 6px 11px; }
+  .section-title { font-size: 19px; }
+
+  /* ── Systems / health grids ── */
+  .systems-grid  { grid-template-columns: 1fr; }
+  .health-grid   { grid-template-columns: 1fr; }
+  .health-header-row { flex-direction: column; align-items: flex-start; }
+  .site-card-actions { flex-direction: column; }
+  .btn-report { margin-left: 0; }
+
+  /* ── Gate card ── */
+  .gate-card-inner { padding: 34px 22px 28px; }
+  .gate-title { font-size: 22px; }
+
+  /* ── Form layouts ── */
+  .form-row   { grid-template-columns: 1fr !important; }
+  .form-row-3 { grid-template-columns: 1fr !important; }
+
+  /* ── Admin page ── */
+  .admin-page-title { font-size: 22px; }
+  .admin-content { padding: 90px 14px 48px; }
+
+  /* ── Admin KPI strip in issue tracker ── */
+  .iss-kpi-strip { flex-wrap: wrap; }
+  .iss-kpi-card { flex: 1 1 calc(50% - 8px); min-width: 0; }
+
+  /* ── Dev board ── */
+  .dev-page-actions { flex-wrap: wrap; }
+  .dev-stats-bar { gap: 6px; }
+  .dev-stat-pill { min-width: 0; flex: 1 1 calc(50% - 6px); }
+
+  /* ── Epic header ── */
+  .epic-page-name { font-size: 16px; }
+  .epic-page-header-block { padding: 14px 15px; }
+
+  /* ── Dev items search row ── */
+  .epic-items-toolbar { gap: 6px; }
+  #epicPageSearch { width: 100%; }
+
+  /* ── Modal ── */
+  .modal-header { padding: 20px 18px 16px; }
+  .modal-title { font-size: 17px; }
+  .item-detail-form { padding: 18px 16px 0; }
+  .item-detail-footer { padding: 14px 16px 18px; }
+  .item-detail-footer-right { flex-wrap: wrap; }
+
+  /* ── Tour on small screens ── */
+  .tour-illus { display: none; }
+  .tour-content { padding: 20px 20px 0; }
+  .tour-headline { font-size: 24px; }
+  .tour-sub { font-size: 14px; }
+
+  /* ── Admin tour ── */
+  .admin-tour-overlay .tour-illus { display: none; }
+
+  /* ── Workspace ── */
+  .issue-card { padding: 13px 14px; }
+  .issue-card-title { font-size: 13px; }
+
+  /* ── Kanban board filter tabs ── */
+  .dev-filter-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+  .dev-filter-tabs::-webkit-scrollbar { display: none; }
+
+  /* ── Epics grid ── */
+  .epic-cards-grid { grid-template-columns: 1fr !important; }
+
+  /* ── checkbox grid for access requests ── */
+  .checkbox-grid { grid-template-columns: 1fr; }
+
+  /* ── Profile ── */
+  .profile-card { padding: 20px 16px; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ≤ 480px  — Small mobile
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+
+  /* ── Global ── */
+  .main { padding: 88px 12px 48px; }
+  .header-inner { padding: 7px 8px 7px 12px; }
+  .header-logo-img { height: 22px; }
+
+  /* ── Gate ── */
+  .gate-card-inner { padding: 28px 18px 24px; }
+  .gate-title { font-size: 20px; }
+
+  /* ── Admin ── */
+  .admin-content { padding: 86px 12px 44px; }
+  .admin-page-title { font-size: 20px; }
+  .admin-tab { padding: 8px 13px; font-size: 12px; }
+
+  /* ── Issue KPI strip: single column ── */
+  .iss-kpi-card { flex: 1 1 100%; }
+
+  /* ── Dev stat pills: single column ── */
+  .dev-stat-pill { flex: 1 1 100%; }
+
+  /* ── Dev page header ── */
+  .dev-page-actions { gap: 6px; }
+
+  /* ── Modal ── */
+  .modal-overlay { padding: 8px; }
+  .modal-header { padding: 16px 14px 14px; }
+  .modal-title { font-size: 16px; }
+  .item-detail-form { padding: 14px 12px 0; gap: 13px; }
+  .item-detail-footer { padding: 12px 14px 16px; flex-wrap: wrap; gap: 8px; }
+
+  /* ── Buttons ── */
+  .btn-admin-add    { padding: 8px 14px; font-size: 12px; }
+  .btn-admin-secondary { padding: 8px 14px; font-size: 12px; }
+
+  /* ── Epic page ── */
+  .epic-back-btn { font-size: 12px; }
+  .epic-page-edit-btn,
+  .epic-page-delete-btn { padding: 5px 10px; font-size: 11.5px; }
+
+  /* ── Tour ── */
+  .tour-modal { border-radius: var(--radius); }
+  .tour-headline { font-size: 20px; }
+  .tour-sub { font-size: 13px; }
+  .btn-tour-primary { padding: 11px 18px; font-size: 13px; }
+
+  /* ── Sidebar drawer ── */
+  .admin-sidebar { width: calc(100vw - 48px); max-width: 280px; }
+}

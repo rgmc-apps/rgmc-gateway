@@ -94,7 +94,7 @@ def dev_update_item(item_id):
         return jsonify(err[0]), err[1]
     data    = request.get_json(silent=True) or {}
     remarks = (data.get("remarks") or "").strip()
-    allowed = {"title", "description", "status", "system_id", "system_ids", "start_date", "estimated_end_date", "actual_end_date", "dev_item_type", "resolution_action_ids", "resolution_attachment_urls", "epic_id", "is_parked", "assigned_to"}
+    allowed = {"title", "description", "status", "system_id", "system_ids", "start_date", "estimated_end_date", "actual_end_date", "dev_item_type", "resolution_action_ids", "resolution_attachment_urls", "epic_id", "is_parked", "assigned_to", "story_points"}
     patch   = {k: v for k, v in data.items() if k in allowed}
     if "system_ids" in patch:
         ids = [s for s in (patch["system_ids"] or []) if s]
@@ -146,39 +146,52 @@ def dev_update_item(item_id):
         except Exception as exc:
             current_app.logger.warning("dev_update_item: activity log failed: %s", exc)
 
-    if becoming_done:
+    if new_status and old_status != new_status:
         try:
             linked = supabase_req("GET", "/issues", params={
                 "dev_item_id": f"eq.{item_id}",
                 "select":      "*",
             })
             if linked:
-                issue = linked[0]
-                if issue.get("status") not in ("resolved", "closed"):
+                resolver_name = ""
+                if becoming_done:
                     dev_row = supabase_req("GET", "/users", params={
                         "username": f"eq.{dev_username}",
                         "select":   "first_name,last_name",
                     })
-                    resolver_name = ""
                     if dev_row:
                         u = dev_row[0]
                         resolver_name = f"{u.get('first_name') or ''} {u.get('last_name') or ''}".strip() or dev_username
-                    dev_action_ids   = data.get("resolution_action_ids") or []
-                    dev_attach_urls  = [u for u in (data.get("resolution_attachment_urls") or []) if u]
-                    issue_patch = {
-                        "status":                     "resolved",
-                        "resolution_notes":           remarks or None,
-                        "resolved_by":                resolver_name or None,
-                        "resolved_at":                datetime.now(timezone.utc).isoformat(),
-                        "resolution_action_ids":      dev_action_ids or None,
-                        "resolution_attachment_urls": dev_attach_urls or None,
-                    }
-                    supabase_req("PATCH", "/issues", data=issue_patch, params={"id": f"eq.{issue['id']}"})
-                    dev_action_names = resolve_action_names(dev_action_ids)
-                    send_issue_resolved_email(
-                        issue, remarks, resolver_name, "resolved",
-                        action_names=dev_action_names, attachment_urls=dev_attach_urls,
-                    )
+                dev_action_ids  = data.get("resolution_action_ids") or []
+                dev_attach_urls = [u for u in (data.get("resolution_attachment_urls") or []) if u]
+                _dup_status_map = {
+                    "pending": "open",
+                    "ongoing": "in_progress",
+                    "coding":  "in_progress",
+                    "testing": "in_progress",
+                }
+                for issue in linked:
+                    if issue.get("status") in ("resolved", "closed"):
+                        continue
+                    if becoming_done:
+                        issue_patch = {
+                            "status":                     "resolved",
+                            "resolution_notes":           remarks or None,
+                            "resolved_by":                resolver_name or None,
+                            "resolved_at":                datetime.now(timezone.utc).isoformat(),
+                            "resolution_action_ids":      dev_action_ids or None,
+                            "resolution_attachment_urls": dev_attach_urls or None,
+                        }
+                        supabase_req("PATCH", "/issues", data=issue_patch, params={"id": f"eq.{issue['id']}"})
+                        dev_action_names = resolve_action_names(dev_action_ids)
+                        send_issue_resolved_email(
+                            issue, remarks, resolver_name, "resolved",
+                            action_names=dev_action_names, attachment_urls=dev_attach_urls,
+                        )
+                    elif issue.get("is_duplicate"):
+                        mapped = _dup_status_map.get(new_status)
+                        if mapped:
+                            supabase_req("PATCH", "/issues", data={"status": mapped}, params={"id": f"eq.{issue['id']}"})
         except Exception as exc:
             current_app.logger.error("dev_update_item issue cascade failed: %s", exc)
 

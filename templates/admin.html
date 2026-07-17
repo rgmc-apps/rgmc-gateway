@@ -30,9 +30,17 @@
         <div class="header-divider"></div>
         <div class="header-tagline">Admin Panel</div>
       </a>
-      <div id="adminHeaderUser" class="header-user"></div>
+      <div class="header-actions">
+        <button class="admin-menu-toggle" id="adminMenuToggle" onclick="toggleAdminSidebar()" aria-label="Open navigation">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div id="adminHeaderUser" class="header-user"></div>
+      </div>
     </div>
   </header>
+
+  <!-- Mobile sidebar backdrop -->
+  <div class="admin-sidebar-backdrop" id="adminSidebarBackdrop" onclick="closeAdminSidebar()"></div>
 
   <main class="admin-main has-sidebar">
 
@@ -44,6 +52,7 @@
           <span class="admin-sb-title">Admin Panel</span>
           <span class="admin-sb-sub">RGMC Gateway</span>
         </div>
+        <button class="admin-sb-mobile-close" onclick="closeAdminSidebar()" aria-label="Close navigation">&times;</button>
       </div>
 
       <div class="admin-sb-nav">
@@ -1512,6 +1521,12 @@
 
       <!-- Dev item tab -->
       <div id="issueLinkTabDev" class="iss-link-tab-panel" style="display:none;">
+        <label class="iss-link-dup-label">
+          <input type="checkbox" id="issueLinkDevIsDuplicate" onchange="issueLinkDupChange()">
+          <span class="iss-link-dup-text">
+            <strong>Mark as Duplicate</strong> — issue status will follow the dev item; reporter notified when resolved
+          </span>
+        </label>
         <input class="form-input iss-link-search" id="issueLinkDevSearch"
           type="search" placeholder="Search dev items by title…"
           oninput="issueLinkSearch('dev_item', this.value)" autocomplete="off">

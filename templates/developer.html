@@ -220,13 +220,16 @@
               <th class="dlt-th" data-col="estimated_end_date" onclick="sortListBy('estimated_end_date')">
                 Est. End <span class="dlt-sort-icon" id="sort-estimated_end_date"></span>
               </th>
+              <th class="dlt-th" data-col="story_points" onclick="sortListBy('story_points')">
+                SP <span class="dlt-sort-icon" id="sort-story_points"></span>
+              </th>
               <th class="dlt-th" data-col="elapsed" onclick="sortListBy('elapsed')">
                 Elapsed <span class="dlt-sort-icon" id="sort-elapsed"></span>
               </th>
             </tr>
           </thead>
           <tbody id="devListBody">
-            <tr><td colspan="9" class="dlt-empty">Loading…</td></tr>
+            <tr><td colspan="10" class="dlt-empty">Loading…</td></tr>
           </tbody>
         </table>
       </div>
@@ -249,11 +252,12 @@
                 <th class="dlt-th">Developer</th>
                 <th class="dlt-th">Start</th>
                 <th class="dlt-th">Est. End</th>
+                <th class="dlt-th">SP</th>
                 <th class="dlt-th">Elapsed</th>
               </tr>
             </thead>
             <tbody id="parkedListBody">
-              <tr><td colspan="8" class="dlt-empty">No parked items.</td></tr>
+              <tr><td colspan="9" class="dlt-empty">No parked items.</td></tr>
             </tbody>
           </table>
         </div>
@@ -442,12 +446,13 @@
                 <th class="dlt-th">Assigned To</th>
                 <th class="dlt-th">Start</th>
                 <th class="dlt-th">Est. End</th>
+                <th class="dlt-th">SP</th>
                 <th class="dlt-th">Elapsed</th>
                 <th class="dlt-th">System</th>
               </tr>
             </thead>
             <tbody id="epicPageItemsBody">
-              <tr><td colspan="9" class="dlt-empty">Loading…</td></tr>
+              <tr><td colspan="10" class="dlt-empty">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -550,9 +555,15 @@
             </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label" for="itemEstEnd">Estimated End Date</label>
-            <input class="form-input" type="date" id="itemEstEnd">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="itemEstEnd">Estimated End Date</label>
+              <input class="form-input" type="date" id="itemEstEnd">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="itemStoryPoints">Story Points <span class="form-label-hint">(1 pt = 1 day)</span></label>
+              <input class="form-input" type="number" id="itemStoryPoints" min="0" step="1" placeholder="—">
+            </div>
           </div>
 
           <div class="form-group form-group-inline">

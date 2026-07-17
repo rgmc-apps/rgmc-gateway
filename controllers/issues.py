@@ -877,12 +877,20 @@ def admin_link_issue(issue_id):
     elif link_type == "dev_item":
         # Verify dev item exists
         try:
-            t_rows = supabase_req("GET", "/dev_items", params={"id": f"eq.{target_id}", "select": "id"})
+            t_rows = supabase_req("GET", "/dev_items", params={"id": f"eq.{target_id}", "select": "id,title"})
         except Exception:
             return jsonify({"error": "Failed to fetch target dev item"}), 500
         if not t_rows:
             return jsonify({"error": "Dev item not found"}), 404
         patch["dev_item_id"] = target_id
+        if is_duplicate:
+            dev_item_title = t_rows[0].get("title", "")
+            patch["is_duplicate"] = True
+            patch["status"]       = "in_progress"
+            patch["resolution_notes"] = (
+                f"Duplicate — tracked in dev board: {dev_item_title}"
+                if dev_item_title else "Duplicate — tracked in dev board"
+            )
 
     else:
         return jsonify({"error": f"Invalid link_type: {link_type}"}), 400
