@@ -5058,6 +5058,7 @@ function _initAdminTourSwipe() {
 
   vp.addEventListener('pointerdown', e => {
     if (e.pointerType === 'touch') return;
+    if (e.target.closest('button, a, input, select')) return;
     _adminTourDragStart = e.clientX;
     vp.setPointerCapture(e.pointerId);
   });
