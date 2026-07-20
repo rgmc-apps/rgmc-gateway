@@ -4,75 +4,112 @@
 
 Maintain and extend the RGMC Gateway — a Flask internal portal for RGMC Group with issue tracking, IT helpdesk, developer board (kanban/list/epics), admin panel, and access management. Dark luxury theme (`--gold: #C4972A`, `--bg: #080604`), fonts: Plus Jakarta Sans + Playfair Display.
 
-Two features were completed this session:
-1. **Epic detail page** — replace cramped modal items display with a full-page view showing dev items in a proper list table when you click an epic card.
-2. **Comment email notification** — when a staff user posts a comment on an issue, send an email to the reporter's email address.
+This session completed six features across two commits:
+1. **"Duplicate as…" on dev items** — copy a dev item as a different item type, status resets to pending
+2. **Epic share link** — share button copies `?epic=<id>` URL; deep links auto-open the epic page
+3. **Dev item types in admin config** — "Dev Item Types" sub-tab in admin → Configurations
+4. **Color coding for item types** — DB-backed hex color per type, color pickers in gear modal + admin config, inline-style badges replace hardcoded CSS classes
+5. **Issue alert panels** — "Open & Urgent" (P1/P2 open issues) and "Stalled In-Progress" (in-progress > 7 days) panels on the admin issues screen
+6. **`story_points` on item create** — POST `/api/dev/items` now accepts `story_points` so duplicated items preserve SP
 
 ## Current State
 
-Both features are fully implemented and in a clean, complete state. No broken/mid-edit files.
+**All features fully implemented. Working tree is clean (no uncommitted changes). Latest commit: `c6eb3ea`.**
 
-### Epic Detail Page — DONE
-- Clicking an epic card now opens `#epicPageView` (a full-page view) instead of the form modal
-- Shows epic header (title, status badge, description, system tags, progress bar)
-- Dev items displayed in a `.dev-list-table` with columns: Code, Title, Type, Status, Assigned To, Start, Est. End, Elapsed, System
-- Search and status filter on the toolbar
-- "Back to Epics" button returns to the grid
-- Edit button opens the existing epic form modal; Save refreshes the page header
-- Delete button has confirm dialog, deletes, then returns to grid
-- Add Item button wires `_addItemToEpicId` and opens item modal; closing item modal auto-reloads items
-- Progress bar (done/total) updates after item load
+### Duplicate as… — DONE
+- "Duplicate as…" button appears in dev item detail modal footer (left side, next to Delete), only for existing items (hidden for new)
+- Clicking opens a dropdown of all other active item types (excludes current type)
+- `duplicateItemAs(targetTypeName)` POSTs a copy with `status: 'pending'` and all fields from source, then opens the new item's detail modal
+- `_buildDupTypeMenu()` / `toggleDupTypeMenu(e)` handle menu build and toggle
+- Clicking outside closes the menu (document click handler)
+- CSS: `.dup-type-wrap`, `.btn-detail-dup`, `.dup-type-menu`, `.dup-type-option`, `.dup-type-empty` in `dev-board.css`
 
-### Comment Email Notification — DONE
-- `POST /api/issues/<issue_id>/comments` now sends an email to the reporter after saving
-- Email is best-effort: failure is logged as a warning and never blocks or errors the API response
-- Email template matches existing RGMC dark-gold style, includes: commenter name, system, issue title, ticket number, comment text, View Ticket button
-- Reply-To is set to the IT department email (`developer_email`)
+### Epic Share — DONE
+- Share button in `epic-page-nav-actions` (left of Edit) copies `?epic=<epic_id>` URL to clipboard via `navigator.clipboard`
+- `openEpicPage(epicId, { pushState })` pushes history state; `closeEpicPage()` pops it
+- On page load, checks `URLSearchParams` for `?epic=` param; if found, calls `setViewMode('epics')` then `openEpicPage`
+- `popstate` listener handles browser back/forward through epics
+- CSS: `.epic-page-share-btn` added to existing nav button rule in `dev-board.css`
+
+### Dev Item Types in Admin Config — DONE
+- New "Dev Item Types" sub-tab in admin → Configurations panel
+- Table shows colored badge preview, sort order, freeform flag, active status, Edit/Delete buttons
+- Modal has: Name, Badge Color picker, Sort Order, Active toggle, Freeform toggle
+- Uses existing `/api/dev/item-types` endpoints from `controllers/developer.py` (accessible by admins via `_require_developer` which accepts admins)
+- JS: `loadCfgDevItemTypes`, `_renderCfgDevItemTypes`, `openCfgDevItemTypeModal`, `closeCfgDevItemTypeModal`, `saveCfgDevItemType`, `deleteCfgDevItemType` appended to `admin.js`
+- State: `_cfgDevItemTypesCache`, `_cfgDevItemTypeEditId` added at top of `admin.js`
+- Escape key closes the modal (added to keydown handler in `admin.js`)
+
+### Color Coding — DONE
+- **Migration applied**: `dev_item_types` table has `color TEXT` column, backfilled:
+  - New Feature `#22d3ee`, Improvement `#60a5fa`, Bug Fix `#f87171`, Admin Task `#fbbf24`, Discussion `#c4b5fd`, Maintenance `#94a3b8`, Others `#a1a1aa`
+- **Badges**: Replaced `TYPE_CLASS` map + CSS classes with `_typeColor(name)` + `_colorBadgeStyle(hex)` helpers generating inline `rgba` styles. Works for any type name.
+- **Gear modal rows**: `<input type="color">` swatch per row → `saveItemTypeColor(id, color)` on `onchange`
+- **Add type form** in gear modal: color swatch `id="newItemTypeColor"` included in POST payload
+- **Admin modal**: Badge Color picker `id="cfgDevItemTypeColor"` next to Name field
+- **Backend**: `color` accepted in POST and PATCH item type endpoints (`developer.py`)
+- **CSS**: `.itype-color-swatch`, `.itype-color-swatch--lg` in `dev-board.css`
+
+### Issue Alert Panels — DONE
+- Two panels inserted between KPI strip and filter bar in `panel-issues` (`admin.html`)
+- **Open & Urgent** (`#issUrgentPanel`): `status === 'open'` AND priority P1 or P2; sorted P1-first then oldest-first; red-accented
+- **Stalled In-Progress** (`#issStalledPanel`): `status === 'in_progress'` AND `_daysSince(created_at) > 7`; sorted oldest-first; amber-accented
+- Both draw from `_issuesCache` directly (unaffected by active filters/date range)
+- Both hidden when empty; collapsible by clicking header (chevron rotates)
+- `_renderIssuePriorityPanels(all)` called from `loadIssues()` after cache population
+- `toggleIssAlertPanel(type)` handles collapse state; `_daysSince(dateStr)` is a shared helper
+- Compact table rows are clickable → `openIssueModal(id)`
+- Age pills: `iss-age-pill--urgent` (red, for urgent panel), `iss-age-pill--warn` (amber, 8–14 days), `iss-age-pill--critical` (deep red, 15+ days)
+- CSS: `.iss-alert-panels`, `.iss-alert-panel`, `.iss-alert-header`, `.iss-alert-icon`, `.iss-alert-title`, `.iss-alert-sub`, `.iss-alert-count`, `.iss-alert-chevron`, `.iss-alert-body`, `.iss-alert-table`, `.iss-alert-row`, `.iss-alert-desc`, `.iss-alert-site`, `.iss-age-pill`, `.iss-alert-open-btn` appended to `issue-tracker.css`
 
 ## Files Actively Being Edited
 
-- `templates/developer.html` — Added `#epicPageView` div (lines ~363–456) with full page structure: nav bar, header block, items section with search/filter/table. Complete, no further changes needed.
+All files are in clean committed state.
 
-- `static/css/dev-board.css` — Added ~160 lines at end of file for all epic page classes: `.epic-page-view`, `.epic-page-nav`, `.epic-back-btn`, `.epic-page-edit-btn`, `.epic-page-delete-btn`, `.epic-page-header-block`, `.epic-page-title-row`, `.epic-page-star-icon`, `.epic-page-name`, `.epic-page-desc`, `.epic-page-meta-row`, `.epic-page-systems`, `.epic-page-progress-*`, `.epic-page-items-section`, `.epic-items-toolbar`, `.epic-items-toolbar-left`, `.epic-items-section-label`, `.dev-list-table-wrap`. Complete.
-
-- `static/developer.js` — Multiple changes:
-  - Lines 79–80: Added globals `_epicPageId = null` and `_epicPageItems = []`
-  - Lines ~113–120: `setViewMode` now hides `#epicPageView` and resets page state when switching away from epics mode
-  - Lines ~920–930: `closeDetailModal` now calls `_loadEpicPageItems(_epicPageId)` after close if on epic page
-  - Line ~1916: `_epicCardHtml` now calls `openEpicPage(...)` instead of `openEpicModal(...)`
-  - Line ~2148: `saveEpic` calls `_populateEpicPage(saved)` when `_epicPageId === saved.epic_id`
-  - Lines 2223–2395: New epic page section with all functions: `openEpicPage`, `closeEpicPage`, `_populateEpicPage`, `_updateEpicPageProgress`, `_loadEpicPageItems`, `renderEpicPageItems`, `_renderEpicPageRow`, `addItemToEpicPage`, `editCurrentEpic`, `deleteCurrentEpic`. Complete.
-
-- `services/email.py` — Added `send_issue_comment_email(issue, comment, commenter_name)` before `_full_name`. Sends to `issue["email"]`, skips if no email. Complete.
-
-- `controllers/issues.py` — Two changes:
-  - Line 8: Added `send_issue_comment_email` to the import from `services.email`
-  - Lines 761–783: `post_issue_comment` now fetches the issue and calls `send_issue_comment_email` after saving. Complete.
+- `templates/developer.html` — Added: "Duplicate as…" dropdown in item footer; Share button in epic nav; color swatch in gear modal "add type" form; color picker in `#itemTypesModal`
+- `templates/admin.html` — Added: Dev Item Types sub-tab + sub-panel + modal; issue alert panels HTML (`#issAlertPanels`, `#issUrgentPanel`, `#issStalledPanel`); `cfgDevItemTypeModal`
+- `static/developer.js` — Added: `_typeColor`, `_colorBadgeStyle`, `typeBadge` rewrite; `saveItemTypeColor`; `_buildDupTypeMenu`, `toggleDupTypeMenu`, `duplicateItemAs`; `shareEpicPage`; `openEpicPage` updated with `pushState` option; `closeEpicPage` updated with history pop; `popstate` listener; deep link init; `_renderIssuePriorityPanels` logic
+- `static/admin.js` — Added: `_cfgDevItemTypesCache`, `_cfgDevItemTypeEditId` state; all `CfgDevItemType*` functions; `_renderIssuePriorityPanels`, `_renderUrgentPanel`, `_renderStalledPanel`, `toggleIssAlertPanel`, `_daysSince`, `_agePill`; `_loadCurrentConfigSub` updated; escape handler updated
+- `static/css/dev-board.css` — Added: `.epic-page-share-btn`; `.dup-type-wrap` / `.btn-detail-dup` / `.dup-type-menu` / `.dup-type-option`; `.itype-color-swatch`
+- `static/css/issue-tracker.css` — Added: all `.iss-alert-*` and `.iss-age-pill-*` styles
+- `controllers/developer.py` — Added: `story_points` accepted in POST `/api/dev/items`; `color` accepted in POST and PATCH `/api/dev/item-types`
+- `supabase-migrations/dev_item_types_migration.sql` — Created (earlier session): `dev_item_types` table definition + seed
 
 ## Failed Attempts
 
-None this session. All implementations went in cleanly on first attempt.
+- **`TYPE_CLASS` removal**: First attempt tried string replacement with backslash-escaped characters in `typeCls` — the file had forward slashes; matched after re-reading exact file content.
+- **PowerShell `Add-Content` via Bash tool**: Failed — PowerShell commands must use the PowerShell tool, not Bash. Switched to PowerShell tool for CSS append operations.
+- **Edit tool on `dev-board.css` without reading first**: Failed with "file not read" error after the file was modified by `Add-Content`. Always read or use `Add-Content` → PowerShell before editing.
 
 ## Next Step
 
-**Test both features end-to-end in the browser:**
+**Test the "Duplicate as…" feature end-to-end:**
+1. Start the Flask server and open the Developer board
+2. Open any existing dev item's detail modal
+3. Verify "Duplicate as…" button appears in the footer (left side, next to Delete)
+4. Click it — dropdown should appear listing all other active item types (excluding the current item's type)
+5. Click a type — should create a new item with all same fields, `status: pending`, and open it immediately
+6. Verify story points, epic, assigned_to, and system_ids all copied correctly
 
-1. Start the Flask server and navigate to Developer board → Epics tab. Click an epic card — the epic page view should open with the items table. Test: Back button, Edit (save should refresh header), Delete (confirm dialog + returns to grid), Add Item (auto-reloads table on modal close), search/filter inputs.
-
-2. For comment email: post a comment on an issue via the admin panel and verify the reporter's email receives a notification. Check that the View Ticket button URL is correct (it uses `GATEWAY_BASE_URL` from config).
+**Then test the alert panels:**
+1. Go to Admin → Issues
+2. Panels should appear if any open P1/P2 issues exist or any in-progress issues are older than 7 days
+3. Test collapse/expand by clicking panel headers
+4. Test clicking a row opens the issue modal
 
 ## Context & Gotchas
 
-- **`_epicCardHtml` was the critical change** — it previously called `openEpicModal(epicId)` which opened the form modal. Changing to `openEpicPage(epicId)` routes card clicks to the new full-page view.
-- **`#epicPageView` is NOT a modal** — it's a sibling div to `#devEpicsView` inside `<main>`. `openEpicPage` hides `devEpicsView` and shows `epicPageView`. `setViewMode` handles hiding it when switching away from epics.
-- **The epic form modal (`#epicDetailModal`) still exists** and is still used for Create New Epic (header button) and Edit (epic page's Edit button). It was not removed.
-- **Comment email uses `username` as commenter name** — this is the gateway username (e.g. `erwin`), not a display name. If a display name is preferred, a user profile lookup would be needed.
-- **`GATEWAY_BASE_URL` must be set in config** for the View Ticket button to work. If unset, `_ticket_btn_html` returns an empty string, so the button is omitted cleanly.
-- **Supabase service key format**: `sb_secret_*`. All tables in `public` schema, accessed via PostgREST.
-- **Flask stack**: Python 3.12, smtplib for email (no external library), Supabase PostgREST for DB.
-- **No build step**: plain HTML/CSS/JS — edit and reload.
+- **`_require_developer` accepts admins** — so the `/api/dev/item-types` endpoints are accessible from the admin config page without adding new admin-specific routes.
+- **`_typeColor` depends on `_itemTypes` being populated** — if called before `loadItemTypes()` resolves, it returns the fallback `#a1a1aa`. This is fine since rendering only happens after init.
+- **Freeform type detection** — `_typeColor` and `typeBadge` check `is_freeform` to match "Others: custom text" format. Any type can be freeform (not just "Others"). Stored as `"TypeName: custom text"` in `dev_item_type` field.
+- **`duplicateItemAs` opens the new item** — after POSTing, calls `loadItems()` to refresh cache, then `openDetailModal(created.id)`. The item must be in cache before opening. Since `loadItems()` is awaited, this should work.
+- **Stalled panel uses `created_at` not `in_progress_since`** — no `status_changed_at` exists in the schema. Age is from ticket creation, not from when it moved to in_progress. This is labeled "age" in the UI.
+- **Alert panels hidden when empty** — `panel.style.display = issues.length ? '' : 'none'`. They won't appear cluttering the UI when nothing is critical.
+- **Color pickers in gear modal save on `onchange`** — fires when the native color picker closes. The PATCH request is only sent if `color !== t.color` to avoid unnecessary API calls.
+- **Epic share uses `navigator.clipboard`** — requires HTTPS in production. On HTTP localhost it may fail silently; the catch shows an error toast with the URL instead.
+- **Deep link init**: `openEpicPage(epicParam, { pushState: false })` is called with `pushState: false` to avoid double-pushing state on initial load.
 - **Design tokens** in `static/css/variables.css`: `--gold: #C4972A`, `--bg: #080604`, `--bg-surface: #0F0C07`, `--bg-card: #0D0A06`, `--text-primary: #EDE5D0`, `--text-secondary: #A89060`, `--border: rgba(196,151,42,0.2)`.
-- **Epic status CSS classes**: `es-planning`, `es-active`, `es-on-hold`, `es-done`, `es-cancelled`
-- **Dev item status pill classes**: `dp-s-pending`, `dp-s-ongoing`, `dp-s-coding`, `dp-s-testing`, `dp-s-done`
-- **Global JS arrays**: `_items`, `_epics`, `_members` (object keyed by username), `_systems`
-- **Epic items API**: `GET /api/dev/epics/<epic_id>/items`
+- **No build step**: plain HTML/CSS/JS — edit and reload.
+- **Supabase**: PostgREST via `supabase_req()` helper. All tables in `public` schema.
+- **Flask stack**: Python 3.12, smtplib (no external email lib), Supabase PostgREST.
+- **Global JS state (developer.js)**: `_items`, `_epics`, `_members` (keyed by username), `_systems`, `_itemTypes`, `_epicPageId`, `_epicPageItems`, `_editingId`

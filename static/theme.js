@@ -124,7 +124,7 @@ function showConfirm({ title = 'Confirm', message = '', detail = '', confirmText
 
   const user = inner.querySelector('.header-user');
   if (user) {
-    inner.insertBefore(btn, user);
+    user.parentNode.insertBefore(btn, user);
   } else {
     inner.appendChild(btn);
   }
