@@ -398,3 +398,170 @@
   /* ── Sidebar drawer ── */
   .admin-sidebar { width: calc(100vw - 48px); max-width: 280px; }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   Layer 2 — appended last so these win the cascade at every
+   breakpoint they target. Desktop is untouched (min-width: 641px
+   always misses these blocks entirely).
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── ≤ 768px  Modal form padding tightened ── */
+@media (max-width: 768px) {
+  .modal-form { padding: 20px 20px; gap: 16px; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ≤ 640px  Bottom-sheet modals + table column pruning
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+
+  /* ── Slide-up keyframe (replaces the scale-in on mobile) ── */
+  @keyframes sheetUp {
+    from { transform: translateY(18px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+
+  /* ── Overlay anchors to screen bottom, no inset padding ── */
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  /* ── Standard / lg modals → bottom sheet ── */
+  .modal-overlay .modal:not(.modal-xl) {
+    width: 100%;
+    max-width: 100%;
+    max-height: 88dvh;
+    border-radius: 16px 16px 0 0;
+    border-bottom: none;
+    animation: sheetUp 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+    /* the gold ::before bar stays at the rounded top — looks intentional */
+  }
+
+  /* ── Sticky header: always visible while form scrolls ── */
+  .modal-overlay .modal:not(.modal-xl) .modal-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--bg-modal);
+  }
+
+  /* ── Sticky action row: Cancel / Save always in thumb reach ── */
+  .modal-overlay .modal:not(.modal-xl) .modal-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    display: flex;
+    gap: 10px;
+    background: var(--bg-modal);
+    border-top: 1px solid var(--border-subtle);
+    padding: 13px 18px max(14px, env(safe-area-inset-bottom));
+    margin-top: 0;
+  }
+
+  /* Stretch buttons to fill the sheet row */
+  .modal-overlay .modal:not(.modal-xl) .modal-actions .btn-modal-submit,
+  .modal-overlay .modal:not(.modal-xl) .modal-actions .btn-modal-cancel {
+    flex: 1;
+    justify-content: center;
+    text-align: center;
+  }
+
+  /* ── XL modals: full-width edge-to-edge, rounded top ── */
+  .modal-overlay .modal-xl {
+    width: 100%;
+    max-width: 100%;
+    max-height: 96dvh;
+    border-radius: 12px 12px 0 0;
+  }
+
+  /* Compact form padding inside sheets */
+  .modal-overlay .modal:not(.modal-xl) .modal-form {
+    padding: 18px 18px;
+    gap: 15px;
+  }
+
+  /* ── Dev list table: prune non-essential columns ── */
+
+  /* Main list (10 cols): hide Type(4), Systems(5), Developer(6) */
+  #devListView .dev-list-table th:nth-child(4),
+  #devListView .dev-list-table td:nth-child(4),
+  #devListView .dev-list-table th:nth-child(5),
+  #devListView .dev-list-table td:nth-child(5),
+  #devListView .dev-list-table th:nth-child(6),
+  #devListView .dev-list-table td:nth-child(6) { display: none; }
+
+  /* Parked (9 cols): hide Type(3), Systems(4), Developer(5) */
+  #parkedSection .dev-list-table th:nth-child(3),
+  #parkedSection .dev-list-table td:nth-child(3),
+  #parkedSection .dev-list-table th:nth-child(4),
+  #parkedSection .dev-list-table td:nth-child(4),
+  #parkedSection .dev-list-table th:nth-child(5),
+  #parkedSection .dev-list-table td:nth-child(5) { display: none; }
+
+  /* Epic page items (10 cols): hide Type(3), Assigned To(5), System(10) */
+  #epicPageView .dev-list-table th:nth-child(3),
+  #epicPageView .dev-list-table td:nth-child(3),
+  #epicPageView .dev-list-table th:nth-child(5),
+  #epicPageView .dev-list-table td:nth-child(5),
+  #epicPageView .dev-list-table th:nth-child(10),
+  #epicPageView .dev-list-table td:nth-child(10) { display: none; }
+
+  /* ── Admin tables: denser to fit more in viewport ── */
+  .admin-table           { font-size: 12.5px; }
+  .admin-table th        { padding: 9px 12px; }
+  .admin-table td        { padding: 10px 12px; }
+
+  /* Issue tracker (8 cols): hide Description(3), Confirmed(6), Connected(7) */
+  #issues-body .admin-table th:nth-child(3),
+  #issues-body .admin-table td:nth-child(3),
+  #issues-body .admin-table th:nth-child(6),
+  #issues-body .admin-table td:nth-child(6),
+  #issues-body .admin-table th:nth-child(7),
+  #issues-body .admin-table td:nth-child(7) { display: none; }
+
+  /* Users table (10 cols): hide Company(4), Department(5), Systems(7), Joined(9) */
+  #users-body .admin-table th:nth-child(4),
+  #users-body .admin-table td:nth-child(4),
+  #users-body .admin-table th:nth-child(5),
+  #users-body .admin-table td:nth-child(5),
+  #users-body .admin-table th:nth-child(7),
+  #users-body .admin-table td:nth-child(7),
+  #users-body .admin-table th:nth-child(9),
+  #users-body .admin-table td:nth-child(9) { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ≤ 480px  Further table reduction on very small screens
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+
+  /* Main dev list: also drop Start(7) and Est.End(8) */
+  /* nth-child counts hidden cols too, so DOM positions are unchanged */
+  #devListView .dev-list-table th:nth-child(7),
+  #devListView .dev-list-table td:nth-child(7),
+  #devListView .dev-list-table th:nth-child(8),
+  #devListView .dev-list-table td:nth-child(8) { display: none; }
+
+  /* Parked: also drop Start(6), Est.End(7) */
+  #parkedSection .dev-list-table th:nth-child(6),
+  #parkedSection .dev-list-table td:nth-child(6),
+  #parkedSection .dev-list-table th:nth-child(7),
+  #parkedSection .dev-list-table td:nth-child(7) { display: none; }
+
+  /* Epic page items: also drop Start(6), Est.End(7), Elapsed(9) */
+  #epicPageView .dev-list-table th:nth-child(6),
+  #epicPageView .dev-list-table td:nth-child(6),
+  #epicPageView .dev-list-table th:nth-child(7),
+  #epicPageView .dev-list-table td:nth-child(7),
+  #epicPageView .dev-list-table th:nth-child(9),
+  #epicPageView .dev-list-table td:nth-child(9) { display: none; }
+
+  /* Users: also drop Email(6) at the smallest size */
+  #users-body .admin-table th:nth-child(6),
+  #users-body .admin-table td:nth-child(6) { display: none; }
+
+  /* Issue tracker: also drop Assigned To(8) */
+  #issues-body .admin-table th:nth-child(8),
+  #issues-body .admin-table td:nth-child(8) { display: none; }
+}
