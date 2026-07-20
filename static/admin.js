@@ -85,7 +85,9 @@ let _cfgCategoriesCache = [];
 let _cfgTypesCache      = [];
 let _cfgNsiCache        = [];
 let _cfgBrandsCache     = [];
-let _cfgDeptsCache      = [];
+let _cfgDeptsCache          = [];
+let _cfgDevItemTypesCache   = [];
+let _cfgDevItemTypeEditId   = null;
 let _cfgCompanyEditCode = null;
 let _cfgCategoryEditId  = null;
 let _cfgTypeEditId      = null;
@@ -227,7 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(hidePageLoader, 600);
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape')      { closeLinkedItemModal(); closeLightbox(); closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); closeCfgCompanyModal(); closeCfgCategoryModal(); closeCfgTypeModal(); closeCfgNsiModal(); closeCfgBrandModal(); closeCfgDeptModal(); closeAddUserModal(); closeAllUserDropdowns(); _closeIssActionsMenu(); }
+    if (e.key === 'Escape')      { closeLinkedItemModal(); closeLightbox(); closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); closeCfgCompanyModal(); closeCfgCategoryModal(); closeCfgTypeModal(); closeCfgNsiModal(); closeCfgBrandModal(); closeCfgDeptModal(); closeCfgDevItemTypeModal(); closeAddUserModal(); closeAllUserDropdowns(); _closeIssActionsMenu(); }
     if (e.key === 'ArrowLeft')   lightboxNav(-1);
     if (e.key === 'ArrowRight')  lightboxNav(1);
   });
@@ -1447,6 +1449,7 @@ async function loadIssues() {
     _renderIssueKpis(all, newCount);
     _populateIssueCompanyFilter(all);
     _renderIssueAnalytics(all);
+    _renderIssuePriorityPanels(all);
     issApplyFilters();
     _startIssuePoller();
   } catch (err) {
@@ -1920,6 +1923,140 @@ ${rows.length === 0 ? '<div style="text-align:center;padding:40px;color:#9ca3af;
   win.document.write(html);
   win.document.close();
   setTimeout(() => win.print(), 600);
+}
+
+/* ── Priority alert panels ── */
+
+let _issUrgentCollapsed  = false;
+let _issStalledCollapsed = false;
+
+function _daysSince(dateStr) {
+  if (!dateStr) return 0;
+  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
+}
+
+function _renderIssuePriorityPanels(all) {
+  const urgent  = (all || _issuesCache)
+    .filter(i => i.status === 'open' && ['p1','p2'].includes((i.priority || '').toLowerCase()))
+    .sort((a, b) => {
+      const pa = (a.priority || '').toLowerCase(), pb = (b.priority || '').toLowerCase();
+      if (pa !== pb) return pa < pb ? -1 : 1;
+      return new Date(a.created_at) - new Date(b.created_at);
+    });
+
+  const stalled = (all || _issuesCache)
+    .filter(i => i.status === 'in_progress' && _daysSince(i.created_at) > 7)
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+  _renderUrgentPanel(urgent);
+  _renderStalledPanel(stalled);
+}
+
+function _agePill(dateStr, urgentColor) {
+  const days = _daysSince(dateStr);
+  const cls  = urgentColor ? 'iss-age-pill--urgent' : days > 14 ? 'iss-age-pill--critical' : 'iss-age-pill--warn';
+  const label = days === 0 ? 'today' : days === 1 ? '1 day' : `${days}d`;
+  return `<span class="iss-age-pill ${cls}">${label}</span>`;
+}
+
+function _renderUrgentPanel(issues) {
+  const panel    = document.getElementById('issUrgentPanel');
+  const countEl  = document.getElementById('issUrgentCount');
+  const bodyEl   = document.getElementById('issUrgentBody');
+  if (!panel) return;
+
+  panel.style.display = issues.length ? '' : 'none';
+  if (countEl) countEl.textContent = issues.length;
+  if (!bodyEl) return;
+
+  if (_issUrgentCollapsed) { bodyEl.style.display = 'none'; return; }
+  bodyEl.style.display = '';
+
+  if (!issues.length) { bodyEl.innerHTML = ''; return; }
+
+  bodyEl.innerHTML = `
+    <table class="iss-alert-table">
+      <thead><tr>
+        <th>Ticket / System</th>
+        <th>Reporter</th>
+        <th>Description</th>
+        <th>Priority</th>
+        <th>Age</th>
+        <th></th>
+      </tr></thead>
+      <tbody>${issues.map(i => {
+        const prio  = (i.priority || '').toLowerCase();
+        const badge = PRIORITY_BADGE[prio] || `<span class="iss-prio-badge">${escHtml(i.priority || '—')}</span>`;
+        const title = i.title || (i.description || '').slice(0, 60) + (i.description?.length > 60 ? '…' : '');
+        return `<tr class="iss-alert-row" onclick="openIssueModal('${escHtml(i.id)}')">
+          <td>
+            ${i.ticket_number ? `<code class="mono-val" style="font-size:10.5px;">${escHtml(i.ticket_number)}</code><br>` : ''}
+            <span class="iss-alert-site">${escHtml(i.site_name || '')}</span>
+          </td>
+          <td>${escHtml(i.employee_name || '—')}<br><small class="text-muted">${escHtml(i.company_name || '')}</small></td>
+          <td class="iss-alert-desc">${escHtml(title.slice(0, 80))}${title.length > 80 ? '…' : ''}</td>
+          <td>${badge}</td>
+          <td>${_agePill(i.created_at, true)}</td>
+          <td onclick="event.stopPropagation()"><button class="iss-alert-open-btn" onclick="openIssueModal('${escHtml(i.id)}')">Open</button></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
+
+function _renderStalledPanel(issues) {
+  const panel   = document.getElementById('issStalledPanel');
+  const countEl = document.getElementById('issStalledCount');
+  const bodyEl  = document.getElementById('issStalledBody');
+  if (!panel) return;
+
+  panel.style.display = issues.length ? '' : 'none';
+  if (countEl) countEl.textContent = issues.length;
+  if (!bodyEl) return;
+
+  if (_issStalledCollapsed) { bodyEl.style.display = 'none'; return; }
+  bodyEl.style.display = '';
+
+  if (!issues.length) { bodyEl.innerHTML = ''; return; }
+
+  bodyEl.innerHTML = `
+    <table class="iss-alert-table">
+      <thead><tr>
+        <th>Ticket / System</th>
+        <th>Reporter</th>
+        <th>Description</th>
+        <th>Assigned To</th>
+        <th>Age</th>
+        <th></th>
+      </tr></thead>
+      <tbody>${issues.map(i => {
+        const title = i.title || (i.description || '').slice(0, 60) + (i.description?.length > 60 ? '…' : '');
+        return `<tr class="iss-alert-row" onclick="openIssueModal('${escHtml(i.id)}')">
+          <td>
+            ${i.ticket_number ? `<code class="mono-val" style="font-size:10.5px;">${escHtml(i.ticket_number)}</code><br>` : ''}
+            <span class="iss-alert-site">${escHtml(i.site_name || '')}</span>
+          </td>
+          <td>${escHtml(i.employee_name || '—')}<br><small class="text-muted">${escHtml(i.company_name || '')}</small></td>
+          <td class="iss-alert-desc">${escHtml(title.slice(0, 80))}${title.length > 80 ? '…' : ''}</td>
+          <td>${i.assigned_to ? `<code class="mono-val" style="font-size:11px;">${escHtml(i.assigned_to)}</code>` : '<span class="text-muted">Unassigned</span>'}</td>
+          <td>${_agePill(i.created_at, false)}</td>
+          <td onclick="event.stopPropagation()"><button class="iss-alert-open-btn iss-alert-open-btn--stalled" onclick="openIssueModal('${escHtml(i.id)}')">Open</button></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
+
+function toggleIssAlertPanel(type) {
+  if (type === 'urgent') {
+    _issUrgentCollapsed = !_issUrgentCollapsed;
+    const chevron = document.getElementById('issUrgentChevron');
+    if (chevron) chevron.style.transform = _issUrgentCollapsed ? 'rotate(-90deg)' : '';
+    _renderIssuePriorityPanels();
+  } else {
+    _issStalledCollapsed = !_issStalledCollapsed;
+    const chevron = document.getElementById('issStalledChevron');
+    if (chevron) chevron.style.transform = _issStalledCollapsed ? 'rotate(-90deg)' : '';
+    _renderIssuePriorityPanels();
+  }
 }
 
 function _renderIssueTable(rows) {
@@ -3868,6 +4005,7 @@ function _loadCurrentConfigSub() {
   if (_currentConfigTab === 'brands')             loadCfgBrands();
   if (_currentConfigTab === 'departments')        loadCfgDepts();
   if (_currentConfigTab === 'actions')            loadCfgActions();
+  if (_currentConfigTab === 'dev-item-types')     loadCfgDevItemTypes();
 }
 
 /* shared modal helpers */
@@ -5683,6 +5821,141 @@ async function linkCfToIssue(fixId) {
     closeCfPicker();
     loadIssueCfLinks(_editingIssueId);
     showToast('Common fix linked.');
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+
+/* ── Config: Dev Item Types ────────────────────────────────────────────────── */
+
+async function loadCfgDevItemTypes() {
+  const wrap = document.getElementById('config-dev-item-types-body');
+  wrap.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  try {
+    const res = await fetch('/api/dev/item-types', { headers: authHeaders() });
+    if (!res.ok) throw new Error(await res.text());
+    _cfgDevItemTypesCache = await res.json();
+    _renderCfgDevItemTypes();
+  } catch (err) {
+    wrap.innerHTML = `<div class="admin-error">Failed: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function _renderCfgDevItemTypes() {
+  const wrap = document.getElementById('config-dev-item-types-body');
+  if (!_cfgDevItemTypesCache.length) {
+    wrap.innerHTML = '<div class="admin-empty">No dev item types yet. Add one above.</div>';
+    return;
+  }
+  wrap.innerHTML = `<table class="admin-table">
+    <thead><tr>
+      <th>Name</th>
+      <th>Sort Order</th>
+      <th>Freeform</th>
+      <th>Status</th>
+      <th class="action-cell">Actions</th>
+    </tr></thead>
+    <tbody>${_cfgDevItemTypesCache.map(t => {
+      const color = t.color || '#a1a1aa';
+      const r = parseInt(color.slice(1,3),16), g = parseInt(color.slice(3,5),16), b = parseInt(color.slice(5,7),16);
+      const badgeStyle = `background:rgba(${r},${g},${b},0.15);border:1px solid rgba(${r},${g},${b},0.35);color:${color};`;
+      return `
+      <tr>
+        <td><span class="kcard-type-badge" style="${badgeStyle};font-size:12px;padding:3px 9px;">${escHtml(t.name)}</span></td>
+        <td>${t.sort_order ?? 0}</td>
+        <td>${t.is_freeform ? '<span class="badge-visible">Yes</span>' : '<span style="color:var(--text-muted)">No</span>'}</td>
+        <td>${t.is_active !== false ? '<span class="badge-visible">Active</span>' : '<span class="badge-hidden">Inactive</span>'}</td>
+        <td class="action-cell">
+          <button class="btn-tbl-secondary" onclick='openCfgDevItemTypeModal(${JSON.stringify(t)})'>Edit</button>
+          <button class="btn-tbl-danger" onclick="deleteCfgDevItemType('${escHtml(t.id)}', '${escHtml(t.name)}')">Delete</button>
+        </td>
+      </tr>`;
+    }).join('')}
+    </tbody>
+  </table>`;
+}
+
+function openCfgDevItemTypeModal(type) {
+  _cfgDevItemTypeEditId = type ? type.id : null;
+  document.getElementById('cfgDevItemTypeModalTitle').textContent = _cfgDevItemTypeEditId ? 'Edit Dev Item Type' : 'Add Dev Item Type';
+  document.getElementById('cfgDevItemTypeName').value       = type?.name ?? '';
+  document.getElementById('cfgDevItemTypeSortOrder').value  = type?.sort_order ?? '';
+  document.getElementById('cfgDevItemTypeActive').checked   = type ? type.is_active !== false : true;
+  document.getElementById('cfgDevItemTypeFreeform').checked = !!type?.is_freeform;
+  document.getElementById('cfgDevItemTypeColor').value      = type?.color || '#a1a1aa';
+  _resetCfgModal('cfgDevItemType');
+  document.getElementById('cfgDevItemTypeModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('cfgDevItemTypeName').focus(), 60);
+}
+
+function closeCfgDevItemTypeModal() {
+  document.getElementById('cfgDevItemTypeModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function overlayCfgDevItemType(e) {
+  if (e.target === document.getElementById('cfgDevItemTypeModal')) closeCfgDevItemTypeModal();
+}
+
+async function saveCfgDevItemType(e) {
+  e.preventDefault();
+  const name      = document.getElementById('cfgDevItemTypeName').value.trim();
+  const sortOrder = parseInt(document.getElementById('cfgDevItemTypeSortOrder').value, 10) || 0;
+  const isActive   = document.getElementById('cfgDevItemTypeActive').checked;
+  const isFreeform = document.getElementById('cfgDevItemTypeFreeform').checked;
+  const color      = document.getElementById('cfgDevItemTypeColor').value || '#a1a1aa';
+  if (!name) return;
+
+  const isEdit = !!_cfgDevItemTypeEditId;
+  const url    = isEdit ? `/api/dev/item-types/${encodeURIComponent(_cfgDevItemTypeEditId)}` : '/api/dev/item-types';
+  const method = isEdit ? 'PATCH' : 'POST';
+
+  _resetCfgModal('cfgDevItemType');
+  document.getElementById('cfgDevItemTypeFormActions').style.display  = 'none';
+  document.getElementById('cfgDevItemTypeFormLoading').style.display  = '';
+
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ name, sort_order: sortOrder, is_active: isActive, is_freeform: isFreeform, color }),
+    });
+    if (!res.ok) {
+      const msg = (await res.json()).error || 'Save failed';
+      document.getElementById('cfgDevItemTypeFormActions').style.display  = '';
+      document.getElementById('cfgDevItemTypeFormLoading').style.display  = 'none';
+      document.getElementById('cfgDevItemTypeFormError').style.display    = '';
+      document.getElementById('cfgDevItemTypeErrorMsg').textContent       = msg;
+      return;
+    }
+    closeCfgDevItemTypeModal();
+    showToast(`Dev item type ${isEdit ? 'updated' : 'added'}.`);
+    loadCfgDevItemTypes();
+  } catch (err) {
+    document.getElementById('cfgDevItemTypeFormActions').style.display  = '';
+    document.getElementById('cfgDevItemTypeFormLoading').style.display  = 'none';
+    document.getElementById('cfgDevItemTypeFormError').style.display    = '';
+    document.getElementById('cfgDevItemTypeErrorMsg').textContent       = err.message;
+  }
+}
+
+async function deleteCfgDevItemType(id, name) {
+  if (!await showConfirm({
+    title: 'Delete Dev Item Type',
+    message: `Delete "${name}"?`,
+    detail: 'Existing dev items with this type will keep their current value.',
+    confirmText: 'Delete',
+    danger: true,
+  })) return;
+  try {
+    const res = await fetch(`/api/dev/item-types/${encodeURIComponent(id)}`, {
+      method: 'DELETE', headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Delete failed');
+    showToast('Dev item type deleted.');
+    loadCfgDevItemTypes();
   } catch (err) {
     showToast(`Error: ${err.message}`);
   }

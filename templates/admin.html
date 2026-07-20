@@ -295,6 +295,39 @@
         </div>
       </div>
 
+      <!-- ── Alert panels (always from full cache, independent of filters) ── -->
+      <div class="iss-alert-panels" id="issAlertPanels">
+
+        <!-- Open & Urgent -->
+        <div class="iss-alert-panel iss-alert-panel--urgent" id="issUrgentPanel" style="display:none;">
+          <div class="iss-alert-header" onclick="toggleIssAlertPanel('urgent')">
+            <div class="iss-alert-icon iss-alert-icon--urgent">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <div class="iss-alert-title">Open &amp; Urgent</div>
+            <span class="iss-alert-sub">P1 &amp; P2 issues awaiting action</span>
+            <span class="iss-alert-count iss-alert-count--urgent" id="issUrgentCount">0</span>
+            <svg class="iss-alert-chevron" id="issUrgentChevron" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="iss-alert-body" id="issUrgentBody"></div>
+        </div>
+
+        <!-- Stalled In-Progress -->
+        <div class="iss-alert-panel iss-alert-panel--stalled" id="issStalledPanel" style="display:none;">
+          <div class="iss-alert-header" onclick="toggleIssAlertPanel('stalled')">
+            <div class="iss-alert-icon iss-alert-icon--stalled">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div class="iss-alert-title">Stalled In Progress</div>
+            <span class="iss-alert-sub">In-progress tickets open for over 7 days</span>
+            <span class="iss-alert-count iss-alert-count--stalled" id="issStalledCount">0</span>
+            <svg class="iss-alert-chevron" id="issStalledChevron" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="iss-alert-body" id="issStalledBody"></div>
+        </div>
+
+      </div>
+
       <!-- Filter bar -->
       <div class="iss-filter-bar">
         <div class="iss-filter-search-wrap">
@@ -491,6 +524,7 @@
         <button class="status-tab"        data-ctab="brands"             onclick="switchConfigTab('brands')">Brands</button>
         <button class="status-tab"        data-ctab="departments"        onclick="switchConfigTab('departments')">Departments</button>
         <button class="status-tab"        data-ctab="actions"            onclick="switchConfigTab('actions')">Actions</button>
+        <button class="status-tab"        data-ctab="dev-item-types"     onclick="switchConfigTab('dev-item-types')">Dev Item Types</button>
       </div>
 
       <!-- Companies -->
@@ -580,6 +614,19 @@
           </button>
         </div>
         <div id="config-nsi-body" class="admin-table-wrap">
+          <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
+        </div>
+      </div>
+
+      <!-- Dev Item Types -->
+      <div id="config-panel-dev-item-types" class="config-sub-panel" style="display:none;">
+        <div class="admin-toolbar">
+          <button class="btn-admin-add" onclick="openCfgDevItemTypeModal(null)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Item Type
+          </button>
+        </div>
+        <div id="config-dev-item-types-body" class="admin-table-wrap">
           <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
         </div>
       </div>
@@ -1597,6 +1644,56 @@
         <div id="cfgActionFormError" class="form-state form-error" style="display:none;">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           <span id="cfgActionErrorMsg"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Config: Dev Item Type Modal ── -->
+  <div id="cfgDevItemTypeModal" class="modal-overlay" onclick="overlayCfgDevItemType(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <div><h3 class="modal-title" id="cfgDevItemTypeModalTitle">Add Dev Item Type</h3></div>
+        <button class="modal-close" onclick="closeCfgDevItemTypeModal()" aria-label="Close">&times;</button>
+      </div>
+      <form id="cfgDevItemTypeForm" class="modal-form" onsubmit="saveCfgDevItemType(event)">
+        <div class="form-row" style="align-items:flex-end;gap:10px;">
+          <div class="form-group" style="flex:1;">
+            <label class="form-label" for="cfgDevItemTypeName">Name <span class="required">*</span></label>
+            <input class="form-input" type="text" id="cfgDevItemTypeName" maxlength="80" placeholder="e.g. Unit Testing">
+          </div>
+          <div class="form-group" style="flex-shrink:0;padding-bottom:4px;">
+            <label class="form-label" for="cfgDevItemTypeColor">Badge Color</label>
+            <input type="color" class="itype-color-swatch itype-color-swatch--lg" id="cfgDevItemTypeColor" value="#a1a1aa" title="Badge color">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="max-width:140px;">
+            <label class="form-label" for="cfgDevItemTypeSortOrder">Sort Order</label>
+            <input class="form-input" type="number" id="cfgDevItemTypeSortOrder" min="0" placeholder="0">
+          </div>
+          <div class="form-group" style="display:flex;flex-direction:column;gap:10px;justify-content:flex-end;padding-bottom:4px;">
+            <label class="toggle-label">
+              <input type="checkbox" id="cfgDevItemTypeActive" checked>
+              <span class="toggle-text">Active</span>
+            </label>
+            <label class="toggle-label">
+              <input type="checkbox" id="cfgDevItemTypeFreeform">
+              <span class="toggle-text">Freeform <span class="form-label-hint">(allows custom text)</span></span>
+            </label>
+          </div>
+        </div>
+        <div id="cfgDevItemTypeFormActions" class="modal-actions">
+          <button type="button" class="btn-modal-cancel" onclick="closeCfgDevItemTypeModal()">Cancel</button>
+          <button type="submit" class="btn-modal-submit">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Save
+          </button>
+        </div>
+        <div id="cfgDevItemTypeFormLoading" class="form-state" style="display:none;"><div class="spinner"></div><span>Saving…</span></div>
+        <div id="cfgDevItemTypeFormError" class="form-state form-error" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="cfgDevItemTypeErrorMsg"></span>
         </div>
       </form>
     </div>

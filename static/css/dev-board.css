@@ -1559,3 +1559,21 @@
   color: var(--text-muted);
   text-align: center;
 }
+
+/* ── Item type color swatch (gear modal rows + add form) ── */
+.itype-color-swatch {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px;
+  cursor: pointer;
+  background: none;
+  flex-shrink: 0;
+}
+.itype-color-swatch::-webkit-color-swatch-wrapper { padding: 0; }
+.itype-color-swatch::-webkit-color-swatch { border: none; border-radius: 3px; }
+.itype-color-swatch--lg {
+  width: 36px;
+  height: 36px;
+}

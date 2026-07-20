@@ -556,21 +556,29 @@ function renderBoard() {
   if (_viewMode === 'epics')     renderEpicsView();
 }
 
-const TYPE_CLASS = {
-  'New Feature':  'ktype-feature',
-  'Improvement':  'ktype-improvement',
-  'Bug Fix':      'ktype-bugfix',
-  'Admin Task':   'ktype-admin',
-  'Discussion':   'ktype-discussion',
-  'Maintenance':  'ktype-maintenance',
-};
+const _TYPE_DEFAULT_COLOR = '#a1a1aa';
+
+function _typeColor(devItemType) {
+  if (!devItemType) return _TYPE_DEFAULT_COLOR;
+  const t = _itemTypes.find(t => t.is_freeform && devItemType.startsWith(t.name + ': '))
+         || _itemTypes.find(t => t.name === devItemType);
+  return t?.color || _TYPE_DEFAULT_COLOR;
+}
+
+function _colorBadgeStyle(color) {
+  if (!color || color.length < 4) return '';
+  const r = parseInt(color.slice(1, 3), 16);
+  const g = parseInt(color.slice(3, 5), 16);
+  const b = parseInt(color.slice(5, 7), 16);
+  return `background:rgba(${r},${g},${b},0.15);border-color:rgba(${r},${g},${b},0.35);color:${color};`;
+}
 
 function typeBadge(devItemType) {
   if (!devItemType) return '';
-  const label = devItemType.startsWith('Others: ') ? devItemType : devItemType;
-  const display = devItemType.startsWith('Others: ') ? devItemType.slice('Others: '.length) : devItemType;
-  const cls = TYPE_CLASS[devItemType] || 'ktype-others';
-  return `<span class="kcard-type-badge ${cls}" title="${escHtml(label)}">${escHtml(display)}</span>`;
+  const freeformMatch = _itemTypes.find(t => t.is_freeform && devItemType.startsWith(t.name + ': '));
+  const display = freeformMatch ? devItemType.slice(freeformMatch.name.length + 2) : devItemType;
+  const color   = _typeColor(devItemType);
+  return `<span class="kcard-type-badge" style="${_colorBadgeStyle(color)}" title="${escHtml(devItemType)}">${escHtml(display)}</span>`;
 }
 
 function renderCard(item, idx = 0) {
@@ -1663,7 +1671,7 @@ function renderListView() {
 
     const rawType    = item.dev_item_type || '';
     const typeDisp   = rawType.startsWith('Others: ') ? rawType.slice('Others: '.length) : rawType;
-    const typeCls    = TYPE_CLASS[rawType] || (rawType ? 'ktype-others' : '');
+    const typeStyle  = rawType ? _colorBadgeStyle(_typeColor(rawType)) : '';
 
     const sysHtml = sysNames.length
       ? sysNames.slice(0, 3).map(n => `<span class="kcard-system-tag">${escHtml(n)}</span>`).join('')
@@ -1681,7 +1689,7 @@ function renderListView() {
         ${item.description ? `<div class="dlt-desc-preview">${escHtml(_descPreview(item.description, 75))}</div>` : ''}
       </td>
       <td class="dlt-td"><span class="dp-item-status ${statusCls}">${escHtml(item.status)}</span></td>
-      <td class="dlt-td">${rawType ? `<span class="kcard-type-badge ${typeCls}">${escHtml(typeDisp)}</span>` : `<span class="dlt-muted">—</span>`}</td>
+      <td class="dlt-td">${rawType ? `<span class="kcard-type-badge" style="${typeStyle}">${escHtml(typeDisp)}</span>` : `<span class="dlt-muted">—</span>`}</td>
       <td class="dlt-td"><div class="dlt-sys-tags">${sysHtml}</div></td>
       <td class="dlt-td">
         <div class="dlt-dev-cell">${avatarHtml}<span class="dlt-dev-name">${escHtml(devName)}</span></div>
@@ -1711,7 +1719,7 @@ function renderListView() {
           const devInit   = (devName.charAt(0) || '?').toUpperCase();
           const rawType   = item.dev_item_type || '';
           const typeDisp  = rawType.startsWith('Others: ') ? rawType.slice('Others: '.length) : rawType;
-          const typeCls   = TYPE_CLASS[rawType] || (rawType ? 'ktype-others' : '');
+          const typeStyle = rawType ? _colorBadgeStyle(_typeColor(rawType)) : '';
           const sysHtml   = sysNames.length
             ? sysNames.slice(0, 3).map(n => `<span class="kcard-system-tag">${escHtml(n)}</span>`).join('')
               + (sysNames.length > 3 ? `<span class="kcard-system-tag">+${sysNames.length - 3}</span>` : '')
@@ -1725,7 +1733,7 @@ function renderListView() {
               <div class="dlt-title-text">${escHtml(item.title)}</div>
               ${item.description ? `<div class="dlt-desc-preview">${escHtml(_descPreview(item.description, 75))}</div>` : ''}
             </td>
-            <td class="dlt-td">${rawType ? `<span class="kcard-type-badge ${typeCls}">${escHtml(typeDisp)}</span>` : `<span class="dlt-muted">—</span>`}</td>
+            <td class="dlt-td">${rawType ? `<span class="kcard-type-badge" style="${typeStyle}">${escHtml(typeDisp)}</span>` : `<span class="dlt-muted">—</span>`}</td>
             <td class="dlt-td"><div class="dlt-sys-tags">${sysHtml}</div></td>
             <td class="dlt-td"><div class="dlt-dev-cell">${avatarHtml}<span class="dlt-dev-name">${escHtml(devName)}</span></div></td>
             <td class="dlt-td dlt-date">${fmtDate(item.start_date)}</td>
@@ -2080,6 +2088,8 @@ function renderItemTypesList() {
         <button class="itype-order-btn" onclick="moveItemType('${escHtml(t.id)}',-1)" title="Move up"${idx === 0 ? ' disabled' : ''}>↑</button>
         <button class="itype-order-btn" onclick="moveItemType('${escHtml(t.id)}',1)" title="Move down"${idx === _itemTypes.length - 1 ? ' disabled' : ''}>↓</button>
       </div>
+      <input type="color" class="itype-color-swatch" value="${escHtml(t.color || '#a1a1aa')}" title="Badge color"
+        onchange="saveItemTypeColor('${escHtml(t.id)}',this.value)">
       <input class="itype-name-input" type="text" value="${escHtml(t.name)}" maxlength="64"
         onblur="saveItemTypeName('${escHtml(t.id)}',this)"
         onkeydown="if(event.key==='Enter')this.blur();">
@@ -2114,6 +2124,25 @@ async function saveItemTypeName(id, inputEl) {
     showToast('Type renamed.');
   } catch (err) {
     if (t) inputEl.value = t.name;
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+async function saveItemTypeColor(id, color) {
+  const t = _itemTypes.find(t => t.id === id);
+  if (!t || t.color === color) return;
+  try {
+    const res = await fetch(`/api/dev/item-types/${encodeURIComponent(id)}`, {
+      method: 'PATCH', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ color }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    const saved = await res.json();
+    const idx = _itemTypes.findIndex(t => t.id === id);
+    if (idx !== -1) _itemTypes[idx] = saved;
+    if (_viewMode === 'list') renderListView();
+    else renderBoard();
+  } catch (err) {
     showToast(`Error: ${err.message}`);
   }
 }
@@ -2186,18 +2215,26 @@ async function deleteItemType(id) {
 async function addItemType() {
   const nameEl     = document.getElementById('newItemTypeName');
   const freeformEl = document.getElementById('newItemTypeFreeform');
+  const colorEl    = document.getElementById('newItemTypeColor');
   const name       = (nameEl?.value || '').trim();
   if (!name) { nameEl?.focus(); return; }
   try {
     const res = await fetch('/api/dev/item-types', {
       method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, sort_order: _itemTypes.length, is_active: true, is_freeform: freeformEl?.checked ?? false }),
+      body: JSON.stringify({
+        name,
+        sort_order: _itemTypes.length,
+        is_active:  true,
+        is_freeform: freeformEl?.checked ?? false,
+        color:      colorEl?.value || _TYPE_DEFAULT_COLOR,
+      }),
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Failed');
     const created = await res.json();
     _itemTypes.push(created);
     if (nameEl)     nameEl.value = '';
     if (freeformEl) freeformEl.checked = false;
+    if (colorEl)    colorEl.value = _TYPE_DEFAULT_COLOR;
     renderItemTypesList();
     _populateTypeFilter();
     showToast('Type added.');

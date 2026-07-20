@@ -521,11 +521,13 @@ def dev_create_item_type():
     name = (data.get("name") or "").strip()
     if not name:
         return jsonify({"error": "Name is required"}), 400
+    raw_color = (data.get("color") or "").strip()
     payload = {
         "name":        name,
         "sort_order":  int(data.get("sort_order") or 0),
         "is_active":   bool(data.get("is_active", True)),
         "is_freeform": bool(data.get("is_freeform", False)),
+        "color":       raw_color if (raw_color.startswith("#") and len(raw_color) in (4, 7)) else None,
     }
     try:
         rows = supabase_req("POST", "/dev_item_types", data=payload)
@@ -541,12 +543,15 @@ def dev_update_item_type(type_id):
     if err:
         return jsonify(err[0]), err[1]
     data    = request.get_json(silent=True) or {}
-    allowed = {"name", "sort_order", "is_active", "is_freeform"}
+    allowed = {"name", "sort_order", "is_active", "is_freeform", "color"}
     patch   = {k: v for k, v in data.items() if k in allowed}
     if "name" in patch:
         patch["name"] = (patch["name"] or "").strip()
         if not patch["name"]:
             return jsonify({"error": "Name cannot be empty"}), 400
+    if "color" in patch:
+        c = (patch["color"] or "").strip()
+        patch["color"] = c if (c.startswith("#") and len(c) in (4, 7)) else None
     if not patch:
         return jsonify({"error": "No valid fields"}), 400
     try:
