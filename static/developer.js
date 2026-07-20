@@ -76,6 +76,7 @@ let _viewMode            = 'kanban'; // 'kanban' | 'list' | 'analytics' | 'epics
 let _listSort            = { col: 'status', dir: 'asc' };
 let _listFiltersPopulated = false;
 let _epics               = [];
+let _itemTypes           = [];
 let _editingEpicId       = null;
 let _addItemToEpicId     = null;
 let _epicPageId          = null;
@@ -234,17 +235,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
   initColArcs();
   initPhysicsDrag();
-  loadMembers().then(() => loadSystems()).then(() => Promise.all([loadItems(), loadEpics()])).then(() => hidePageLoader());
+  loadMembers().then(() => loadSystems()).then(() => Promise.all([loadItems(), loadEpics(), loadItemTypes()])).then(() => {
+    hidePageLoader();
+    const epicParam = new URLSearchParams(window.location.search).get('epic');
+    if (epicParam) {
+      setViewMode('epics');
+      openEpicPage(epicParam, { pushState: false });
+    }
+  });
+
+  window.addEventListener('popstate', e => {
+    const epicId = e.state?.epic || new URLSearchParams(window.location.search).get('epic');
+    if (epicId) {
+      setViewMode('epics');
+      openEpicPage(epicId, { pushState: false });
+    } else if (_epicPageId) {
+      _epicPageId    = null;
+      _epicPageItems = [];
+      document.getElementById('epicPageView').style.display = 'none';
+      document.getElementById('devEpicsView').style.display = '';
+      renderEpicsView();
+    }
+  });
 
   const doneWeeksInput = document.getElementById('doneWeeksInput');
   if (doneWeeksInput) doneWeeksInput.value = _doneWeeks;
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeDoneRemarksModal(); closeDetailModal(); closeEpicModal(); closeAddSystemModal(); closeArchiveModal(); closeProfileMenu(); closeEpicPage(); }
+    if (e.key === 'Escape') { closeDoneRemarksModal(); closeDetailModal(); closeEpicModal(); closeAddSystemModal(); closeArchiveModal(); closeProfileMenu(); closeEpicPage(); closeItemTypesModal(); }
   });
   document.addEventListener('click', e => {
     if (!e.target.closest('#sysMultiWrap'))     closeSysDropdown();
     if (!e.target.closest('#epicSysMultiWrap')) closeEpicSysDropdown();
+    if (!e.target.closest('.dup-type-wrap')) {
+      const m = document.getElementById('dupTypeMenu');
+      if (m) m.classList.remove('open');
+    }
     closeProfileMenu();
   });
 
@@ -877,35 +903,42 @@ function openDetailModal(idOrNull) {
     assignSel.value = item?.assigned_to ?? me;
   }
 
-  // Item type — handle "Others: ..." case
-  const savedType = item?.dev_item_type ?? '';
-  const knownTypes = ['New Feature','Improvement','Bug Fix','Admin Task','Discussion','Maintenance','Others'];
-  const typeSelect = document.getElementById('itemType');
+  // Item type — build dropdown from _itemTypes, handle freeform (e.g. "Others: ...") detection
+  const savedType   = item?.dev_item_type ?? '';
+  const typeSelect  = document.getElementById('itemType');
   const othersGroup = document.getElementById('itemTypeOthersGroup');
   const othersInput = document.getElementById('itemTypeOthers');
-  if (savedType.startsWith('Others: ')) {
-    typeSelect.value   = 'Others';
-    othersInput.value  = savedType.slice('Others: '.length);
+  typeSelect.innerHTML = '<option value="">— Select Type —</option>' +
+    _itemTypes.filter(t => t.is_active !== false).map(t =>
+      `<option value="${escHtml(t.name)}">${escHtml(t.name)}</option>`
+    ).join('');
+  const freeformMatch = _itemTypes.find(t => t.is_freeform && savedType.startsWith(t.name + ': '));
+  if (freeformMatch) {
+    typeSelect.value  = freeformMatch.name;
+    othersInput.value = savedType.slice(freeformMatch.name.length + 2);
     othersGroup.style.display = '';
   } else {
-    typeSelect.value   = knownTypes.includes(savedType) ? savedType : '';
-    othersInput.value  = '';
+    typeSelect.value  = _itemTypes.find(t => t.name === savedType) ? savedType : '';
+    othersInput.value = '';
     othersGroup.style.display = 'none';
   }
 
   const body      = document.getElementById('itemDetailBody');
   const logPane   = document.getElementById('detailLogPane');
   const deleteBtn = document.getElementById('detailDeleteBtn');
+  const dupWrap   = document.getElementById('dupTypeWrap');
 
   if (item) {
     body.classList.remove('detail-new');
     logPane.style.display   = '';
     deleteBtn.style.display = '';
+    if (dupWrap) { dupWrap.style.display = ''; _buildDupTypeMenu(); }
     refreshLogs();
   } else {
     body.classList.add('detail-new');
     logPane.style.display   = 'none';
     deleteBtn.style.display = 'none';
+    if (dupWrap) dupWrap.style.display = 'none';
   }
 
   resetItemForm();
@@ -921,6 +954,8 @@ function openDetailModal(idOrNull) {
 
 function closeDetailModal() {
   closeSysDropdown();
+  const dupMenu = document.getElementById('dupTypeMenu');
+  if (dupMenu) dupMenu.classList.remove('open');
   const detailModal = document.getElementById('itemDetailModal');
   detailModal.classList.remove('open');
   detailModal.style.zIndex = '';
@@ -1032,6 +1067,68 @@ async function deleteItemFromDetail() {
   await deleteItem(id);
 }
 
+function _buildDupTypeMenu() {
+  const menu = document.getElementById('dupTypeMenu');
+  if (!menu) return;
+  const currentItem = _editingId ? _items.find(i => i.id === _editingId) : null;
+  const currentType = currentItem?.dev_item_type ?? '';
+  const currentBase = _itemTypes.find(t => t.is_freeform && currentType.startsWith(t.name + ': '))?.name ?? currentType;
+  const options = _itemTypes.filter(t => t.is_active !== false && t.name !== currentBase);
+  if (!options.length) {
+    menu.innerHTML = '<div class="dup-type-empty">No other types available</div>';
+  } else {
+    menu.innerHTML = options.map(t =>
+      `<button type="button" class="dup-type-option" onclick="duplicateItemAs('${escHtml(t.name)}')">${escHtml(t.name)}</button>`
+    ).join('');
+  }
+}
+
+function toggleDupTypeMenu(e) {
+  e.stopPropagation();
+  const menu = document.getElementById('dupTypeMenu');
+  if (!menu) return;
+  menu.classList.toggle('open');
+}
+
+async function duplicateItemAs(targetTypeName) {
+  const menu = document.getElementById('dupTypeMenu');
+  if (menu) menu.classList.remove('open');
+  if (!_editingId) return;
+  const src = _items.find(i => i.id === _editingId);
+  if (!src) return;
+
+  const typeDef = _itemTypes.find(t => t.name === targetTypeName);
+  const payload = {
+    title:             src.title,
+    description:       src.description ?? '',
+    status:            'pending',
+    dev_item_type:     targetTypeName,
+    assigned_to:       src.assigned_to ?? null,
+    epic_id:           src.epic_id ?? null,
+    start_date:        src.start_date ?? null,
+    estimated_end_date: src.estimated_end_date ?? null,
+    story_points:      src.story_points ?? null,
+    system_ids:        src.system_ids ?? [],
+  };
+
+  try {
+    const res = await fetch('/api/dev/items', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const created = await res.json();
+    closeDetailModal();
+    await loadItems();
+    showToast(`Duplicated as "${targetTypeName}".`);
+    // Open the new item immediately
+    if (created?.id) openDetailModal(created.id);
+  } catch (err) {
+    showToast('Failed to duplicate item: ' + err.message, 'error');
+  }
+}
+
 function resetItemForm() {
   document.getElementById('itemFormActions').style.display = '';
   document.getElementById('itemFormLoading').style.display = 'none';
@@ -1074,8 +1171,9 @@ async function _execSaveItem(remarks, actionIds = [], files = []) {
 
   const typeVal    = document.getElementById('itemType').value;
   const othersText = document.getElementById('itemTypeOthers').value.trim();
-  const devItemType = typeVal === 'Others'
-    ? (othersText ? `Others: ${othersText}` : 'Others')
+  const selTypeDef = _itemTypes.find(t => t.name === typeVal);
+  const devItemType = selTypeDef?.is_freeform
+    ? (othersText ? `${typeVal}: ${othersText}` : typeVal)
     : (typeVal || null);
 
   const payload = {
@@ -1428,8 +1526,9 @@ function _getListItems() {
   }
   if (statusF) items = items.filter(i => i.status === statusF);
   if (typeF)   items = items.filter(i => {
-    const t = i.dev_item_type || '';
-    return typeF === 'Others' ? t.startsWith('Others') : t === typeF;
+    const dtype   = i.dev_item_type || '';
+    const typeDef = _itemTypes.find(t => t.name === typeF);
+    return typeDef?.is_freeform ? dtype.startsWith(typeF) : dtype === typeF;
   });
   if (devF)    items = items.filter(i => i.assigned_to === devF || i.created_by === devF);
   if (sysF)    items = items.filter(i => _parseSystemIds(i).includes(sysF));
@@ -1542,7 +1641,7 @@ function renderListView() {
   if (!tbody) return;
 
   if (!items.length) {
-    tbody.innerHTML = `<tr><td colspan="9" class="dlt-empty">No items match the current filters.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" class="dlt-empty">No items match the current filters.</td></tr>`;
     return;
   }
 
@@ -1921,16 +2020,231 @@ async function loadEpics() {
   } catch { /* non-fatal */ }
 }
 
+/* ── Item types ── */
+async function loadItemTypes() {
+  try {
+    const res = await fetch('/api/dev/item-types', { headers: authHeaders() });
+    if (res.ok) {
+      _itemTypes = await res.json();
+      _populateTypeFilter();
+    }
+  } catch { /* non-fatal */ }
+}
+
+function _populateTypeFilter() {
+  const sel = document.getElementById('listTypeFilter');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">All Types</option>' +
+    _itemTypes.filter(t => t.is_active !== false).map(t =>
+      `<option value="${escHtml(t.name)}">${escHtml(t.name)}</option>`
+    ).join('');
+  if (_itemTypes.some(t => t.name === cur)) sel.value = cur;
+}
+
+function onItemTypeChange() {
+  const val = document.getElementById('itemType')?.value;
+  const t   = _itemTypes.find(t => t.name === val);
+  const grp = document.getElementById('itemTypeOthersGroup');
+  if (grp) grp.style.display = t?.is_freeform ? '' : 'none';
+}
+
+/* ── Item types modal ── */
+function openItemTypesModal() {
+  document.getElementById('itemTypesModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  renderItemTypesList();
+  setTimeout(() => document.getElementById('newItemTypeName')?.focus(), 60);
+}
+
+function closeItemTypesModal() {
+  document.getElementById('itemTypesModal')?.classList.remove('open');
+  const anyOpen = document.querySelector('.modal-overlay.open:not(#itemTypesModal)');
+  if (!anyOpen) document.body.style.overflow = '';
+}
+
+function overlayCloseItemTypes(e) {
+  if (e.target === document.getElementById('itemTypesModal')) closeItemTypesModal();
+}
+
+function renderItemTypesList() {
+  const listEl = document.getElementById('itemTypesList');
+  if (!listEl) return;
+  if (!_itemTypes.length) {
+    listEl.innerHTML = '<div class="dlt-empty" style="padding:20px 0;">No types yet. Add one below.</div>';
+    return;
+  }
+  listEl.innerHTML = _itemTypes.map((t, idx) => `
+    <div class="itype-row" data-id="${escHtml(t.id)}">
+      <div class="itype-order-btns">
+        <button class="itype-order-btn" onclick="moveItemType('${escHtml(t.id)}',-1)" title="Move up"${idx === 0 ? ' disabled' : ''}>↑</button>
+        <button class="itype-order-btn" onclick="moveItemType('${escHtml(t.id)}',1)" title="Move down"${idx === _itemTypes.length - 1 ? ' disabled' : ''}>↓</button>
+      </div>
+      <input class="itype-name-input" type="text" value="${escHtml(t.name)}" maxlength="64"
+        onblur="saveItemTypeName('${escHtml(t.id)}',this)"
+        onkeydown="if(event.key==='Enter')this.blur();">
+      ${t.is_freeform ? '<span class="itype-badge">freeform</span>' : ''}
+      <label class="itype-active-label" title="${t.is_active ? 'Active' : 'Inactive'} — click to toggle">
+        <input type="checkbox" class="itype-active-cb" ${t.is_active ? 'checked' : ''}
+          onchange="toggleItemTypeActive('${escHtml(t.id)}',this.checked)">
+        <span class="itype-active-track"></span>
+      </label>
+      <button class="itype-delete-btn" onclick="deleteItemType('${escHtml(t.id)}')" title="Delete type">
+        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  `).join('');
+}
+
+async function saveItemTypeName(id, inputEl) {
+  const name = (inputEl.value || '').trim();
+  const t    = _itemTypes.find(t => t.id === id);
+  if (!name) { if (t) inputEl.value = t.name; return; }
+  if (!t || t.name === name) return;
+  try {
+    const res = await fetch(`/api/dev/item-types/${encodeURIComponent(id)}`, {
+      method: 'PATCH', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    const saved = await res.json();
+    const idx = _itemTypes.findIndex(t => t.id === id);
+    if (idx !== -1) _itemTypes[idx] = saved;
+    _populateTypeFilter();
+    showToast('Type renamed.');
+  } catch (err) {
+    if (t) inputEl.value = t.name;
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+async function toggleItemTypeActive(id, isActive) {
+  try {
+    const res = await fetch(`/api/dev/item-types/${encodeURIComponent(id)}`, {
+      method: 'PATCH', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: isActive }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    const saved = await res.json();
+    const idx = _itemTypes.findIndex(t => t.id === id);
+    if (idx !== -1) _itemTypes[idx] = saved;
+    _populateTypeFilter();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+    renderItemTypesList();
+  }
+}
+
+async function moveItemType(id, direction) {
+  const idx = _itemTypes.findIndex(t => t.id === id);
+  if (idx === -1) return;
+  const swapIdx = idx + direction;
+  if (swapIdx < 0 || swapIdx >= _itemTypes.length) return;
+  [_itemTypes[idx], _itemTypes[swapIdx]] = [_itemTypes[swapIdx], _itemTypes[idx]];
+  _itemTypes[idx].sort_order     = idx;
+  _itemTypes[swapIdx].sort_order = swapIdx;
+  renderItemTypesList();
+  _populateTypeFilter();
+  try {
+    await Promise.all([
+      fetch(`/api/dev/item-types/${encodeURIComponent(_itemTypes[idx].id)}`, {
+        method: 'PATCH', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sort_order: idx }),
+      }),
+      fetch(`/api/dev/item-types/${encodeURIComponent(_itemTypes[swapIdx].id)}`, {
+        method: 'PATCH', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sort_order: swapIdx }),
+      }),
+    ]);
+  } catch (err) {
+    showToast(`Order save failed: ${err.message}`);
+  }
+}
+
+async function deleteItemType(id) {
+  const t = _itemTypes.find(t => t.id === id);
+  if (!t) return;
+  if (!await showConfirm({
+    title: 'Delete Type', message: `Delete "${t.name}"?`,
+    detail: 'Existing items using this type keep their value but it will no longer appear in the dropdown.',
+    confirmText: 'Delete', danger: true,
+  })) return;
+  try {
+    const res = await fetch(`/api/dev/item-types/${encodeURIComponent(id)}`, {
+      method: 'DELETE', headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    _itemTypes = _itemTypes.filter(t => t.id !== id);
+    renderItemTypesList();
+    _populateTypeFilter();
+    showToast('Type deleted.');
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+async function addItemType() {
+  const nameEl     = document.getElementById('newItemTypeName');
+  const freeformEl = document.getElementById('newItemTypeFreeform');
+  const name       = (nameEl?.value || '').trim();
+  if (!name) { nameEl?.focus(); return; }
+  try {
+    const res = await fetch('/api/dev/item-types', {
+      method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, sort_order: _itemTypes.length, is_active: true, is_freeform: freeformEl?.checked ?? false }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    const created = await res.json();
+    _itemTypes.push(created);
+    if (nameEl)     nameEl.value = '';
+    if (freeformEl) freeformEl.checked = false;
+    renderItemTypesList();
+    _populateTypeFilter();
+    showToast('Type added.');
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
 /* ── Epics view ── */
 const EPIC_STATUS_LABEL = { planning: 'Planning', active: 'Active', on_hold: 'On Hold', done: 'Done', cancelled: 'Cancelled' };
 const EPIC_STATUS_CLS   = { planning: 'es-planning', active: 'es-active', on_hold: 'es-on-hold', done: 'es-done', cancelled: 'es-cancelled' };
 
+function _epicDevAvatarStack(usernames, max) {
+  if (!usernames.length) return '';
+  const shown = usernames.slice(0, max);
+  const extra = usernames.length - shown.length;
+  const avatars = shown.map(u => {
+    const m    = _members[u] || {};
+    const name = m.displayName || u;
+    const init = (name.charAt(0) || '?').toUpperCase();
+    return m.avatarUrl
+      ? `<img src="${escHtml(m.avatarUrl)}" class="epic-dev-avatar" title="${escHtml(name)}" alt="${escHtml(init)}">`
+      : `<div class="epic-dev-avatar epic-dev-avatar-init" title="${escHtml(name)}">${escHtml(init)}</div>`;
+  }).join('');
+  const extraHtml = extra > 0
+    ? `<div class="epic-dev-avatar epic-dev-avatar-more" title="${extra} more developer${extra !== 1 ? 's' : ''}">+${extra}</div>`
+    : '';
+  return `<div class="epic-dev-stack">${avatars}${extraHtml}</div>`;
+}
+
 function _epicCardHtml(e) {
-  const sysIds    = Array.isArray(e.system_ids) ? e.system_ids : [];
-  const sysNames  = sysIds.map(id => _systems.find(s => s.id === id)?.name).filter(Boolean);
-  const itemCount = _items.filter(i => i.epic_id === e.epic_id).length;
+  const sysIds     = Array.isArray(e.system_ids) ? e.system_ids : [];
+  const sysNames   = sysIds.map(id => _systems.find(s => s.id === id)?.name).filter(Boolean);
+  const epicItems  = _items.filter(i => i.epic_id === e.epic_id);
+  const itemCount  = epicItems.length;
   const cls = EPIC_STATUS_CLS[e.epic_status] || 'es-planning';
   const lbl = EPIC_STATUS_LABEL[e.epic_status] || e.epic_status;
+
+  const devUsernames = [...new Set(epicItems.map(i => i.assigned_to || i.created_by).filter(Boolean))];
+  const devStack     = _epicDevAvatarStack(devUsernames, 4);
+
+  const spItems = epicItems.filter(i => i.story_points != null);
+  const totalSP = spItems.reduce((s, i) => s + i.story_points, 0);
+  const spHtml  = spItems.length
+    ? `<span class="epic-card-sp"><span class="epic-card-sp-sigma">∑</span>${totalSP}<span class="epic-card-sp-unit">pt</span></span>`
+    : '';
+
   return `<div class="epic-card" onclick="openEpicPage('${escHtml(e.epic_id)}')">
     <div class="epic-card-top">
       <span class="epic-status-badge ${cls}">${escHtml(lbl)}</span>
@@ -1940,11 +2254,17 @@ function _epicCardHtml(e) {
     ${e.epic_description ? `<div class="epic-card-desc">${escHtml(_descPreview(e.epic_description, 100))}</div>` : ''}
     ${sysNames.length ? `<div class="epic-card-sys">${sysNames.map(n => `<span class="kcard-system-tag">${escHtml(n)}</span>`).join('')}</div>` : ''}
     <div class="epic-card-footer">
-      <span class="epic-card-item-count">
-        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
-        ${itemCount} item${itemCount !== 1 ? 's' : ''}
-      </span>
-      <span class="epic-card-date">${fmtDate(e.date_created)}</span>
+      <div class="epic-card-footer-left">
+        <span class="epic-card-item-count">
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          ${itemCount} item${itemCount !== 1 ? 's' : ''}
+        </span>
+        ${spHtml}
+      </div>
+      <div class="epic-card-footer-right">
+        ${devStack}
+        <span class="epic-card-date">${fmtDate(e.date_created)}</span>
+      </div>
     </div>
   </div>`;
 }
@@ -2233,7 +2553,7 @@ function openItemFromEpic(itemId) {
    Epic Detail Page
    ══════════════════════════════════════════════════════════════════════════════ */
 
-function openEpicPage(epicId) {
+function openEpicPage(epicId, { pushState = true } = {}) {
   const epic = _epics.find(e => e.epic_id === epicId);
   if (!epic) return;
   _epicPageId    = epicId;
@@ -2242,6 +2562,11 @@ function openEpicPage(epicId) {
   document.getElementById('devEpicsView').style.display = 'none';
   document.getElementById('epicPageView').style.display = '';
   _loadEpicPageItems(epicId);
+  if (pushState) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('epic', epicId);
+    history.pushState({ epic: epicId }, '', url.toString());
+  }
 }
 
 function closeEpicPage() {
@@ -2250,6 +2575,20 @@ function closeEpicPage() {
   document.getElementById('epicPageView').style.display  = 'none';
   document.getElementById('devEpicsView').style.display  = '';
   renderEpicsView();
+  const url = new URL(window.location.href);
+  url.searchParams.delete('epic');
+  history.pushState({}, '', url.toString());
+}
+
+function shareEpicPage() {
+  if (!_epicPageId) return;
+  const url = new URL(window.location.href);
+  url.searchParams.set('epic', _epicPageId);
+  navigator.clipboard.writeText(url.toString()).then(() => {
+    showToast('Epic link copied to clipboard.');
+  }).catch(() => {
+    showToast('Copy failed — link: ' + url.toString(), 'error');
+  });
 }
 
 function _populateEpicPage(epic) {
@@ -2280,6 +2619,13 @@ function _populateEpicPage(epic) {
     const sysNames = sysIds.map(id => _systems.find(s => s.id === id)?.name).filter(Boolean);
     sysEl.innerHTML = sysNames.map(n => `<span class="kcard-system-tag">${escHtml(n)}</span>`).join('');
   }
+
+  const teamRowEl = document.getElementById('epicPageTeamRow');
+  const devsEl    = document.getElementById('epicPageDevs');
+  const spEl      = document.getElementById('epicPageTotalSP');
+  if (teamRowEl) teamRowEl.style.display = 'none';
+  if (devsEl)    { devsEl.innerHTML = ''; devsEl.style.display = 'none'; }
+  if (spEl)      { spEl.innerHTML = '';   spEl.style.display = 'none'; }
 }
 
 function _updateEpicPageProgress() {
@@ -2291,6 +2637,47 @@ function _updateEpicPageProgress() {
   const textEl = document.getElementById('epicPageProgressText');
   if (fillEl) fillEl.style.width = `${pct}%`;
   if (textEl) textEl.textContent = total ? `${done} / ${total} done (${pct}%)` : 'No items yet';
+
+  const teamRowEl = document.getElementById('epicPageTeamRow');
+  const devsEl    = document.getElementById('epicPageDevs');
+  const spEl      = document.getElementById('epicPageTotalSP');
+
+  const devUsernames = [...new Set(_epicPageItems.map(i => i.assigned_to || i.created_by).filter(Boolean))];
+  if (devsEl) {
+    if (devUsernames.length) {
+      devsEl.innerHTML = `
+        <span class="epic-page-team-label">Team</span>
+        <div class="epic-page-dev-list">
+          ${devUsernames.map(u => {
+            const m    = _members[u] || {};
+            const name = m.displayName || u;
+            const init = (name.charAt(0) || '?').toUpperCase();
+            const avatar = m.avatarUrl
+              ? `<img src="${escHtml(m.avatarUrl)}" class="epic-dev-avatar epic-dev-avatar-lg" alt="${escHtml(init)}">`
+              : `<div class="epic-dev-avatar epic-dev-avatar-lg epic-dev-avatar-init">${escHtml(init)}</div>`;
+            return `<span class="epic-page-dev-chip">${avatar}<span class="epic-page-dev-name">${escHtml(name)}</span></span>`;
+          }).join('')}
+        </div>`;
+      devsEl.style.display = '';
+    } else {
+      devsEl.innerHTML = '';
+      devsEl.style.display = 'none';
+    }
+  }
+
+  const spItems = _epicPageItems.filter(i => i.story_points != null);
+  if (spEl) {
+    if (spItems.length) {
+      const totalSP = spItems.reduce((s, i) => s + i.story_points, 0);
+      spEl.innerHTML = `<span class="epic-page-sp-sigma">∑</span><span class="epic-page-sp-val">${totalSP}</span><span class="epic-page-sp-unit">pt total</span>`;
+      spEl.style.display = '';
+    } else {
+      spEl.innerHTML = '';
+      spEl.style.display = 'none';
+    }
+  }
+
+  if (teamRowEl) teamRowEl.style.display = (devUsernames.length || spItems.length) ? '' : 'none';
 }
 
 async function _loadEpicPageItems(epicId) {

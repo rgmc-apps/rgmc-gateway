@@ -54,6 +54,11 @@ def dev_create_item():
     if raw_status not in ("pending", "ongoing", "coding", "testing", "done"):
         raw_status = "pending"
     assigned_to = (data.get("assigned_to") or "").strip() or username
+    raw_sp = data.get("story_points")
+    try:
+        story_points = int(raw_sp) if raw_sp not in (None, "") else None
+    except (TypeError, ValueError):
+        story_points = None
     item = {
         "title":              title,
         "description":        (data.get("description") or "").strip() or None,
@@ -65,6 +70,7 @@ def dev_create_item():
         "dev_item_type":      (data.get("dev_item_type") or "").strip() or None,
         "epic_id":            data.get("epic_id") or None,
         "is_parked":          bool(data.get("is_parked", False)),
+        "story_points":       story_points,
         "created_by":         username,
         "assigned_to":        assigned_to,
     }
@@ -486,3 +492,79 @@ def dev_get_epic_items(epic_id):
     except Exception as exc:
         current_app.logger.error("dev_get_epic_items failed: %s", exc)
         return jsonify({"error": "Failed to fetch epic items"}), 500
+
+
+# ── Item types ───────────────────────────────────────────────────────────────
+
+@developer_bp.get("/api/dev/item-types")
+def dev_get_item_types():
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/dev_item_types", params={
+            "select": "*",
+            "order":  "sort_order.asc,created_at.asc",
+        })
+        return jsonify(rows or [])
+    except Exception as exc:
+        current_app.logger.error("dev_get_item_types failed: %s", exc)
+        return jsonify({"error": "Failed to fetch item types"}), 500
+
+
+@developer_bp.post("/api/dev/item-types")
+def dev_create_item_type():
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "Name is required"}), 400
+    payload = {
+        "name":        name,
+        "sort_order":  int(data.get("sort_order") or 0),
+        "is_active":   bool(data.get("is_active", True)),
+        "is_freeform": bool(data.get("is_freeform", False)),
+    }
+    try:
+        rows = supabase_req("POST", "/dev_item_types", data=payload)
+        return jsonify(rows[0] if rows else {}), 201
+    except Exception as exc:
+        current_app.logger.error("dev_create_item_type failed: %s", exc)
+        return jsonify({"error": "Failed to create item type"}), 500
+
+
+@developer_bp.patch("/api/dev/item-types/<string:type_id>")
+def dev_update_item_type(type_id):
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    data    = request.get_json(silent=True) or {}
+    allowed = {"name", "sort_order", "is_active", "is_freeform"}
+    patch   = {k: v for k, v in data.items() if k in allowed}
+    if "name" in patch:
+        patch["name"] = (patch["name"] or "").strip()
+        if not patch["name"]:
+            return jsonify({"error": "Name cannot be empty"}), 400
+    if not patch:
+        return jsonify({"error": "No valid fields"}), 400
+    try:
+        rows = supabase_req("PATCH", "/dev_item_types", data=patch, params={"id": f"eq.{type_id}"})
+        return jsonify(rows[0] if rows else {})
+    except Exception as exc:
+        current_app.logger.error("dev_update_item_type failed: %s", exc)
+        return jsonify({"error": "Failed to update item type"}), 500
+
+
+@developer_bp.delete("/api/dev/item-types/<string:type_id>")
+def dev_delete_item_type(type_id):
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        supabase_req("DELETE", "/dev_item_types", params={"id": f"eq.{type_id}"})
+        return jsonify({"success": True})
+    except Exception as exc:
+        current_app.logger.error("dev_delete_item_type failed: %s", exc)
+        return jsonify({"error": "Failed to delete item type"}), 500

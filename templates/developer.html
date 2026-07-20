@@ -68,6 +68,10 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           New Item
         </button>
+        <button class="btn-dev-config" onclick="openItemTypesModal()" title="Configure item types">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Item Types
+        </button>
       </div>
     </div>
     <div class="dev-stats-bar">
@@ -176,13 +180,6 @@
         </select>
         <select id="listTypeFilter" class="dev-list-select" onchange="renderListView()">
           <option value="">All Types</option>
-          <option value="New Feature">New Feature</option>
-          <option value="Improvement">Improvement</option>
-          <option value="Bug Fix">Bug Fix</option>
-          <option value="Admin Task">Admin Task</option>
-          <option value="Discussion">Discussion</option>
-          <option value="Maintenance">Maintenance</option>
-          <option value="Others">Others</option>
         </select>
         <select id="listDevFilter" class="dev-list-select" onchange="renderListView()">
           <option value="">All Developers</option>
@@ -374,6 +371,10 @@
           Back to Epics
         </button>
         <div class="epic-page-nav-actions">
+          <button class="epic-page-share-btn" onclick="shareEpicPage()" title="Copy shareable link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            Share
+          </button>
           <button class="epic-page-edit-btn" onclick="editCurrentEpic()">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Edit
@@ -397,6 +398,10 @@
         <div class="epic-page-meta-row">
           <span id="epicPageDate" class="epic-meta-item"></span>
           <div id="epicPageSystems" class="epic-page-systems"></div>
+        </div>
+        <div class="epic-page-team-row" id="epicPageTeamRow" style="display:none;">
+          <div id="epicPageDevs" class="epic-page-devs"></div>
+          <div id="epicPageTotalSP" class="epic-page-total-sp" style="display:none;"></div>
         </div>
         <div class="epic-page-progress-row">
           <div class="epic-progress-stats">
@@ -486,15 +491,8 @@
 
           <div class="form-group">
             <label class="form-label" for="itemType">Item Type</label>
-            <select class="form-input" id="itemType">
+            <select class="form-input" id="itemType" onchange="onItemTypeChange()">
               <option value="">— Select Type —</option>
-              <option value="New Feature">New Feature</option>
-              <option value="Improvement">Improvement</option>
-              <option value="Bug Fix">Bug Fix</option>
-              <option value="Admin Task">Admin Task</option>
-              <option value="Discussion">Discussion</option>
-              <option value="Maintenance">Maintenance</option>
-              <option value="Others">Others (please specify)</option>
             </select>
           </div>
           <div class="form-group" id="itemTypeOthersGroup" style="display:none;">
@@ -576,6 +574,14 @@
               <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
               Delete
             </button>
+            <div class="dup-type-wrap" id="dupTypeWrap" style="display:none;">
+              <button type="button" class="btn-detail-dup" onclick="toggleDupTypeMenu(event)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Duplicate as…
+                <svg class="dup-chevron" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="dup-type-menu" id="dupTypeMenu"></div>
+            </div>
             <div class="item-detail-footer-right">
               <div id="itemFormLoading" class="form-state" style="display:none;"><div class="spinner"></div><span>Saving…</span></div>
               <div id="itemFormError" class="form-state form-error" style="display:none;">
@@ -866,6 +872,37 @@
       </div>
       <div class="modal-body">
         <div id="archiveList" class="archive-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Item Types Configuration Modal ── -->
+  <div id="itemTypesModal" class="modal-overlay" onclick="overlayCloseItemTypes(event)">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Item Types</h3>
+          <p class="modal-site-name">Manage the types available in the dev item form</p>
+        </div>
+        <button class="modal-close" onclick="closeItemTypesModal()" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="itemTypesList" class="item-types-list">
+          <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
+        </div>
+        <div class="item-types-add">
+          <input class="form-input item-types-add-input" type="text" id="newItemTypeName"
+            placeholder="New type name…" maxlength="64"
+            onkeydown="if(event.key==='Enter')addItemType()">
+          <label class="itype-freeform-check" title="Show a custom text field when this type is selected">
+            <input type="checkbox" id="newItemTypeFreeform">
+            <span>Freeform</span>
+          </label>
+          <button class="btn-modal-submit" onclick="addItemType()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Type
+          </button>
+        </div>
       </div>
     </div>
   </div>
