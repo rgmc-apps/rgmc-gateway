@@ -410,12 +410,27 @@ def admin_promote_issue(issue_id):
         f"Email: {issue['email']}\n\n"
         f"{issue['description']}"
     )
+
+    # Resolve system from the issue's site_name
+    sys_id = None
+    site_nm = (issue.get("site_name") or "").strip()
+    if site_nm:
+        try:
+            sys_rows = supabase_req("GET", "/systems", params={"name": f"eq.{site_nm}", "select": "id"})
+            if sys_rows:
+                sys_id = sys_rows[0]["id"]
+        except Exception as exc:
+            current_app.logger.warning("promote: system lookup failed: %s", exc)
+
     dev_item_data = {
         "title":       title,
         "description": desc,
         "status":      "pending",
         "created_by":  admin_username,
     }
+    if sys_id:
+        dev_item_data["system_id"]  = sys_id
+        dev_item_data["system_ids"] = [sys_id]
     if assignee:
         dev_item_data["assigned_to"] = assignee
     try:
