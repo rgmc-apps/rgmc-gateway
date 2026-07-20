@@ -192,6 +192,39 @@ def dev_update_item(item_id):
                         mapped = _dup_status_map.get(new_status)
                         if mapped:
                             supabase_req("PATCH", "/issues", data={"status": mapped}, params={"id": f"eq.{issue['id']}"})
+
+                linked_ids = [iss["id"] for iss in linked]
+                if linked_ids:
+                    id_list = ",".join(linked_ids)
+                    try:
+                        side_linked = supabase_req("GET", "/issues", params={
+                            "linked_issue_id": f"in.({id_list})",
+                            "select":          "*",
+                        })
+                        for issue in (side_linked or []):
+                            if issue.get("status") in ("resolved", "closed"):
+                                continue
+                            if becoming_done:
+                                issue_patch = {
+                                    "status":                     "resolved",
+                                    "resolution_notes":           remarks or None,
+                                    "resolved_by":                resolver_name or None,
+                                    "resolved_at":                datetime.now(timezone.utc).isoformat(),
+                                    "resolution_action_ids":      dev_action_ids or None,
+                                    "resolution_attachment_urls": dev_attach_urls or None,
+                                }
+                                supabase_req("PATCH", "/issues", data=issue_patch, params={"id": f"eq.{issue['id']}"})
+                                dev_action_names = resolve_action_names(dev_action_ids)
+                                send_issue_resolved_email(
+                                    issue, remarks, resolver_name, "resolved",
+                                    action_names=dev_action_names, attachment_urls=dev_attach_urls,
+                                )
+                            elif issue.get("is_duplicate"):
+                                mapped = _dup_status_map.get(new_status)
+                                if mapped:
+                                    supabase_req("PATCH", "/issues", data={"status": mapped}, params={"id": f"eq.{issue['id']}"})
+                    except Exception as exc:
+                        current_app.logger.error("dev_update_item side-linked cascade failed: %s", exc)
         except Exception as exc:
             current_app.logger.error("dev_update_item issue cascade failed: %s", exc)
 
