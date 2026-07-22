@@ -80,6 +80,14 @@
     scrollbar-width: none;
   }
   .admin-tabs::-webkit-scrollbar { display: none; }
+
+  /* XL modal form pane: collapse 2-col form rows when pane is ~400px wide */
+  .item-detail-form .form-row,
+  .item-detail-form .form-row-3 { grid-template-columns: 1fr; }
+
+  /* XL modal footer: allow button row to wrap */
+  .item-detail-footer { flex-wrap: wrap; gap: 10px; }
+  .item-detail-footer-right { flex: 1; min-width: 0; }
 }
 
 /* ══════════════════════════════════════════════════════════════

@@ -21,6 +21,8 @@
   max-width: 580px;
   max-height: 90vh;
   overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
   box-shadow: var(--shadow-modal);
   position: relative;
   animation: modalIn 0.38s cubic-bezier(0.16, 1, 0.3, 1);
@@ -86,7 +88,9 @@
 .modal-form { padding: 24px 28px; display: flex; flex-direction: column; gap: 18px; }
 .ri-card form { display: flex; flex-direction: column; gap: 18px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.form-group { display: flex; flex-direction: column; gap: 7px; }
+/* 3-child name rows (First / M.I. / Last): give M.I. a compact fixed column */
+.form-row:has(> .form-group:nth-child(3)) { grid-template-columns: 1fr 80px 1fr; }
+.form-group { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
 .form-group-full { grid-column: 1 / -1; }
 
 .form-label {

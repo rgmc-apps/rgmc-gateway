@@ -253,6 +253,8 @@
   gap: 18px;
   padding: 24px 28px 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
 }
 
 .item-detail-log {
@@ -260,6 +262,7 @@
   flex-direction: column;
   border-left: 1px solid var(--border-subtle);
   overflow: hidden;
+  min-width: 0;
 }
 
 .detail-log-header {

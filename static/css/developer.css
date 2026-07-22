@@ -120,7 +120,7 @@
 
 /* Dev Perf Modal */
 .dp-modal .modal-box { max-width: 780px; padding: 0; overflow: hidden; }
-.dp-modal-scroll { padding: 28px 28px 32px; max-height: 80vh; overflow-y: auto; }
+.dp-modal-scroll { padding: 28px 28px 32px; max-height: 80vh; overflow-y: auto; overflow-x: hidden; }
 
 /* Profile header */
 .dp-profile-section {
