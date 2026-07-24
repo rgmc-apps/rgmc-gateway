@@ -81,6 +81,7 @@ let _editingEpicId       = null;
 let _addItemToEpicId     = null;
 let _epicPageId          = null;
 let _epicPageItems       = [];
+let _epicDescEditor      = null;
 let _selectedIds         = new Set();
 let _lasso               = null;  // active rubber-band drag state
 let _lassoDragged        = false; // suppresses the click after a lasso drag
@@ -408,7 +409,8 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  _itemDescEditor = initRichEditor('itemDesc');
+  _itemDescEditor  = initRichEditor('itemDesc');
+  _epicDescEditor  = initRichEditor('epicDesc');
 
   // Build profile dropdown
   const container = document.getElementById('devHeaderUser');
