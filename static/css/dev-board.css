@@ -1577,3 +1577,160 @@
   width: 36px;
   height: 36px;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Multi-select: checkboxes, row states, lasso, bulk action bar
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Checkbox column header/cell */
+.dlt-cb-cell {
+  width: 38px;
+  min-width: 38px;
+  padding: 0 4px 0 12px !important;
+  text-align: center;
+}
+.dlt-cb {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: var(--gold);
+  vertical-align: middle;
+}
+
+/* Selected row */
+.dlt-row.dlt-selected { background: rgba(196,151,42,0.08) !important; }
+.dlt-row.dlt-lasso-hover { background: rgba(196,151,42,0.14) !important; outline: 1px solid rgba(196,151,42,0.45); outline-offset: -1px; }
+
+/* Epic item list selected / hover */
+.epic-item-row.dlt-selected { background: rgba(196,151,42,0.08) !important; }
+.epic-item-row.dlt-lasso-hover { background: rgba(196,151,42,0.14) !important; outline: 1px solid rgba(196,151,42,0.45); outline-offset: -1px; }
+
+/* Epic item checkbox wrapper */
+.epic-item-cb-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 6px 0 2px;
+}
+
+/* Lasso rubber-band overlay */
+.lasso-rect {
+  position: fixed;
+  pointer-events: none;
+  border: 1.5px solid rgba(196,151,42,0.75);
+  background: rgba(196,151,42,0.07);
+  border-radius: 3px;
+  z-index: 8999;
+}
+
+/* Bulk action floating bar */
+.bulk-action-bar {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  background: var(--bg-card);
+  border: 1px solid rgba(196,151,42,0.55);
+  border-radius: 12px;
+  box-shadow: 0 8px 36px rgba(0,0,0,0.65), 0 0 0 1px rgba(196,151,42,0.12);
+  z-index: 9100;
+  white-space: nowrap;
+}
+.bulk-action-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold);
+  padding-right: 12px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+.bulk-action-count span {
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.bulk-action-btns {
+  display: flex;
+  gap: 6px;
+}
+.bulk-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(196,151,42,0.07);
+  border: 1px solid rgba(196,151,42,0.22);
+  border-radius: 7px;
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bulk-btn:hover {
+  background: rgba(196,151,42,0.15);
+  border-color: rgba(196,151,42,0.5);
+}
+.bulk-btn-clear {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  margin-left: 4px;
+}
+.bulk-btn-clear:hover {
+  background: rgba(248,113,113,0.12);
+  border-color: rgba(248,113,113,0.45);
+  color: #f87171;
+}
+
+/* Bulk action popovers */
+.bulk-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.55);
+  padding: 5px;
+  min-width: 170px;
+  z-index: 9200;
+}
+.bulk-pop-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  border-radius: 5px;
+  color: var(--text-primary);
+  font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+.bulk-pop-btn:hover { background: rgba(196,151,42,0.1); }
+.bulk-pop-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}

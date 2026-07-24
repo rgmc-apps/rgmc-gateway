@@ -81,8 +81,262 @@ let _editingEpicId       = null;
 let _addItemToEpicId     = null;
 let _epicPageId          = null;
 let _epicPageItems       = [];
+let _selectedIds         = new Set();
+let _lasso               = null;  // active rubber-band drag state
+let _lassoDragged        = false; // suppresses the click after a lasso drag
 
 const DONE_WEEKS_KEY = 'dev-done-weeks';
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Multi-select — selection state, lasso, bulk actions
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+function toggleSelectItem(id, checked) {
+  if (checked) _selectedIds.add(id);
+  else _selectedIds.delete(id);
+  _syncSelectionUI();
+}
+
+function selectAllInTable(tbodyId, checked) {
+  const tbody = document.getElementById(tbodyId);
+  if (!tbody) return;
+  tbody.querySelectorAll('[data-item-id]').forEach(row => {
+    if (checked) _selectedIds.add(row.dataset.itemId);
+    else _selectedIds.delete(row.dataset.itemId);
+  });
+  _syncSelectionUI();
+}
+
+function clearBulkSelection() {
+  _selectedIds.clear();
+  _syncSelectionUI();
+  const tp = document.getElementById('bulkTypePopover');
+  const sp = document.getElementById('bulkStatusPopover');
+  if (tp) tp.style.display = 'none';
+  if (sp) sp.style.display = 'none';
+}
+
+function _syncSelectionUI() {
+  document.querySelectorAll('[data-item-id]').forEach(el => {
+    const sel = _selectedIds.has(el.dataset.itemId);
+    el.classList.toggle('dlt-selected', sel);
+    const cb = el.querySelector('.dlt-cb');
+    if (cb) cb.checked = sel;
+  });
+
+  // Update select-all header checkboxes
+  ['devListBody', 'parkedListBody', 'epicPageItemsBody'].forEach(id => {
+    const tbody = document.getElementById(id);
+    if (!tbody) return;
+    const rows = tbody.querySelectorAll('[data-item-id]');
+    if (!rows.length) return;
+    const allSel = [...rows].every(r => _selectedIds.has(r.dataset.itemId));
+    const anySel = [...rows].some(r => _selectedIds.has(r.dataset.itemId));
+    const cb = tbody.closest('table')?.querySelector('.dlt-cb-all');
+    if (cb) { cb.checked = allSel; cb.indeterminate = !allSel && anySel; }
+  });
+
+  const bar = document.getElementById('bulkActionBar');
+  const n   = _selectedIds.size;
+  const el  = document.getElementById('bulkCount');
+  if (el)  el.textContent  = n;
+  if (bar) bar.style.display = n > 0 ? '' : 'none';
+  if (!n) {
+    const tp = document.getElementById('bulkTypePopover');
+    const sp = document.getElementById('bulkStatusPopover');
+    if (tp) tp.style.display = 'none';
+    if (sp) sp.style.display = 'none';
+  }
+}
+
+/* ── Lasso rubber-band selection ── */
+
+function _initLasso() {
+  document.addEventListener('mousedown', _lassoStart);
+  document.addEventListener('mousemove', _lassoMove);
+  document.addEventListener('mouseup',   _lassoEnd);
+}
+
+function _lassoStart(e) {
+  if (e.button !== 0) return;
+  if (e.target.closest('button, a, input, select, label, .dlt-cb-cell, .epic-item-cb-wrap')) return;
+  const zone = e.target.closest('.dev-list-table-wrap, .epic-items-list');
+  if (!zone) return;
+  _lasso = { zone, startX: e.clientX, startY: e.clientY, active: false, el: null };
+}
+
+function _lassoMove(e) {
+  if (!_lasso) return;
+  const dx = e.clientX - _lasso.startX;
+  const dy = e.clientY - _lasso.startY;
+  if (!_lasso.active && Math.hypot(dx, dy) > 5) {
+    _lasso.active = true;
+    const el = document.createElement('div');
+    el.className = 'lasso-rect';
+    document.body.appendChild(el);
+    _lasso.el = el;
+    document.body.style.userSelect = 'none';
+  }
+  if (!_lasso.active) return;
+  e.preventDefault();
+  const x = Math.min(e.clientX, _lasso.startX);
+  const y = Math.min(e.clientY, _lasso.startY);
+  const w = Math.abs(dx);
+  const h = Math.abs(dy);
+  Object.assign(_lasso.el.style, { left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px' });
+  const r = { left: x, right: x + w, top: y, bottom: y + h };
+  document.querySelectorAll('[data-item-id]').forEach(row => {
+    const b = row.getBoundingClientRect();
+    const hit = b.right > r.left && b.left < r.right && b.bottom > r.top && b.top < r.bottom;
+    row.classList.toggle('dlt-lasso-hover', hit);
+  });
+}
+
+function _lassoEnd(e) {
+  if (!_lasso) return;
+  if (_lasso.active) {
+    document.querySelectorAll('.dlt-lasso-hover').forEach(row => {
+      _selectedIds.add(row.dataset.itemId);
+      row.classList.remove('dlt-lasso-hover');
+    });
+    _syncSelectionUI();
+    if (_lasso.el) _lasso.el.remove();
+    document.body.style.userSelect = '';
+    _lassoDragged = true;
+    setTimeout(() => { _lassoDragged = false; }, 150);
+  }
+  _lasso = null;
+}
+
+/* ── Bulk operations ── */
+
+async function bulkParkToggle() {
+  const ids = [..._selectedIds];
+  if (!ids.length) return;
+  const items     = ids.map(id => _items.find(i => i.id === id)).filter(Boolean);
+  const anyActive = items.some(i => !i.is_parked);
+  const newVal    = anyActive;
+  try {
+    await Promise.all(ids.map(id =>
+      fetch(`/api/dev/items/${encodeURIComponent(id)}`, {
+        method:  'PATCH',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ is_parked: newVal }),
+      })
+    ));
+    ids.forEach(id => {
+      const it = _items.find(i => i.id === id);
+      if (it) it.is_parked = newVal;
+    });
+    clearBulkSelection();
+    renderBoard();
+    showToast(`${ids.length} item${ids.length !== 1 ? 's' : ''} ${newVal ? 'parked' : 'unparked'}.`);
+  } catch (err) {
+    showToast('Error: ' + err.message);
+  }
+}
+
+function bulkDuplicateAs(e) {
+  e.stopPropagation();
+  const tp = document.getElementById('bulkTypePopover');
+  const sp = document.getElementById('bulkStatusPopover');
+  sp.style.display = 'none';
+  if (tp.style.display !== 'none') { tp.style.display = 'none'; return; }
+  tp.innerHTML = _itemTypes.length
+    ? _itemTypes.map(t => `<button class="bulk-pop-btn" onclick="bulkApplyDuplicateAs(event,'${escHtml(t.name)}')">${typeBadge(t.name)}</button>`).join('')
+    : '<div style="padding:8px 10px;color:var(--text-muted);font-size:12px;">No item types configured.</div>';
+  tp.style.display = '';
+}
+
+async function bulkApplyDuplicateAs(e, typeName) {
+  e.stopPropagation();
+  document.getElementById('bulkTypePopover').style.display = 'none';
+  const ids   = [..._selectedIds];
+  const srcs  = ids.map(id => _items.find(i => i.id === id)).filter(Boolean);
+  try {
+    const created = await Promise.all(srcs.map(item =>
+      fetch('/api/dev/items', {
+        method:  'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          title:              item.title,
+          description:        item.description,
+          status:             'pending',
+          system_ids:         item.system_ids,
+          start_date:         item.start_date,
+          estimated_end_date: item.estimated_end_date,
+          story_points:       item.story_points,
+          actual_end_date:    null,
+          dev_item_type:      typeName,
+          epic_id:            item.epic_id,
+          is_parked:          false,
+          assigned_to:        item.assigned_to,
+        }),
+      }).then(r => r.json())
+    ));
+    created.forEach(it => { if (it?.id) _items.push(it); });
+    clearBulkSelection();
+    renderBoard();
+    showToast(`${ids.length} item${ids.length !== 1 ? 's' : ''} duplicated as ${typeName}.`);
+  } catch (err) {
+    showToast('Error: ' + err.message);
+  }
+}
+
+function bulkUpdateStatus(e) {
+  e.stopPropagation();
+  const sp = document.getElementById('bulkStatusPopover');
+  const tp = document.getElementById('bulkTypePopover');
+  tp.style.display = 'none';
+  if (sp.style.display !== 'none') { sp.style.display = 'none'; return; }
+  const statuses = [
+    { val: 'pending',  cls: 'dp-s-pending'  },
+    { val: 'ongoing',  cls: 'dp-s-ongoing'  },
+    { val: 'coding',   cls: 'dp-s-coding'   },
+    { val: 'testing',  cls: 'dp-s-testing'  },
+    { val: 'done',     cls: 'dp-s-done'     },
+  ];
+  sp.innerHTML = statuses.map(s =>
+    `<button class="bulk-pop-btn" onclick="bulkApplyStatus(event,'${s.val}')">
+       <span class="dp-item-status ${s.cls}">${s.val}</span>
+     </button>`
+  ).join('');
+  sp.style.display = '';
+}
+
+async function bulkApplyStatus(e, status) {
+  e.stopPropagation();
+  document.getElementById('bulkStatusPopover').style.display = 'none';
+  const ids = [..._selectedIds];
+  try {
+    await Promise.all(ids.map(id => {
+      const it      = _items.find(i => i.id === id);
+      const payload = { status };
+      if (status === 'done' && !it?.actual_end_date) {
+        payload.actual_end_date = new Date().toISOString().slice(0, 10);
+      } else if (status !== 'done') {
+        payload.actual_end_date = null;
+      }
+      return fetch(`/api/dev/items/${encodeURIComponent(id)}`, {
+        method:  'PATCH',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload),
+      });
+    }));
+    ids.forEach(id => {
+      const it = _items.find(i => i.id === id);
+      if (!it) return;
+      it.status = status;
+      if (status === 'done' && !it.actual_end_date) it.actual_end_date = new Date().toISOString().slice(0, 10);
+      else if (status !== 'done') it.actual_end_date = null;
+    });
+    clearBulkSelection();
+    renderBoard();
+    showToast(`${ids.length} item${ids.length !== 1 ? 's' : ''} set to ${status}.`);
+  } catch (err) {
+    showToast('Error: ' + err.message);
+  }
+}
 let _doneWeeks = Math.max(1, parseInt(localStorage.getItem(DONE_WEEKS_KEY) || '2', 10));
 
 function setDoneWeeks(val) {
@@ -262,7 +516,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (doneWeeksInput) doneWeeksInput.value = _doneWeeks;
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeDoneRemarksModal(); closeDetailModal(); closeEpicModal(); closeAddSystemModal(); closeArchiveModal(); closeProfileMenu(); closeEpicPage(); closeItemTypesModal(); }
+    if (e.key === 'Escape') {
+      closeDoneRemarksModal(); closeDetailModal(); closeEpicModal(); closeAddSystemModal(); closeArchiveModal(); closeProfileMenu(); closeEpicPage(); closeItemTypesModal();
+      const tp = document.getElementById('bulkTypePopover');
+      const sp = document.getElementById('bulkStatusPopover');
+      if (tp && tp.style.display !== 'none') { tp.style.display = 'none'; return; }
+      if (sp && sp.style.display !== 'none') { sp.style.display = 'none'; return; }
+      if (_selectedIds.size) clearBulkSelection();
+    }
   });
   document.addEventListener('click', e => {
     if (!e.target.closest('#sysMultiWrap'))     closeSysDropdown();
@@ -272,7 +533,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (m) m.classList.remove('open');
     }
     closeProfileMenu();
+    if (!e.target.closest('#bulkDupBtn'))    { const p = document.getElementById('bulkTypePopover');   if (p) p.style.display = 'none'; }
+    if (!e.target.closest('#bulkStatusBtn')) { const p = document.getElementById('bulkStatusPopover'); if (p) p.style.display = 'none'; }
   });
+
+  _initLasso();
 
   document.getElementById('itemType').addEventListener('change', function () {
     const othersGroup = document.getElementById('itemTypeOthersGroup');
@@ -867,6 +1132,7 @@ async function deleteItem(id) {
 
 /* ── Item detail modal (add / edit + activity log) ── */
 function openDetailModal(idOrNull) {
+  if (_lassoDragged) return;
   const item = idOrNull ? _items.find(i => i.id === idOrNull) : null;
   _editingId = item?.id ?? null;
 
@@ -1649,7 +1915,7 @@ function renderListView() {
   if (!tbody) return;
 
   if (!items.length) {
-    tbody.innerHTML = `<tr><td colspan="10" class="dlt-empty">No items match the current filters.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" class="dlt-empty">No items match the current filters.</td></tr>`;
     return;
   }
 
@@ -1682,7 +1948,11 @@ function renderListView() {
       ? `<img src="${m.avatarUrl}" class="dlt-avatar" alt="${escHtml(devInit)}">`
       : `<div class="dlt-avatar dlt-avatar-initial">${escHtml(devInit)}</div>`;
 
-    return `<tr class="dlt-row" onclick="openDetailModal('${escHtml(item.id)}')">
+    const isSel = _selectedIds.has(item.id);
+    return `<tr class="dlt-row${isSel ? ' dlt-selected' : ''}" data-item-id="${escHtml(item.id)}" onclick="openDetailModal('${escHtml(item.id)}')">
+      <td class="dlt-td dlt-cb-cell" onclick="event.stopPropagation()">
+        <input type="checkbox" class="dlt-cb" ${isSel ? 'checked' : ''} onchange="toggleSelectItem('${escHtml(item.id)}', this.checked)">
+      </td>
       <td class="dlt-td dlt-code">${item.dev_item_code ? escHtml(item.dev_item_code) : '—'}</td>
       <td class="dlt-td">
         <div class="dlt-title-text">${escHtml(item.title)}</div>
@@ -1727,7 +1997,11 @@ function renderListView() {
           const avatarHtml = m.avatarUrl
             ? `<img src="${m.avatarUrl}" class="dlt-avatar" alt="${escHtml(devInit)}">`
             : `<div class="dlt-avatar dlt-avatar-initial">${escHtml(devInit)}</div>`;
-          return `<tr class="dlt-row" onclick="openDetailModal('${escHtml(item.id)}')">
+          const isSel = _selectedIds.has(item.id);
+          return `<tr class="dlt-row${isSel ? ' dlt-selected' : ''}" data-item-id="${escHtml(item.id)}" onclick="openDetailModal('${escHtml(item.id)}')">
+            <td class="dlt-td dlt-cb-cell" onclick="event.stopPropagation()">
+              <input type="checkbox" class="dlt-cb" ${isSel ? 'checked' : ''} onchange="toggleSelectItem('${escHtml(item.id)}', this.checked)">
+            </td>
             <td class="dlt-td dlt-code">${item.dev_item_code ? escHtml(item.dev_item_code) : '—'}</td>
             <td class="dlt-td">
               <div class="dlt-title-text">${escHtml(item.title)}</div>
@@ -1742,7 +2016,7 @@ function renderListView() {
             <td class="dlt-td">${elapsed !== null ? `<span class="dlt-elapsed-val">${elapsed}d</span>` : `<span class="dlt-muted">—</span>`}</td>
           </tr>`;
         }).join('')
-      : `<tr><td colspan="9" class="dlt-empty">No parked items match the filters.</td></tr>`;
+      : `<tr><td colspan="10" class="dlt-empty">No parked items match the filters.</td></tr>`;
   }
 }
 
@@ -2452,7 +2726,11 @@ function _renderEpicItemRow(item) {
       ${elapsed}d elapsed</span>`;
   }
 
-  return `<div class="epic-item-row" onclick="openItemFromEpic('${escHtml(item.id)}')">
+  const isSel = _selectedIds.has(item.id);
+  return `<div class="epic-item-row${isSel ? ' dlt-selected' : ''}" data-item-id="${escHtml(item.id)}" onclick="openItemFromEpic('${escHtml(item.id)}')">
+    <label class="epic-item-cb-wrap" onclick="event.stopPropagation()">
+      <input type="checkbox" class="dlt-cb" ${isSel ? 'checked' : ''} onchange="toggleSelectItem('${escHtml(item.id)}', this.checked)">
+    </label>
     <div class="epic-item-main">
       <div class="epic-item-top">
         ${item.dev_item_code ? `<span class="epic-item-code">${escHtml(item.dev_item_code)}</span>` : ''}
@@ -2580,6 +2858,7 @@ function addItemToEpicModal() {
 }
 
 function openItemFromEpic(itemId) {
+  if (_lassoDragged) return;
   openDetailModal(itemId);
   // Ensure item detail modal floats above epic modal
   const detailModal = document.getElementById('itemDetailModal');
@@ -2721,7 +3000,7 @@ async function _loadEpicPageItems(epicId) {
   const tbody   = document.getElementById('epicPageItemsBody');
   const countEl = document.getElementById('epicPageItemCount');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="10" class="dlt-empty">Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="11" class="dlt-empty">Loading…</td></tr>';
   try {
     const res = await fetch(`/api/dev/epics/${encodeURIComponent(epicId)}/items`, { headers: authHeaders() });
     if (!res.ok) throw new Error((await res.json()).error || 'Failed');
@@ -2734,7 +3013,7 @@ async function _loadEpicPageItems(epicId) {
     _updateEpicPageProgress();
     renderEpicPageItems();
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="10" class="dlt-empty">${escHtml(err.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" class="dlt-empty">${escHtml(err.message)}</td></tr>`;
   }
 }
 
@@ -2749,7 +3028,7 @@ function renderEpicPageItems() {
   if (statusF) items = items.filter(i => i.status === statusF);
 
   if (!items.length) {
-    tbody.innerHTML = `<tr><td colspan="10" class="dlt-empty">${_epicPageItems.length ? 'No items match filters.' : 'No items linked to this epic yet.'}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" class="dlt-empty">${_epicPageItems.length ? 'No items match filters.' : 'No items linked to this epic yet.'}</td></tr>`;
     return;
   }
   tbody.innerHTML = items.map(_renderEpicPageRow).join('');
@@ -2770,7 +3049,11 @@ function _renderEpicPageRow(item) {
   const sysName  = sysIds.length ? (_systems.find(s => s.id === sysIds[0])?.name || '') : '';
   const elapsed  = daysElapsed(item);
 
-  return `<tr class="dlt-row" onclick="openDetailModal('${escHtml(item.id)}')">
+  const isSel = _selectedIds.has(item.id);
+  return `<tr class="dlt-row${isSel ? ' dlt-selected' : ''}" data-item-id="${escHtml(item.id)}" onclick="openDetailModal('${escHtml(item.id)}')">
+    <td class="dlt-td dlt-cb-cell" onclick="event.stopPropagation()">
+      <input type="checkbox" class="dlt-cb" ${isSel ? 'checked' : ''} onchange="toggleSelectItem('${escHtml(item.id)}', this.checked)">
+    </td>
     <td class="dlt-td dlt-th-code">${item.dev_item_code ? `<span class="epic-item-code">${escHtml(item.dev_item_code)}</span>` : '<span style="color:var(--text-muted);">—</span>'}</td>
     <td class="dlt-td dlt-th-title">
       <span>${escHtml(item.title)}</span>

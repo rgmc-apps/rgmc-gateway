@@ -193,6 +193,9 @@
         <table class="dev-list-table">
           <thead>
             <tr>
+              <th class="dlt-th dlt-cb-cell">
+                <input type="checkbox" class="dlt-cb dlt-cb-all" onchange="selectAllInTable('devListBody', this.checked)" title="Select all">
+              </th>
               <th class="dlt-th dlt-th-code" data-col="dev_item_code" onclick="sortListBy('dev_item_code')">
                 Code <span class="dlt-sort-icon" id="sort-dev_item_code"></span>
               </th>
@@ -226,7 +229,7 @@
             </tr>
           </thead>
           <tbody id="devListBody">
-            <tr><td colspan="10" class="dlt-empty">Loading…</td></tr>
+            <tr><td colspan="11" class="dlt-empty">Loading…</td></tr>
           </tbody>
         </table>
       </div>
@@ -242,6 +245,9 @@
           <table class="dev-list-table">
             <thead>
               <tr>
+                <th class="dlt-th dlt-cb-cell">
+                  <input type="checkbox" class="dlt-cb dlt-cb-all" onchange="selectAllInTable('parkedListBody', this.checked)" title="Select all">
+                </th>
                 <th class="dlt-th dlt-th-code">Code</th>
                 <th class="dlt-th dlt-th-title">Title</th>
                 <th class="dlt-th">Type</th>
@@ -254,7 +260,7 @@
               </tr>
             </thead>
             <tbody id="parkedListBody">
-              <tr><td colspan="9" class="dlt-empty">No parked items.</td></tr>
+              <tr><td colspan="10" class="dlt-empty">No parked items.</td></tr>
             </tbody>
           </table>
         </div>
@@ -444,6 +450,9 @@
           <table class="dev-list-table">
             <thead>
               <tr>
+                <th class="dlt-th dlt-cb-cell">
+                  <input type="checkbox" class="dlt-cb dlt-cb-all" onchange="selectAllInTable('epicPageItemsBody', this.checked)" title="Select all">
+                </th>
                 <th class="dlt-th dlt-th-code">Code</th>
                 <th class="dlt-th dlt-th-title">Title</th>
                 <th class="dlt-th">Type</th>
@@ -457,7 +466,7 @@
               </tr>
             </thead>
             <tbody id="epicPageItemsBody">
-              <tr><td colspan="10" class="dlt-empty">Loading…</td></tr>
+              <tr><td colspan="11" class="dlt-empty">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -466,6 +475,30 @@
     </div><!-- /epicPageView -->
 
   </main>
+
+  <!-- ── Bulk Action Bar ── -->
+  <div id="bulkActionBar" class="bulk-action-bar" style="display:none;">
+    <span class="bulk-action-count"><span id="bulkCount">0</span> selected</span>
+    <div class="bulk-action-btns">
+      <button class="bulk-btn" onclick="bulkParkToggle()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/></svg>
+        Park / Unpark
+      </button>
+      <button class="bulk-btn" id="bulkDupBtn" onclick="bulkDuplicateAs(event)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Duplicate As…
+        <div id="bulkTypePopover" class="bulk-popover" style="display:none;"></div>
+      </button>
+      <button class="bulk-btn" id="bulkStatusBtn" onclick="bulkUpdateStatus(event)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Update Status
+        <div id="bulkStatusPopover" class="bulk-popover" style="display:none;"></div>
+      </button>
+    </div>
+    <button class="bulk-btn-clear" onclick="clearBulkSelection()" title="Clear selection">
+      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
 
   <!-- ── Item Detail Modal (edit + activity log) ── -->
   <div id="itemDetailModal" class="modal-overlay" onclick="overlayCloseDetail(event)">
