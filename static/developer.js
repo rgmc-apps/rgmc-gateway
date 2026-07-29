@@ -1459,7 +1459,7 @@ async function _execSaveItem(remarks, actionIds = [], files = []) {
     system_ids:         _getSelectedSystemIds(),
     start_date:         document.getElementById('itemStart').value || null,
     estimated_end_date: document.getElementById('itemEstEnd').value || null,
-    story_points:       (v => v !== '' && v !== null ? parseInt(v, 10) : null)(document.getElementById('itemStoryPoints')?.value ?? ''),
+    story_points:       (v => v !== '' && v !== null ? parseFloat(v) : null)(document.getElementById('itemStoryPoints')?.value ?? ''),
     actual_end_date,
     dev_item_type:      devItemType,
     epic_id:            document.getElementById('itemEpic')?.value || null,
@@ -2553,7 +2553,7 @@ function _epicCardHtml(e) {
   const devStack     = _epicDevAvatarStack(devUsernames, 4);
 
   const spItems = epicItems.filter(i => i.story_points != null);
-  const totalSP = spItems.reduce((s, i) => s + i.story_points, 0);
+  const totalSP = spItems.length ? parseFloat(spItems.reduce((s, i) => s + i.story_points, 0).toFixed(2)) : 0;
   const spHtml  = spItems.length
     ? `<span class="epic-card-sp"><span class="epic-card-sp-sigma">∑</span>${totalSP}<span class="epic-card-sp-unit">pt</span></span>`
     : '';
@@ -2986,7 +2986,7 @@ function _updateEpicPageProgress() {
   const spItems = _epicPageItems.filter(i => i.story_points != null);
   if (spEl) {
     if (spItems.length) {
-      const totalSP = spItems.reduce((s, i) => s + i.story_points, 0);
+      const totalSP = parseFloat(spItems.reduce((s, i) => s + i.story_points, 0).toFixed(2));
       spEl.innerHTML = `<span class="epic-page-sp-sigma">∑</span><span class="epic-page-sp-val">${totalSP}</span><span class="epic-page-sp-unit">pt total</span>`;
       spEl.style.display = '';
     } else {

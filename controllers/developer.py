@@ -56,7 +56,7 @@ def dev_create_item():
     assigned_to = (data.get("assigned_to") or "").strip() or username
     raw_sp = data.get("story_points")
     try:
-        story_points = int(raw_sp) if raw_sp not in (None, "") else None
+        story_points = float(raw_sp) if raw_sp not in (None, "") else None
     except (TypeError, ValueError):
         story_points = None
     item = {
