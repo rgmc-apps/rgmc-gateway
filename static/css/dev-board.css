@@ -330,6 +330,23 @@
   color: var(--gold);
   margin-left: 1px;
 }
+.dlt-sp-actual {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 2px 6px;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+  margin-left: 4px;
+}
+.dlt-sp-actual .dlt-sp-suffix { color: inherit; opacity: 0.7; }
+.dlt-sp-over   { background: rgba(251,146,60,0.12); border: 1px solid rgba(251,146,60,0.3); color: #fb923c; }
+.dlt-sp-under  { background: rgba(96,165,250,0.12); border: 1px solid rgba(96,165,250,0.3); color: #60a5fa; }
+.dlt-sp-exact  { background: rgba(74,222,128,0.12); border: 1px solid rgba(74,222,128,0.3); color: #4ade80; }
+.dlt-sp-actual-only { background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.25); color: #4ade80; }
 .dlt-elapsed-val {
   font-size: 12px;
   font-weight: 600;
@@ -443,8 +460,12 @@
 .ana-charts-grid--1col {
   grid-template-columns: 1fr;
 }
+.ana-charts-grid--2col {
+  grid-template-columns: 1fr 1fr;
+}
 @media (max-width: 900px) {
-  .ana-charts-grid { grid-template-columns: 1fr; }
+  .ana-charts-grid,
+  .ana-charts-grid--2col { grid-template-columns: 1fr; }
 }
 
 /* Chart card */

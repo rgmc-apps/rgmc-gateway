@@ -51,6 +51,12 @@ function daysElapsed(item) {
   return diff >= 0 ? diff : 0;
 }
 
+// Actual SP = elapsed days for completed items (start_date → actual_end_date). 1 day = 1 SP.
+function actualSP(item) {
+  if (item.status !== 'done' || !item.start_date || !item.actual_end_date) return null;
+  return daysElapsed(item);
+}
+
 /* ── Number roll animation ── */
 function rollNumber(el, from, to, ms = 480) {
   if (_rm.matches || from === to) { el.textContent = to; return; }
@@ -1878,6 +1884,25 @@ function _populateListFilters() {
   }
 }
 
+// SP cell: shows estimated SP, and for done items also shows actual SP (start→end days)
+function _spCell(item) {
+  const est = item.story_points;
+  const act = actualSP(item);
+  if (act !== null && est != null) {
+    const diff = act - est;
+    const cls  = diff > 0 ? 'dlt-sp-over' : diff < 0 ? 'dlt-sp-under' : 'dlt-sp-exact';
+    return `<span class="dlt-sp">${est}<span class="dlt-sp-suffix">est</span></span>`
+         + `<span class="dlt-sp-actual ${cls}">${act}<span class="dlt-sp-suffix">act</span></span>`;
+  }
+  if (act !== null) {
+    return `<span class="dlt-sp dlt-sp-actual-only">${act}<span class="dlt-sp-suffix">act</span></span>`;
+  }
+  if (est != null) {
+    return `<span class="dlt-sp">${est}<span class="dlt-sp-suffix">pt</span></span>`;
+  }
+  return `<span class="dlt-muted">—</span>`;
+}
+
 function renderListView() {
   if (_viewMode !== 'list') return;
   _populateListFilters();
@@ -1968,7 +1993,7 @@ function renderListView() {
       </td>
       <td class="dlt-td dlt-date">${fmtDate(item.start_date)}</td>
       <td class="dlt-td dlt-date${overdue ? ' dlt-overdue' : ''}">${fmtDate(item.estimated_end_date)}${overdue ? ' ⚠' : ''}</td>
-      <td class="dlt-td">${item.story_points != null ? `<span class="dlt-sp">${item.story_points}<span class="dlt-sp-suffix">pt</span></span>` : `<span class="dlt-muted">—</span>`}</td>
+      <td class="dlt-td">${_spCell(item)}</td>
       <td class="dlt-td">${elapsed !== null ? `<span class="dlt-elapsed-val">${elapsed}d</span>` : `<span class="dlt-muted">—</span>`}</td>
     </tr>`;
   }).join('');
@@ -2014,7 +2039,7 @@ function renderListView() {
             <td class="dlt-td"><div class="dlt-dev-cell">${avatarHtml}<span class="dlt-dev-name">${escHtml(devName)}</span></div></td>
             <td class="dlt-td dlt-date">${fmtDate(item.start_date)}</td>
             <td class="dlt-td dlt-date">${fmtDate(item.estimated_end_date)}</td>
-            <td class="dlt-td">${item.story_points != null ? `<span class="dlt-sp">${item.story_points}<span class="dlt-sp-suffix">pt</span></span>` : `<span class="dlt-muted">—</span>`}</td>
+            <td class="dlt-td">${_spCell(item)}</td>
             <td class="dlt-td">${elapsed !== null ? `<span class="dlt-elapsed-val">${elapsed}d</span>` : `<span class="dlt-muted">—</span>`}</td>
           </tr>`;
         }).join('')
@@ -2036,6 +2061,7 @@ function renderAnalytics() {
   _renderAnaElapsedChart(items);
   _renderAnaMonthChart(items);
   _renderAnaDevChart(items);
+  _renderAnaSpAccuracyChart(items);
 }
 
 function _renderAnaKpis(items) {
@@ -2056,6 +2082,18 @@ function _renderAnaKpis(items) {
     : null;
   const maxElapsed  = withElapsed.length
     ? Math.max(...withElapsed.map(i => daysElapsed(i)))
+    : null;
+
+  // SP metrics
+  const withEstSP   = items.filter(i => i.story_points != null);
+  const totalEstSP  = withEstSP.length
+    ? parseFloat(withEstSP.reduce((s, i) => s + i.story_points, 0).toFixed(2)) : null;
+  const withActSP   = items.filter(i => actualSP(i) !== null);
+  const totalActSP  = withActSP.length
+    ? withActSP.reduce((s, i) => s + actualSP(i), 0) : null;
+  const bothSP      = items.filter(i => i.story_points != null && actualSP(i) !== null);
+  const avgAccuracy = bothSP.length
+    ? Math.round(bothSP.reduce((s, i) => s + (actualSP(i) / i.story_points) * 100, 0) / bothSP.length)
     : null;
 
   strip.innerHTML = `
@@ -2082,6 +2120,18 @@ function _renderAnaKpis(items) {
     <div class="ana-kpi-card">
       <div class="ana-kpi-n">${maxElapsed !== null ? maxElapsed + 'd' : '—'}</div>
       <div class="ana-kpi-lbl">Max Elapsed</div>
+    </div>
+    <div class="ana-kpi-card">
+      <div class="ana-kpi-n">${totalEstSP !== null ? totalEstSP + 'pt' : '—'}</div>
+      <div class="ana-kpi-lbl">Est. Story Points</div>
+    </div>
+    <div class="ana-kpi-card ana-kpi-done">
+      <div class="ana-kpi-n">${totalActSP !== null ? totalActSP + 'pt' : '—'}</div>
+      <div class="ana-kpi-lbl">Actual Story Points</div>
+    </div>
+    <div class="ana-kpi-card${avgAccuracy !== null && avgAccuracy > 120 ? ' ana-kpi-warn' : ''}">
+      <div class="ana-kpi-n">${avgAccuracy !== null ? avgAccuracy + '%' : '—'}</div>
+      <div class="ana-kpi-lbl">Avg SP Accuracy</div>
     </div>`;
 }
 
@@ -2237,6 +2287,85 @@ function _renderAnaDevChart(items) {
     </thead>
     <tbody>${rows}</tbody>
   </table>`;
+}
+
+function _renderAnaSpAccuracyChart(items) {
+  const el = document.getElementById('anaSpAccuracyChart');
+  if (!el) return;
+
+  // Only done items that have both estimated and actual SP
+  const comparable = items.filter(i => i.story_points != null && actualSP(i) !== null);
+  if (!comparable.length) {
+    el.innerHTML = '<div class="ana-no-data">No completed items with both estimated and actual story points.</div>';
+    return;
+  }
+
+  // SP accuracy distribution buckets (actual / estimated * 100)
+  const buckets = [
+    { label: '≤50% (way under)',   min: 0,   max: 50,  color: '#60a5fa', count: 0 },
+    { label: '51–80% (under)',     min: 51,  max: 80,  color: '#93c5fd', count: 0 },
+    { label: '81–120% (on track)', min: 81,  max: 120, color: '#4ade80', count: 0 },
+    { label: '121–150% (over)',    min: 121, max: 150, color: '#fb923c', count: 0 },
+    { label: '>150% (way over)',   min: 151, max: Infinity, color: '#f87171', count: 0 },
+  ];
+  comparable.forEach(i => {
+    const pct = (actualSP(i) / i.story_points) * 100;
+    const b = buckets.find(b => pct >= b.min && pct <= b.max);
+    if (b) b.count++;
+  });
+
+  const data = buckets.map(b => ({ label: b.label, value: b.count, color: b.color }));
+  el.innerHTML = data.some(d => d.value > 0) ? _anaBarRows(data) : '<div class="ana-no-data">No data.</div>';
+
+  // Developer SP summary table
+  const devEl = document.getElementById('anaSpDevTable');
+  if (!devEl) return;
+
+  const devMap = {};
+  items.forEach(i => {
+    const d = i.assigned_to || i.created_by || 'Unassigned';
+    if (!devMap[d]) devMap[d] = { estSP: 0, actSP: 0, actCount: 0, estCount: 0 };
+    if (i.story_points != null) { devMap[d].estSP += i.story_points; devMap[d].estCount++; }
+    const asp = actualSP(i);
+    if (asp !== null) { devMap[d].actSP += asp; devMap[d].actCount++; }
+  });
+
+  const rows = Object.entries(devMap)
+    .filter(([, v]) => v.estCount > 0 || v.actCount > 0)
+    .sort((a, b) => b[1].actSP - a[1].actSP)
+    .map(([dev, v]) => {
+      const m      = _members[dev] || {};
+      const name   = m.displayName || dev;
+      const init   = (name.charAt(0) || '?').toUpperCase();
+      const avatar = m.avatarUrl
+        ? `<img src="${m.avatarUrl}" class="dlt-avatar" alt="${escHtml(init)}">`
+        : `<div class="dlt-avatar dlt-avatar-initial">${escHtml(init)}</div>`;
+      const estSP  = v.estCount  ? parseFloat(v.estSP.toFixed(2))  : '—';
+      const actSP  = v.actCount  ? v.actSP : '—';
+      const acc    = (v.estCount && v.actCount)
+        ? Math.round((v.actSP / v.estSP) * 100) + '%' : '—';
+      const accCls = (v.estCount && v.actCount)
+        ? (v.actSP / v.estSP > 1.2 ? 'color:#fb923c' : v.actSP / v.estSP < 0.8 ? 'color:#60a5fa' : 'color:#4ade80')
+        : '';
+      return `<tr class="ana-dev-row">
+        <td class="ana-dev-name-cell">${avatar}<span>${escHtml(name)}</span></td>
+        <td class="ana-dev-stat" style="color:var(--gold);">${estSP !== '—' ? estSP + 'pt' : '—'}</td>
+        <td class="ana-dev-stat" style="color:#4ade80;">${actSP !== '—' ? actSP + 'pt' : '—'}</td>
+        <td class="ana-dev-stat" style="${accCls};font-weight:600;">${acc}</td>
+      </tr>`;
+    }).join('');
+
+  devEl.innerHTML = rows.length
+    ? `<table class="ana-dev-table">
+        <thead><tr>
+          <th>Developer</th>
+          <th style="color:var(--gold)">Est. SP</th>
+          <th style="color:#4ade80">Actual SP</th>
+          <th>Accuracy</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`
+    : '<div class="ana-no-data">No story point data.</div>';
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -3066,7 +3195,7 @@ function _renderEpicPageRow(item) {
     <td class="dlt-td" style="font-size:12.5px;color:var(--text-secondary);">${devName ? escHtml(devName) : '<span style="color:var(--text-muted);">—</span>'}</td>
     <td class="dlt-td" style="color:var(--text-muted);font-size:12px;">${item.date_started ? fmtDate(item.date_started) : '—'}</td>
     <td class="dlt-td" style="color:${overdue ? '#f87171' : 'var(--text-muted)'};font-size:12px;">${item.estimated_end_date ? fmtDate(item.estimated_end_date) : '—'}</td>
-    <td class="dlt-td">${item.story_points != null ? `<span class="dlt-sp">${item.story_points}<span class="dlt-sp-suffix">pt</span></span>` : `<span class="dlt-muted">—</span>`}</td>
+    <td class="dlt-td">${_spCell(item)}</td>
     <td class="dlt-td" style="color:var(--text-muted);font-size:12px;">${elapsed !== null ? `${elapsed}d` : '—'}</td>
     <td class="dlt-td">${sysName ? `<span class="kcard-system-tag" style="font-size:11px;">${escHtml(sysName)}</span>` : '<span style="color:var(--text-muted);">—</span>'}</td>
   </tr>`;
