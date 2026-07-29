@@ -87,11 +87,47 @@
 /* Form */
 .modal-form { padding: 24px 28px; display: flex; flex-direction: column; gap: 18px; }
 .ri-card form { display: flex; flex-direction: column; gap: 18px; }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/*
+ * form-row: 2-column grid with subgrid row alignment.
+ * Declaring 2 explicit rows (label row + input row) and using
+ * subgrid on each form-group means all inputs land on the same
+ * horizontal baseline regardless of label height.
+ */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 16px;
+  row-gap: 7px;  /* controls label-to-input spacing for subgrid children */
+}
 /* 3-child name rows (First / M.I. / Last): give M.I. a compact fixed column */
 .form-row:has(> .form-group:nth-child(3)) { grid-template-columns: 1fr 80px 1fr; }
+
+/* Sync each column's label and input to the shared row tracks */
+.form-row > .form-group {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 2;
+  align-content: start;
+}
+
 .form-group { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
 .form-group-full { grid-column: 1 / -1; }
+
+/* Inline checkbox + label rows (e.g. "Park this item") */
+.form-group-inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+.form-label-inline {
+  text-transform: none;
+  font-size: 13px;
+  letter-spacing: 0;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
 
 .form-label {
   font-size: 12px;

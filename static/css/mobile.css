@@ -85,6 +85,16 @@
   .item-detail-form .form-row,
   .item-detail-form .form-row-3 { grid-template-columns: 1fr; }
 
+  /* Restore normal flex layout inside collapsed form-rows so subgrid row-gap
+     doesn't compress the inter-field spacing when stacked single column */
+  .item-detail-form .form-row { row-gap: 18px; }
+  .item-detail-form .form-row > .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    grid-row: auto;
+  }
+
   /* XL modal footer: allow button row to wrap */
   .item-detail-footer { flex-wrap: wrap; gap: 10px; }
   .item-detail-footer-right { flex: 1; min-width: 0; }
@@ -291,8 +301,18 @@
   .gate-title { font-size: 22px; }
 
   /* ── Form layouts ── */
-  .form-row   { grid-template-columns: 1fr !important; }
+  .form-row,
   .form-row-3 { grid-template-columns: 1fr !important; }
+
+  /* Restore normal flex layout inside collapsed form-rows so subgrid row-gap
+     doesn't compress inter-field spacing when stacked single column */
+  .form-row { row-gap: 18px; }
+  .form-row > .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    grid-row: auto;
+  }
 
   /* ── Admin page ── */
   .admin-page-title { font-size: 22px; }
