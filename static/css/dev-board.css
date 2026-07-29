@@ -716,6 +716,33 @@
   color: #9ca3af;
 }
 
+.epic-card-code {
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(196,151,42,0.12);
+  border: 1px solid rgba(196,151,42,0.25);
+  color: var(--gold);
+  white-space: nowrap;
+}
+
+.epic-page-code {
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  letter-spacing: 0.06em;
+  padding: 3px 9px;
+  border-radius: 5px;
+  background: rgba(196,151,42,0.12);
+  border: 1px solid rgba(196,151,42,0.25);
+  color: var(--gold);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .epic-card-name {
   font-size: 14px;
   font-weight: 700;

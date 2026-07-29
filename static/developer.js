@@ -2690,6 +2690,7 @@ function _epicCardHtml(e) {
   return `<div class="epic-card" onclick="openEpicPage('${escHtml(e.epic_id)}')">
     <div class="epic-card-top">
       <span class="epic-status-badge ${cls}">${escHtml(lbl)}</span>
+      ${e.epic_code ? `<span class="epic-card-code">${escHtml(e.epic_code)}</span>` : ''}
       ${!e.is_active ? '<span class="epic-inactive-badge">Inactive</span>' : ''}
     </div>
     <div class="epic-card-name">${escHtml(e.epic_name)}</div>
@@ -2729,7 +2730,7 @@ function renderEpicsView() {
   const statusF = document.getElementById('epicStatusFilter')?.value || '';
 
   let epics = _epics.slice();
-  if (search)  epics = epics.filter(e => (e.epic_name || '').toLowerCase().includes(search) || (e.epic_description || '').toLowerCase().includes(search));
+  if (search)  epics = epics.filter(e => (e.epic_name || '').toLowerCase().includes(search) || (e.epic_description || '').toLowerCase().includes(search) || (e.epic_code || '').toLowerCase().includes(search));
   if (statusF) epics = epics.filter(e => e.epic_status === statusF);
 
   const countEl = document.getElementById('epicCount');
@@ -3044,6 +3045,9 @@ function _populateEpicPage(epic) {
 
   const titleEl = document.getElementById('epicPageTitle');
   if (titleEl) titleEl.textContent = epic.epic_name || '';
+
+  const codeEl = document.getElementById('epicPageCode');
+  if (codeEl) { codeEl.textContent = epic.epic_code || ''; codeEl.style.display = epic.epic_code ? '' : 'none'; }
 
   const statusEl = document.getElementById('epicPageStatus');
   if (statusEl) { statusEl.textContent = lbl; statusEl.className = `epic-status-badge ${cls}`; }
