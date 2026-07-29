@@ -586,8 +586,15 @@ function showGateOptions() {
   show('gateOptions');
 }
 
+function toggleGatePassword() {
+  const inp = document.getElementById('gatePassword');
+  if (!inp) return;
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
 async function signIn() {
   const username = (document.getElementById('gateUsername')?.value || '').trim();
+  const password = (document.getElementById('gatePassword')?.value || '').trim();
   if (!username) {
     document.getElementById('gateError').textContent = 'Please enter your username.';
     show('gateError');
@@ -601,25 +608,35 @@ async function signIn() {
   try {
     const form = new FormData();
     form.append('username', username);
-    const res = await fetch('/verify-username', { method: 'POST', body: form });
+    form.append('password', password);
+    const res  = await fetch('/verify-username', { method: 'POST', body: form });
     const data = await res.json();
 
     if (data.success) {
       const session = {
-        username:    data.username,
-        firstName:   data.first_name,
-        fullName:    data.full_name,
-        displayName: data.display_name || '',
-        avatarUrl:   data.avatar_url   || '',
-        company:     data.company,
-        department:  data.department,
-        email:       data.email,
-        systems:     data.systems,
-        isAdmin:           data.is_admin           || false,
-        isDeveloper:       data.is_developer       || false,
-        isManagement:      data.is_management      || false,
-        isDepartmentHead:  data.is_department_head || false,
+        username:         data.username,
+        firstName:        data.first_name,
+        fullName:         data.full_name,
+        displayName:      data.display_name || '',
+        avatarUrl:        data.avatar_url   || '',
+        company:          data.company,
+        department:       data.department,
+        email:            data.email,
+        systems:          data.systems,
+        isAdmin:          data.is_admin          || false,
+        isDeveloper:      data.is_developer      || false,
+        isManagement:     data.is_management     || false,
+        isDepartmentHead: data.is_department_head || false,
       };
+
+      if (data.needs_password_setup) {
+        // Redirect to password setup — pass username via sessionStorage
+        sessionStorage.setItem('setup_username', data.username);
+        sessionStorage.setItem('setup_session', JSON.stringify(session));
+        location.href = '/setup-password';
+        return;
+      }
+
       saveSession(session);
       applySession(session);
     } else {

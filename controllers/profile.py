@@ -21,7 +21,7 @@ def api_profile_get():
     try:
         rows = supabase_req("GET", "/users", params={
             "username": f"eq.{username}",
-            "select":   "username,first_name,middle_initial,last_name,display_name,avatar_url,company,department,position,email,viber_number,anydesk_id",
+            "select":   "username,first_name,middle_initial,last_name,display_name,avatar_url,company,department,position,email,viber_number,anydesk_id,password_hash",
         })
     except Exception as exc:
         current_app.logger.error("Profile GET failed: %s", exc)
@@ -42,6 +42,7 @@ def api_profile_get():
         "email":           u.get("email") or "",
         "viber_number":    u.get("viber_number") or "",
         "anydesk_id":      u.get("anydesk_id") or "",
+        "has_password":    bool(u.get("password_hash")),
     })
 
 

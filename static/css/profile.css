@@ -383,3 +383,35 @@
 .profile-save-status.saved  { color: var(--success); }
 .profile-save-status.error  { color: var(--error); }
 
+/* ── Security / Password section ── */
+.profile-pw-section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 26px 28px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.profile-pw-section .gate-pw-wrap {
+  position: relative;
+}
+.profile-pw-section .gate-pw-wrap .form-input {
+  padding-right: 42px;
+}
+
+.profile-pw-save-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.profile-pw-status {
+  font-size: 13px;
+  font-weight: 500;
+}
+.profile-pw-status.saving { color: var(--text-muted); }
+.profile-pw-status.saved  { color: var(--success); }
+.profile-pw-status.error  { color: var(--error); }
+

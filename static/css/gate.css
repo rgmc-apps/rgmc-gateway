@@ -362,6 +362,107 @@
 
 .ar-systems-error { margin-top: 7px; font-size: 13px; color: var(--error); font-weight: 500; }
 
+/* ── Password notice banner ── */
+.gate-pw-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 14px;
+  margin-bottom: 16px;
+  background: rgba(99,179,237,0.08);
+  border: 1px solid rgba(99,179,237,0.25);
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  color: #7ec8e3;
+  line-height: 1.55;
+}
+
+/* ── Password input + toggle wrapper ── */
+.gate-pw-wrap {
+  position: relative;
+}
+.gate-pw-wrap .form-input {
+  padding-right: 42px;
+}
+.gate-pw-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.18s;
+  border-radius: 4px;
+}
+.gate-pw-toggle:hover { color: var(--gold); }
+
+/* ── Forgot password link ── */
+.gate-forgot-link {
+  display: inline-block;
+  margin-top: 7px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.18s;
+}
+.gate-forgot-link:hover { color: var(--gold); }
+
+/* ── Generate password button ── */
+.gate-gen-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease), color 0.2s var(--ease), background 0.2s var(--ease);
+}
+.gate-gen-btn:hover {
+  border-color: var(--gold-border-h);
+  color: var(--gold);
+  background: var(--gold-dim);
+}
+
+/* ── Password strength meter ── */
+.pw-strength-wrap {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pw-strength-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.pw-strength-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s var(--ease), background 0.3s var(--ease);
+  width: 0%;
+}
+.pw-strength-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 58px;
+  text-align: right;
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .main { padding: 98px 22px 60px; gap: 48px; }

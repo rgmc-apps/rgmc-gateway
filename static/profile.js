@@ -304,6 +304,123 @@ async function saveProfile() {
   }
 }
 
+/* ── Password utilities ── */
+function _passwordStrength(pw) {
+  if (!pw) return { score: 0, label: '', pct: 0, color: '' };
+  let s = 0;
+  if (pw.length >= 8)  s++;
+  if (pw.length >= 12) s++;
+  if (/[A-Z]/.test(pw)) s++;
+  if (/[a-z]/.test(pw)) s++;
+  if (/[0-9]/.test(pw)) s++;
+  if (/[^A-Za-z0-9]/.test(pw)) s++;
+  const levels = [
+    { label: 'Very Weak', color: '#ef4444' },
+    { label: 'Weak',      color: '#f97316' },
+    { label: 'Fair',      color: '#eab308' },
+    { label: 'Good',      color: '#84cc16' },
+    { label: 'Strong',    color: '#22c55e' },
+  ];
+  const idx = Math.min(Math.max(Math.floor(s * 5 / 7), 0), 4);
+  return { score: s, label: levels[idx].label, color: levels[idx].color, pct: Math.min(100, Math.round(s * 17)) };
+}
+
+function updatePwStrength() {
+  const val  = document.getElementById('fieldNewPassword')?.value || '';
+  const wrap = document.getElementById('profileStrength');
+  const fill = document.getElementById('profileStrengthFill');
+  const lbl  = document.getElementById('profileStrengthLabel');
+  if (!wrap || !fill || !lbl) return;
+  if (!val) { wrap.style.display = 'none'; return; }
+  const r = _passwordStrength(val);
+  wrap.style.display    = '';
+  fill.style.width      = r.pct + '%';
+  fill.style.background = r.color;
+  lbl.textContent       = r.label;
+  lbl.style.color       = r.color;
+}
+
+function togglePwField(id) {
+  const el = document.getElementById(id);
+  if (el) el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+function _generatePassword() {
+  const upper   = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower   = 'abcdefghjkmnpqrstuvwxyz';
+  const digits  = '23456789';
+  const special = '!@#$%&*-_=+?';
+  const all     = upper + lower + digits + special;
+  const pw = [
+    upper[Math.floor(Math.random() * upper.length)],
+    lower[Math.floor(Math.random() * lower.length)],
+    digits[Math.floor(Math.random() * digits.length)],
+    special[Math.floor(Math.random() * special.length)],
+  ];
+  for (let i = 0; i < 12; i++) pw.push(all[Math.floor(Math.random() * all.length)]);
+  for (let i = pw.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pw[i], pw[j]] = [pw[j], pw[i]];
+  }
+  return pw.join('');
+}
+
+function profileGeneratePassword() {
+  const pw = _generatePassword();
+  const pwEl      = document.getElementById('fieldNewPassword');
+  const confirmEl = document.getElementById('fieldConfirmPassword');
+  if (pwEl)      { pwEl.value = pw;      pwEl.type = 'text'; }
+  if (confirmEl) { confirmEl.value = pw; confirmEl.type = 'text'; }
+  updatePwStrength();
+}
+
+async function changePassword() {
+  const currentPw = (document.getElementById('fieldCurrentPassword')?.value || '').trim();
+  const newPw     = (document.getElementById('fieldNewPassword')?.value     || '').trim();
+  const confirmPw = (document.getElementById('fieldConfirmPassword')?.value || '').trim();
+  const status    = document.getElementById('profilePwStatus');
+
+  status.textContent = '';
+  status.className   = 'profile-pw-status';
+
+  if (!newPw)             { status.textContent = 'Please enter a new password.';            status.className = 'profile-pw-status error'; return; }
+  if (newPw.length < 8)   { status.textContent = 'Password must be at least 8 characters.'; status.className = 'profile-pw-status error'; return; }
+  if (newPw !== confirmPw) { status.textContent = 'Passwords do not match.';                 status.className = 'profile-pw-status error'; return; }
+
+  status.textContent = 'Updating…';
+  status.className   = 'profile-pw-status saving';
+
+  try {
+    const res  = await fetch('/api/auth/change-password', {
+      method:  'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ current_password: currentPw, new_password: newPw, confirm_password: confirmPw }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Update failed.');
+
+    // Clear fields
+    ['fieldCurrentPassword', 'fieldNewPassword', 'fieldConfirmPassword'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.value = ''; el.type = 'password'; }
+    });
+    const strengthWrap = document.getElementById('profileStrength');
+    if (strengthWrap) strengthWrap.style.display = 'none';
+
+    // Show current password field going forward (password is now set)
+    const cpGroup = document.getElementById('currentPwGroup');
+    if (cpGroup) cpGroup.style.display = '';
+
+    status.textContent = 'Password updated!';
+    status.className   = 'profile-pw-status saved';
+    showToast('Password updated successfully.');
+    setTimeout(() => { status.textContent = ''; status.className = 'profile-pw-status'; }, 4000);
+  } catch (err) {
+    status.textContent = err.message || 'Update failed.';
+    status.className   = 'profile-pw-status error';
+  }
+}
+
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', async () => {
   const session = loadSession();
@@ -344,6 +461,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('fieldPosition').value    = data.position      || '';
       _populateProfileCompany(data.company || '');
       if (data.avatar_url) renderAvatarPreview(data.avatar_url, initial);
+      // Show current password field only if a password is already set
+      if (data.has_password) {
+        const cpGroup = document.getElementById('currentPwGroup');
+        if (cpGroup) cpGroup.style.display = '';
+      }
       // Sync session
       session.firstName   = data.first_name   || '';
       session.fullName    = `${data.first_name || ''} ${data.last_name || ''}`.trim();

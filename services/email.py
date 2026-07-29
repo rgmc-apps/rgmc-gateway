@@ -1281,3 +1281,53 @@ def _full_name(record: dict) -> str:
     mi    = record.get("middle_initial", "").strip()
     parts = [record.get("first_name", ""), mi + "." if mi else "", record.get("last_name", "")]
     return " ".join(p for p in parts if p).replace("  ", " ").strip()
+
+
+def send_password_reset_email(user: dict, reset_url: str) -> bool:
+    user_email = user.get("email", "")
+    if not user_email:
+        return False
+
+    from_addr  = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    first_name = user.get("first_name", "there")
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid #C4972A;">
+      <h2 style="margin:0;font-size:22px;color:#C4972A;">Password Reset Request</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">RGMC System Gateway</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 16px;font-size:15px;">Hello <strong>{first_name}</strong>,</p>
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#374151;">
+        We received a request to reset your RGMC Gateway password. Click the button below to choose a new password.
+        This link will expire in <strong>1 hour</strong>.
+      </p>
+      <div style="text-align:center;margin:32px 0;">
+        <a href="{reset_url}" style="display:inline-block;background:#C4972A;color:#080604;padding:14px 32px;border-radius:50px;font-weight:700;font-size:15px;text-decoration:none;letter-spacing:.025em;">
+          Reset My Password
+        </a>
+      </div>
+      <p style="margin:0 0 12px;font-size:13px;color:#64748b;line-height:1.7;">
+        If the button doesn't work, copy and paste this link into your browser:
+      </p>
+      <p style="margin:0 0 24px;font-size:12px;color:#94a3b8;word-break:break-all;">{reset_url}</p>
+      <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">
+        If you did not request a password reset, you can safely ignore this email.
+        Your password will not be changed.
+      </p>
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    subject = "Reset Your RGMC Gateway Password"
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"]    = from_addr
+    msg["To"]      = user_email
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [user_email])
