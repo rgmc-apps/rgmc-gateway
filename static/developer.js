@@ -2924,7 +2924,7 @@ function _populateEpicPage(epic) {
 
   const descEl = document.getElementById('epicPageDesc');
   if (descEl) {
-    if (epic.epic_description) { descEl.textContent = epic.epic_description; descEl.style.display = ''; }
+    if (epic.epic_description) { descEl.innerHTML = epic.epic_description; descEl.style.display = ''; }
     else                        { descEl.style.display = 'none'; }
   }
 
