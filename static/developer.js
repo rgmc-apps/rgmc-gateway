@@ -121,6 +121,7 @@ function clearBulkSelection() {
   const sp = document.getElementById('bulkStatusPopover');
   if (tp) tp.style.display = 'none';
   if (sp) sp.style.display = 'none';
+  closeBulkEditPanel();
 }
 
 function _syncSelectionUI() {
@@ -344,6 +345,129 @@ async function bulkApplyStatus(e, status) {
     showToast('Error: ' + err.message);
   }
 }
+/* ── Bulk edit fields panel ── */
+
+function openBulkEditPanel(e) {
+  e.stopPropagation();
+  const panel = document.getElementById('bulkEditPanel');
+  if (!panel) return;
+
+  // Close other popovers
+  document.getElementById('bulkTypePopover').style.display   = 'none';
+  document.getElementById('bulkStatusPopover').style.display = 'none';
+
+  // Toggle
+  if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+
+  // Update count
+  document.getElementById('bepCount').textContent = _selectedIds.size;
+
+  // Populate assignee dropdown from current members
+  const sel = document.getElementById('bepAssignTo');
+  sel.innerHTML = '<option value="">— choose —</option>' +
+    Object.entries(_members)
+      .sort(([, a], [, b]) => (a.displayName || '').localeCompare(b.displayName || ''))
+      .map(([u, m]) => `<option value="${escHtml(u)}">${escHtml(m.displayName || u)}</option>`)
+      .join('');
+
+  // Reset all fields: uncheck, clear, disable
+  panel.querySelectorAll('.bep-cb').forEach(cb => { cb.checked = false; });
+  panel.querySelectorAll('.bep-input').forEach(inp => { inp.value = ''; inp.disabled = true; });
+
+  panel.style.display = '';
+}
+
+function closeBulkEditPanel() {
+  const p = document.getElementById('bulkEditPanel');
+  if (p) p.style.display = 'none';
+}
+
+function _initBulkEditPanel() {
+  const panel = document.getElementById('bulkEditPanel');
+  if (!panel) return;
+
+  // Checkbox → enable/disable paired input
+  panel.querySelectorAll('.bep-cb').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const inp = panel.querySelector(`.bep-input[data-field="${cb.dataset.field}"]`);
+      if (!inp) return;
+      inp.disabled = !cb.checked;
+      if (cb.checked) inp.focus();
+    });
+  });
+
+  // Typing in an input auto-checks its checkbox
+  panel.querySelectorAll('.bep-input').forEach(inp => {
+    inp.addEventListener('input', () => {
+      if (!inp.value) return;
+      const cb = panel.querySelector(`.bep-cb[data-field="${inp.dataset.field}"]`);
+      if (cb && !cb.checked) { cb.checked = true; inp.disabled = false; }
+    });
+    // For select elements use 'change' instead
+    inp.addEventListener('change', () => {
+      if (inp.tagName !== 'SELECT') return;
+      const cb = panel.querySelector(`.bep-cb[data-field="${inp.dataset.field}"]`);
+      if (cb && !cb.checked) { cb.checked = true; inp.disabled = false; }
+    });
+  });
+}
+
+async function bulkApplyEdit() {
+  const panel = document.getElementById('bulkEditPanel');
+  if (!panel) return;
+
+  // Collect only checked + filled fields
+  const patch = {};
+  panel.querySelectorAll('.bep-cb:checked').forEach(cb => {
+    const field = cb.dataset.field;
+    const inp   = panel.querySelector(`.bep-input[data-field="${field}"]`);
+    if (!inp) return;
+    const raw = inp.value.trim();
+    if (field === 'story_points') {
+      const v = parseFloat(raw);
+      if (!isNaN(v) && v > 0) patch[field] = v;
+    } else if (field === 'assigned_to') {
+      patch[field] = raw || null;
+    } else {
+      patch[field] = raw || null;
+    }
+  });
+
+  if (!Object.keys(patch).length) {
+    showToast('Check at least one field and fill in a value.');
+    return;
+  }
+
+  const ids    = [..._selectedIds];
+  const applyBtn = panel.querySelector('.bep-btn-apply');
+  if (applyBtn) { applyBtn.disabled = true; applyBtn.textContent = 'Applying…'; }
+
+  try {
+    await Promise.all(ids.map(id =>
+      fetch(`/api/dev/items/${encodeURIComponent(id)}`, {
+        method:  'PATCH',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body:    JSON.stringify(patch),
+      })
+    ));
+    // Update local cache
+    ids.forEach(id => {
+      const it = _items.find(i => i.id === id);
+      if (it) Object.assign(it, patch);
+    });
+    closeBulkEditPanel();
+    clearBulkSelection();
+    renderBoard();
+    const fieldLabels = { story_points: 'story points', start_date: 'start date', estimated_end_date: 'est. end date', assigned_to: 'assignee' };
+    const names = Object.keys(patch).map(f => fieldLabels[f] || f);
+    showToast(`${ids.length} item${ids.length !== 1 ? 's' : ''} updated (${names.join(', ')}).`);
+  } catch (err) {
+    showToast('Error: ' + err.message);
+  } finally {
+    if (applyBtn) { applyBtn.disabled = false; applyBtn.textContent = 'Apply'; }
+  }
+}
+
 let _doneWeeks = Math.max(1, parseInt(localStorage.getItem(DONE_WEEKS_KEY) || '2', 10));
 
 function setDoneWeeks(val) {
@@ -528,8 +652,10 @@ document.addEventListener('DOMContentLoaded', () => {
       closeDoneRemarksModal(); closeDetailModal(); closeEpicModal(); closeAddSystemModal(); closeArchiveModal(); closeProfileMenu(); closeEpicPage(); closeItemTypesModal();
       const tp = document.getElementById('bulkTypePopover');
       const sp = document.getElementById('bulkStatusPopover');
+      const ep = document.getElementById('bulkEditPanel');
       if (tp && tp.style.display !== 'none') { tp.style.display = 'none'; return; }
       if (sp && sp.style.display !== 'none') { sp.style.display = 'none'; return; }
+      if (ep && ep.style.display !== 'none') { closeBulkEditPanel(); return; }
       if (_selectedIds.size) clearBulkSelection();
     }
   });
@@ -543,9 +669,11 @@ document.addEventListener('DOMContentLoaded', () => {
     closeProfileMenu();
     if (!e.target.closest('#bulkDupBtn'))    { const p = document.getElementById('bulkTypePopover');   if (p) p.style.display = 'none'; }
     if (!e.target.closest('#bulkStatusBtn')) { const p = document.getElementById('bulkStatusPopover'); if (p) p.style.display = 'none'; }
+    if (!e.target.closest('#bulkEditBtn') && !e.target.closest('#bulkEditPanel')) closeBulkEditPanel();
   });
 
   _initLasso();
+  _initBulkEditPanel();
 
   document.getElementById('itemType').addEventListener('change', function () {
     const othersGroup = document.getElementById('itemTypeOthersGroup');

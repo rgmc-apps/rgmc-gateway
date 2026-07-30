@@ -46,6 +46,16 @@
   color: var(--text);
 }
 
+/* Dev board gets its own wider container so kanban columns have room to breathe */
+.admin-main--dev {
+  max-width: 1760px;
+}
+@media (min-width: 2200px) {
+  .admin-main--dev {
+    max-width: 2100px;
+  }
+}
+
 /* Stats summary bar */
 .dev-stats-bar {
   display: flex;
@@ -1782,3 +1792,111 @@
   gap: 6px;
   width: 100%;
 }
+
+/* ── Bulk edit fields panel ── */
+.bulk-edit-panel {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 346px;
+  background: var(--bg-card, #1a1713);
+  border: 1px solid rgba(196,151,42,0.45);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(196,151,42,0.1);
+  padding: 14px;
+  z-index: 9200;
+  white-space: normal;
+}
+.bep-hd {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 12px;
+}
+.bep-hd strong {
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+.bep-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.bep-row {
+  display: grid;
+  grid-template-columns: 15px 108px 1fr;
+  align-items: center;
+  gap: 9px;
+}
+.bep-cb {
+  width: 13px;
+  height: 13px;
+  accent-color: var(--gold);
+  cursor: pointer;
+  margin: 0;
+  flex-shrink: 0;
+}
+.bep-lbl {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+.bep-input {
+  width: 100%;
+  padding: 5px 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  outline: none;
+  transition: border-color 0.15s, opacity 0.15s;
+  box-sizing: border-box;
+}
+.bep-input:focus { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold-glow, rgba(196,151,42,0.15)); }
+.bep-input:disabled { opacity: 0.3; cursor: not-allowed; }
+.bep-ft {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+.bep-btn-cancel {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bep-btn-cancel:hover { background: rgba(255,255,255,0.05); }
+.bep-btn-apply {
+  padding: 6px 18px;
+  background: rgba(196,151,42,0.14);
+  border: 1px solid rgba(196,151,42,0.4);
+  border-radius: 7px;
+  color: var(--gold);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bep-btn-apply:hover { background: rgba(196,151,42,0.24); border-color: rgba(196,151,42,0.65); }
+.bep-btn-apply:disabled { opacity: 0.5; cursor: default; }
