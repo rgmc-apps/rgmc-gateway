@@ -2817,7 +2817,7 @@ function _epicCardHtml(e) {
 
   return `<div class="epic-card" onclick="openEpicPage('${escHtml(e.epic_id)}')">
     <div class="epic-card-top">
-      <span class="epic-status-badge ${cls}">${escHtml(lbl)}</span>
+      <button class="epic-status-badge ${cls} epic-status-btn" onclick="openEpicStatusMenu(event,'${escHtml(e.epic_id)}')" title="Change status">${escHtml(lbl)}<svg class="epic-status-caret" xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       ${e.epic_code ? `<span class="epic-card-code">${escHtml(e.epic_code)}</span>` : ''}
       ${!e.is_active ? '<span class="epic-inactive-badge">Inactive</span>' : ''}
     </div>
@@ -2874,6 +2874,92 @@ function renderEpicsView() {
 
   const emptyEl = document.getElementById('epicEmptyState');
   if (emptyEl) emptyEl.style.display = epics.length ? 'none' : '';
+}
+
+/* ── Epic quick-status menu ── */
+let _epicStatusMenuId = null;
+
+function openEpicStatusMenu(event, epicId) {
+  event.stopPropagation();
+
+  const existing = document.getElementById('epicStatusMenu');
+  if (existing && _epicStatusMenuId === epicId) {
+    closeEpicStatusMenu();
+    return;
+  }
+  closeEpicStatusMenu();
+
+  _epicStatusMenuId = epicId;
+  const epic = _epics.find(e => e.epic_id === epicId);
+  if (!epic) return;
+
+  const menu = document.createElement('div');
+  menu.id = 'epicStatusMenu';
+  menu.className = 'epic-status-menu';
+  menu.innerHTML = Object.entries(EPIC_STATUS_LABEL).map(([val, lbl]) => `
+    <button class="epic-status-menu-item ${val === epic.epic_status ? 'is-current' : ''}" onclick="quickChangeEpicStatus('${epicId}','${val}',event)">
+      <span class="epic-status-menu-dot ${EPIC_STATUS_CLS[val]}"></span>${lbl}
+      ${val === epic.epic_status ? '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+    </button>`).join('');
+
+  document.body.appendChild(menu);
+
+  const btn = event.currentTarget;
+  const rect = btn.getBoundingClientRect();
+  const menuW = 160;
+  let left = rect.left + window.scrollX;
+  let top  = rect.bottom + window.scrollY + 4;
+  if (left + menuW > window.innerWidth - 8) left = window.innerWidth - menuW - 8;
+  menu.style.left = `${left}px`;
+  menu.style.top  = `${top}px`;
+
+  requestAnimationFrame(() => menu.classList.add('is-open'));
+  setTimeout(() => document.addEventListener('click', _epicStatusMenuOutside, { once: true }), 0);
+}
+
+function _epicStatusMenuOutside(e) {
+  const menu = document.getElementById('epicStatusMenu');
+  if (menu && !menu.contains(e.target)) closeEpicStatusMenu();
+}
+
+function closeEpicStatusMenu() {
+  const menu = document.getElementById('epicStatusMenu');
+  if (menu) menu.remove();
+  _epicStatusMenuId = null;
+  document.removeEventListener('click', _epicStatusMenuOutside);
+}
+
+async function quickChangeEpicStatus(epicId, newStatus, event) {
+  if (event) event.stopPropagation();
+  closeEpicStatusMenu();
+
+  const epic = _epics.find(e => e.epic_id === epicId);
+  if (!epic || epic.epic_status === newStatus) return;
+
+  const prev = epic.epic_status;
+  epic.epic_status = newStatus;
+  renderEpicsView();
+  if (_epicPageId === epicId) _populateEpicPage(epic);
+
+  try {
+    const res = await fetch(`/api/dev/epics/${encodeURIComponent(epicId)}`, {
+      method:  'PATCH',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ epic_status: newStatus }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Update failed');
+    const saved = await res.json();
+    const idx = _epics.findIndex(e => e.epic_id === epicId);
+    if (idx !== -1) _epics[idx] = saved;
+    renderEpicsView();
+    if (_epicPageId === epicId) _populateEpicPage(saved);
+    showToast(`Epic status → ${EPIC_STATUS_LABEL[newStatus] || newStatus}`);
+  } catch (err) {
+    epic.epic_status = prev;
+    renderEpicsView();
+    if (_epicPageId === epicId) _populateEpicPage(epic);
+    showToast(`Failed: ${err.message}`);
+  }
 }
 
 /* ── Epic detail modal ── */

@@ -1,61 +1,55 @@
 # Handoff
 
 ## Goal
-Maintain and extend the RGMC Gateway developer board (`/dev`). This is an internal Flask portal with a Supabase backend. The session completed three independent features on the developer board and is in a clean, working state with no pending work.
+Maintain and extend the RGMC Gateway developer board (`/dev`). This is an internal Flask portal (Flask + Supabase backend) used daily by RGMC Group IT staff. The session completed three independent improvements and the codebase is clean.
 
 ## Current State
-All three features from this session are fully implemented and the codebase is clean:
+All three features from this session are fully implemented, committed, and pushed to `origin/master`. No partial work remains.
 
-1. **Epic description HTML rendering** — Fixed. Rich text editor stores HTML; was displaying raw tags.
-2. **Decimal story points** — Fixed. DB column changed to NUMERIC(5,2), UI allows 0.25 steps.
-3. **Actual story points computation** — Implemented. Actual SP = days from `start_date` to `actual_end_date` for done items. Shown in list tables and analytics.
+**Commits this session:**
+- `d22e190` — Kanban large-screen adaptation + bulk field edit feature
+- `c4ca155` — Fix developer avatar elongation bug
 
-No files are in a mid-edit state. Everything is complete.
+**What was built/fixed:**
+
+1. **Kanban large-screen adaptation** — The kanban board was capped at 1200px (inherited `admin-main` constraint), meaning columns were only ~218px wide on any screen larger than 1200px. Fixed by:
+   - Adding `.admin-main--dev` class to `<main>` in `developer.html`, giving the dev board a 1760px max-width (2100px at 2200px+ viewports)
+   - Board gap now `clamp(14px, 1.4vw, 26px)` — scales fluidly
+   - 3-column breakpoint pushed from 1300px → 1000px (5 cols are comfortable down to 1000px with wider container)
+   - Card content scales at three tiers: 1440px (font+3-line desc), 1800px (larger fonts, more padding, bigger buttons), 2200px (maximum density for 2K/4K)
+
+2. **Bulk field edit** — New "Edit Fields…" button in the bulk action bar. Opens a panel above the bar with 4 fields: Story Points, Start Date, Est. End Date, Assign To. Each field has a checkbox — only checked fields are sent. Typing in a field auto-checks it. Hits existing `/api/dev/items/<id>` PATCH endpoint in parallel for all selected items.
+
+3. **Developer avatar elongation bug** — `.dlt-avatar-initial` had `width: 100%; height: 100%` which overrode the `width: 26px; height: 26px` from `.dlt-avatar` when both classes landed on the same `<div>`. In flex containers (`.dlt-dev-cell`, `.ana-dev-name-cell`), the avatar stretched to full column width. Fixed by removing those overrides.
 
 ## Files Actively Being Edited
+All clean — no in-progress edits.
 
-- `templates/developer.html` — Three changes:
-  1. Line ~403: `<p id="epicPageDesc">` → `<div id="epicPageDesc">` (block elements from rich editor can't go inside `<p>`)
-  2. Line ~596: SP input `step="0.25"` `min="0.25"`, hint updated to "(1 pt = 1 day, 0.5 = half day)"
-  3. Lines ~305–313: Added two new analytics chart containers (`anaSpAccuracyChart`, `anaSpDevTable`) in a `ana-charts-grid--2col` grid
-
-- `static/developer.js` — Multiple changes:
-  1. Line ~2927: `descEl.textContent` → `descEl.innerHTML` (render HTML from rich editor)
-  2. Line ~44–52: Added `actualSP(item)` function after `daysElapsed()` — returns daysElapsed only for done items with both start and end dates
-  3. Added `_spCell(item)` helper before `renderListView()` — renders SP cell with estimated + actual badges (gold `est`, colored `act`: green=on track, orange=over, blue=under)
-  4. Line ~1462: `parseInt(v, 10)` → `parseFloat(v)` for story_points form read
-  5. SP totals now use `.toFixed(2)` + `parseFloat()` to avoid float precision artifacts (two locations: epic card and epic page)
-  6. List table, parked table, epic page table: SP column now uses `_spCell(item)` instead of inline template
-  7. Analytics KPIs (`_renderAnaKpis`): Added 3 new KPI cards — Est. Story Points, Actual Story Points, Avg SP Accuracy (% of actual/estimated; warns orange if >120%)
-  8. `renderAnalytics()`: Added call to `_renderAnaSpAccuracyChart(items)`
-  9. Added `_renderAnaSpAccuracyChart()` function — renders accuracy distribution bar chart (≤50% to >150% buckets) and a developer SP summary table
-
-- `controllers/developer.py` — Line ~59: `int(raw_sp)` → `float(raw_sp)` for story_points parse on item create/update
-
-- `static/css/dev-board.css` — Added:
-  1. `.dlt-sp-actual`, `.dlt-sp-over`, `.dlt-sp-under`, `.dlt-sp-exact`, `.dlt-sp-actual-only` — badge styles for actual SP display
-  2. `.ana-charts-grid--2col` — two-column analytics grid variant
-  3. Responsive collapse: `ana-charts-grid--2col` → single column at ≤900px
-
-- `supabase-migrations/story_points_migration.sql` — Updated to document NUMERIC(5,2) column type (migration already applied to live DB via MCP)
+- `templates/developer.html` — Added `admin-main--dev` class to `<main>` (line 37); added `bulkEditBtn` button and `#bulkEditPanel` HTML (inside `#bulkActionBar`, around lines 509–545)
+- `static/css/dev-board.css` — Added `.admin-main--dev` max-width override (near top, after `.dev-stats-bar` comment); added `.bulk-edit-panel` + all `.bep-*` component styles (at end of file); removed `width: 100%; height: 100%` and redundant flex properties from `.dlt-avatar-initial` (~line 395)
+- `static/css/kanban.css` — Updated `.kanban-board` gap to `clamp()`, changed breakpoint from 1300px→1000px; added three `@media (min-width: ...)` blocks for large-screen card scaling (at end of file, after `.sys-tags-field::placeholder`)
+- `static/developer.js` — Added `openBulkEditPanel()`, `closeBulkEditPanel()`, `_initBulkEditPanel()`, `bulkApplyEdit()` functions (after `bulkApplyStatus`, before `_doneWeeks` declaration); updated `clearBulkSelection()` to call `closeBulkEditPanel()`; added Escape key handler and click-outside handler for the new panel; added `_initBulkEditPanel()` call in `DOMContentLoaded`
 
 ## Failed Attempts
-None. All changes were applied cleanly on the first attempt. The only minor issue was a string mismatch on `parseInt` in developer.js — the exact whitespace differed from what was expected; fixed by reading the file first.
+None. All changes applied cleanly on the first attempt.
 
 ## Next Step
-No immediate next step — session is complete. If the user wants to continue, likely candidates are:
+No immediate next step — session is complete and all work is committed/pushed. If the user wants to continue, likely candidates are:
 
-1. **Test the actual SP feature** — create a dev item, set a start date and story points, move it to done, verify the list table shows both `est` and `act` badges, and check the analytics SP charts populate.
-2. **Velocity tracking** — the user may want to add a velocity trend chart (actual SP per week/month over time) as a follow-on to the SP analytics work.
-3. **Kanban card SP display** — kanban cards currently show elapsed days but not actual SP badges. Could add actual SP to kanban done cards for consistency with the list table.
+1. **Test the bulk edit panel** — Select multiple items in list view, click "Edit Fields…", verify panel appears, check a field (e.g. Assign To), apply, and confirm items update in the board without a page reload.
+2. **Test the large-screen kanban** — Open the board on a 1920×1080 monitor and verify columns are ~328px wide (was ~218px), and card text scales up appropriately.
+3. **Velocity trend chart** — Carry-over from prior session: add actual SP per week/month over time to the analytics view.
+4. **Kanban card SP badges** — Done-column kanban cards currently don't show actual SP badges (only the list view does). Could add them for consistency.
 
 ## Context & Gotchas
 
-- **1 SP = 1 calendar day** — this is the domain definition. Actual SP is computed as `Math.floor((actual_end_date - start_date) / 86400000)`, i.e., whole days only, no time-of-day.
-- **`actualSP` is null for non-done items** — in-progress items show elapsed days (current time − start), but this is NOT "actual SP" until the item is done. The distinction is important: elapsed is a live counter, actual SP is a fixed final value.
-- **DB column is NUMERIC(5,2)** — max 999.99 story points. The Supabase migration `story_points_decimal` was already applied live via MCP tool.
-- **Float precision** — JS floating point: `0.5 + 0.25 = 0.7500000000000001`. All SP totals go through `.toFixed(2)` + `parseFloat()` to clean up. This is in effect in both the epic card and epic page total calculations.
-- **Rich editor stores HTML** — `item.description` and `epic.epic_description` both contain raw HTML from the rich text editor (`initRichEditor`). Use `innerHTML` to render, never `textContent`. The `_descPreview()` helper strips tags for short text previews using a temp div + `innerText`.
-- **Auth pattern** — all API calls use `authHeaders()` which reads `localStorage.getItem('rgmc_gateway_session')` and sends `X-Gateway-Username`. Backend reads `request.headers.get("X-Gateway-Username")`.
-- **Supabase via proxy** — backend uses `supabase_req()` helper in `services/supabase.py`, not a JS client. All DB operations go through Flask.
-- **`ana-charts-grid--2col`** does NOT exist in the existing grid system — it was added this session. If you see analytics layout issues, check that this class is present in `dev-board.css`.
+- **`admin-main--dev` is additive** — The base `.admin-main` in `admin.css` still exists with `max-width: 1200px`. The dev board overrides this via the modifier class. Any future page that uses `admin-main` without the modifier is unaffected.
+- **Bulk edit panel is absolute-positioned inside `#bulkActionBar`** — `#bulkActionBar` has `position: fixed` (the floating bar at screen bottom). The `#bulkEditPanel` is `position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%)` inside it — so it floats above the bar automatically regardless of scroll position.
+- **Bulk edit only sends checked fields** — An unchecked field is never sent, even if it has a value. This is intentional: users should explicitly opt in to each field change.
+- **`_initBulkEditPanel()` must run after DOM is ready** — It's called in `DOMContentLoaded`. The checkbox↔input wiring uses `querySelector` on the panel, so the panel HTML must exist in the DOM first. It does — it's static in `developer.html`.
+- **`.dlt-avatar` class is used on both `<img>` and `<div>` elements** — `display: flex` on `<img>` is unusual but harmless (replaced elements have no flex children). Only the `<div>` variant needs the flex centering for the initial letter.
+- **Kanban column breakpoints are viewport-width, not container-width** — `@media (max-width: 1000px)` fires at 1000px viewport regardless of whether the wider container is in play. On a 1000px screen the 5-col layout collapses to 3 cols. This is correct behavior.
+- **SP is 1 point = 1 calendar day** — Actual SP is `Math.floor((actual_end_date - start_date) / 86400000)`. Only computed for done items with both dates set.
+- **Rich editor stores HTML** — `item.description` and `epic.epic_description` contain raw HTML from `initRichEditor`. Use `innerHTML` to render, never `textContent`. The `_descPreview()` helper strips tags for text previews.
+- **Auth pattern** — All API calls use `authHeaders()` which reads `localStorage.getItem('rgmc_gateway_session')` and sends `X-Gateway-Username`. Backend reads `request.headers.get("X-Gateway-Username")`.
+- **Supabase via proxy** — All DB operations go through Flask's `supabase_req()` helper in `services/supabase.py`, not a JS client.
