@@ -2393,6 +2393,24 @@ async function openIssueModal(id) {
     linkDisplay.innerHTML   = '';
   }
 
+  // Issues that reference this issue (reverse links from linked_issue_id)
+  const refByGroup = document.getElementById('issueReferencedByGroup');
+  const refByList  = document.getElementById('issueReferencedByList');
+  if (refByGroup && refByList) {
+    const referencers = _issuesCache.filter(i => i.linked_issue_id === issue.id);
+    if (referencers.length) {
+      refByGroup.style.display = '';
+      refByList.innerHTML = referencers.map(ref => {
+        const tk  = ref.ticket_number ? `#${escHtml(ref.ticket_number)}` : escHtml(ref.id.slice(0, 8)) + '…';
+        const ttl = escHtml(ref.title || (ref.description || '').slice(0, 80));
+        const badge = ref.is_duplicate ? '<span class="badge-duplicate">Duplicate</span>' : '<span class="badge-linked">Linked</span>';
+        return `${badge} <span class="iss-link-ref">${tk}</span>${ttl ? ` — <span class="iss-link-ref-title">${ttl}</span>` : ''}`;
+      }).join('<br>');
+    } else {
+      refByGroup.style.display = 'none';
+    }
+  }
+
   // Resolution remarks — visible only when the issue has no linked board item
   const isLinked = !!(issue.dev_item_id || issue.task_id || issue.user_task_id);
   const remarksGroup = document.getElementById('issueRemarksGroup');

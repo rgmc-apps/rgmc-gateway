@@ -1959,3 +1959,66 @@
 }
 .bep-btn-apply:hover { background: rgba(196,151,42,0.24); border-color: rgba(196,151,42,0.65); }
 .bep-btn-apply:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Linked Issues section (inside item detail log pane) ── */
+.linked-iss-section {
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+}
+.linked-iss-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.linked-iss-list { display: flex; flex-direction: column; gap: 5px; }
+.linked-iss-loading { font-size: 12px; color: var(--text-muted); }
+.linked-iss-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.linked-iss-ticket {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.linked-iss-title {
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.linked-iss-status {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 20px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.linked-iss-dup-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 20px;
+  background: rgba(239,68,68,0.12);
+  color: #ef4444;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.badge-iss-new-pill      { background: rgba(99,102,241,0.12); color: #818cf8; }
+.badge-iss-open-pill     { background: rgba(59,130,246,0.12); color: #60a5fa; }
+.badge-iss-progress-pill { background: rgba(245,158,11,0.12); color: #fbbf24; }
+.badge-iss-resolved-pill { background: rgba(34,197,94,0.12);  color: #4ade80; }
+.badge-iss-closed-pill   { background: rgba(107,114,128,0.14); color: #9ca3af; }

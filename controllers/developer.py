@@ -334,6 +334,23 @@ def dev_add_log(item_id):
         return jsonify({"error": "Failed to add log"}), 500
 
 
+@developer_bp.get("/api/dev/items/<string:item_id>/issues")
+def dev_get_item_issues(item_id):
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/issues", params={
+            "dev_item_id": f"eq.{item_id}",
+            "select":      "id,ticket_number,title,description,status,employee_name,company_name,is_duplicate,linked_issue_id,created_at",
+            "order":       "created_at.asc",
+        })
+        return jsonify(rows or [])
+    except Exception as exc:
+        current_app.logger.error("dev_get_item_issues failed: %s", exc)
+        return jsonify({"error": "Failed to fetch linked issues"}), 500
+
+
 @developer_bp.get("/api/dev/systems")
 def dev_get_systems():
     _, err = _require_developer()

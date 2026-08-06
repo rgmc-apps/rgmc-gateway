@@ -1344,6 +1344,7 @@ function openDetailModal(idOrNull) {
     deleteBtn.style.display = '';
     if (dupWrap) { dupWrap.style.display = ''; _buildDupTypeMenu(); }
     refreshLogs();
+    loadLinkedIssues(item.id);
   } else {
     body.classList.add('detail-new');
     logPane.style.display   = 'none';
@@ -1373,6 +1374,8 @@ function closeDetailModal() {
   const anyOpen = document.querySelector('.modal-overlay.open:not(#itemDetailModal)');
   if (!anyOpen) document.body.style.overflow = '';
   _editingId = null;
+  const liSec = document.getElementById('linkedIssSection');
+  if (liSec) liSec.style.display = 'none';
   if (_epicPageId) _loadEpicPageItems(_epicPageId);
 }
 
@@ -1675,6 +1678,42 @@ function fmtHours(h) {
   const n = parseFloat(h);
   if (!n) return '';
   return n % 1 === 0 ? `${n}h` : `${n.toFixed(2).replace(/\.?0+$/, '')}h`;
+}
+
+const _ISS_STATUS_LABEL = { new:'New', open:'Open', in_progress:'In Progress', resolved:'Resolved', closed:'Closed' };
+const _ISS_STATUS_CLASS = { new:'badge-iss-new-pill', open:'badge-iss-open-pill', in_progress:'badge-iss-progress-pill', resolved:'badge-iss-resolved-pill', closed:'badge-iss-closed-pill' };
+
+async function loadLinkedIssues(itemId) {
+  const section = document.getElementById('linkedIssSection');
+  const list    = document.getElementById('linkedIssList');
+  if (!section || !list) return;
+  list.innerHTML = '<span class="linked-iss-loading">Loading…</span>';
+  section.style.display = '';
+  try {
+    const res = await fetch(`/api/dev/items/${encodeURIComponent(itemId)}/issues`, { headers: authHeaders() });
+    if (!res.ok) throw new Error('Failed');
+    const issues = await res.json();
+    if (!issues.length) {
+      section.style.display = 'none';
+      return;
+    }
+    list.innerHTML = issues.map(iss => {
+      const ticket  = iss.ticket_number ? `#${escHtml(iss.ticket_number)}` : escHtml(iss.id.slice(0, 8)) + '…';
+      const title   = escHtml(iss.title || iss.description?.slice(0, 80) || '');
+      const status  = iss.status || 'open';
+      const label   = _ISS_STATUS_LABEL[status] || status;
+      const cls     = _ISS_STATUS_CLASS[status] || '';
+      const dupBadge = iss.is_duplicate ? '<span class="linked-iss-dup-badge">Dup</span>' : '';
+      return `<div class="linked-iss-row">
+        <span class="linked-iss-ticket">${ticket}</span>
+        ${dupBadge}
+        <span class="linked-iss-title">${title}</span>
+        <span class="linked-iss-status ${cls}">${escHtml(label)}</span>
+      </div>`;
+    }).join('');
+  } catch {
+    section.style.display = 'none';
+  }
 }
 
 async function refreshLogs() {

@@ -859,7 +859,7 @@ def admin_link_issue(issue_id):
         try:
             t_rows = supabase_req("GET", "/issues", params={
                 "id":     f"eq.{target_id}",
-                "select": "id,ticket_number,title,description",
+                "select": "id,ticket_number,title,description,dev_item_id",
             })
         except Exception as exc:
             return jsonify({"error": "Failed to fetch target issue"}), 500
@@ -869,6 +869,10 @@ def admin_link_issue(issue_id):
 
         patch["linked_issue_id"] = target_id
         patch["is_duplicate"]    = is_duplicate
+
+        # If the target issue is already linked to a dev item, carry that link forward
+        if target.get("dev_item_id"):
+            patch["dev_item_id"] = target["dev_item_id"]
 
         if is_duplicate:
             from datetime import datetime, timezone
