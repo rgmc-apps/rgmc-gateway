@@ -325,6 +325,9 @@ async function bulkApplyStatus(e, status) {
       } else if (status !== 'done') {
         payload.actual_end_date = null;
       }
+      if ((status === 'ongoing' || status === 'coding') && !it?.start_date) {
+        payload.start_date = new Date().toISOString().slice(0, 10);
+      }
       return fetch(`/api/dev/items/${encodeURIComponent(id)}`, {
         method:  'PATCH',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
@@ -337,6 +340,7 @@ async function bulkApplyStatus(e, status) {
       it.status = status;
       if (status === 'done' && !it.actual_end_date) it.actual_end_date = new Date().toISOString().slice(0, 10);
       else if (status !== 'done') it.actual_end_date = null;
+      if ((status === 'ongoing' || status === 'coding') && !it.start_date) it.start_date = new Date().toISOString().slice(0, 10);
     });
     clearBulkSelection();
     renderBoard();
@@ -1068,6 +1072,9 @@ async function _execMoveItem(id, newStatus, remarks, actionIds = [], files = [])
   if (newStatus !== 'done') {
     patch.actual_end_date = null;
   }
+  if ((newStatus === 'ongoing' || newStatus === 'coding') && !item.start_date) {
+    patch.start_date = new Date().toISOString().slice(0, 10);
+  }
   if (remarks) patch.remarks = remarks;
   if (newStatus === 'done') {
     if (actionIds.length) patch.resolution_action_ids = actionIds;
@@ -1223,16 +1230,21 @@ async function _onDragRelease() {
       await moveItem(id, newStatus);
     } else {
       // Optimistic update: show card in the new column immediately
-      const rollback = { status: item.status, actual_end_date: item.actual_end_date };
+      const rollback = { status: item.status, actual_end_date: item.actual_end_date, start_date: item.start_date };
+      const dragPatch = { status: newStatus, actual_end_date: null };
       item.status = newStatus;
       item.actual_end_date = null;
+      if ((newStatus === 'ongoing' || newStatus === 'coding') && !item.start_date) {
+        dragPatch.start_date = new Date().toISOString().slice(0, 10);
+        item.start_date = dragPatch.start_date;
+      }
       renderBoard();
       document.getElementById(`card-${id}`)?.classList.add('kcard-saving');
       try {
         const res = await fetch(`/api/dev/items/${encodeURIComponent(id)}`, {
           method:  'PATCH',
           headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ status: newStatus, actual_end_date: null }),
+          body:    JSON.stringify(dragPatch),
         });
         if (!res.ok) throw new Error((await res.json()).error || 'Failed');
       } catch (err) {
@@ -1589,12 +1601,17 @@ async function _execSaveItem(remarks, actionIds = [], files = []) {
     ? (othersText ? `${typeVal}: ${othersText}` : typeVal)
     : (typeVal || null);
 
+  const formStartDate = document.getElementById('itemStart').value;
+  const autoStartDate = (!formStartDate && (newStatus === 'ongoing' || newStatus === 'coding') && !prevItem?.start_date)
+    ? new Date().toISOString().slice(0, 10)
+    : (formStartDate || null);
+
   const payload = {
     title,
     description:        document.getElementById('itemDesc').value.trim() || null,
     status:             newStatus,
     system_ids:         _getSelectedSystemIds(),
-    start_date:         document.getElementById('itemStart').value || null,
+    start_date:         autoStartDate,
     estimated_end_date: document.getElementById('itemEstEnd').value || null,
     story_points:       (v => v !== '' && v !== null ? parseFloat(v) : null)(document.getElementById('itemStoryPoints')?.value ?? ''),
     actual_end_date,
