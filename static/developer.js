@@ -343,7 +343,11 @@ async function bulkApplyStatus(e, status) {
       if ((status === 'ongoing' || status === 'coding') && !it.start_date) it.start_date = new Date().toISOString().slice(0, 10);
     });
     clearBulkSelection();
-    renderBoard();
+    if (!_rm.matches && document.startViewTransition) {
+      document.startViewTransition(() => renderBoard());
+    } else {
+      renderBoard();
+    }
     showToast(`${ids.length} item${ids.length !== 1 ? 's' : ''} set to ${status}.`);
   } catch (err) {
     showToast('Error: ' + err.message);
@@ -512,6 +516,9 @@ function setViewMode(mode) {
   if (mode === 'list')      renderListView();
   if (mode === 'analytics') renderAnalytics();
   if (mode === 'epics')     renderEpicsView();
+
+  // Pause canvas animation when kanban is not visible
+  Object.values(_ambiences).forEach(a => mode === 'kanban' ? a.resume() : a.pause());
 }
 
 /* ── Profile dropdown ── */
@@ -624,6 +631,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   initColArcs();
+  initAmbience();
   initPhysicsDrag();
   loadMembers().then(() => loadSystems()).then(() => Promise.all([loadItems(), loadEpics(), loadItemTypes()])).then(() => {
     hidePageLoader();
@@ -881,6 +889,7 @@ function _showSkeletons() {
         </div>
       </div>`;
     }).join('');
+    if (_ambiences[status]) col.prepend(_ambiences[status].canvas);
   });
 }
 
@@ -913,8 +922,135 @@ async function loadItems() {
 
 const STATUSES = ['pending', 'ongoing', 'coding', 'testing', 'done'];
 
+/* ══════════════════════════════════════════════════════════════════════════════
+   Ambient column canvas — Lissajous-drifting blobs in developer palette colors
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+const _ambiences = {};
+
+function _parseRgba(color) {
+  const m = color.match(/rgba?\s*\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/);
+  return m ? { r: +m[1], g: +m[2], b: +m[3] } : null;
+}
+
+class ColumnAmbience {
+  constructor(status, canvasEl) {
+    this.status  = status;
+    this.canvas  = canvasEl;
+    this.ctx     = canvasEl.getContext('2d');
+    this.colors  = [];
+    this.overdue = 0;
+    this.active  = true;
+    this.raf     = null;
+    this._blobs  = Array.from({ length: 5 }, (_, i) => ({
+      phase:  Math.random() * Math.PI * 2,
+      r:      50 + Math.random() * 65,
+      fxMul:  0.27 + i * 0.15,
+      fyMul:  0.18 + i * 0.11,
+      phiOff: i * 1.41,
+    }));
+    this._resize();
+    this._loop();
+  }
+
+  _resize() {
+    const rect = this.canvas.parentElement?.getBoundingClientRect();
+    if (rect && rect.width > 0) {
+      this.canvas.width  = rect.width;
+      this.canvas.height = rect.height;
+    }
+  }
+
+  update(colors, overdue) {
+    this.colors  = colors;
+    this.overdue = overdue;
+  }
+
+  _loop() {
+    if (!this.active) return;
+    this._draw();
+    this.raf = requestAnimationFrame(() => this._loop());
+  }
+
+  _draw() {
+    const { canvas: cv, ctx } = this;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    if (!this.colors.length || cv.width === 0) return;
+
+    const t = performance.now() * 0.001;
+
+    this._blobs.forEach((b, i) => {
+      const bx = cv.width  * (0.5 + 0.44 * Math.cos(t * b.fxMul + b.phase + b.phiOff));
+      const by = cv.height * (0.5 + 0.44 * Math.sin(t * b.fyMul + b.phase * 0.77 + b.phiOff));
+
+      const pulse = this.overdue > 0
+        ? 1 + 0.22 * Math.sin(t * 2.8 + i * 1.5)
+        : 1 + 0.08 * Math.sin(t * 0.9 + i * 2.1);
+
+      const rgb = _parseRgba(this.colors[i % this.colors.length]);
+      if (!rgb) return;
+
+      const alpha = this.overdue > 0 ? 0.28 : 0.18;
+      const r     = b.r * pulse;
+      const grd   = ctx.createRadialGradient(bx, by, 0, bx, by, r);
+      grd.addColorStop(0,    `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`);
+      grd.addColorStop(0.55, `rgba(${rgb.r},${rgb.g},${rgb.b},${(alpha * 0.28).toFixed(3)})`);
+      grd.addColorStop(1,    `rgba(${rgb.r},${rgb.g},${rgb.b},0)`);
+
+      ctx.beginPath();
+      ctx.arc(bx, by, r, 0, Math.PI * 2);
+      ctx.fillStyle = grd;
+      ctx.fill();
+    });
+  }
+
+  pause()  { this.active = false; if (this.raf) { cancelAnimationFrame(this.raf); this.raf = null; } }
+  resume() { if (!this.active) { this.active = true; this._loop(); } }
+  destroy() { this.pause(); this.canvas.remove(); }
+}
+
+function initAmbience() {
+  if (_rm.matches) return;
+  STATUSES.forEach(status => {
+    const cardsEl = document.getElementById(`cards-${status}`);
+    if (!cardsEl) return;
+    const cv = document.createElement('canvas');
+    cv.className = 'col-ambient-canvas';
+    cv.setAttribute('aria-hidden', 'true');
+    cardsEl.prepend(cv);
+    _ambiences[status] = new ColumnAmbience(status, cv);
+  });
+  window.addEventListener('resize', () => {
+    STATUSES.forEach(s => _ambiences[s]?._resize());
+  });
+  document.addEventListener('visibilitychange', () => {
+    const h = document.hidden;
+    Object.values(_ambiences).forEach(a => h ? a.pause() : a.resume());
+  });
+}
+
+function _updateAmbience(colItemsMap) {
+  if (_rm.matches) return;
+  STATUSES.forEach(status => {
+    const amb = _ambiences[status];
+    if (!amb) return;
+    amb._resize();
+    const items   = colItemsMap[status] || [];
+    const overdue = items.filter(it =>
+      it.estimated_end_date && !it.actual_end_date &&
+      new Date(it.estimated_end_date + 'T00:00:00') < new Date()
+    ).length;
+    const seen   = new Set();
+    const colors = items
+      .map(it => devColor(it.assigned_to || it.created_by))
+      .filter(c => seen.has(c) ? false : seen.add(c));
+    amb.update(colors.length ? colors : [DEV_PALETTE[0]], overdue);
+  });
+}
+
 function renderBoard() {
-  const counts = {};
+  const counts      = {};
+  const colItemsMap = {};
   const me      = loadSession()?.username || '';
   const visible = (_filter === 'mine' ? _items.filter(i => i.assigned_to === me || i.created_by === me) : _items).filter(i => !i.is_parked);
 
@@ -934,7 +1070,8 @@ function renderBoard() {
     }
 
     const count = items.length;
-    counts[status] = count;
+    counts[status]      = count;
+    colItemsMap[status] = items;
 
     const countEl = document.getElementById(`count-${status}`);
     const prevCol = parseInt(countEl.textContent, 10);
@@ -952,8 +1089,11 @@ function renderBoard() {
            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
            ${_filter === 'mine' ? 'None assigned to you' : 'No items'}
          </div>`;
+    // Restore ambient canvas (innerHTML removes it)
+    if (_ambiences[status]) col.prepend(_ambiences[status].canvas);
   });
   updateColArcs(counts);
+  _updateAmbience(colItemsMap);
 
   // Keep other views in sync when visible
   if (_viewMode === 'list')      renderListView();
@@ -1005,7 +1145,7 @@ function renderCard(item, idx = 0) {
       ${typeBadge(item.dev_item_type)}
     </div>` : '';
   return `<div class="kanban-card" id="card-${escHtml(item.id)}"
-               style="animation-delay:${idx * 55}ms;--dev-clr:${devClr}">
+               style="animation-delay:${idx * 55}ms;--dev-clr:${devClr};view-transition-name:card-${item.id}">
     <div class="kcard-header-row">
       ${item.dev_item_code ? `<div class="kcard-code">${escHtml(item.dev_item_code)}</div>` : '<span></span>'}
       ${item.story_points != null ? `<span class="kcard-sp-badge" title="Story points">${item.story_points} SP</span>` : ''}
@@ -1110,8 +1250,12 @@ async function _execMoveItem(id, newStatus, remarks, actionIds = [], files = [])
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
       body:    JSON.stringify(patch),
     });
-    Object.assign(item, patch);
-    renderBoard();
+    if (!_rm.matches && document.startViewTransition) {
+      document.startViewTransition(() => { Object.assign(item, patch); renderBoard(); });
+    } else {
+      Object.assign(item, patch);
+      renderBoard();
+    }
   } catch (err) {
     showToast(`Error: ${err.message}`);
   }

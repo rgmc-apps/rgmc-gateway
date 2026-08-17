@@ -733,6 +733,22 @@
   border-top: none;
 }
 
+/* ── View Transitions: card morphing between columns ── */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-group(*) {
+    animation-duration: 420ms;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  ::view-transition-old(*) {
+    animation-duration: 180ms;
+    animation-timing-function: cubic-bezier(0.4, 0, 1, 1);
+  }
+  ::view-transition-new(*) {
+    animation-duration: 420ms;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
 /* ── Dev item code chip ── */
 .kcard-code {
   display: inline-block;

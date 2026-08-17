@@ -166,6 +166,17 @@
   gap: 8px;
   padding: 10px;
   flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Ambient canvas layer behind cards */
+.col-ambient-canvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.9;
 }
 
 /* Empty state */
@@ -191,6 +202,7 @@
   transition: border-color 0.18s var(--ease), box-shadow 0.18s var(--ease), opacity 0.15s, transform 0.15s;
   animation: kcard-in 0.34s var(--ease-spring) backwards;
   position: relative;
+  z-index: 1;
 }
 .kanban-card:hover {
   box-shadow: 0 4px 18px rgba(0,0,0,0.32), 0 0 0 1px var(--dev-clr, var(--border-subtle));
