@@ -484,7 +484,7 @@ function setDoneWeeks(val) {
   localStorage.setItem(DONE_WEEKS_KEY, String(n));
   const inp = document.getElementById('doneWeeksInput');
   if (inp) inp.value = n;
-  renderBoard();
+  _flipBoard();
 }
 
 function setFilter(f) {
@@ -492,7 +492,7 @@ function setFilter(f) {
   document.querySelectorAll('.dev-filter-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.filter === f);
   });
-  renderBoard();
+  _flipBoard();
 }
 
 /* ── View mode ── */
@@ -660,7 +660,15 @@ document.addEventListener('DOMContentLoaded', () => {
   if (doneWeeksInput) doneWeeksInput.value = _doneWeeks;
 
   document.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      const overlay = document.getElementById('cmdPalette');
+      if (overlay?.classList.contains('open')) closeCmdPalette();
+      else openCmdPalette();
+      return;
+    }
     if (e.key === 'Escape') {
+      if (document.getElementById('cmdPalette')?.classList.contains('open')) { closeCmdPalette(); return; }
       closeDoneRemarksModal(); closeDetailModal(); closeEpicModal(); closeAddSystemModal(); closeArchiveModal(); closeProfileMenu(); closeEpicPage(); closeItemTypesModal();
       const tp = document.getElementById('bulkTypePopover');
       const sp = document.getElementById('bulkStatusPopover');
@@ -921,6 +929,169 @@ async function loadItems() {
 }
 
 const STATUSES = ['pending', 'ongoing', 'coding', 'testing', 'done'];
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Command Palette — ⌘K / Ctrl+K
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+let _cmdCursor = -1;
+
+const _CMD_ICONS = {
+  kanban:    `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>`,
+  list:      `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`,
+  analytics: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
+  epics:     `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`,
+  add:       `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+  filter:    `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>`,
+  user:      `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+  portal:    `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>`,
+  signout:   `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`,
+};
+
+const CMD_ACTIONS = [
+  { id: 'view-kanban',    section: 'Views',    label: 'Kanban Board',   desc: 'Switch to kanban view',         icon: 'kanban',    action: () => setViewMode('kanban') },
+  { id: 'view-list',      section: 'Views',    label: 'Dev Items List', desc: 'Switch to list view',           icon: 'list',      action: () => setViewMode('list') },
+  { id: 'view-analytics', section: 'Views',    label: 'Analytics',      desc: 'Switch to analytics view',      icon: 'analytics', action: () => setViewMode('analytics') },
+  { id: 'view-epics',     section: 'Views',    label: 'Epics',          desc: 'Switch to epics view',          icon: 'epics',     action: () => setViewMode('epics') },
+  { id: 'create-item',    section: 'Actions',  label: 'New Dev Item',   desc: 'Create a new dev item',         icon: 'add',       action: () => openDetailModal(null) },
+  { id: 'filter-all',     section: 'Filters',  label: 'All Items',      desc: 'Show all dev items',            icon: 'filter',    action: () => setFilter('all') },
+  { id: 'filter-mine',    section: 'Filters',  label: 'My Issues',      desc: 'Show only items assigned to you', icon: 'user',   action: () => setFilter('mine') },
+  { id: 'nav-portal',     section: 'Navigate', label: 'Portal',         desc: 'Go back to main portal',        icon: 'portal',    action: () => { location.href = '/'; } },
+  { id: 'nav-profile',    section: 'Navigate', label: 'My Profile',     desc: 'View and edit your profile',    icon: 'user',      action: () => { location.href = '/profile'; } },
+  { id: 'nav-signout',    section: 'Navigate', label: 'Sign Out',       desc: 'Sign out of your account',      icon: 'signout',   action: () => devSignOut() },
+];
+
+function openCmdPalette() {
+  const overlay = document.getElementById('cmdPalette');
+  if (!overlay) return;
+  overlay.classList.add('open');
+  overlay.setAttribute('aria-hidden', 'false');
+  _cmdCursor = -1;
+  const input = document.getElementById('cmdInput');
+  if (input) { input.value = ''; input.focus(); }
+  _cmdRender();
+}
+
+function closeCmdPalette() {
+  const overlay = document.getElementById('cmdPalette');
+  if (!overlay) return;
+  overlay.classList.remove('open');
+  overlay.setAttribute('aria-hidden', 'true');
+}
+
+function overlayCloseCmd(e) {
+  if (e.target === document.getElementById('cmdPalette')) closeCmdPalette();
+}
+
+function _cmdFilteredActions() {
+  const q = (document.getElementById('cmdInput')?.value || '').toLowerCase().trim();
+  if (!q) return CMD_ACTIONS;
+  return CMD_ACTIONS.filter(a =>
+    a.label.toLowerCase().includes(q) ||
+    a.desc.toLowerCase().includes(q) ||
+    a.section.toLowerCase().includes(q) ||
+    a.id.toLowerCase().includes(q)
+  );
+}
+
+function _cmdRender() {
+  const results  = document.getElementById('cmdResults');
+  if (!results) return;
+  const filtered = _cmdFilteredActions();
+  const q        = (document.getElementById('cmdInput')?.value || '').trim();
+
+  if (!filtered.length) {
+    results.innerHTML = `<div class="cmd-empty">No commands matching "<strong>${escHtml(q)}</strong>"</div>`;
+    _cmdCursor = -1;
+    return;
+  }
+
+  _cmdCursor = Math.min(_cmdCursor, filtered.length - 1);
+
+  const sections = {};
+  filtered.forEach(a => { (sections[a.section] = sections[a.section] || []).push(a); });
+
+  let html = '';
+  let idx  = 0;
+  for (const [section, items] of Object.entries(sections)) {
+    html += `<div class="cmd-section-label">${escHtml(section)}</div>`;
+    items.forEach(a => {
+      const active = idx === _cmdCursor ? ' cmd-result--active' : '';
+      html += `<div class="cmd-result${active}" role="option" data-cmd-id="${escHtml(a.id)}" onclick="cmdExec('${escHtml(a.id)}')">
+        <div class="cmd-result-icon">${_CMD_ICONS[a.icon] || ''}</div>
+        <div class="cmd-result-body">
+          <div class="cmd-result-label">${escHtml(a.label)}</div>
+          ${a.desc ? `<div class="cmd-result-desc">${escHtml(a.desc)}</div>` : ''}
+        </div>
+      </div>`;
+      idx++;
+    });
+  }
+  results.innerHTML = html;
+}
+
+function _cmdSyncHighlight() {
+  const results  = document.getElementById('cmdResults');
+  if (!results) return;
+  const filtered = _cmdFilteredActions();
+  _cmdCursor     = Math.max(0, Math.min(_cmdCursor, filtered.length - 1));
+  results.querySelectorAll('.cmd-result').forEach((el, i) => {
+    el.classList.toggle('cmd-result--active', i === _cmdCursor);
+    if (i === _cmdCursor) el.scrollIntoView({ block: 'nearest' });
+  });
+}
+
+function _cmdKey(e) {
+  const filtered = _cmdFilteredActions();
+  if (e.key === 'ArrowDown')  { e.preventDefault(); _cmdCursor = Math.min(_cmdCursor + 1, filtered.length - 1); _cmdSyncHighlight(); }
+  else if (e.key === 'ArrowUp')   { e.preventDefault(); _cmdCursor = Math.max(_cmdCursor - 1, 0); _cmdSyncHighlight(); }
+  else if (e.key === 'Enter') {
+    e.preventDefault();
+    const item = filtered[Math.max(0, _cmdCursor)];
+    if (item) cmdExec(item.id);
+  }
+}
+
+function cmdExec(id) {
+  const action = CMD_ACTIONS.find(a => a.id === id);
+  if (!action) return;
+  closeCmdPalette();
+  action.action();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   FLIP Card Choreography — animate cards to new positions on filter change
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+function _flipBoard() {
+  if (_rm.matches || _items.length > 80) { renderBoard(); return; }
+
+  // FIRST — snapshot current card positions
+  const first = {};
+  document.querySelectorAll('.kanban-card[id^="card-"]').forEach(el => {
+    first[el.id] = el.getBoundingClientRect();
+  });
+
+  // LAST — render new state
+  renderBoard();
+
+  // INVERT + PLAY — animate each card from its old position to its new position
+  document.querySelectorAll('.kanban-card[id^="card-"]').forEach(el => {
+    const f = first[el.id];
+    if (!f) return;
+    const l  = el.getBoundingClientRect();
+    const dx = f.left - l.left;
+    const dy = f.top  - l.top;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+    el.animate(
+      [
+        { transform: `translate(${dx}px,${dy}px)`, opacity: 0.65 },
+        { transform: 'translate(0,0)',              opacity: 1 },
+      ],
+      { duration: 360, easing: 'cubic-bezier(0.16,1,0.3,1)', fill: 'none' }
+    );
+  });
+}
 
 /* ══════════════════════════════════════════════════════════════════════════════
    Ambient column canvas — Lissajous-drifting blobs in developer palette colors
