@@ -995,14 +995,26 @@ function renderCard(item, idx = 0) {
   const sysIds    = _parseSystemIds(item);
   const sysLabels = sysIds.map(id => { const s = _systems.find(s => s.id === id); return s ? s.name : null; }).filter(Boolean);
   const devClr    = devColor(item.created_by);
+
+  const epic            = item.epic_id ? _epics.find(e => e.epic_id === item.epic_id) : null;
+  const assigneeKey     = item.assigned_to || item.created_by;
+  const assigneeDisplay = (_members[assigneeKey]?.displayName || assigneeKey || '').split(' ')[0];
+
   const topRow = (sysLabels.length || item.dev_item_type) ? `<div class="kcard-top-row">
       ${sysLabels.length ? `<div class="kcard-sys-tags">${sysLabels.map(l => `<div class="kcard-system-tag">${escHtml(l)}</div>`).join('')}</div>` : ''}
       ${typeBadge(item.dev_item_type)}
     </div>` : '';
   return `<div class="kanban-card" id="card-${escHtml(item.id)}"
                style="animation-delay:${idx * 55}ms;--dev-clr:${devClr}">
-    ${item.dev_item_code ? `<div class="kcard-code">${escHtml(item.dev_item_code)}</div>` : ''}
+    <div class="kcard-header-row">
+      ${item.dev_item_code ? `<div class="kcard-code">${escHtml(item.dev_item_code)}</div>` : '<span></span>'}
+      ${item.story_points != null ? `<span class="kcard-sp-badge" title="Story points">${item.story_points} SP</span>` : ''}
+    </div>
     ${topRow}
+    ${epic ? `<div class="kcard-epic-chip">
+      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      ${escHtml(epic.epic_name)}
+    </div>` : ''}
     <div class="kcard-title">${escHtml(item.title)}</div>
     ${item.description ? `<div class="kcard-desc">${escHtml(_descPreview(item.description))}</div>` : ''}
     <div class="kcard-meta">
@@ -1025,10 +1037,8 @@ function renderCard(item, idx = 0) {
         </span>` : ''}
       </div>
       <div class="kcard-assignee-wrap">
-        ${authorBubble(item.assigned_to || item.created_by)}
-        ${item.assigned_to && item.assigned_to !== item.created_by
-          ? `<span class="kcard-assignee-label" title="Assigned to ${escHtml(_members[item.assigned_to]?.displayName || item.assigned_to)}"></span>`
-          : ''}
+        ${authorBubble(assigneeKey)}
+        ${assigneeDisplay ? `<span class="kcard-assignee-label" title="${escHtml(_members[assigneeKey]?.displayName || assigneeKey)}">${escHtml(assigneeDisplay)}</span>` : ''}
       </div>
     </div>
     <div class="kcard-actions">

@@ -671,3 +671,114 @@
   #issues-body .admin-table th:nth-child(8),
   #issues-body .admin-table td:nth-child(8) { display: none; }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   Gap fixes — elements not covered by the blocks above
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── ≤ 900px  Issue analytics grid ── */
+@media (max-width: 900px) {
+  /* Hard-coded 230px 1fr 200px columns → responsive */
+  .iss-analytics-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+}
+
+/* ── ≤ 768px ── */
+@media (max-width: 768px) {
+  /* Issue analytics: single column on tablet */
+  .iss-analytics-grid { grid-template-columns: 1fr; }
+
+  /* Index page: remove negative-margin overlap that clips section labels */
+  .view-toggle-bar {
+    margin-bottom: 12px;
+    justify-content: flex-start;
+  }
+
+  /* Compact search: fill available width */
+  .compact-search-inner { max-width: 100%; }
+
+  /* Dev list toolbar: search expands full row */
+  .dev-list-toolbar { flex-wrap: wrap; }
+  .dev-list-toolbar .dev-list-search-wrap { flex: 1 1 100%; min-width: 0; }
+
+  /* Admin main dev: tighten outer padding */
+  .admin-main--dev { padding: 0; }
+
+  /* Profile page actions row */
+  .profile-actions-row { flex-wrap: wrap; gap: 8px; }
+}
+
+/* ── ≤ 640px ── */
+@media (max-width: 640px) {
+
+  /* Kanban card buttons: expand touch target to 36px */
+  .kcard-btn {
+    width: 36px;
+    height: 36px;
+  }
+  /* Give kcard-btn-placeholder matching size so spacing stays even */
+  .kcard-btn-placeholder { width: 36px; height: 36px; }
+
+  /* Kanban card: loosen padding slightly for touch */
+  .kanban-card { padding: 14px 14px 11px; }
+
+  /* Bulk action bar: pin to screen edges instead of centered float */
+  .bulk-action-bar {
+    left: 10px;
+    right: 10px;
+    bottom: max(14px, env(safe-area-inset-bottom, 14px));
+    transform: none;
+    border-radius: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+    white-space: normal;
+  }
+  .bulk-action-btns { flex-wrap: wrap; gap: 6px; }
+
+  /* Dev page sub-header: tighten */
+  .dev-page-header { gap: 8px; margin-bottom: 14px; }
+
+  /* Kanban skeleton cards: less width animation on small screens */
+  .kanban-skel { min-height: 72px; }
+
+  /* Admin page title — smaller on phone */
+  .admin-main--dev .admin-page-title { font-size: 20px; }
+
+  /* Workspace issue card body wraps on phone */
+  .issue-card-meta { flex-wrap: wrap; gap: 6px; }
+
+  /* General helpdesk form: ensure full width inputs */
+  .gh-form-row { flex-direction: column; }
+  .gh-form-row .form-group { flex: 1 1 100%; }
+}
+
+/* ── ≤ 480px ── */
+@media (max-width: 480px) {
+
+  /* Bulk action bar on very small screens: stack count above buttons */
+  .bulk-action-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .bulk-action-count {
+    padding-right: 0;
+    padding-bottom: 8px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+  }
+  .bulk-action-btns { justify-content: center; }
+  .bulk-btn { flex: 1; justify-content: center; }
+
+  /* Kanban board: add horizontal padding inside columns */
+  .kanban-cards { padding: 8px; gap: 7px; }
+
+  /* Analytics KPI strip: 2-per-row on phone */
+  .ana-kpi-strip { gap: 8px; }
+  .ana-kpi-card  { flex: 1 1 calc(50% - 8px); min-width: 0; padding: 12px 14px; }
+  .ana-kpi-n     { font-size: 22px; }
+}
