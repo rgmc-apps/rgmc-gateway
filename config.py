@@ -17,6 +17,8 @@ GATEWAY_BASE_URL     = os.environ.get("GATEWAY_BASE_URL", "")
 IT_BOT_URL     = os.environ.get("IT_BOT_URL", "")
 IT_BOT_API_KEY = os.environ.get("IT_BOT_API_KEY", "")
 
+WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")
+
 # Fallback site list used when the systems table is empty or DB is unreachable.
 _FALLBACK_DEFAULTS = {"is_windows_based": False, "is_task": False, "windows_launcher_url": None, "windows_manifest_url": None}
 
