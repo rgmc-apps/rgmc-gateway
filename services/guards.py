@@ -1,4 +1,4 @@
-from flask import request
+from flask import request, current_app
 from services.supabase import supabase_req
 
 
@@ -12,7 +12,8 @@ def _require_admin():
             "username": f"eq.{username}",
             "select":   "username,is_admin,is_management",
         })
-    except Exception:
+    except Exception as exc:
+        current_app.logger.error("_require_admin: supabase_req failed for '%s': %s", username, exc)
         return None, ({"error": "Authentication failed"}, 500)
     if not rows or not (rows[0].get("is_admin") or rows[0].get("is_management")):
         return None, ({"error": "Admin access required"}, 403)
@@ -29,7 +30,8 @@ def _require_developer():
             "username": f"eq.{username}",
             "select":   "username,is_developer,is_admin",
         })
-    except Exception:
+    except Exception as exc:
+        current_app.logger.error("_require_developer: supabase_req failed for '%s': %s", username, exc)
         return None, ({"error": "Authentication failed"}, 500)
     if not rows or not (rows[0].get("is_developer") or rows[0].get("is_admin")):
         return None, ({"error": "Developer access required"}, 403)
@@ -46,7 +48,8 @@ def _require_dept_head():
             "username": f"eq.{username}",
             "select":   "username,department,is_department_head,is_admin,is_management",
         })
-    except Exception:
+    except Exception as exc:
+        current_app.logger.error("_require_dept_head: supabase_req failed for '%s': %s", username, exc)
         return None, None, ({"error": "Authentication failed"}, 500)
     if not rows:
         return None, None, ({"error": "User not found"}, 404)

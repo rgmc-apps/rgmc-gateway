@@ -35,5 +35,9 @@ def supabase_req(method: str, path: str, *, data=None, params=None, extra_header
     resp = requests.request(
         method, url, headers=headers, json=data, params=params, timeout=10
     )
-    resp.raise_for_status()
+    if not resp.ok:
+        raise requests.HTTPError(
+            f"{resp.status_code} {resp.reason} — {resp.text[:300]}",
+            response=resp,
+        )
     return resp.json() if resp.text else []
