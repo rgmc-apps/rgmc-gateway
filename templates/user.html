@@ -93,6 +93,32 @@
         </div>
       </div>
 
+      <!-- Open Issues Table — distinct section for new/open status issues -->
+      <div id="wsOpenIssuesSection" class="open-iss-section" style="display:none;">
+        <div class="open-iss-section-header">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Open Issues
+          <span class="open-iss-count-badge" id="wsOpenIssBadge">0</span>
+          <span class="open-iss-sub">Awaiting action — new &amp; open</span>
+        </div>
+        <div class="dev-list-table-wrap open-iss-table-wrap">
+          <table class="dev-list-table open-iss-table">
+            <thead>
+              <tr>
+                <th class="dlt-th open-iss-col-ticket">Ticket</th>
+                <th class="dlt-th open-iss-col-title">Title</th>
+                <th class="dlt-th">Priority</th>
+                <th class="dlt-th">Reporter</th>
+                <th class="dlt-th">Category</th>
+                <th class="dlt-th open-iss-col-assign">Assigned To</th>
+                <th class="dlt-th open-iss-col-date">Filed</th>
+              </tr>
+            </thead>
+            <tbody id="wsOpenIssTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Filter bar -->
       <div class="iss-filter-bar">
         <div class="iss-filter-search-wrap">
@@ -191,6 +217,16 @@
           <button class="dev-filter-tab active" data-task-filter="team" onclick="setUtFilter('team')">Team</button>
           <button class="dev-filter-tab"        data-task-filter="mine" onclick="setUtFilter('mine')">Mine</button>
         </div>
+        <div class="dev-view-switcher" id="utViewSwitcher">
+          <button class="dev-view-btn active" data-ut-view="kanban" onclick="setUtViewMode('kanban')" title="Kanban view">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+            Kanban
+          </button>
+          <button class="dev-view-btn" data-ut-view="list" onclick="setUtViewMode('list')" title="List view">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            List
+          </button>
+        </div>
         <button class="btn-admin-add" onclick="openUtModal(null)">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           New Task
@@ -215,30 +251,81 @@
         </div>
       </div>
 
-      <div class="kanban-board" id="ut-kanban">
-        <div class="kanban-col" id="ut-col-open" data-status="open">
-          <div class="kanban-col-header">
-            <span class="kanban-col-dot dot-open"></span>
-            Open
-            <span class="kanban-count" id="ut-count-open">0</span>
+      <!-- Kanban view -->
+      <div id="ut-kanban-wrap">
+        <div class="kanban-board" id="ut-kanban">
+          <div class="kanban-col" id="ut-col-open" data-status="open">
+            <div class="kanban-col-header">
+              <span class="kanban-col-dot dot-open"></span>
+              Open
+              <span class="kanban-count" id="ut-count-open">0</span>
+            </div>
+            <div class="kanban-cards" id="ut-cards-open"></div>
           </div>
-          <div class="kanban-cards" id="ut-cards-open"></div>
+          <div class="kanban-col" id="ut-col-ongoing" data-status="ongoing">
+            <div class="kanban-col-header">
+              <span class="kanban-col-dot dot-ongoing"></span>
+              Ongoing
+              <span class="kanban-count" id="ut-count-ongoing">0</span>
+            </div>
+            <div class="kanban-cards" id="ut-cards-ongoing"></div>
+          </div>
+          <div class="kanban-col" id="ut-col-done" data-status="done">
+            <div class="kanban-col-header">
+              <span class="kanban-col-dot dot-done"></span>
+              Done
+              <span class="kanban-count" id="ut-count-done">0</span>
+            </div>
+            <div class="kanban-cards" id="ut-cards-done"></div>
+          </div>
         </div>
-        <div class="kanban-col" id="ut-col-ongoing" data-status="ongoing">
-          <div class="kanban-col-header">
-            <span class="kanban-col-dot dot-ongoing"></span>
-            Ongoing
-            <span class="kanban-count" id="ut-count-ongoing">0</span>
-          </div>
-          <div class="kanban-cards" id="ut-cards-ongoing"></div>
+      </div>
+
+      <!-- List view (active tasks: open + ongoing) -->
+      <div id="ut-list-view" style="display:none;">
+        <div class="dev-list-table-wrap">
+          <table class="dev-list-table">
+            <thead>
+              <tr>
+                <th class="dlt-th dlt-th-title">Title</th>
+                <th class="dlt-th">Status</th>
+                <th class="dlt-th">Assigned To</th>
+                <th class="dlt-th">Due Date</th>
+                <th class="dlt-th">Created By</th>
+                <th class="dlt-th ut-list-col-actions"></th>
+              </tr>
+            </thead>
+            <tbody id="utListBody">
+              <tr><td colspan="6" class="dlt-empty">Loading…</td></tr>
+            </tbody>
+          </table>
         </div>
-        <div class="kanban-col" id="ut-col-done" data-status="done">
-          <div class="kanban-col-header">
-            <span class="kanban-col-dot dot-done"></span>
-            Done
-            <span class="kanban-count" id="ut-count-done">0</span>
-          </div>
-          <div class="kanban-cards" id="ut-cards-done"></div>
+      </div>
+
+      <!-- Past Tasks — done tasks sorted by date descending -->
+      <div id="utPastTasksSection" class="past-tasks-section" style="display:none;">
+        <div class="past-tasks-header">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Past Tasks
+          <span class="past-tasks-count-badge" id="utPastTasksBadge">0</span>
+          <span class="past-tasks-sub">Completed — most recent first</span>
+        </div>
+        <div class="dev-list-table-wrap">
+          <table class="dev-list-table">
+            <thead>
+              <tr>
+                <th class="dlt-th dlt-th-title">Title</th>
+                <th class="dlt-th">Assigned To</th>
+                <th class="dlt-th">Due Date</th>
+                <th class="dlt-th">Created By</th>
+                <th class="dlt-th">Completed</th>
+                <th class="dlt-th ut-list-col-actions"></th>
+              </tr>
+            </thead>
+            <tbody id="utPastTasksBody">
+              <tr><td colspan="6" class="dlt-empty">No completed tasks yet.</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 

@@ -399,6 +399,203 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Open Issues Table Section ── */
+.open-iss-section {
+  margin-bottom: 20px;
+  border: 1px solid rgba(248,113,113,0.28);
+  border-left: 3px solid #f87171;
+  border-radius: var(--radius);
+  background: rgba(248,113,113,0.04);
+  overflow: hidden;
+  animation: fadeInUp 0.22s var(--ease) both;
+}
+
+.open-iss-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px 9px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #f87171;
+  border-bottom: 1px solid rgba(248,113,113,0.16);
+  background: rgba(248,113,113,0.06);
+  letter-spacing: 0.02em;
+}
+
+.open-iss-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(248,113,113,0.18);
+  border: 1px solid rgba(248,113,113,0.32);
+  font-size: 10px;
+  font-weight: 700;
+  color: #f87171;
+  flex-shrink: 0;
+}
+
+.open-iss-sub {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+.open-iss-table-wrap { border-radius: 0; }
+.open-iss-table-wrap .dev-list-table { border-radius: 0; }
+
+.open-iss-table .open-iss-col-ticket { width: 78px; }
+.open-iss-table .open-iss-col-title  { min-width: 200px; }
+.open-iss-table .open-iss-col-assign { min-width: 110px; }
+.open-iss-table .open-iss-col-date   { width: 110px; white-space: nowrap; }
+.open-iss-table .open-iss-col-cat    { min-width: 100px; }
+.open-iss-table .open-iss-col-reporter { min-width: 100px; }
+
+.open-iss-row {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.open-iss-row:hover { background: rgba(248,113,113,0.06); }
+
+.open-iss-ticket {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.06em;
+}
+
+.open-iss-title-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 2px;
+  line-height: 1.35;
+}
+
+.open-iss-status-badge {
+  font-size: 8.5px !important;
+  padding: 1px 6px !important;
+  vertical-align: middle;
+}
+
+.open-iss-assignee { font-size: 12px; color: var(--text-primary); font-weight: 500; }
+.open-iss-unassigned { font-size: 12px; color: var(--text-muted); }
+.open-iss-noprio { font-size: 12px; color: var(--text-muted); }
+
+/* ── Task List View ── */
+.ut-list-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: block;
+  line-height: 1.35;
+  margin-bottom: 2px;
+}
+
+.ut-list-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: block;
+  line-height: 1.4;
+}
+
+.ut-list-status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 5px;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.ut-list-status-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  vertical-align: middle;
+}
+
+.ut-list-col-actions { width: 36px; text-align: right; }
+
+/* ── Past Tasks Section ── */
+.past-tasks-section {
+  margin-top: 28px;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 20px;
+  animation: fadeInUp 0.22s var(--ease) both;
+}
+
+.past-tasks-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.past-tasks-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(107,114,128,0.12);
+  border: 1px solid rgba(107,114,128,0.24);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.past-tasks-sub {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 2px;
+}
+
+.past-task-row { opacity: 0.82; }
+.past-task-row:hover { opacity: 1; }
+
+.past-task-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  display: block;
+  text-decoration: line-through;
+  text-decoration-color: rgba(107,114,128,0.35);
+  margin-bottom: 2px;
+  line-height: 1.35;
+}
+
+.past-task-completed {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Non-sortable table headers in workspace panels */
+.open-iss-table .dlt-th,
+#ut-list-view .dlt-th,
+.past-tasks-section .dlt-th {
+  cursor: default;
+}
+.open-iss-table .dlt-th:hover,
+#ut-list-view .dlt-th:hover,
+.past-tasks-section .dlt-th:hover { color: var(--text-muted); }
+
 /* ══ Light mode — CSS variable overrides ══ */
 [data-theme="light"] {
   --bg:            #F5F0E8;

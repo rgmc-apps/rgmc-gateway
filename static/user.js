@@ -55,6 +55,7 @@ let _taskEditId         = null;
 let _activeTab          = 'issues';
 let _currentIssue       = null;
 let _utAssigneeOpen     = false;
+let _utViewMode         = 'kanban';
 
 const UT_STATUSES = ['open', 'ongoing', 'done'];
 
@@ -112,24 +113,72 @@ function wsIssApplyFilters() {
   const all = _issues[_issueSubtab] || [];
   _wsRenderIssueKpis(all);
 
-  let rows = _wsIssStatus === 'all'
-    ? all
-    : all.filter(i => i.status === _wsIssStatus);
-
-  if (search) rows = rows.filter(i =>
+  let baseFiltered = [...all];
+  if (search) baseFiltered = baseFiltered.filter(i =>
     (i.ticket_number || '').toLowerCase().includes(search) ||
     (i.title         || '').toLowerCase().includes(search) ||
     (i.description   || '').toLowerCase().includes(search) ||
     (i.employee_name || '').toLowerCase().includes(search) ||
     (i.company_name  || '').toLowerCase().includes(search)
   );
-  if (from)     rows = rows.filter(i => i.created_at && i.created_at.slice(0,10) >= from);
-  if (to)       rows = rows.filter(i => i.created_at && i.created_at.slice(0,10) <= to);
-  if (priority) rows = rows.filter(i => (i.priority || '').toLowerCase() === priority);
-  if (company)  rows = rows.filter(i => i.company_name === company);
+  if (from)     baseFiltered = baseFiltered.filter(i => i.created_at && i.created_at.slice(0,10) >= from);
+  if (to)       baseFiltered = baseFiltered.filter(i => i.created_at && i.created_at.slice(0,10) <= to);
+  if (priority) baseFiltered = baseFiltered.filter(i => (i.priority || '').toLowerCase() === priority);
+  if (company)  baseFiltered = baseFiltered.filter(i => i.company_name === company);
+
+  const openRows = baseFiltered.filter(i => ['new', 'open'].includes(i.status));
+  renderOpenIssuesTable(openRows);
+
+  let rows = _wsIssStatus === 'all'
+    ? baseFiltered
+    : baseFiltered.filter(i => i.status === _wsIssStatus);
 
   renderIssueList(_issueSubtab, rows, true);
   _wsRenderIssueAnalytics(rows);
+}
+
+function renderOpenIssuesTable(openIssues) {
+  const section = document.getElementById('wsOpenIssuesSection');
+  const badge   = document.getElementById('wsOpenIssBadge');
+  const tbody   = document.getElementById('wsOpenIssTableBody');
+  if (!section || !tbody) return;
+
+  const count = openIssues.length;
+  if (badge) badge.textContent = count;
+
+  if (count === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = '';
+
+  const STATUS_LABEL = { new: 'New', open: 'Open' };
+  tbody.innerHTML = openIssues.map(iss => {
+    const id      = escHtml(iss.id);
+    const ticket  = escHtml(iss.ticket_number || '—');
+    const title   = escHtml(iss.title || iss.description || '(No title)');
+    const status  = iss.status || 'new';
+    const slabel  = STATUS_LABEL[status] || escHtml(status);
+    const prioHtml = prioBadgeHtml(iss.priority);
+    const reporter = escHtml(iss.employee_name || '—');
+    const cat     = escHtml(iss.request_category || '—');
+    const assignee = iss.assigned_to
+      ? `<span class="open-iss-assignee">${escHtml(iss.assigned_to)}</span>`
+      : '<span class="open-iss-unassigned">Unassigned</span>';
+    const date    = escHtml(fmtDate(iss.created_at));
+    return `<tr class="open-iss-row" onclick="openIssueDetailById('${id}')" title="View issue">
+      <td class="dlt-td open-iss-col-ticket"><span class="open-iss-ticket">${ticket}</span></td>
+      <td class="dlt-td open-iss-col-title">
+        <span class="open-iss-title-text">${title}</span>
+        <span class="iss-badge ${issueBadgeClass(status)} open-iss-status-badge">${slabel}</span>
+      </td>
+      <td class="dlt-td">${prioHtml || '<span class="open-iss-noprio">—</span>'}</td>
+      <td class="dlt-td open-iss-col-reporter">${reporter}</td>
+      <td class="dlt-td open-iss-col-cat">${cat}</td>
+      <td class="dlt-td">${assignee}</td>
+      <td class="dlt-td open-iss-col-date">${date}</td>
+    </tr>`;
+  }).join('');
 }
 
 function wsIssClearSearch() {
@@ -677,6 +726,18 @@ function setUtFilter(filter) {
   loadTasks();
 }
 
+function setUtViewMode(mode) {
+  _utViewMode = mode;
+  document.querySelectorAll('[data-ut-view]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.utView === mode);
+  });
+  const kanbanWrap = document.getElementById('ut-kanban-wrap');
+  const listView   = document.getElementById('ut-list-view');
+  if (kanbanWrap) kanbanWrap.style.display = mode === 'kanban' ? '' : 'none';
+  if (listView)   listView.style.display   = mode === 'list'   ? '' : 'none';
+  if (mode === 'list') renderTaskList();
+}
+
 async function loadTasks() {
   UT_STATUSES.forEach(s => {
     const el = document.getElementById(`ut-cards-${s}`);
@@ -713,6 +774,96 @@ function renderTaskBoard() {
            No tasks
          </div>`;
   });
+  if (_utViewMode === 'list') renderTaskList();
+  renderPastTasks();
+}
+
+const UT_STATUS_LABEL = { open: 'Open', ongoing: 'Ongoing', done: 'Done' };
+const UT_STATUS_DOT   = { open: 'dot-open', ongoing: 'dot-ongoing', done: 'dot-done' };
+
+function renderTaskList() {
+  const tbody = document.getElementById('utListBody');
+  if (!tbody) return;
+  const activeTasks = _tasks.filter(t => t.status !== 'done');
+  if (!activeTasks.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="dlt-empty">No active tasks.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = activeTasks.map(t => {
+    const id      = escHtml(t.id);
+    const title   = escHtml(t.title);
+    const status  = t.status || 'open';
+    const slabel  = UT_STATUS_LABEL[status] || status;
+    const dotCls  = UT_STATUS_DOT[status] || '';
+    const assignee = t.assigned_to ? escHtml(t.assigned_to) : '<span class="open-iss-unassigned">—</span>';
+    const due     = t.due_date ? escHtml(fmtDate(t.due_date)) : '—';
+    const creator = t.created_by ? escHtml(t.created_by) : '—';
+    return `<tr class="dlt-row" onclick="openUtModal('${id}')" style="cursor:pointer;" title="Edit task">
+      <td class="dlt-td dlt-th-title">
+        <span class="ut-list-title">${title}</span>
+        ${t.description ? `<span class="ut-list-desc">${escHtml(t.description.slice(0, 60))}${t.description.length > 60 ? '…' : ''}</span>` : ''}
+      </td>
+      <td class="dlt-td">
+        <span class="ut-list-status-dot ${dotCls}"></span>
+        <span class="ut-list-status-label">${slabel}</span>
+      </td>
+      <td class="dlt-td">${assignee}</td>
+      <td class="dlt-td">${due}</td>
+      <td class="dlt-td">${creator}</td>
+      <td class="dlt-td ut-list-col-actions">
+        <button class="ut-card-btn" onclick="event.stopPropagation();openUtModal('${id}')" title="Edit">
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderPastTasks() {
+  const section = document.getElementById('utPastTasksSection');
+  const badge   = document.getElementById('utPastTasksBadge');
+  const tbody   = document.getElementById('utPastTasksBody');
+  if (!section || !tbody) return;
+
+  const doneTasks = _tasks
+    .filter(t => t.status === 'done')
+    .sort((a, b) => {
+      const da = a.updated_at || a.created_at || '';
+      const db = b.updated_at || b.created_at || '';
+      return db.localeCompare(da);
+    });
+
+  if (badge) badge.textContent = doneTasks.length;
+
+  if (!doneTasks.length) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = '';
+
+  tbody.innerHTML = doneTasks.map(t => {
+    const id      = escHtml(t.id);
+    const title   = escHtml(t.title);
+    const assignee = t.assigned_to ? escHtml(t.assigned_to) : '—';
+    const due     = t.due_date  ? escHtml(fmtDate(t.due_date))  : '—';
+    const creator = t.created_by ? escHtml(t.created_by) : '—';
+    const completed = t.updated_at ? escHtml(fmtDate(t.updated_at)) : (t.created_at ? escHtml(fmtDate(t.created_at)) : '—');
+    return `<tr class="dlt-row past-task-row" onclick="openUtModal('${id}')" style="cursor:pointer;" title="View task">
+      <td class="dlt-td dlt-th-title">
+        <span class="past-task-title">${title}</span>
+        ${t.description ? `<span class="ut-list-desc">${escHtml(t.description.slice(0, 60))}${t.description.length > 60 ? '…' : ''}</span>` : ''}
+      </td>
+      <td class="dlt-td">${assignee}</td>
+      <td class="dlt-td">${due}</td>
+      <td class="dlt-td">${creator}</td>
+      <td class="dlt-td past-task-completed">${completed}</td>
+      <td class="dlt-td ut-list-col-actions">
+        <button class="ut-card-btn ut-card-btn--danger" onclick="event.stopPropagation();deleteUtTaskCard('${id}')" title="Delete">
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
 }
 
 function renderTaskCard(task) {
