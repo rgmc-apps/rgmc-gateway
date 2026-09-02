@@ -553,6 +553,174 @@ function applySession(session) {
 
   // 7. Show onboarding tour if not yet seen by this user
   _maybeShowTour(session);
+
+  // 8. Render access overview sidebar
+  buildAccessPanel(session);
+}
+
+function buildAccessPanel(session) {
+  const panel = document.getElementById('accessPanel');
+  if (!panel) return;
+
+  const userSystems = new Set((session.systems || []).map(s => s.toLowerCase()));
+  const allSites    = (typeof ALL_SITES !== 'undefined' ? ALL_SITES : []);
+
+  const allRgmc = allSites.filter(s => s.category === 'RGMC'      && !s.is_windows_based && !s.is_task);
+  const allSbic = allSites.filter(s => s.category === 'SBIC'      && !s.is_windows_based && !s.is_task);
+  const allNav  = allSites.filter(s => s.category === 'NAV Sites' && !s.is_windows_based && !s.is_task);
+  const allWin  = allSites.filter(s => s.is_windows_based && !s.is_task);
+  const allTask = allSites.filter(s => s.is_task);
+
+  const cnt = arr => arr.filter(s => userSystems.has(s.name.toLowerCase())).length;
+  const uRgmc = cnt(allRgmc), uSbic = cnt(allSbic), uNav = cnt(allNav), uWin = cnt(allWin), uTask = cnt(allTask);
+  const totalUser = userSystems.size;
+  const totalAll  = allSites.length;
+  const pct       = totalAll ? Math.min(100, Math.round(totalUser / totalAll * 100)) : 0;
+
+  const rolesHtml = [
+    session.isAdmin          && '<span class="ap-role ap-role-admin">Admin</span>',
+    session.isDeveloper      && '<span class="ap-role ap-role-dev">Dev</span>',
+    session.isManagement     && '<span class="ap-role ap-role-mgmt">Mgmt</span>',
+    session.isDepartmentHead && '<span class="ap-role ap-role-depthead">Dept. Head</span>',
+  ].filter(Boolean).join('');
+
+  const chipHtml = (cls, label, user, total) => {
+    if (total === 0) return '';
+    const none = user === 0;
+    return `
+      <div class="ap-sys-chip ${cls}${none ? ' chip-none' : ''}">
+        <span class="ap-sys-dot"></span>
+        <span>${label}</span>
+        <span class="ap-sys-count">${user}<span style="opacity:0.5">/${total}</span></span>
+      </div>`;
+  };
+
+  const sysChips = [
+    chipHtml('chip-rgmc', 'RGMC',    uRgmc, allRgmc.length),
+    chipHtml('chip-sbic', 'SBIC',    uSbic, allSbic.length),
+    chipHtml('chip-nav',  'NAV',     uNav,  allNav.length),
+    chipHtml('chip-win',  'WIN',     uWin,  allWin.length),
+    chipHtml('chip-task', 'TOOLS',   uTask, allTask.length),
+  ].join('');
+
+  const svgCheck = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+  const svgLock  = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+  const svgExt   = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
+
+  const featDefs = [
+    {
+      label: 'My Workspace',
+      href:  '/workspace',
+      icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`,
+      ok: true,
+    },
+    {
+      label: 'IT Helpdesk',
+      href:  '/helpdesk',
+      icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
+      ok: true,
+    },
+    {
+      label: 'General Helpdesk',
+      href:  '/general-helpdesk',
+      icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>`,
+      ok: true,
+    },
+    {
+      label: 'Report Problem',
+      icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+      ok: true,
+      action: true,
+    },
+    {
+      label: 'Tasks Board',
+      href:  '/tasks',
+      icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
+      ok: session.isAdmin || session.isManagement,
+      gate: 'Admin',
+      gateCls: 'gate-admin',
+    },
+    {
+      label: 'Admin Panel',
+      href:  '/admin',
+      icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>`,
+      ok: session.isAdmin || session.isManagement,
+      gate: 'Admin',
+      gateCls: 'gate-admin',
+    },
+    {
+      label: 'Dev Board',
+      href:  '/developer',
+      icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
+      ok: session.isDeveloper || session.isAdmin,
+      gate: 'Dev',
+      gateCls: 'gate-dev',
+    },
+  ];
+
+  const featHtml = featDefs.map(f => {
+    const locked  = !f.ok;
+    const iconCls = locked ? 'icon-locked' : 'icon-available';
+    const gateTag = f.gate ? `<span class="ap-feat-gate ${f.gateCls}">${f.gate}</span>` : '';
+    const svgIcon = locked ? svgLock : (f.href ? svgExt : svgCheck);
+    const tag     = f.href && !locked ? 'a' : 'div';
+    const hrefAttr = f.href && !locked ? ` href="${f.href}"` : '';
+    return `
+      <${tag} class="ap-feature${locked ? ' feature-locked' : ''}"${hrefAttr}>
+        <div class="ap-feat-icon ${iconCls}">${f.icon}</div>
+        <div class="ap-feat-body">
+          <div class="ap-feat-name">${f.label}</div>
+        </div>
+        ${gateTag}
+      </${tag}>`;
+  }).join('');
+
+  const svgShield = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.5 9.4 8 11 4.5-1.6 8-6 8-11V5l-8-3z"/><path d="M9 12l2 2 4-4"/></svg>`;
+  const svgPlus  = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+
+  panel.innerHTML = `
+    <div class="ap-gold-bar"></div>
+    <div class="ap-inner">
+      <div class="ap-header">
+        <div class="ap-icon">${svgShield}</div>
+        <div class="ap-header-text">
+          <div class="ap-title">Your Access</div>
+          <div class="ap-subtitle">Portal overview</div>
+        </div>
+        ${rolesHtml ? `<div class="ap-roles">${rolesHtml}</div>` : ''}
+      </div>
+
+      <div class="ap-divider"></div>
+
+      <div class="ap-section">
+        <div class="ap-section-label">Systems</div>
+        <div class="ap-sys-chips">${sysChips}</div>
+        <div class="ap-bar-row">
+          <div class="ap-bar-track">
+            <div class="ap-bar-fill" style="width:${pct}%"></div>
+          </div>
+          <span class="ap-bar-label">${totalUser} / ${totalAll}</span>
+        </div>
+      </div>
+
+      <div class="ap-divider"></div>
+
+      <div class="ap-section">
+        <div class="ap-section-label">Features</div>
+        <div class="ap-features">${featHtml}</div>
+      </div>
+
+      <div class="ap-divider"></div>
+
+      <div class="ap-footer">
+        <button class="ap-request-btn" onclick="openAdditionalAccess()">
+          ${svgPlus}
+          Request more access
+        </button>
+      </div>
+    </div>`;
+
+  requestAnimationFrame(() => panel.classList.add('ap-ready'));
 }
 
 function filterSystems(approvedSystems) {
