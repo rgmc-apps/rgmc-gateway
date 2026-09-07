@@ -354,7 +354,7 @@ def get_changelog():
     try:
         items = supabase_req("GET", "/dev_items", params={
             "status": "eq.done",
-            "select": "id,title,dev_item_type,system_id,system_ids,assigned_to,actual_end_date,created_at",
+            "select": "id,title,description,dev_item_type,system_id,system_ids,assigned_to,resolution_action_ids,actual_end_date,created_at",
             "order":  "actual_end_date.desc.nullslast,created_at.desc",
             "limit":  "50",
         })
@@ -371,6 +371,25 @@ def get_changelog():
     except Exception:
         sys_map = {}
 
+    # Collect all action IDs across items and resolve them in one request
+    all_action_ids = list({
+        aid
+        for item in items
+        for aid in (item.get("resolution_action_ids") or [])
+        if aid
+    })
+    action_map = {}
+    if all_action_ids:
+        try:
+            ids_csv = ",".join(str(i) for i in all_action_ids)
+            action_rows = supabase_req("GET", "/actions", params={
+                "action_id": f"in.({ids_csv})",
+                "select":    "action_id,action_name",
+            })
+            action_map = {r["action_id"]: r["action_name"] for r in (action_rows or [])}
+        except Exception:
+            pass
+
     result = []
     for item in items:
         sid  = item.get("system_id")
@@ -381,12 +400,17 @@ def get_changelog():
             if not any(n in user_systems for n in sys_names):
                 continue
 
+        action_ids   = item.get("resolution_action_ids") or []
+        action_names = [action_map[a] for a in action_ids if a in action_map]
+
         result.append({
             "id":              item["id"],
             "title":           item["title"],
+            "description":     (item.get("description") or "").strip() or None,
             "type":            item.get("dev_item_type") or "",
             "systems":         sys_names,
             "assigned_to":     item.get("assigned_to") or "",
+            "action_names":    action_names,
             "actual_end_date": item.get("actual_end_date"),
             "created_at":      item["created_at"],
         })

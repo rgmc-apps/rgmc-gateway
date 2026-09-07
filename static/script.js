@@ -793,6 +793,16 @@ function _clEntryHtml(item) {
   const sysPills = (item.systems || []).map(s =>
     `<span class="cl-sys-pill">${escapeHtml(s)}</span>`).join('');
 
+  const descHtml = item.description
+    ? `<div class="cl-desc">${escapeHtml(item.description)}</div>`
+    : '';
+
+  const actionTags = (item.action_names || []).map(a =>
+    `<span class="cl-action-tag">${escapeHtml(a)}</span>`).join('');
+  const actionsHtml = actionTags
+    ? `<div class="cl-actions">${actionTags}</div>`
+    : '';
+
   return `
   <div class="cl-entry">
     <div class="cl-icon ${iconCls}">${svg}</div>
@@ -802,6 +812,8 @@ function _clEntryHtml(item) {
         ${sysPills ? `<div class="cl-systems">${sysPills}</div>` : ''}
       </div>
       <div class="cl-title" title="${title}">${title}</div>
+      ${descHtml}
+      ${actionsHtml}
       <div class="cl-meta">
         ${assignee}
         ${assignee && timeStr ? '<span class="cl-meta-sep">·</span>' : ''}
