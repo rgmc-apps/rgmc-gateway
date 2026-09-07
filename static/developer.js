@@ -3347,12 +3347,15 @@ function openEpicStatusMenu(event, epicId) {
 
   document.body.appendChild(menu);
 
-  const btn = event.currentTarget;
-  const rect = btn.getBoundingClientRect();
-  const menuW = 160;
-  let left = rect.left + window.scrollX;
-  let top  = rect.bottom + window.scrollY + 4;
+  const btn    = event.currentTarget;
+  const rect   = btn.getBoundingClientRect();
+  const menuW  = 160;
+  const menuH  = menu.offsetHeight || 160;
+  let left = rect.left;
+  let top  = rect.bottom + 4;
   if (left + menuW > window.innerWidth - 8) left = window.innerWidth - menuW - 8;
+  if (left < 8) left = 8;
+  if (top + menuH > window.innerHeight - 8) top = rect.top - menuH - 4;
   menu.style.left = `${left}px`;
   menu.style.top  = `${top}px`;
 
@@ -3408,12 +3411,14 @@ function openEpicOptionsMenu(event, epicId) {
 
   document.body.appendChild(menu);
 
-  const rect  = anchorBtn.getBoundingClientRect();
-  const menuW = 172;
-  let left = rect.right + window.scrollX - menuW;
-  let top  = rect.bottom + window.scrollY + 4;
+  const rect     = anchorBtn.getBoundingClientRect();
+  const menuW    = 172;
+  const menuH    = menu.offsetHeight || 76; // approx height before paint
+  let left = rect.right - menuW;
+  let top  = rect.bottom + 4;
   if (left < 8) left = 8;
   if (left + menuW > window.innerWidth - 8) left = window.innerWidth - menuW - 8;
+  if (top + menuH > window.innerHeight - 8) top = rect.top - menuH - 4;
   menu.style.left = `${left}px`;
   menu.style.top  = `${top}px`;
 
