@@ -556,6 +556,9 @@ function applySession(session) {
 
   // 8. Render access overview sidebar
   buildAccessPanel(session);
+
+  // 9. Load recent changelog
+  loadChangelog(session);
 }
 
 function buildAccessPanel(session) {
@@ -721,6 +724,91 @@ function buildAccessPanel(session) {
     </div>`;
 
   requestAnimationFrame(() => panel.classList.add('ap-ready'));
+}
+
+/* ── Changelog ── */
+
+async function loadChangelog(session) {
+  const section = document.getElementById('changelogSection');
+  const feed    = document.getElementById('changelogFeed');
+  if (!section || !feed) return;
+
+  try {
+    const res  = await fetch('/api/changelog', { headers: { 'X-Gateway-Username': session.username } });
+    const data = await res.json();
+
+    if (!Array.isArray(data) || data.length === 0) {
+      feed.innerHTML = '<div class="changelog-empty">No resolved changes to display yet.</div>';
+      section.style.display = '';
+      _animateChangelogLabel();
+      return;
+    }
+
+    feed.innerHTML = data.map(_clEntryHtml).join('');
+    section.style.display = '';
+    _animateChangelogLabel();
+  } catch {
+    // Silently omit the section on error
+  }
+}
+
+function _animateChangelogLabel() {
+  const label = document.getElementById('changelogLabel');
+  if (!label) return;
+  setTimeout(() => label.classList.add('label-entered'), 60);
+}
+
+function _clTypeInfo(type) {
+  const t = (type || '').toLowerCase();
+  if (t === 'bug' || t === 'bugfix' || t === 'fix')
+    return { label: 'Fix',     iconCls: 'cl-icon-fix',     badgeCls: 'cl-type-fix',     svg: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>' };
+  if (t === 'feature' || t === 'feat')
+    return { label: 'Feature', iconCls: 'cl-icon-feature', badgeCls: 'cl-type-feature', svg: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>' };
+  if (t === 'improvement' || t === 'improve' || t === 'enhancement')
+    return { label: 'Update',  iconCls: 'cl-icon-improve', badgeCls: 'cl-type-improve', svg: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>' };
+  if (t === 'task')
+    return { label: 'Task',    iconCls: 'cl-icon-task',    badgeCls: 'cl-type-task',    svg: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>' };
+  return { label: type || 'Done', iconCls: 'cl-icon-default', badgeCls: 'cl-type-default', svg: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' };
+}
+
+function _clTimeAgo(isoStr) {
+  if (!isoStr) return '';
+  const diff = Date.now() - new Date(isoStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 2)   return 'just now';
+  if (mins < 60)  return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)   return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30)  return `${days}d ago`;
+  const mo = Math.floor(days / 30);
+  return `${mo}mo ago`;
+}
+
+function _clEntryHtml(item) {
+  const { label, iconCls, badgeCls, svg } = _clTypeInfo(item.type);
+  const timeStr  = _clTimeAgo(item.actual_end_date || item.created_at);
+  const title    = escapeHtml(item.title || '');
+  const assignee = item.assigned_to ? `<span class="cl-assignee">@${escapeHtml(item.assigned_to)}</span>` : '';
+  const sysPills = (item.systems || []).map(s =>
+    `<span class="cl-sys-pill">${escapeHtml(s)}</span>`).join('');
+
+  return `
+  <div class="cl-entry">
+    <div class="cl-icon ${iconCls}">${svg}</div>
+    <div class="cl-body">
+      <div class="cl-top">
+        <span class="cl-type-badge ${badgeCls}">${escapeHtml(label)}</span>
+        ${sysPills ? `<div class="cl-systems">${sysPills}</div>` : ''}
+      </div>
+      <div class="cl-title" title="${title}">${title}</div>
+      <div class="cl-meta">
+        ${assignee}
+        ${assignee && timeStr ? '<span class="cl-meta-sep">·</span>' : ''}
+        ${timeStr ? `<span>${escapeHtml(timeStr)}</span>` : ''}
+      </div>
+    </div>
+  </div>`;
 }
 
 function filterSystems(approvedSystems) {

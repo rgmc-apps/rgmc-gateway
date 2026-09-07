@@ -2217,3 +2217,162 @@
 .badge-iss-progress-pill { background: rgba(245,158,11,0.12); color: #fbbf24; }
 .badge-iss-resolved-pill { background: rgba(34,197,94,0.12);  color: #4ade80; }
 .badge-iss-closed-pill   { background: rgba(107,114,128,0.14); color: #9ca3af; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Epic Comments / Discussion
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.epic-comments-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-top: 16px;
+}
+
+.epic-comments-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.epic-comments-header svg { flex-shrink: 0; opacity: 0.7; }
+
+.epic-comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: 480px;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+.epic-comments-list::-webkit-scrollbar { width: 4px; }
+.epic-comments-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.epic-comment-entry {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+}
+.epic-comment-entry:last-child { border-bottom: none; }
+.epic-comment-entry:hover { background: var(--hover); }
+
+.epic-comment-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(196,151,42,0.18);
+  color: var(--gold);
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+  overflow: hidden;
+  border: 1.5px solid var(--border-subtle);
+}
+.epic-comment-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.epic-comment-body { flex: 1; min-width: 0; }
+
+.epic-comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.epic-comment-author {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold);
+}
+.epic-comment-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.epic-comment-delete {
+  margin-left: auto;
+  display: none;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 2px;
+  border-radius: 3px;
+  opacity: 0.6;
+  transition: opacity 0.12s, color 0.12s;
+}
+.epic-comment-entry:hover .epic-comment-delete { display: flex; align-items: center; }
+.epic-comment-delete:hover { opacity: 1; color: #f87171; }
+
+.epic-comment-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.epic-comments-empty {
+  padding: 28px 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Compose area */
+.epic-comment-compose {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-surface, var(--bg-secondary));
+}
+
+.epic-comment-compose-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(196,151,42,0.18);
+  color: var(--gold);
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 4px;
+  border: 1.5px solid var(--border-subtle);
+  overflow: hidden;
+}
+.epic-comment-compose-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.epic-comment-compose-right { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+
+.epic-comment-textarea {
+  resize: vertical;
+  min-height: 64px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.epic-comment-compose-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.epic-comment-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-right: auto;
+}

@@ -1,7 +1,7 @@
 import re
 import requests
 from datetime import datetime, timezone
-from flask import Blueprint, render_template, jsonify, request, redirect
+from flask import Blueprint, render_template, jsonify, request, redirect, current_app
 
 from config import HEALTH_CHECKS
 from services.sites import get_sites
@@ -328,6 +328,72 @@ def get_public_common_fix(fix_id):
     else:
         fix["system_name"] = ""
     return jsonify(fix)
+
+
+@public_bp.get("/api/changelog")
+def get_changelog():
+    username = request.headers.get("X-Gateway-Username", "").strip().lower()
+    if not username:
+        return jsonify([])
+
+    is_privileged = False
+    user_systems  = set()
+    try:
+        rows = supabase_req("GET", "/users", params={
+            "username": f"eq.{username}",
+            "select":   "username,is_admin,is_developer,is_management,systems",
+        })
+        if rows:
+            u = rows[0]
+            is_privileged = bool(u.get("is_admin") or u.get("is_developer") or u.get("is_management"))
+            if not is_privileged:
+                user_systems = set(u.get("systems") or [])
+    except Exception:
+        pass
+
+    try:
+        items = supabase_req("GET", "/dev_items", params={
+            "status": "eq.done",
+            "select": "id,title,dev_item_type,system_id,system_ids,assigned_to,actual_end_date,created_at",
+            "order":  "actual_end_date.desc.nullslast,created_at.desc",
+            "limit":  "50",
+        })
+    except Exception as exc:
+        current_app.logger.error("get_changelog: failed to fetch dev_items: %s", exc)
+        return jsonify([])
+
+    if not items:
+        return jsonify([])
+
+    try:
+        systems = supabase_req("GET", "/systems", params={"select": "id,name"})
+        sys_map = {s["id"]: s["name"] for s in (systems or [])}
+    except Exception:
+        sys_map = {}
+
+    result = []
+    for item in items:
+        sid  = item.get("system_id")
+        sids = item.get("system_ids") or ([sid] if sid else [])
+        sys_names = [sys_map[s] for s in sids if s and s in sys_map]
+
+        if not is_privileged:
+            if not any(n in user_systems for n in sys_names):
+                continue
+
+        result.append({
+            "id":              item["id"],
+            "title":           item["title"],
+            "type":            item.get("dev_item_type") or "",
+            "systems":         sys_names,
+            "assigned_to":     item.get("assigned_to") or "",
+            "actual_end_date": item.get("actual_end_date"),
+            "created_at":      item["created_at"],
+        })
+        if len(result) >= 25:
+            break
+
+    return jsonify(result)
 
 
 @public_bp.get("/api/public/dev-items/<item_id>")

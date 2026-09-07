@@ -90,6 +90,7 @@ let _epicPageItems       = [];
 let _epicDescEditor      = null;
 let _epicsLayout         = 'cards'; // 'cards' | 'table'
 let _epicOptsMenuId      = null;
+let _epicComments        = [];       // comments for the currently open epic page
 let _selectedIds         = new Set();
 let _lasso               = null;  // active rubber-band drag state
 let _lassoDragged        = false; // suppresses the click after a lasso drag
@@ -3738,10 +3739,12 @@ function openEpicPage(epicId, { pushState = true } = {}) {
   if (!epic) return;
   _epicPageId    = epicId;
   _epicPageItems = [];
+  _epicComments  = [];
   _populateEpicPage(epic);
   document.getElementById('devEpicsView').style.display = 'none';
   document.getElementById('epicPageView').style.display = '';
   _loadEpicPageItems(epicId);
+  _loadEpicComments(epicId);
   if (pushState) {
     const url = new URL(window.location.href);
     url.searchParams.set('epic', epicId);
@@ -3752,6 +3755,7 @@ function openEpicPage(epicId, { pushState = true } = {}) {
 function closeEpicPage() {
   _epicPageId    = null;
   _epicPageItems = [];
+  _epicComments  = [];
   document.getElementById('epicPageView').style.display  = 'none';
   document.getElementById('devEpicsView').style.display  = '';
   renderEpicsView();
@@ -3946,6 +3950,121 @@ function addItemToEpicPage() {
 function editCurrentEpic() {
   if (!_epicPageId) return;
   openEpicModal(_epicPageId);
+}
+
+/* ── Epic comments ── */
+async function _loadEpicComments(epicId) {
+  const list    = document.getElementById('epicCommentsList');
+  const countEl = document.getElementById('epicCommentCount');
+  if (!list) return;
+  list.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  try {
+    const res = await fetch(`/api/dev/epics/${encodeURIComponent(epicId)}/comments`, { headers: authHeaders() });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    _epicComments = await res.json();
+    _renderEpicComments();
+    if (countEl) countEl.textContent = _epicComments.length || '';
+  } catch (err) {
+    list.innerHTML = `<div class="epic-comments-empty">Failed to load comments.</div>`;
+  }
+  _initEpicCommentAvatar();
+}
+
+function _initEpicCommentAvatar() {
+  const session = loadSession();
+  if (!session) return;
+  const me   = session.username || '';
+  const m    = _members[me] || {};
+  const init = ((m.displayName || me).charAt(0) || '?').toUpperCase();
+  ['epicCommentAvatar'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = m.avatarUrl
+      ? `<img src="${escHtml(m.avatarUrl)}" alt="${escHtml(init)}">`
+      : escHtml(init);
+  });
+}
+
+function _renderEpicComments() {
+  const list    = document.getElementById('epicCommentsList');
+  const countEl = document.getElementById('epicCommentCount');
+  if (!list) return;
+  if (countEl) countEl.textContent = _epicComments.length || '';
+
+  if (!_epicComments.length) {
+    list.innerHTML = '<div class="epic-comments-empty">No comments yet. Start the discussion below.</div>';
+    return;
+  }
+
+  const me = loadSession()?.username || '';
+  list.innerHTML = _epicComments.map(c => {
+    const m     = _members[c.username] || {};
+    const name  = m.displayName || c.username;
+    const init  = (name.charAt(0) || '?').toUpperCase();
+    const avatar = m.avatarUrl
+      ? `<img src="${escHtml(m.avatarUrl)}" alt="${escHtml(init)}">`
+      : escHtml(init);
+    const canDel = c.username === me;
+    return `<div class="epic-comment-entry">
+      <div class="epic-comment-avatar">${avatar}</div>
+      <div class="epic-comment-body">
+        <div class="epic-comment-meta">
+          <span class="epic-comment-author">${escHtml(name)}</span>
+          <span class="epic-comment-time">${fmtDateTime(c.created_at)}</span>
+          ${canDel ? `<button class="epic-comment-delete" onclick="deleteEpicComment('${escHtml(c.id)}')" title="Delete comment">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          </button>` : ''}
+        </div>
+        <div class="epic-comment-text">${escHtml(c.comment)}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  list.scrollTop = list.scrollHeight;
+}
+
+async function postEpicComment() {
+  if (!_epicPageId) return;
+  const input   = document.getElementById('epicCommentInput');
+  const errEl   = document.getElementById('epicCommentError');
+  const errMsg  = document.getElementById('epicCommentErrorMsg');
+  const comment = (input?.value || '').trim();
+
+  if (errEl) errEl.style.display = 'none';
+  if (!comment) {
+    if (errEl) { errEl.style.display = ''; errMsg.textContent = 'Comment cannot be empty.'; }
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/dev/epics/${encodeURIComponent(_epicPageId)}/comments`, {
+      method:  'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ comment }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    const saved = await res.json();
+    _epicComments.push(saved);
+    if (input) input.value = '';
+    _renderEpicComments();
+  } catch (err) {
+    if (errEl) { errEl.style.display = ''; errMsg.textContent = err.message; }
+  }
+}
+
+async function deleteEpicComment(commentId) {
+  if (!_epicPageId) return;
+  try {
+    const res = await fetch(`/api/dev/epics/${encodeURIComponent(_epicPageId)}/comments/${encodeURIComponent(commentId)}`, {
+      method:  'DELETE',
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    _epicComments = _epicComments.filter(c => c.id !== commentId);
+    _renderEpicComments();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
 }
 
 async function deleteCurrentEpic() {

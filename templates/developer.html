@@ -501,6 +501,37 @@
         </div>
       </div>
 
+      <!-- ── Epic Comments ── -->
+      <div class="epic-comments-section">
+        <div class="epic-comments-header">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 0 2 2z"/></svg>
+          Discussion
+          <span class="dev-list-count-badge" id="epicCommentCount"></span>
+        </div>
+        <div id="epicCommentsList" class="epic-comments-list">
+          <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
+        </div>
+        <div class="epic-comment-compose">
+          <div class="epic-comment-compose-avatar" id="epicCommentAvatar"></div>
+          <div class="epic-comment-compose-right">
+            <textarea id="epicCommentInput" class="form-input form-textarea epic-comment-textarea"
+              rows="2" placeholder="Add a comment or update…"
+              onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter')postEpicComment()"></textarea>
+            <div class="epic-comment-compose-foot">
+              <span class="epic-comment-hint">Ctrl+Enter to post</span>
+              <div id="epicCommentError" class="form-state form-error" style="display:none;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span id="epicCommentErrorMsg"></span>
+              </div>
+              <button type="button" class="btn-modal-submit" onclick="postEpicComment()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                Post
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div><!-- /epicPageView -->
 
   </main>

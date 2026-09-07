@@ -511,6 +511,66 @@ def dev_get_epic_items(epic_id):
         return jsonify({"error": "Failed to fetch epic items"}), 500
 
 
+# ── Epic comments ────────────────────────────────────────────────────────────
+
+@developer_bp.get("/api/dev/epics/<string:epic_id>/comments")
+def dev_get_epic_comments(epic_id):
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/epic_comments", params={
+            "epic_id": f"eq.{epic_id}",
+            "select":  "*",
+            "order":   "created_at.asc",
+        })
+        return jsonify(rows or [])
+    except Exception as exc:
+        current_app.logger.error("dev_get_epic_comments failed: %s", exc)
+        return jsonify({"error": "Failed to fetch comments"}), 500
+
+
+@developer_bp.post("/api/dev/epics/<string:epic_id>/comments")
+def dev_add_epic_comment(epic_id):
+    user, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    data    = request.get_json(silent=True) or {}
+    comment = (data.get("comment") or "").strip()
+    if not comment:
+        return jsonify({"error": "Comment cannot be empty"}), 400
+    username = user.get("username") or "unknown"
+    try:
+        rows = supabase_req("POST", "/epic_comments", data={
+            "epic_id":  epic_id,
+            "username": username,
+            "comment":  comment,
+        })
+        return jsonify(rows[0] if rows else {}), 201
+    except Exception as exc:
+        current_app.logger.error("dev_add_epic_comment failed: %s", exc)
+        return jsonify({"error": "Failed to post comment"}), 500
+
+
+@developer_bp.delete("/api/dev/epics/<string:epic_id>/comments/<string:comment_id>")
+def dev_delete_epic_comment(epic_id, comment_id):
+    user, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    username = user.get("username") or ""
+    try:
+        rows = supabase_req("GET", "/epic_comments", params={"id": f"eq.{comment_id}", "select": "username"})
+        if not rows:
+            return jsonify({"error": "Not found"}), 404
+        if rows[0].get("username") != username and not user.get("is_admin"):
+            return jsonify({"error": "Not allowed"}), 403
+        supabase_req("DELETE", "/epic_comments", params={"id": f"eq.{comment_id}"})
+        return jsonify({"success": True})
+    except Exception as exc:
+        current_app.logger.error("dev_delete_epic_comment failed: %s", exc)
+        return jsonify({"error": "Failed to delete comment"}), 500
+
+
 # ── Item types ───────────────────────────────────────────────────────────────
 
 @developer_bp.get("/api/dev/item-types")
