@@ -696,6 +696,201 @@
   flex-wrap: wrap;
 }
 
+/* ── Epic 3-dot options button ── */
+.epic-opts-btn {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm, 4px);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s, background 0.12s, color 0.12s;
+  flex-shrink: 0;
+}
+.epic-card:hover .epic-opts-btn { opacity: 1; }
+.epic-opts-btn:hover {
+  background: var(--hover);
+  color: var(--text-primary, var(--text-1));
+  opacity: 1;
+}
+
+/* ── Epic options dropdown ── */
+.epic-options-menu {
+  position: fixed;
+  z-index: 9999;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  padding: 4px;
+  min-width: 168px;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.12s, transform 0.12s;
+  pointer-events: none;
+}
+.epic-options-menu.is-open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.epic-options-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  border-radius: calc(var(--radius) - 2px);
+  font-size: 12.5px;
+  font-family: inherit;
+  color: var(--text-primary, var(--text-1));
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+}
+.epic-options-item:hover { background: var(--hover); }
+.epic-options-item svg { flex-shrink: 0; color: var(--text-muted); }
+.epic-options-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* ── Epic layout toggle (cards / table) ── */
+.epic-layout-toggle {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-surface, var(--bg-secondary));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2px;
+}
+.epic-layout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 26px;
+  border: none;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.epic-layout-btn:hover { color: var(--text-primary, var(--text-1)); }
+.epic-layout-btn.active {
+  background: var(--bg-secondary);
+  color: var(--accent, #6366f1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+}
+
+/* ── Epic table view ── */
+.epic-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 28px;
+}
+.epic-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.epic-table th {
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.epic-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle, var(--border));
+  vertical-align: middle;
+}
+.epic-table tbody tr {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.epic-table tbody tr:hover { background: var(--hover); }
+.epic-table tbody tr:last-child td { border-bottom: none; }
+.etbl-name {
+  font-weight: 600;
+  color: var(--text-primary, var(--text-1));
+  max-width: 220px;
+}
+.etbl-desc {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 240px;
+}
+.etbl-code {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-family: monospace;
+  letter-spacing: 0.04em;
+}
+.etbl-sys {
+  display: flex;
+  gap: 4px;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+.etbl-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 100px;
+}
+.etbl-progress-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  min-width: 50px;
+}
+.etbl-progress-fill {
+  height: 100%;
+  border-radius: 20px;
+  background: var(--accent, #6366f1);
+  transition: width 0.3s;
+}
+.etbl-progress-fill.ep-active { background: #4ade80; }
+.etbl-progress-fill.ep-hold   { background: #fbbf24; }
+.etbl-progress-pct {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 28px;
+  text-align: right;
+}
+.etbl-opts-cell {
+  width: 36px;
+  text-align: center;
+  padding: 0 8px;
+}
+.etbl-opts-cell .epic-opts-btn {
+  opacity: 0;
+}
+.epic-table tbody tr:hover .etbl-opts-cell .epic-opts-btn { opacity: 1; }
+
 .epic-status-badge {
   font-size: 10px;
   font-weight: 700;

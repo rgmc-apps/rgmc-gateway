@@ -88,6 +88,8 @@ let _addItemToEpicId     = null;
 let _epicPageId          = null;
 let _epicPageItems       = [];
 let _epicDescEditor      = null;
+let _epicsLayout         = 'cards'; // 'cards' | 'table'
+let _epicOptsMenuId      = null;
 let _selectedIds         = new Set();
 let _lasso               = null;  // active rubber-band drag state
 let _lassoDragged        = false; // suppresses the click after a lasso drag
@@ -669,7 +671,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (e.key === 'Escape') {
       if (document.getElementById('cmdPalette')?.classList.contains('open')) { closeCmdPalette(); return; }
-      closeDoneRemarksModal(); closeDetailModal(); closeEpicModal(); closeAddSystemModal(); closeArchiveModal(); closeProfileMenu(); closeEpicPage(); closeItemTypesModal();
+      closeDoneRemarksModal(); closeDetailModal(); closeEpicModal(); closeAddSystemModal(); closeArchiveModal(); closeProfileMenu(); closeEpicPage(); closeItemTypesModal(); closeEpicOptionsMenu(); closeEpicStatusMenu();
       const tp = document.getElementById('bulkTypePopover');
       const sp = document.getElementById('bulkStatusPopover');
       const ep = document.getElementById('bulkEditPanel');
@@ -3201,6 +3203,9 @@ function _epicCardHtml(e) {
       <button class="epic-status-badge ${cls} epic-status-btn" onclick="openEpicStatusMenu(event,'${escHtml(e.epic_id)}')" title="Change status">${escHtml(lbl)}<svg class="epic-status-caret" xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       ${e.epic_code ? `<span class="epic-card-code">${escHtml(e.epic_code)}</span>` : ''}
       ${!e.is_active ? '<span class="epic-inactive-badge">Inactive</span>' : ''}
+      <button class="epic-opts-btn" onclick="openEpicOptionsMenu(event,'${escHtml(e.epic_id)}')" title="Options" aria-label="Epic options">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+      </button>
     </div>
     <div class="epic-card-name">${escHtml(e.epic_name)}</div>
     ${e.epic_description ? `<div class="epic-card-desc">${escHtml(_descPreview(e.epic_description, 100))}</div>` : ''}
@@ -3221,6 +3226,50 @@ function _epicCardHtml(e) {
   </div>`;
 }
 
+function _epicProgress(e) {
+  const epicItems = _items.filter(i => i.epic_id === e.epic_id);
+  const total     = epicItems.length;
+  const done      = epicItems.filter(i => i.status === 'done').length;
+  return { total, done, pct: total ? Math.round(done / total * 100) : 0 };
+}
+
+function _epicTableRowHtml(e) {
+  const sysIds   = Array.isArray(e.system_ids) ? e.system_ids : [];
+  const sysNames = sysIds.map(id => _systems.find(s => s.id === id)?.name).filter(Boolean);
+  const cls      = EPIC_STATUS_CLS[e.epic_status] || 'es-planning';
+  const lbl      = EPIC_STATUS_LABEL[e.epic_status] || e.epic_status;
+  const prog     = _epicProgress(e);
+  const fillCls  = e.epic_status === 'active' ? 'ep-active' : e.epic_status === 'on_hold' ? 'ep-hold' : '';
+  const sysTags  = sysNames.length
+    ? `<div class="etbl-sys">${sysNames.slice(0,2).map(n => `<span class="kcard-system-tag">${escHtml(n)}</span>`).join('')}${sysNames.length > 2 ? `<span class="kcard-system-tag">+${sysNames.length - 2}</span>` : ''}</div>`
+    : '<span style="color:var(--text-muted);font-size:11px;">—</span>';
+
+  return `<tr onclick="openEpicPage('${escHtml(e.epic_id)}')">
+    <td>
+      <div class="etbl-name">${escHtml(e.epic_name)}</div>
+      ${e.epic_code ? `<div class="etbl-code">${escHtml(e.epic_code)}</div>` : ''}
+    </td>
+    <td>
+      <button class="epic-status-badge ${cls} epic-status-btn" onclick="openEpicStatusMenu(event,'${escHtml(e.epic_id)}')" title="Change status">${escHtml(lbl)}<svg class="epic-status-caret" xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+    </td>
+    <td class="etbl-desc">${e.epic_description ? escHtml(_descPreview(e.epic_description, 80)) : '—'}</td>
+    <td>${sysTags}</td>
+    <td style="white-space:nowrap;font-size:12px;">${prog.total} item${prog.total !== 1 ? 's' : ''}</td>
+    <td>
+      <div class="etbl-progress-wrap">
+        <div class="etbl-progress-bar"><div class="etbl-progress-fill ${fillCls}" style="width:${prog.pct}%"></div></div>
+        <span class="etbl-progress-pct">${prog.pct}%</span>
+      </div>
+    </td>
+    <td style="white-space:nowrap;font-size:11.5px;color:var(--text-muted);">${fmtDate(e.date_created)}</td>
+    <td class="etbl-opts-cell">
+      <button class="epic-opts-btn" onclick="openEpicOptionsMenu(event,'${escHtml(e.epic_id)}')" title="Options" aria-label="Epic options">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+      </button>
+    </td>
+  </tr>`;
+}
+
 function _renderEpicSection(sectionId, gridId, countId, epics) {
   const section = document.getElementById(sectionId);
   const grid    = document.getElementById(gridId);
@@ -3229,7 +3278,20 @@ function _renderEpicSection(sectionId, gridId, countId, epics) {
   if (!epics.length) { section.style.display = 'none'; return; }
   section.style.display = '';
   if (countEl) countEl.textContent = epics.length;
-  grid.innerHTML = epics.map(_epicCardHtml).join('');
+
+  if (_epicsLayout === 'table') {
+    grid.innerHTML = `<div class="epic-table-wrap"><table class="epic-table">
+      <thead><tr>
+        <th>Epic</th><th>Status</th><th>Description</th><th>Systems</th><th>Items</th><th>Progress</th><th>Created</th><th></th>
+      </tr></thead>
+      <tbody>${epics.map(_epicTableRowHtml).join('')}</tbody>
+    </table></div>`;
+    grid.style.display = '';
+    grid.className = 'epic-table-container';
+  } else {
+    grid.className = 'epic-grid';
+    grid.innerHTML = epics.map(_epicCardHtml).join('');
+  }
 }
 
 function renderEpicsView() {
@@ -3308,6 +3370,76 @@ function closeEpicStatusMenu() {
   if (menu) menu.remove();
   _epicStatusMenuId = null;
   document.removeEventListener('click', _epicStatusMenuOutside);
+}
+
+/* ── Epic layout toggle ── */
+function setEpicsLayout(mode) {
+  _epicsLayout = mode;
+  document.getElementById('epicLayoutCards')?.classList.toggle('active', mode === 'cards');
+  document.getElementById('epicLayoutTable')?.classList.toggle('active', mode === 'table');
+  renderEpicsView();
+}
+
+/* ── Epic options (3-dot) menu ── */
+function openEpicOptionsMenu(event, epicId) {
+  event.stopPropagation();
+
+  const existing = document.getElementById('epicOptionsMenu');
+  if (existing && _epicOptsMenuId === epicId) { closeEpicOptionsMenu(); return; }
+  closeEpicOptionsMenu();
+
+  _epicOptsMenuId = epicId;
+  const anchorBtn = event.currentTarget;
+
+  const menu = document.createElement('div');
+  menu.id = 'epicOptionsMenu';
+  menu.className = 'epic-options-menu';
+  menu._anchorBtn = anchorBtn;
+  menu.innerHTML = `
+    <button class="epic-options-item" onclick="event.stopPropagation();closeEpicOptionsMenu();openEpicModal('${escHtml(epicId)}')">
+      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Edit Details
+    </button>
+    <div class="epic-options-sep"></div>
+    <button class="epic-options-item" onclick="event.stopPropagation();_epicOptsChangeStatus('${escHtml(epicId)}')">
+      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Move Status
+    </button>`;
+
+  document.body.appendChild(menu);
+
+  const rect  = anchorBtn.getBoundingClientRect();
+  const menuW = 172;
+  let left = rect.right + window.scrollX - menuW;
+  let top  = rect.bottom + window.scrollY + 4;
+  if (left < 8) left = 8;
+  if (left + menuW > window.innerWidth - 8) left = window.innerWidth - menuW - 8;
+  menu.style.left = `${left}px`;
+  menu.style.top  = `${top}px`;
+
+  requestAnimationFrame(() => menu.classList.add('is-open'));
+  setTimeout(() => document.addEventListener('click', _epicOptsMenuOutside, { once: true }), 0);
+}
+
+function _epicOptsChangeStatus(epicId) {
+  const menu      = document.getElementById('epicOptionsMenu');
+  const anchorBtn = menu?._anchorBtn;
+  closeEpicOptionsMenu();
+  if (!anchorBtn) return;
+  const fakeEvent = { currentTarget: anchorBtn, stopPropagation: () => {} };
+  openEpicStatusMenu(fakeEvent, epicId);
+}
+
+function _epicOptsMenuOutside(e) {
+  const menu = document.getElementById('epicOptionsMenu');
+  if (menu && !menu.contains(e.target)) closeEpicOptionsMenu();
+}
+
+function closeEpicOptionsMenu() {
+  const menu = document.getElementById('epicOptionsMenu');
+  if (menu) menu.remove();
+  _epicOptsMenuId = null;
+  document.removeEventListener('click', _epicOptsMenuOutside);
 }
 
 async function quickChangeEpicStatus(epicId, newStatus, event) {
