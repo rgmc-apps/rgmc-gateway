@@ -785,6 +785,13 @@ function _clTimeAgo(isoStr) {
   return `${mo}mo ago`;
 }
 
+function _clStripHtml(html) {
+  if (!html) return '';
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return (tmp.innerText || tmp.textContent || '').trim().replace(/\s+/g, ' ');
+}
+
 function _clEntryHtml(item) {
   const { label, iconCls, badgeCls, svg } = _clTypeInfo(item.type);
   const timeStr  = _clTimeAgo(item.actual_end_date || item.created_at);
@@ -793,8 +800,9 @@ function _clEntryHtml(item) {
   const sysPills = (item.systems || []).map(s =>
     `<span class="cl-sys-pill">${escapeHtml(s)}</span>`).join('');
 
-  const descHtml = item.description
-    ? `<div class="cl-desc">${escapeHtml(item.description)}</div>`
+  const plainDesc = _clStripHtml(item.description);
+  const descHtml  = plainDesc
+    ? `<div class="cl-desc">${escapeHtml(plainDesc)}</div>`
     : '';
 
   const actionTags = (item.action_names || []).map(a =>
