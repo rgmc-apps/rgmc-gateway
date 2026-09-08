@@ -142,7 +142,7 @@ function _renderGhPreviews() {
   if (!_ghFiles.length) {
     container.innerHTML     = '';
     container.style.display = 'none';
-    label.textContent = 'Click to attach files or drag & drop';
+    label.textContent = 'Click to attach, drag & drop, or paste (Ctrl+V)';
     return;
   }
   const remaining = 5 - _ghFiles.length;
@@ -421,4 +421,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   }
+
+  // Ctrl+V paste-to-upload
+  document.addEventListener('paste', e => {
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.contentEditable === 'true')) return;
+
+    const images = Array.from(e.clipboardData?.items || [])
+      .filter(i => i.kind === 'file' && i.type.startsWith('image/'))
+      .map(i => i.getAsFile()).filter(Boolean);
+    if (!images.length) return;
+
+    const slots = 5 - _ghFiles.length;
+    if (slots <= 0) return;
+    images.slice(0, slots).forEach(f => {
+      _ghFiles.push(f);
+      _ghObjectUrls.push(URL.createObjectURL(f));
+    });
+    _renderGhPreviews();
+    e.preventDefault();
+  });
 });

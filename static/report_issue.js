@@ -279,7 +279,7 @@ function riUpdateFiles(input) {
   const files = Array.from(input.files);
   const label = document.getElementById('riFileLabel');
   if (!files.length) {
-    label.textContent = 'Click to attach files or drag & drop';
+    label.textContent = 'Click to attach, drag & drop, or paste (Ctrl+V)';
   } else {
     label.textContent = files.slice(0, 5).map(f => f.name).join(', ');
     if (files.length > 5) label.textContent += ` (+${files.length - 5} ignored — max 5)`;
@@ -348,4 +348,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
     zone.addEventListener('drop', () => zone.classList.remove('dragover'));
   }
+
+  // Ctrl+V paste-to-upload
+  document.addEventListener('paste', e => {
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.contentEditable === 'true')) return;
+
+    const images = Array.from(e.clipboardData?.items || [])
+      .filter(i => i.kind === 'file' && i.type.startsWith('image/'))
+      .map(i => i.getAsFile()).filter(Boolean);
+    if (!images.length) return;
+
+    const input = document.getElementById('riAttachments');
+    if (!input) return;
+    const dt = new DataTransfer();
+    Array.from(input.files).forEach(f => dt.items.add(f));
+    images.forEach(f => { if (dt.files.length < 5) dt.items.add(f); });
+    input.files = dt.files;
+    riUpdateFiles(input);
+    e.preventDefault();
+  });
 });

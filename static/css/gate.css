@@ -227,6 +227,7 @@
 /* ── XL two-pane modal (item detail) ── */
 .modal-xl {
   max-width: 960px;
+  max-height: 90vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -239,8 +240,6 @@
   grid-template-columns: 1fr 1fr;
   flex: 1;
   min-height: 0;
-  height: 520px;
-  max-height: calc(90vh - 100px);
 }
 .detail-new {
   grid-template-columns: 1fr;
@@ -287,10 +286,7 @@
   gap: 12px;
   padding: 18px 28px 24px;
   border-top: 1px solid var(--border-subtle);
-  margin-top: auto;
   flex-shrink: 0;
-  position: sticky;
-  bottom: 0;
   background: var(--bg-modal);
 }
 

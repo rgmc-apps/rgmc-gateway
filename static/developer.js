@@ -4164,3 +4164,21 @@ async function deleteCurrentEpic() {
     showToast(`Error: ${err.message}`);
   }
 }
+
+/* ── Ctrl+V paste-to-upload ── */
+document.addEventListener('paste', e => {
+  const ae = document.activeElement;
+  if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.contentEditable === 'true')) return;
+
+  const images = Array.from(e.clipboardData?.items || [])
+    .filter(i => i.kind === 'file' && i.type.startsWith('image/'))
+    .map(i => i.getAsFile()).filter(Boolean);
+  if (!images.length) return;
+
+  if (document.getElementById('doneRemarksModal')?.classList.contains('open')) {
+    const remaining = 5 - _devResPendingFiles.length;
+    _devResPendingFiles.push(...images.slice(0, remaining));
+    _devRenderResAttachPreviews();
+    e.preventDefault();
+  }
+});

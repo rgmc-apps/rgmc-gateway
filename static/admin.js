@@ -5705,6 +5705,30 @@ function cfAddFiles(files) {
   _cfRenderAttachList();
 }
 
+/* ── Ctrl+V paste-to-upload ── */
+document.addEventListener('paste', e => {
+  const ae = document.activeElement;
+  if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.contentEditable === 'true')) return;
+
+  const images = Array.from(e.clipboardData?.items || [])
+    .filter(i => i.kind === 'file' && i.type.startsWith('image/'))
+    .map(i => i.getAsFile()).filter(Boolean);
+  if (!images.length) return;
+
+  if (document.getElementById('cfModal')?.classList.contains('open')) {
+    cfAddFiles(images);
+    e.preventDefault();
+  } else if (
+    document.getElementById('issueModal')?.classList.contains('open') &&
+    document.getElementById('issueResAttachGroup')?.style.display !== 'none'
+  ) {
+    const remaining = 5 - _issResExistingUrls.length - _issResPendingFiles.length;
+    images.slice(0, remaining).forEach(f => _issResPendingFiles.push(f));
+    _renderResAttachPreviews('issueResAttachPreviews', _issResExistingUrls, _issResPendingFiles);
+    e.preventDefault();
+  }
+});
+
 function _cfRenderAttachList() {
   const list = document.getElementById('cfAttachList');
   if (!list) return;

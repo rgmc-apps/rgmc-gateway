@@ -143,20 +143,40 @@ function updateFileList(input) {
   const files = Array.from(input.files);
   const label = document.getElementById('fileLabel');
   if (files.length === 0) {
-    label.textContent = 'Click to attach files or drag & drop';
+    label.textContent = 'Click to attach, drag & drop, or paste (Ctrl+V)';
   } else {
     label.textContent = files.slice(0, 5).map(f => f.name).join(', ');
     if (files.length > 5) label.textContent += ` (+${files.length - 5} ignored — max 5)`;
   }
 }
 
-// Drag & drop visual feedback
+// Drag & drop visual feedback + Ctrl+V paste-to-upload
 document.addEventListener('DOMContentLoaded', () => {
   const zone = document.getElementById('fileDropZone');
-  if (!zone) return;
-  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
-  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
-  zone.addEventListener('drop', () => zone.classList.remove('dragover'));
+  if (zone) {
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', () => zone.classList.remove('dragover'));
+  }
+
+  document.addEventListener('paste', e => {
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.contentEditable === 'true')) return;
+
+    const images = Array.from(e.clipboardData?.items || [])
+      .filter(i => i.kind === 'file' && i.type.startsWith('image/'))
+      .map(i => i.getAsFile()).filter(Boolean);
+    if (!images.length) return;
+
+    const input = document.getElementById('attachments');
+    if (!input) return;
+    const dt = new DataTransfer();
+    Array.from(input.files).forEach(f => dt.items.add(f));
+    images.forEach(f => { if (dt.files.length < 5) dt.items.add(f); });
+    input.files = dt.files;
+    updateFileList(input);
+    e.preventDefault();
+  });
 });
 
 /* ── Health Check ── */
