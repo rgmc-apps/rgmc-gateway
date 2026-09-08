@@ -10,6 +10,14 @@ from services.email import send_report_email, send_issue_resolved_email, send_is
 issues_bp = Blueprint("issues", __name__)
 
 
+def _strip_html(text):
+    """Strip HTML tags from rich-editor content, returning plain text."""
+    if not text:
+        return ''
+    clean = re.sub(r'<[^>]+>', ' ', text)
+    return re.sub(r'\s+', ' ', clean).strip()
+
+
 def _upload_issue_attachment(issue_id: str, index: int, filename: str, data: bytes, content_type: str) -> str | None:
     safe_name = re.sub(r"[^a-zA-Z0-9.\-_]", "_", filename)
     path      = f"{issue_id}/{index}_{safe_name}"
@@ -527,12 +535,13 @@ def admin_promote_issue_to_task(issue_id):
     body     = request.get_json(silent=True) or {}
     assignee = (body.get("assigned_to") or "").strip() or None
 
+    _plain_desc = _strip_html(issue.get('description') or '')
     task_name = (issue.get("title") or
-                 f"[{issue['site_name']}] {issue['description'][:80]}{'…' if len(issue['description']) > 80 else ''}")
+                 f"[{issue['site_name']}] {_plain_desc[:80]}{'…' if len(_plain_desc) > 80 else ''}")
     desc = (
         f"Reported by {issue['employee_name']} ({issue['company_name']}, {issue.get('department','')})\n"
         f"Email: {issue['email']}\n\n"
-        f"{issue['description']}"
+        f"{_plain_desc}"
     )
     task_data = {
         "task_name":   task_name,
@@ -626,12 +635,13 @@ def admin_promote_issue_to_epic(issue_id):
     if issue.get("epic_id"):
         return jsonify({"error": "Already promoted to an epic"}), 409
 
+    _plain_desc = _strip_html(issue.get('description') or '')
     epic_name = (issue.get("title") or
-                 f"[{issue['site_name']}] {issue['description'][:80]}{'…' if len(issue['description']) > 80 else ''}")
+                 f"[{issue['site_name']}] {_plain_desc[:80]}{'…' if len(_plain_desc) > 80 else ''}")
     epic_desc = (
         f"Reported by {issue['employee_name']} ({issue['company_name']}, {issue.get('department', '')})\n"
         f"Email: {issue['email']}\n\n"
-        f"{issue['description']}"
+        f"{_plain_desc}"
     )
     epic_data = {
         "epic_name":        epic_name,
@@ -958,12 +968,13 @@ def admin_promote_issue_to_user_task(issue_id):
     if issue.get("user_task_id"):
         return jsonify({"error": "Already promoted to a user task"}), 409
 
+    _plain_desc = _strip_html(issue.get('description') or '')
     title = (issue.get("title") or
-             f"[{issue['site_name']}] {issue['description'][:80]}{'…' if len(issue['description']) > 80 else ''}")
+             f"[{issue['site_name']}] {_plain_desc[:80]}{'…' if len(_plain_desc) > 80 else ''}")
     desc = (
         f"Reported by {issue['employee_name']} ({issue['company_name']}, {issue.get('department', '')})\n"
         f"Email: {issue['email']}\n\n"
-        f"{issue['description']}"
+        f"{_plain_desc}"
     )
 
     dept_id   = issue.get("request_to_department_id")

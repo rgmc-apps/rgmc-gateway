@@ -1271,6 +1271,12 @@
     function escHtml(s) {
       return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
+    function stripHtml(html) {
+      if (!html) return '';
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      return (tmp.textContent || tmp.innerText || '').trim();
+    }
     function fmtDate(iso) {
       if (!iso) return null;
       return new Date(iso).toLocaleDateString('en-PH', { year:'numeric', month:'long', day:'numeric' });
@@ -1355,10 +1361,8 @@
       if (issue.ticket_number) {
         document.getElementById('ticketNumber').textContent = issue.ticket_number;
       }
-      const title = issue.title ||
-        (issue.description.length > 80
-          ? issue.description.slice(0, 78) + '…'
-          : issue.description);
+      const _plain = stripHtml(issue.description || '');
+      const title  = issue.title || (_plain.length > 80 ? _plain.slice(0, 78) + '…' : _plain);
       document.getElementById('ticketTitle').textContent = title;
 
       // Meta line

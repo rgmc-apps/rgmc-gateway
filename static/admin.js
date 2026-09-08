@@ -30,6 +30,13 @@ function showToast(msg, duration = 3500) {
 function escHtml(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+function _stripHtml(html) {
+  if (!html) return '';
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return (tmp.textContent || tmp.innerText || '').trim();
+}
 function fmtDate(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -1987,7 +1994,8 @@ function _renderUrgentPanel(issues) {
       <tbody>${issues.map(i => {
         const prio  = (i.priority || '').toLowerCase();
         const badge = PRIORITY_BADGE[prio] || `<span class="iss-prio-badge">${escHtml(i.priority || '—')}</span>`;
-        const title = i.title || (i.description || '').slice(0, 60) + (i.description?.length > 60 ? '…' : '');
+        const _d1   = _stripHtml(i.description || '');
+        const title = i.title || (_d1.length > 60 ? _d1.slice(0, 60) + '…' : _d1);
         return `<tr class="iss-alert-row" onclick="openIssueModal('${escHtml(i.id)}')">
           <td>
             ${i.ticket_number ? `<code class="mono-val" style="font-size:10.5px;">${escHtml(i.ticket_number)}</code><br>` : ''}
@@ -2029,7 +2037,8 @@ function _renderStalledPanel(issues) {
         <th></th>
       </tr></thead>
       <tbody>${issues.map(i => {
-        const title = i.title || (i.description || '').slice(0, 60) + (i.description?.length > 60 ? '…' : '');
+        const _d2   = _stripHtml(i.description || '');
+        const title = i.title || (_d2.length > 60 ? _d2.slice(0, 60) + '…' : _d2);
         return `<tr class="iss-alert-row" onclick="openIssueModal('${escHtml(i.id)}')">
           <td>
             ${i.ticket_number ? `<code class="mono-val" style="font-size:10.5px;">${escHtml(i.ticket_number)}</code><br>` : ''}
@@ -2229,7 +2238,8 @@ function renderIssueRow(issue) {
   const isNew         = _lastAdminVisit && issue.created_at && issue.created_at > _lastAdminVisit;
   const statusBadge   = `<span class="label-badge ${ISSUE_STATUS_CLASS[issue.status] || 'label-rgmc'}">${ISSUE_STATUS_LABELS[issue.status] || issue.status}</span>`;
   const prioBadge     = PRIORITY_BADGE[(issue.priority || '').toLowerCase()] || '<span class="text-muted">—</span>';
-  const titleText     = issue.title ? issue.title : ((issue.description || '').length > 60 ? issue.description.slice(0, 58) + '…' : (issue.description || ''));
+  const _rawDesc      = _stripHtml(issue.description || '');
+  const titleText     = issue.title ? issue.title : (_rawDesc.length > 60 ? _rawDesc.slice(0, 58) + '…' : _rawDesc);
   const newBadge      = isNew ? '<span class="badge-iss-new"><span class="badge-iss-new-dot"></span>New</span>' : '';
   const ticketRef     = issue.ticket_number
     ? `<code class="mono-val" style="font-size:11px;">${escHtml(issue.ticket_number)}</code>${newBadge}<br>`
@@ -2296,7 +2306,7 @@ async function openIssueModal(id) {
   } else {
     deptRow.style.display = 'none';
   }
-  document.getElementById('issueDescription').textContent = issue.description;
+  document.getElementById('issueDescription').innerHTML = issue.description || '';
 
   const ecGroup = document.getElementById('issueErrorCodeGroup');
   const ecEl    = document.getElementById('issueErrorCode');
@@ -2789,12 +2799,13 @@ async function openPromoteModal(type) {
   if (type === 'dev') {
     const issue = _issuesCache.find(i => i.id === _editingIssueId);
     if (issue) {
+      const _pd       = _stripHtml(issue.description || '');
       const autoTitle = issue.title ||
-        `[${issue.site_name}] ${(issue.description || '').slice(0, 80)}${(issue.description || '').length > 80 ? '…' : ''}`;
+        `[${issue.site_name}] ${_pd.slice(0, 80)}${_pd.length > 80 ? '…' : ''}`;
       document.getElementById('promoteDevTitle').value = autoTitle;
 
       const dept = issue.department ? `, ${issue.department}` : '';
-      const autoDesc = `Reported by ${issue.employee_name} (${issue.company_name || ''}${dept})\nEmail: ${issue.email}\n\n${issue.description || ''}`;
+      const autoDesc = `Reported by ${issue.employee_name} (${issue.company_name || ''}${dept})\nEmail: ${issue.email}\n\n${_stripHtml(issue.description || '')}`;
       document.getElementById('promoteDevDesc').value = autoDesc;
 
       await _loadPromoteSystems(issue.site_name);
@@ -3121,19 +3132,22 @@ async function _doIssueLinkSearch(tab, q) {
     wrap.innerHTML = items.map(item => {
       let id, primary, secondary, statusText;
       if (tab === 'issue') {
+        const _ld  = _stripHtml(item.description || '');
         id         = item.id;
         primary    = escHtml(item.ticket_number ? `#${item.ticket_number}` : item.id.slice(0, 8));
-        secondary  = escHtml(item.title || (item.description || '').slice(0, 80));
+        secondary  = escHtml(item.title || (_ld.length > 80 ? _ld.slice(0, 80) + '…' : _ld));
         statusText = `<span class="iss-link-status iss-link-status--${(item.status||'').replace('_','-')}">${escHtml(item.status || '')}</span>`;
       } else if (tab === 'task') {
+        const _ld  = _stripHtml(item.description || '');
         id         = item.id;
         primary    = escHtml(item.task_name || 'Untitled');
-        secondary  = escHtml(item.description ? item.description.slice(0, 80) : '');
+        secondary  = _ld ? escHtml(_ld.length > 80 ? _ld.slice(0, 80) + '…' : _ld) : '';
         statusText = `<span class="iss-link-status">${escHtml(item.status || '')}</span>`;
       } else {
+        const _ld  = _stripHtml(item.description || '');
         id         = item.id;
         primary    = escHtml(item.title || 'Untitled');
-        secondary  = escHtml(item.description ? item.description.slice(0, 80) : '');
+        secondary  = _ld ? escHtml(_ld.length > 80 ? _ld.slice(0, 80) + '…' : _ld) : '';
         statusText = `<span class="iss-link-status">${escHtml(item.status || '')}</span>`;
       }
       const isSelected = id === _linkSelectedId;
@@ -3546,8 +3560,9 @@ const _ciResTypeLabels = {
 };
 
 function _renderCiResolution(r) {
-  const title    = escHtml(r.title || (r.description || '').slice(0, 80) + ((r.description || '').length > 80 ? '…' : ''));
-  const desc     = r.description ? escHtml(r.description.slice(0, 160)) + (r.description.length > 160 ? '…' : '') : '';
+  const _rdesc   = _stripHtml(r.description || '');
+  const title    = escHtml(r.title || (_rdesc.slice(0, 80) + (_rdesc.length > 80 ? '…' : '')));
+  const desc     = _rdesc ? escHtml(_rdesc.slice(0, 160)) + (_rdesc.length > 160 ? '…' : '') : '';
   const date     = r.resolved_at ? new Date(r.resolved_at).toLocaleDateString('en-PH', { year:'numeric', month:'short', day:'numeric' }) : '';
   const resolver = r.resolved_by ? `<span class="ci-res-by">by ${escHtml(r.resolved_by)}</span>` : '';
   const ticket   = r.ticket_number ? `<span class="ci-res-ticket">${escHtml(r.ticket_number)}</span>` : '';
@@ -3559,7 +3574,7 @@ function _renderCiResolution(r) {
     : '';
 
   const noteHtml = r.resolution_notes
-    ? `<div class="ci-res-notes">${escHtml(r.resolution_notes).replace(/\n/g, '<br>')}</div>`
+    ? `<div class="ci-res-notes">${r.resolution_notes}</div>`
     : '';
 
   const actionHtml = (r.resolution_action_names || []).length
@@ -5565,7 +5580,7 @@ async function openCfDetail(fixId) {
     ? linkedIssues.map(i => `
         <div class="cf-detail-issue-row" onclick="openIssueModal('${escHtml(i.id)}')">
           <span class="cf-detail-issue-ticket">${escHtml(i.ticket_number || i.id.slice(0,8))}</span>
-          <span class="cf-detail-issue-name">${escHtml(i.title || i.description || i.site_name || 'Untitled Issue')}</span>
+          <span class="cf-detail-issue-name">${escHtml(i.title || _stripHtml(i.description || '') || i.site_name || 'Untitled Issue')}</span>
           <button class="cf-detail-issue-unlink" onclick="event.stopPropagation();unlinkCfFromIssueViaDetail('${escHtml(i.id)}','${escHtml(fixId)}')" title="Unlink">&times;</button>
         </div>`).join('')
     : '<p style="font-size:12px;color:var(--text-muted);font-style:italic;">No linked issues.</p>';
