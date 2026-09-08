@@ -672,7 +672,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (e.key === 'Escape') {
       if (document.getElementById('cmdPalette')?.classList.contains('open')) { closeCmdPalette(); return; }
-      closeDoneRemarksModal(); closeDetailModal(); closeEpicModal(); closeAddSystemModal(); closeArchiveModal(); closeProfileMenu(); closeEpicPage(); closeItemTypesModal(); closeEpicOptionsMenu(); closeEpicStatusMenu();
+      closeDoneRemarksModal(); closeDetailModal(); closeEpicModal(); closeAddSystemModal(); closeArchiveModal(); closeProfileMenu(); closeEpicPage(); closeItemTypesModal(); closeEpicOptionsMenu(); closeEpicStatusMenu(); closeScopeChangeModal();
       const tp = document.getElementById('bulkTypePopover');
       const sp = document.getElementById('bulkStatusPopover');
       const ep = document.getElementById('bulkEditPanel');
@@ -1678,11 +1678,13 @@ function openDetailModal(idOrNull) {
   const deleteBtn = document.getElementById('detailDeleteBtn');
   const dupWrap   = document.getElementById('dupTypeWrap');
 
+  const scopeBtn = document.getElementById('scopeChangeBtn');
   if (item) {
     body.classList.remove('detail-new');
     logPane.style.display   = '';
     deleteBtn.style.display = '';
     if (dupWrap) { dupWrap.style.display = ''; _buildDupTypeMenu(); }
+    if (scopeBtn) scopeBtn.style.display = '';
     refreshLogs();
     loadLinkedIssues(item.id);
   } else {
@@ -1690,6 +1692,7 @@ function openDetailModal(idOrNull) {
     logPane.style.display   = 'none';
     deleteBtn.style.display = 'none';
     if (dupWrap) dupWrap.style.display = 'none';
+    if (scopeBtn) scopeBtn.style.display = 'none';
   }
 
   resetItemForm();
@@ -2990,6 +2993,74 @@ function closeItemTypesModal() {
 
 function overlayCloseItemTypes(e) {
   if (e.target === document.getElementById('itemTypesModal')) closeItemTypesModal();
+}
+
+/* ── Scope Change ── */
+
+function openScopeChangeModal() {
+  if (!_editingId) return;
+  const item = _items.find(i => i.id === _editingId);
+  const cur  = item?.story_points;
+  document.getElementById('scopeCurrentSP').textContent     = cur != null ? `${cur} SP` : '—';
+  document.getElementById('scopeChangeItemTitle').textContent = item?.title ? item.title.slice(0, 60) : '';
+  document.getElementById('scopeNewSP').value               = cur != null ? cur : '';
+  document.getElementById('scopeReason').value              = '';
+  document.getElementById('scopeChangeError').style.display = 'none';
+  document.getElementById('scopeChangeModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('scopeNewSP')?.focus(), 80);
+}
+
+function closeScopeChangeModal() {
+  document.getElementById('scopeChangeModal').classList.remove('open');
+  const anyOpen = document.querySelector('.modal-overlay.open:not(#scopeChangeModal)');
+  if (!anyOpen) document.body.style.overflow = '';
+}
+
+function overlayScopeChange(e) {
+  if (e.target === document.getElementById('scopeChangeModal')) closeScopeChangeModal();
+}
+
+async function submitScopeChange() {
+  const newSP  = parseFloat(document.getElementById('scopeNewSP').value);
+  const reason = document.getElementById('scopeReason').value.trim();
+  const errEl  = document.getElementById('scopeChangeError');
+  const errMsg = document.getElementById('scopeChangeErrorMsg');
+  const btn    = document.getElementById('scopeChangeSubmitBtn');
+
+  errEl.style.display = 'none';
+  if (isNaN(newSP) || newSP <= 0) {
+    errMsg.textContent  = 'Please enter a valid story point value.';
+    errEl.style.display = '';
+    return;
+  }
+  if (!reason) {
+    errMsg.textContent  = 'A reason for the scope change is required.';
+    errEl.style.display = '';
+    return;
+  }
+
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/api/dev/items/${encodeURIComponent(_editingId)}/scope-change`, {
+      method:  'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ new_story_points: newSP, reason }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed to apply scope change');
+    closeScopeChangeModal();
+    const idx = _items.findIndex(i => i.id === _editingId);
+    if (idx !== -1) _items[idx].story_points = newSP;
+    const spEl = document.getElementById('itemStoryPoints');
+    if (spEl) spEl.value = newSP;
+    await refreshLogs();
+    showToast('Scope change applied.');
+  } catch (err) {
+    errMsg.textContent  = err.message;
+    errEl.style.display = '';
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function renderItemTypesList() {

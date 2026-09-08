@@ -1826,6 +1826,45 @@
   opacity: 0.6;
   transition: transform 0.15s;
 }
+.btn-detail-scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.btn-detail-scope:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(196,151,42,0.06);
+}
+.scope-current-sp {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--surface-alt, rgba(255,255,255,0.04));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+}
+.scope-sp-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.scope-sp-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gold);
+}
 .dup-type-wrap:has(.dup-type-menu.open) .dup-chevron {
   transform: rotate(180deg);
 }

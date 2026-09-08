@@ -263,6 +263,58 @@ def dev_update_item(item_id):
     return jsonify(rows[0] if rows else {})
 
 
+@developer_bp.post("/api/dev/items/<string:item_id>/scope-change")
+def dev_scope_change(item_id):
+    dev_username, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+
+    data   = request.get_json(silent=True) or {}
+    raw_sp = data.get("new_story_points")
+    reason = (data.get("reason") or "").strip()
+
+    if raw_sp is None or raw_sp == "":
+        return jsonify({"error": "new_story_points is required"}), 400
+    try:
+        new_sp = float(raw_sp)
+        if new_sp <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid story point value"}), 400
+    if not reason:
+        return jsonify({"error": "Reason for scope change is required"}), 400
+
+    try:
+        rows = supabase_req("GET", "/dev_items", params={"id": f"eq.{item_id}", "select": "story_points,title"})
+        if not rows:
+            return jsonify({"error": "Dev item not found"}), 404
+        old_sp = rows[0].get("story_points")
+    except Exception as exc:
+        current_app.logger.error("dev_scope_change fetch failed: %s", exc)
+        return jsonify({"error": "Failed to fetch dev item"}), 500
+
+    try:
+        supabase_req("PATCH", "/dev_items",
+                     data={"story_points": new_sp, "updated_at": datetime.now(timezone.utc).isoformat()},
+                     params={"id": f"eq.{item_id}"})
+    except Exception as exc:
+        current_app.logger.error("dev_scope_change patch failed: %s", exc)
+        return jsonify({"error": "Failed to update story points"}), 500
+
+    old_label = f"{old_sp} SP" if old_sp is not None else "none"
+    log_msg   = f"Scope changed: {old_label} → {new_sp} SP\nReason: {reason}"
+    try:
+        supabase_req("POST", "/dev_activity_logs", data={
+            "item_id":  item_id,
+            "username": dev_username,
+            "message":  log_msg,
+        })
+    except Exception as exc:
+        current_app.logger.warning("dev_scope_change log failed: %s", exc)
+
+    return jsonify({"success": True, "story_points": new_sp})
+
+
 @developer_bp.delete("/api/dev/items/<string:item_id>")
 def dev_delete_item(item_id):
     _, err = _require_developer()

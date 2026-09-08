@@ -711,6 +711,10 @@
               </button>
               <div class="dup-type-menu" id="dupTypeMenu"></div>
             </div>
+            <button type="button" class="btn-detail-scope" id="scopeChangeBtn" onclick="openScopeChangeModal()" style="display:none;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              Scope Change
+            </button>
             <div class="item-detail-footer-right">
               <div id="itemFormLoading" class="form-state" style="display:none;"><div class="spinner"></div><span>Saving…</span></div>
               <div id="itemFormError" class="form-state form-error" style="display:none;">
@@ -1043,6 +1047,44 @@
             Add Type
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Scope Change Modal ── -->
+  <div id="scopeChangeModal" class="modal-overlay" onclick="overlayScopeChange(event)">
+    <div class="modal" style="max-width:420px;">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Scope Change</h3>
+          <p class="modal-site-name" id="scopeChangeItemTitle" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></p>
+        </div>
+        <button class="modal-close" onclick="closeScopeChangeModal()" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+        <div class="scope-current-sp">
+          <span class="scope-sp-label">Current Story Points</span>
+          <span class="scope-sp-val" id="scopeCurrentSP">—</span>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="scopeNewSP">New Story Points <span class="form-required">*</span></label>
+          <input class="form-input" type="number" id="scopeNewSP" min="0.25" step="0.25" placeholder="e.g. 5">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="scopeReason">Reason for Change <span class="form-required">*</span></label>
+          <textarea class="form-input form-textarea" id="scopeReason" rows="3" placeholder="Explain why the scope is changing…"></textarea>
+        </div>
+        <div id="scopeChangeError" class="form-state form-error" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="scopeChangeErrorMsg"></span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-modal-cancel" onclick="closeScopeChangeModal()">Cancel</button>
+        <button type="button" class="btn-modal-submit" id="scopeChangeSubmitBtn" onclick="submitScopeChange()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Apply Change
+        </button>
       </div>
     </div>
   </div>
