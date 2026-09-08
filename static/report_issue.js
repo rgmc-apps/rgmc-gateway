@@ -129,6 +129,56 @@ function riOnSubcategoryChange() {
   if (errEl) errEl.style.display = 'none';
 }
 
+/* ── Fallback system picker ───────────────────────────────── */
+
+let _riAllSystems = [];
+
+async function riShowSystemFallback() {
+  const fallback = document.getElementById('riSystemFallback');
+  if (!fallback) return;
+  fallback.style.display = 'block';
+
+  if (!_riAllSystems.length) {
+    const sel = document.getElementById('riSystemFallbackSelect');
+    try {
+      const res = await fetch('/api/helpdesk/subcategories?category=Software%2FApplication');
+      _riAllSystems = await res.json();
+    } catch {
+      _riAllSystems = [];
+      if (sel) sel.innerHTML = '<option value="" disabled>Failed to load — please refresh the page.</option>';
+      return;
+    }
+    riFilterSystems();
+  }
+
+  fallback.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  setTimeout(() => document.getElementById('riSystemSearch')?.focus(), 320);
+}
+
+function riFilterSystems() {
+  const query    = (document.getElementById('riSystemSearch')?.value || '').toLowerCase().trim();
+  const sel      = document.getElementById('riSystemFallbackSelect');
+  if (!sel) return;
+  const filtered = query
+    ? _riAllSystems.filter(s => s.label.toLowerCase().includes(query))
+    : _riAllSystems;
+  if (!filtered.length) {
+    sel.innerHTML = '<option value="" disabled>No systems match your search</option>';
+    return;
+  }
+  sel.innerHTML = filtered.map(s => `<option value="${_esc(s.label)}">${_esc(s.label)}</option>`).join('');
+}
+
+function riSelectFallbackSystem() {
+  const val = document.getElementById('riSystemFallbackSelect')?.value;
+  if (!val) return;
+  document.getElementById('riSiteName').value            = val;
+  document.getElementById('riSystemName').textContent    = val;
+  document.getElementById('riSystemStrip').style.display = 'flex';
+  document.getElementById('riError').style.display       = 'none';
+  document.getElementById('riSystemFallback').style.display = 'none';
+}
+
 /* ── Payload help modal ───────────────────────────────────── */
 
 function riOpenPayloadHelp() {
@@ -161,7 +211,8 @@ async function riSubmit(e) {
       setTimeout(() => subSel.classList.remove('input-shake'), 400);
     } else {
       document.getElementById('riError').style.display   = 'flex';
-      document.getElementById('riErrorMsg').textContent  = 'Could not determine the affected system. Please refresh the page and try again.';
+      document.getElementById('riErrorMsg').textContent  = 'Could not determine the affected system. Please select it from the list below.';
+      riShowSystemFallback();
     }
     return;
   }

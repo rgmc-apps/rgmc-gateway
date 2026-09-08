@@ -592,6 +592,46 @@ kbd {
   display: none;
 }
 
+/* Fallback system picker */
+.ri-system-fallback {
+  margin-top: 12px;
+  padding: 16px 18px 18px;
+  background: var(--bg-card-inner);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ri-system-fallback-hdr {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.ri-system-fallback-search {
+  font-size: 13.5px !important;
+}
+
+.ri-system-fallback-list {
+  height: auto !important;
+  padding: 4px 0 !important;
+  overflow-y: auto;
+  cursor: pointer;
+}
+
+.ri-system-fallback-list option {
+  padding: 7px 12px;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   .ri-card { padding: 22px 18px 28px; }
