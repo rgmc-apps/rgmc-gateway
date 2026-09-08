@@ -362,6 +362,27 @@ def admin_patch_issue(issue_id):
         except Exception as exc:
             current_app.logger.error("send_issue_resolved_email failed: %s", exc)
 
+        # Auto-comment for issues not linked to any dev item, task, or user task
+        has_linked = any([
+            issue.get("dev_item_id"),
+            issue.get("task_id"),
+            issue.get("user_task_id"),
+        ])
+        if not has_linked:
+            resolver_display = resolver_name or admin_username
+            plain_notes      = _strip_html(resolution_notes)
+            comment_parts    = [f"Marked as resolved by {resolver_display}."]
+            if plain_notes:
+                comment_parts.append(f"\nResolution Notes:\n{plain_notes}")
+            try:
+                supabase_req("POST", "/issue_comments", data={
+                    "issue_id": issue_id,
+                    "username": admin_username,
+                    "comment":  "\n".join(comment_parts),
+                }, extra_headers={"Prefer": "return=representation"})
+            except Exception as exc:
+                current_app.logger.warning("auto-resolve comment failed: %s", exc)
+
     if notify_assigned:
         try:
             dev_users = supabase_req("GET", "/users", params={

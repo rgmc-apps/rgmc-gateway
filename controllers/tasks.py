@@ -138,14 +138,26 @@ def api_update_task(task_id):
                     "resolution_attachment_urls": task_attach_urls or None,
                 }
                 supabase_req("PATCH", "/issues", data=cascade_patch, params={"id": f"eq.{issue_id}"})
+                task_action_names = resolve_action_names(task_action_ids)
                 try:
-                    task_action_names = resolve_action_names(task_action_ids)
                     send_issue_resolved_email(
                         issue, "", admin_username, "resolved",
                         action_names=task_action_names, attachment_urls=task_attach_urls,
                     )
                 except Exception as email_exc:
                     current_app.logger.error("send_issue_resolved_email failed: %s", email_exc)
+                try:
+                    assignee = old_task.get("assigned_to") or admin_username
+                    _cp = [f"Linked task marked as done by {assignee}."]
+                    if task_action_names:
+                        _cp.append(f"\nActions taken: {', '.join(task_action_names)}")
+                    supabase_req("POST", "/issue_comments", data={
+                        "issue_id": issue_id,
+                        "username": admin_username,
+                        "comment":  "\n".join(_cp),
+                    }, extra_headers={"Prefer": "return=representation"})
+                except Exception as exc:
+                    current_app.logger.warning("api_update_task: auto-comment failed: %s", exc)
             except Exception as exc:
                 current_app.logger.error("api_update_task: cascade resolve issue failed: %s", exc)
 

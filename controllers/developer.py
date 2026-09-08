@@ -194,6 +194,19 @@ def dev_update_item(item_id):
                             issue, remarks, resolver_name, "resolved",
                             action_names=dev_action_names, attachment_urls=dev_attach_urls,
                         )
+                        try:
+                            _cp = [f"Dev item marked as done by {resolver_name or dev_username}."]
+                            if remarks:
+                                _cp.append(f"\nResolution Notes:\n{remarks}")
+                            if dev_action_names:
+                                _cp.append(f"\nActions taken: {', '.join(dev_action_names)}")
+                            supabase_req("POST", "/issue_comments", data={
+                                "issue_id": issue["id"],
+                                "username": dev_username,
+                                "comment":  "\n".join(_cp),
+                            }, extra_headers={"Prefer": "return=representation"})
+                        except Exception as _exc:
+                            current_app.logger.warning("dev_update_item: auto-comment failed: %s", _exc)
                     elif issue.get("is_duplicate"):
                         mapped = _dup_status_map.get(new_status)
                         if mapped:
@@ -225,6 +238,19 @@ def dev_update_item(item_id):
                                     issue, remarks, resolver_name, "resolved",
                                     action_names=dev_action_names, attachment_urls=dev_attach_urls,
                                 )
+                                try:
+                                    _cp = [f"Dev item marked as done by {resolver_name or dev_username}."]
+                                    if remarks:
+                                        _cp.append(f"\nResolution Notes:\n{remarks}")
+                                    if dev_action_names:
+                                        _cp.append(f"\nActions taken: {', '.join(dev_action_names)}")
+                                    supabase_req("POST", "/issue_comments", data={
+                                        "issue_id": issue["id"],
+                                        "username": dev_username,
+                                        "comment":  "\n".join(_cp),
+                                    }, extra_headers={"Prefer": "return=representation"})
+                                except Exception as _exc:
+                                    current_app.logger.warning("dev_update_item: side-link auto-comment failed: %s", _exc)
                             elif issue.get("is_duplicate"):
                                 mapped = _dup_status_map.get(new_status)
                                 if mapped:
