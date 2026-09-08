@@ -157,9 +157,8 @@ def admin_dev_performance():
 
     try:
         users = supabase_req("GET", "/users", params={
-            "or":            "(is_developer.eq.true,is_admin.eq.true)",
-            "is_management": "eq.false",
-            "select":        "username,first_name,last_name,display_name,avatar_url,company,department,position,email,is_admin,is_developer",
+            "is_developer": "eq.true",
+            "select":       "username,first_name,last_name,display_name,avatar_url,company,department,position,email,is_admin,is_developer",
         })
     except Exception as exc:
         current_app.logger.error("admin_dev_performance users: %s", exc)
