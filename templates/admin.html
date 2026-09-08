@@ -1089,6 +1089,16 @@
           <label class="form-label" for="issueResolutionNotes">Resolution Notes
             <span class="form-label-hint">(sent to reporter by email)</span>
           </label>
+          <div class="res-notes-guide">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span class="res-notes-guide-tag">Root cause</span>
+            <span class="res-notes-guide-sep">·</span>
+            <span class="res-notes-guide-tag">Fix applied</span>
+            <span class="res-notes-guide-sep">·</span>
+            <span class="res-notes-guide-tag">How to verify</span>
+            <span class="res-notes-guide-sep">·</span>
+            <span class="res-notes-guide-tag">Next steps</span>
+          </div>
           <textarea class="form-input form-textarea" id="issueResolutionNotes" rows="3"
             placeholder="Describe what was fixed, the root cause, or why the issue was closed…"></textarea>
         </div>
@@ -1852,7 +1862,7 @@
 
   <!-- ── Promote Modal ── -->
   <div id="promoteModal" class="modal-overlay" onclick="closePromoteModal(event)">
-    <div class="modal" style="max-width:420px;">
+    <div class="modal" style="max-width:540px;">
       <div class="modal-header">
         <div>
           <h3 class="modal-title" id="promoteModalTitle">Promote Issue</h3>
@@ -1860,13 +1870,43 @@
         </div>
         <button class="modal-close" onclick="document.getElementById('promoteModal').classList.remove('open')" aria-label="Close">&times;</button>
       </div>
-      <div class="modal-form" style="padding:20px 28px 8px;">
+      <div class="modal-form promote-modal-form">
+
+        <!-- Dev-specific fields (hidden for task promotions) -->
+        <div id="promoteDevFields" style="display:none;">
+          <div class="form-group form-group-full">
+            <label class="form-label" for="promoteDevTitle">Dev Item Title</label>
+            <input class="form-input" type="text" id="promoteDevTitle"
+              placeholder="e.g. Fix login timeout on HRIS">
+          </div>
+          <div class="form-group form-group-full">
+            <label class="form-label" for="promoteDevDesc">Short Description
+              <span class="form-label-hint">(optional)</span>
+            </label>
+            <textarea class="form-input" id="promoteDevDesc" rows="3"
+              placeholder="Brief summary of the issue and what needs to be done…"></textarea>
+          </div>
+          <div class="form-group form-group-full">
+            <label class="form-label">Systems Involved
+              <span class="form-label-hint">(optional)</span>
+            </label>
+            <input class="form-input promote-systems-search" type="text" id="promoteSystemSearch"
+              placeholder="Search systems…" autocomplete="off" oninput="filterPromoteSystems()">
+            <div class="promote-systems-list" id="promoteSystemsList">
+              <div class="promote-systems-msg">Loading systems…</div>
+            </div>
+          </div>
+          <div class="promote-modal-divider"></div>
+        </div>
+
+        <!-- Assignee (always shown) -->
         <div class="form-group">
           <label class="form-label" for="promoteAssigneeSelect">Assign To <span class="form-label-hint">(optional)</span></label>
           <select class="form-input" id="promoteAssigneeSelect">
             <option value="">— Unassigned —</option>
           </select>
         </div>
+
       </div>
       <div class="modal-actions" style="padding:16px 28px 20px;">
         <button type="button" class="btn-modal-cancel" onclick="document.getElementById('promoteModal').classList.remove('open')">Cancel</button>

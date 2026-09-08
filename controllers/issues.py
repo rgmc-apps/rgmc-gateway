@@ -401,26 +401,34 @@ def admin_promote_issue(issue_id):
         return jsonify({"error": "Already promoted to a dev item"}), 409
 
     body     = request.get_json(silent=True) or {}
-    assignee = (body.get("assigned_to") or "").strip() or None
+    assignee          = (body.get("assigned_to")  or "").strip() or None
+    custom_title      = (body.get("title")        or "").strip() or None
+    custom_desc       = (body.get("description")  or "").strip() or None
+    custom_system_ids = [str(sid) for sid in (body.get("system_ids") or []) if sid]
 
-    title = (issue.get("title") or
+    title = custom_title or (issue.get("title") or
              f"[{issue['site_name']}] {issue['description'][:80]}{'…' if len(issue['description']) > 80 else ''}")
-    desc  = (
+    desc  = custom_desc or (
         f"Reported by {issue['employee_name']} ({issue['company_name']}, {issue['department']})\n"
         f"Email: {issue['email']}\n\n"
         f"{issue['description']}"
     )
 
-    # Resolve system from the issue's site_name
-    sys_id = None
-    site_nm = (issue.get("site_name") or "").strip()
-    if site_nm:
-        try:
-            sys_rows = supabase_req("GET", "/systems", params={"name": f"eq.{site_nm}", "select": "id"})
-            if sys_rows:
-                sys_id = sys_rows[0]["id"]
-        except Exception as exc:
-            current_app.logger.warning("promote: system lookup failed: %s", exc)
+    # Resolve system IDs — use custom selection if provided, else fall back to site_name lookup
+    sys_id  = None
+    sys_ids = custom_system_ids if custom_system_ids else []
+    if not sys_ids:
+        site_nm = (issue.get("site_name") or "").strip()
+        if site_nm:
+            try:
+                sys_rows = supabase_req("GET", "/systems", params={"name": f"eq.{site_nm}", "select": "id"})
+                if sys_rows:
+                    sys_id  = sys_rows[0]["id"]
+                    sys_ids = [sys_id]
+            except Exception as exc:
+                current_app.logger.warning("promote: system lookup failed: %s", exc)
+    else:
+        sys_id = sys_ids[0] if sys_ids else None
 
     dev_item_data = {
         "title":       title,
@@ -429,8 +437,9 @@ def admin_promote_issue(issue_id):
         "created_by":  admin_username,
     }
     if sys_id:
-        dev_item_data["system_id"]  = sys_id
-        dev_item_data["system_ids"] = [sys_id]
+        dev_item_data["system_id"] = sys_id
+    if sys_ids:
+        dev_item_data["system_ids"] = sys_ids
     if assignee:
         dev_item_data["assigned_to"] = assignee
     try:

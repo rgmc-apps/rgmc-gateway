@@ -2762,7 +2762,8 @@ async function saveIssuePatch() {
 }
 
 /* ── Promote Modal ── */
-let _promoteType = null;
+let _promoteType        = null;
+let _promoteSystemsData = [];
 
 async function openPromoteModal(type) {
   if (!_editingIssueId) return;
@@ -2782,8 +2783,68 @@ async function openPromoteModal(type) {
       return `<option value="${escHtml(u.username)}">${escHtml(label)} (@${escHtml(u.username)})</option>`;
     }).join('');
 
+  const devFields = document.getElementById('promoteDevFields');
+  if (devFields) devFields.style.display = type === 'dev' ? '' : 'none';
+
+  if (type === 'dev') {
+    const issue = _issuesCache.find(i => i.id === _editingIssueId);
+    if (issue) {
+      const autoTitle = issue.title ||
+        `[${issue.site_name}] ${(issue.description || '').slice(0, 80)}${(issue.description || '').length > 80 ? '…' : ''}`;
+      document.getElementById('promoteDevTitle').value = autoTitle;
+
+      const dept = issue.department ? `, ${issue.department}` : '';
+      const autoDesc = `Reported by ${issue.employee_name} (${issue.company_name || ''}${dept})\nEmail: ${issue.email}\n\n${issue.description || ''}`;
+      document.getElementById('promoteDevDesc').value = autoDesc;
+
+      await _loadPromoteSystems(issue.site_name);
+    }
+  }
+
   document.getElementById('promoteModal').classList.add('open');
 }
+
+async function _loadPromoteSystems(preSelectSiteName) {
+  const listEl = document.getElementById('promoteSystemsList');
+  if (!listEl) return;
+  listEl.innerHTML = '<div class="promote-systems-msg">Loading systems…</div>';
+
+  try {
+    if (!_systemsCache || !_systemsCache.length) {
+      const res = await fetch('/api/admin/systems', { headers: authHeaders() });
+      if (res.ok) _systemsCache = await res.json();
+    }
+    _promoteSystemsData = (_systemsCache || []).filter(s => !s.is_task);
+  } catch {
+    _promoteSystemsData = [];
+  }
+
+  _renderPromoteSystems(preSelectSiteName);
+}
+
+function _renderPromoteSystems(preSelectSiteName) {
+  const listEl = document.getElementById('promoteSystemsList');
+  if (!listEl) return;
+  const q = (document.getElementById('promoteSystemSearch')?.value || '').toLowerCase().trim();
+  const filtered = q
+    ? _promoteSystemsData.filter(s => (s.name || '').toLowerCase().includes(q))
+    : _promoteSystemsData;
+
+  if (!filtered.length) {
+    listEl.innerHTML = '<div class="promote-systems-msg">No systems match your search</div>';
+    return;
+  }
+  listEl.innerHTML = filtered.map(s => {
+    const checked = preSelectSiteName &&
+      (s.name || '').toLowerCase() === (preSelectSiteName || '').toLowerCase() ? 'checked' : '';
+    return `<label class="promote-system-item">
+      <input type="checkbox" class="promote-system-chk" value="${escHtml(s.id)}" ${checked}>
+      <span>${escHtml(s.name)}</span>
+    </label>`;
+  }).join('');
+}
+
+function filterPromoteSystems() { _renderPromoteSystems(null); }
 
 function closePromoteModal(e) {
   if (e && e.target !== document.getElementById('promoteModal')) return;
@@ -2792,9 +2853,20 @@ function closePromoteModal(e) {
 
 async function submitPromote() {
   if (!_editingIssueId || !_promoteType) return;
-  const assignee  = document.getElementById('promoteAssigneeSelect').value.trim();
-  const endpoint  = _promoteType === 'dev' ? 'promote' : 'promote-task';
-  const toastMsg  = _promoteType === 'dev' ? 'Issue promoted to dev board item.' : 'Issue promoted to task board.';
+  const assignee = document.getElementById('promoteAssigneeSelect').value.trim();
+  const endpoint = _promoteType === 'dev' ? 'promote' : 'promote-task';
+  const toastMsg = _promoteType === 'dev' ? 'Issue promoted to dev board item.' : 'Issue promoted to task board.';
+
+  const body = { assigned_to: assignee || null };
+
+  if (_promoteType === 'dev') {
+    const title      = (document.getElementById('promoteDevTitle')?.value || '').trim();
+    const desc       = (document.getElementById('promoteDevDesc')?.value || '').trim();
+    const systemIds  = Array.from(document.querySelectorAll('.promote-system-chk:checked')).map(c => c.value);
+    if (title)            body.title       = title;
+    if (desc)             body.description = desc;
+    if (systemIds.length) body.system_ids  = systemIds;
+  }
 
   document.getElementById('promoteModal').classList.remove('open');
   document.getElementById('issueModalActions').style.display = 'none';
@@ -2805,7 +2877,7 @@ async function submitPromote() {
     const res = await fetch(`/api/admin/issues/${encodeURIComponent(_editingIssueId)}/${endpoint}`, {
       method:  'POST',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ assigned_to: assignee || null }),
+      body:    JSON.stringify(body),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Promote failed');
