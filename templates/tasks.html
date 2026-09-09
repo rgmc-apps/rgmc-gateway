@@ -53,64 +53,10 @@
       </div>
     </div>
 
-    <div class="dev-stats-bar">
-      <div class="dev-stat-pill stat-open">
-        <span class="dev-stat-dot dot-open"></span>
-        <span class="dev-stat-count" id="stat-count-open">—</span>
-        <span class="dev-stat-label">Open</span>
-      </div>
-      <div class="dev-stat-pill stat-in_progress">
-        <span class="dev-stat-dot dot-in_progress"></span>
-        <span class="dev-stat-count" id="stat-count-in_progress">—</span>
-        <span class="dev-stat-label">In Progress</span>
-      </div>
-      <div class="dev-stat-pill stat-for_review">
-        <span class="dev-stat-dot dot-for_review"></span>
-        <span class="dev-stat-count" id="stat-count-for_review">—</span>
-        <span class="dev-stat-label">For Review</span>
-      </div>
-      <div class="dev-stat-pill stat-done">
-        <span class="dev-stat-dot dot-done"></span>
-        <span class="dev-stat-count" id="stat-count-done">—</span>
-        <span class="dev-stat-label">Done</span>
-      </div>
-    </div>
+    <div class="dev-stats-bar" id="taskStatsBar"></div>
 
-    <!-- Kanban board -->
-    <div class="kanban-board" id="kanbanBoard">
-      <div class="kanban-col" id="col-open" data-status="open">
-        <div class="kanban-col-header">
-          <span class="kanban-col-dot dot-open"></span>
-          Open
-          <span class="kanban-count" id="count-open">0</span>
-        </div>
-        <div class="kanban-cards" id="cards-open"></div>
-      </div>
-      <div class="kanban-col" id="col-in_progress" data-status="in_progress">
-        <div class="kanban-col-header">
-          <span class="kanban-col-dot dot-in_progress"></span>
-          In Progress
-          <span class="kanban-count" id="count-in_progress">0</span>
-        </div>
-        <div class="kanban-cards" id="cards-in_progress"></div>
-      </div>
-      <div class="kanban-col" id="col-for_review" data-status="for_review">
-        <div class="kanban-col-header">
-          <span class="kanban-col-dot dot-for_review"></span>
-          For Review
-          <span class="kanban-count" id="count-for_review">0</span>
-        </div>
-        <div class="kanban-cards" id="cards-for_review"></div>
-      </div>
-      <div class="kanban-col" id="col-done" data-status="done">
-        <div class="kanban-col-header">
-          <span class="kanban-col-dot dot-done"></span>
-          Done
-          <span class="kanban-count" id="count-done">0</span>
-        </div>
-        <div class="kanban-cards" id="cards-done"></div>
-      </div>
-    </div>
+    <!-- Kanban board — columns built dynamically by tasks.js after loading statuses -->
+    <div class="kanban-board" id="kanbanBoard"></div>
 
   </main>
 
@@ -163,10 +109,7 @@
             <div class="form-group">
               <label class="form-label" for="taskStatus">Status</label>
               <select class="form-input" id="taskStatus" onchange="_toggleTaskResNotesGroup(this.value)">
-                <option value="open">Open</option>
-                <option value="in_progress">In Progress</option>
-                <option value="for_review">For Review</option>
-                <option value="done">Done</option>
+                <!-- Options populated dynamically by tasks.js -->
               </select>
             </div>
             <div class="form-group">

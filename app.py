@@ -13,6 +13,7 @@ from controllers.general_helpdesk import general_helpdesk_bp
 from controllers.resolution import resolution_bp
 from controllers.webhooks import webhooks_bp
 from controllers.outages import outages_bp
+from controllers.task_statuses import task_statuses_bp
 
 _scheduler_started = False
 
@@ -35,6 +36,7 @@ def create_app() -> Flask:
     app.register_blueprint(resolution_bp)
     app.register_blueprint(webhooks_bp)
     app.register_blueprint(outages_bp)
+    app.register_blueprint(task_statuses_bp)
 
     # Start background scheduler once per process (skip Flask reloader child)
     if not _scheduler_started and os.environ.get("WERKZEUG_RUN_MAIN") != "true":

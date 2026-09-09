@@ -5,13 +5,6 @@ from services.guards import _require_dept_head
 
 user_page_bp = Blueprint("user_page", __name__)
 
-VALID_TASK_STATUSES = ('open', 'ongoing', 'done')
-
-_TASK_STATUS_LABEL = {
-    "open":    "Open",
-    "ongoing": "Ongoing",
-    "done":    "Done",
-}
 
 
 def _require_user():
@@ -235,8 +228,6 @@ def user_update_task(task_id):
     body    = request.get_json(silent=True) or {}
     allowed = {"title", "description", "status", "due_date", "assigned_to"}
     patch   = {k: v for k, v in body.items() if k in allowed}
-    if "status" in patch and patch["status"] not in VALID_TASK_STATUSES:
-        return jsonify({"error": "Invalid status"}), 400
     if not patch:
         return jsonify({"error": "Nothing to update"}), 400
 
@@ -270,8 +261,8 @@ def user_update_task(task_id):
         except Exception as exc:
             current_app.logger.warning("user_update_task: task log failed: %s", exc)
         try:
-            from_lbl = _TASK_STATUS_LABEL.get(old_status, old_status) if old_status else "—"
-            to_lbl   = _TASK_STATUS_LABEL.get(new_status, new_status)
+            from_lbl = old_status or "—"
+            to_lbl   = new_status
             supabase_req("POST", "/task_activity_logs", data={
                 "task_id":  task_id,
                 "username": username,

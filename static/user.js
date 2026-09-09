@@ -57,7 +57,23 @@ let _currentIssue       = null;
 let _utAssigneeOpen     = false;
 let _utViewMode         = 'kanban';
 
-const UT_STATUSES = ['open', 'ongoing', 'done'];
+let _utStatuses = [];
+
+function _utStatusSlugs()   { return _utStatuses.map(s => s.slug); }
+function _utIsTerminal(slug){ return !!_utStatuses.find(s => s.slug === slug)?.is_terminal; }
+function _utStatusLabel(slug){ return _utStatuses.find(s => s.slug === slug)?.label ?? slug; }
+function _utStatusColor(slug){ return _utStatuses.find(s => s.slug === slug)?.color ?? '#6b7280'; }
+function _utInitialStatus() { return _utStatuses.find(s => s.is_initial) ?? _utStatuses[0]; }
+
+const _UT_DEFAULT_STATUSES = [
+  { slug: 'open',    label: 'Open',    color: '#6b7280', sort_order: 0, is_initial: true,  is_terminal: false, is_system: true },
+  { slug: 'ongoing', label: 'Ongoing', color: '#f59e0b', sort_order: 1, is_initial: false, is_terminal: false, is_system: true },
+  { slug: 'done',    label: 'Done',    color: '#22c55e', sort_order: 2, is_initial: false, is_terminal: true,  is_system: true },
+];
+
+let _utCfgStatusesCache = [];
+let _utCfgStatusEditId  = null;
+let _utCfgStatusOpen    = false;
 
 /* ── Tab switching ── */
 function switchTab(tab) {
@@ -73,7 +89,7 @@ function switchTab(tab) {
   });
   if (tab === 'issues' && _issues[_issueSubtab] === null) loadIssues(_issueSubtab);
   if (tab === 'team') { if (_teamMembers !== null) renderTeam(_teamMembers); else loadTeam(); }
-  if (tab === 'tasks') { if (_tasks.length === 0) loadTasks(); if (_teamMembers === null) _ensureTeamMembersLoaded(); }
+  if (tab === 'tasks') { if (_utStatuses.length === 0) { loadUtStatuses().then(() => loadTasks()); } else if (_tasks.length === 0) { loadTasks(); } if (_teamMembers === null) _ensureTeamMembersLoaded(); }
 }
 
 function switchIssueSubtab(subtab) {
@@ -738,9 +754,63 @@ function setUtViewMode(mode) {
   if (mode === 'list') renderTaskList();
 }
 
+/* ── Dept task statuses (dynamic) ── */
+async function loadUtStatuses() {
+  try {
+    const res = await fetch('/api/user/task-statuses', { headers: authHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      _utStatuses = Array.isArray(data) && data.length ? data : _UT_DEFAULT_STATUSES;
+    } else {
+      _utStatuses = _UT_DEFAULT_STATUSES;
+    }
+  } catch {
+    _utStatuses = _UT_DEFAULT_STATUSES;
+  }
+  _buildUtKanbanCols();
+  _buildUtStatsBar();
+  _populateUtStatusSelect();
+}
+
+function _buildUtKanbanCols() {
+  const board = document.getElementById('ut-kanban');
+  if (!board) return;
+  board.innerHTML = _utStatuses.map(s =>
+    `<div class="kanban-col" id="ut-col-${escHtml(s.slug)}" data-status="${escHtml(s.slug)}">
+      <div class="kanban-col-header">
+        <span class="kanban-col-dot" style="background:${escHtml(s.color)};"></span>
+        ${escHtml(s.label)}
+        <span class="kanban-count" id="ut-count-${escHtml(s.slug)}">0</span>
+      </div>
+      <div class="kanban-cards" id="ut-cards-${escHtml(s.slug)}"></div>
+    </div>`
+  ).join('');
+}
+
+function _buildUtStatsBar() {
+  const bar = document.getElementById('utStatsBar');
+  if (!bar) return;
+  bar.innerHTML = _utStatuses.map(s =>
+    `<div class="dev-stat-pill">
+      <span class="dev-stat-dot" style="background:${escHtml(s.color)};"></span>
+      <span class="dev-stat-count" id="ut-stat-${escHtml(s.slug)}">—</span>
+      <span class="dev-stat-label">${escHtml(s.label)}</span>
+    </div>`
+  ).join('');
+}
+
+function _populateUtStatusSelect(currentSlug) {
+  const sel = document.getElementById('ut-task-status');
+  if (!sel) return;
+  const slug = currentSlug ?? sel.value ?? _utInitialStatus()?.slug ?? '';
+  sel.innerHTML = _utStatuses.map(s =>
+    `<option value="${escHtml(s.slug)}"${s.slug === slug ? ' selected' : ''}>${escHtml(s.label)}</option>`
+  ).join('');
+}
+
 async function loadTasks() {
-  UT_STATUSES.forEach(s => {
-    const el = document.getElementById(`ut-cards-${s}`);
+  _utStatusSlugs().forEach(slug => {
+    const el = document.getElementById(`ut-cards-${slug}`);
     if (el) el.innerHTML = '<div class="admin-loading" style="padding:12px 0;"><div class="spinner"></div></div>';
   });
   try {
@@ -749,21 +819,29 @@ async function loadTasks() {
     _tasks = await res.json();
     renderTaskBoard();
   } catch (err) {
-    UT_STATUSES.forEach(s => {
-      const el = document.getElementById(`ut-cards-${s}`);
+    _utStatusSlugs().forEach(slug => {
+      const el = document.getElementById(`ut-cards-${slug}`);
       if (el) el.innerHTML = `<div class="admin-error" style="margin:8px 0;">${escHtml(err.message)}</div>`;
     });
   }
 }
 
 function renderTaskBoard() {
-  UT_STATUSES.forEach(status => {
-    const col   = document.getElementById(`ut-cards-${status}`);
-    const tasks = _tasks.filter(t => t.status === status);
+  const slugs = _utStatusSlugs();
+  const byStatus = {};
+  slugs.forEach(slug => { byStatus[slug] = []; });
+  _tasks.forEach(task => {
+    const slot = slugs.includes(task.status) ? task.status : (slugs[0] ?? '');
+    if (slot) byStatus[slot].push(task);
+  });
 
-    const countEl = document.getElementById(`ut-count-${status}`);
+  slugs.forEach(slug => {
+    const col   = document.getElementById(`ut-cards-${slug}`);
+    const tasks = byStatus[slug];
+
+    const countEl = document.getElementById(`ut-count-${slug}`);
     if (countEl) countEl.textContent = tasks.length;
-    const statEl = document.getElementById(`ut-stat-${status}`);
+    const statEl = document.getElementById(`ut-stat-${slug}`);
     if (statEl) statEl.textContent = tasks.length;
 
     if (!col) return;
@@ -778,13 +856,11 @@ function renderTaskBoard() {
   renderPastTasks();
 }
 
-const UT_STATUS_LABEL = { open: 'Open', ongoing: 'Ongoing', done: 'Done' };
-const UT_STATUS_DOT   = { open: 'dot-open', ongoing: 'dot-ongoing', done: 'dot-done' };
 
 function renderTaskList() {
   const tbody = document.getElementById('utListBody');
   if (!tbody) return;
-  const activeTasks = _tasks.filter(t => t.status !== 'done');
+  const activeTasks = _tasks.filter(t => !_utIsTerminal(t.status));
   if (!activeTasks.length) {
     tbody.innerHTML = '<tr><td colspan="6" class="dlt-empty">No active tasks.</td></tr>';
     return;
@@ -793,8 +869,8 @@ function renderTaskList() {
     const id      = escHtml(t.id);
     const title   = escHtml(t.title);
     const status  = t.status || 'open';
-    const slabel  = UT_STATUS_LABEL[status] || status;
-    const dotCls  = UT_STATUS_DOT[status] || '';
+    const slabel  = _utStatusLabel(status);
+    const dotColor = _utStatusColor(status);
     const assignee = t.assigned_to ? escHtml(t.assigned_to) : '<span class="open-iss-unassigned">—</span>';
     const due     = t.due_date ? escHtml(fmtDate(t.due_date)) : '—';
     const creator = t.created_by ? escHtml(t.created_by) : '—';
@@ -804,7 +880,7 @@ function renderTaskList() {
         ${t.description ? `<span class="ut-list-desc">${escHtml(t.description.slice(0, 60))}${t.description.length > 60 ? '…' : ''}</span>` : ''}
       </td>
       <td class="dlt-td">
-        <span class="ut-list-status-dot ${dotCls}"></span>
+        <span class="ut-list-status-dot" style="background:${escHtml(dotColor)};width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:middle;"></span>
         <span class="ut-list-status-label">${slabel}</span>
       </td>
       <td class="dlt-td">${assignee}</td>
@@ -826,7 +902,7 @@ function renderPastTasks() {
   if (!section || !tbody) return;
 
   const doneTasks = _tasks
-    .filter(t => t.status === 'done')
+    .filter(t => _utIsTerminal(t.status))
     .sort((a, b) => {
       const da = a.updated_at || a.created_at || '';
       const db = b.updated_at || b.created_at || '';
@@ -867,7 +943,8 @@ function renderPastTasks() {
 }
 
 function renderTaskCard(task) {
-  const statusIdx = UT_STATUSES.indexOf(task.status);
+  const slugs     = _utStatusSlugs();
+  const statusIdx = slugs.indexOf(task.status);
   const id        = escHtml(task.id);
   return `<div class="ut-card" id="utc-${id}">
     <div class="ut-card-title">${escHtml(task.title)}</div>
@@ -880,7 +957,7 @@ function renderTaskCard(task) {
       </div>
       <div class="ut-card-actions">
         ${statusIdx > 0
-          ? `<button class="ut-card-btn" onclick="moveUtTask('${id}','${UT_STATUSES[statusIdx-1]}')" title="Move back">
+          ? `<button class="ut-card-btn" onclick="moveUtTask('${id}','${escHtml(slugs[statusIdx-1])}')" title="Move back">
                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
              </button>`
           : '<span class="ut-card-btn-placeholder"></span>'}
@@ -890,8 +967,8 @@ function renderTaskCard(task) {
         <button class="ut-card-btn ut-card-btn--danger" onclick="deleteUtTaskCard('${id}')" title="Delete">
           <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
         </button>
-        ${statusIdx < UT_STATUSES.length - 1
-          ? `<button class="ut-card-btn" onclick="moveUtTask('${id}','${UT_STATUSES[statusIdx+1]}')" title="Move forward">
+        ${statusIdx < slugs.length - 1
+          ? `<button class="ut-card-btn" onclick="moveUtTask('${id}','${escHtml(slugs[statusIdx+1])}')" title="Move forward">
                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
              </button>`
           : '<span class="ut-card-btn-placeholder"></span>'}
@@ -925,7 +1002,7 @@ async function openUtModal(idOrNull) {
   document.getElementById('ut-task-id').value    = task?.id          ?? '';
   document.getElementById('ut-task-title').value = task?.title       ?? '';
   document.getElementById('ut-task-desc').value  = task?.description ?? '';
-  document.getElementById('ut-task-status').value = task?.status     ?? 'open';
+  _populateUtStatusSelect(task?.status ?? _utInitialStatus()?.slug ?? '');
   document.getElementById('ut-task-due').value   = task?.due_date    ?? '';
   await _ensureTeamMembersLoaded();
   _setUtAssigneeDropdown(task?.assigned_to ?? '');
@@ -1485,16 +1562,199 @@ document.addEventListener('DOMContentLoaded', () => {
   /* Load initial data */
   loadIssues('team').then(() => hidePageLoader());
   _ensureTeamMembersLoaded(); // pre-fetch so assignee dropdowns open instantly
+  // Pre-load statuses so the kanban is ready when user clicks Tasks tab
+  if (session && (session.isDepartmentHead || session.isAdmin || session.isManagement)) {
+    loadUtStatuses().then(() => {
+      // Show configure section for dept heads
+      const cfgSection = document.getElementById('utCfgStatusSection');
+      if (cfgSection) cfgSection.style.display = '';
+      loadUtCfgStatuses();
+    });
+  } else {
+    loadUtStatuses();
+  }
   initUtPhysicsDrag();
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeWsIssShareModal(); closeReopenModal(); closeIssueDetail(); closeUtModal(); closeProfileMenu(); }
+    if (e.key === 'Escape') { closeWsIssShareModal(); closeReopenModal(); closeIssueDetail(); closeUtModal(); closeUtCfgStatusModal(); closeProfileMenu(); }
   });
   document.addEventListener('click', e => {
     closeProfileMenu();
     if (_utAssigneeOpen && !document.getElementById('ut-assignee-wrap')?.contains(e.target)) _closeAssigneeDropdown();
   });
 });
+
+/* ── Dept Head: Task Status Config ── */
+
+function toggleUtCfgStatus() {
+  const body = document.getElementById('utCfgStatusBody');
+  if (!body) return;
+  _utCfgStatusOpen = !_utCfgStatusOpen;
+  body.style.display = _utCfgStatusOpen ? '' : 'none';
+  if (_utCfgStatusOpen && !_utCfgStatusesCache.length) loadUtCfgStatuses();
+}
+
+async function loadUtCfgStatuses() {
+  const list = document.getElementById('utCfgStatusList');
+  if (!list) return;
+  list.innerHTML = '<div class="admin-loading" style="padding:8px 0;"><div class="spinner"></div></div>';
+  try {
+    const res = await fetch('/api/user/task-statuses', { headers: authHeaders() });
+    if (!res.ok) throw new Error(await res.text());
+    _utCfgStatusesCache = await res.json();
+    _renderUtCfgStatuses();
+  } catch (err) {
+    list.innerHTML = `<div class="admin-error">${escHtml(err.message)}</div>`;
+  }
+}
+
+function _renderUtCfgStatuses() {
+  const list = document.getElementById('utCfgStatusList');
+  if (!list) return;
+  if (!_utCfgStatusesCache.length) {
+    list.innerHTML = '<div class="admin-empty">No statuses yet. Add one above.</div>';
+    return;
+  }
+  list.innerHTML = `<table class="admin-table">
+    <thead><tr>
+      <th style="width:40px;"></th>
+      <th>Label</th>
+      <th>Slug</th>
+      <th>Terminal</th>
+      <th>Type</th>
+      <th class="action-cell">Actions</th>
+    </tr></thead>
+    <tbody>${_utCfgStatusesCache.map((s, i) => `
+      <tr>
+        <td><span style="background:${escHtml(s.color)};display:inline-block;width:10px;height:10px;border-radius:50%;"></span></td>
+        <td><strong>${escHtml(s.label)}</strong></td>
+        <td><code>${escHtml(s.slug)}</code></td>
+        <td>${s.is_terminal ? '<span class="badge-visible">Yes</span>' : '<span class="badge-hidden">No</span>'}</td>
+        <td>${s.is_system ? '<span class="badge-visible">System</span>' : '<span class="badge-hidden">Custom</span>'}</td>
+        <td class="action-cell" style="display:flex;gap:6px;align-items:center;">
+          ${i > 0
+            ? `<button class="btn-tbl-secondary" title="Move up" onclick="moveUtCfgStatus('${escHtml(s.id)}','up')">↑</button>`
+            : '<span style="width:32px;display:inline-block;"></span>'}
+          ${i < _utCfgStatusesCache.length - 1
+            ? `<button class="btn-tbl-secondary" title="Move down" onclick="moveUtCfgStatus('${escHtml(s.id)}','down')">↓</button>`
+            : '<span style="width:32px;display:inline-block;"></span>'}
+          <button class="btn-tbl-secondary" onclick='openUtCfgStatusModal(${JSON.stringify(s)})'>Edit</button>
+          ${!s.is_system
+            ? `<button class="btn-tbl-danger" onclick="deleteUtCfgStatus('${escHtml(s.id)}')">Delete</button>`
+            : ''}
+        </td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function openUtCfgStatusModal(status) {
+  _utCfgStatusEditId = status ? status.id : null;
+  document.getElementById('utCfgStatusModalTitle').textContent = _utCfgStatusEditId ? 'Edit Status' : 'Add Status';
+  document.getElementById('utCfgTsLabel').value        = status?.label ?? '';
+  document.getElementById('utCfgTsColor').value        = status?.color ?? '#6b7280';
+  document.getElementById('utCfgTsIsTerminal').checked = !!status?.is_terminal;
+  const deleteBtn = document.getElementById('utCfgTsDeleteBtn');
+  deleteBtn.style.display = (_utCfgStatusEditId && !status?.is_system) ? '' : 'none';
+  document.getElementById('utCfgStatusFormActions').style.display = '';
+  document.getElementById('utCfgStatusFormLoading').style.display = 'none';
+  document.getElementById('utCfgStatusFormError').style.display   = 'none';
+  document.getElementById('utCfgStatusModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('utCfgTsLabel').focus(), 60);
+}
+
+function closeUtCfgStatusModal() {
+  document.getElementById('utCfgStatusModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+async function saveUtCfgStatus(e) {
+  e.preventDefault();
+  const label      = document.getElementById('utCfgTsLabel').value.trim();
+  const color      = document.getElementById('utCfgTsColor').value;
+  const is_terminal = document.getElementById('utCfgTsIsTerminal').checked;
+  if (!label) {
+    document.getElementById('utCfgStatusFormError').style.display = '';
+    document.getElementById('utCfgStatusErrorMsg').textContent = 'Label is required.';
+    return;
+  }
+  document.getElementById('utCfgStatusFormActions').style.display = 'none';
+  document.getElementById('utCfgStatusFormLoading').style.display = '';
+  try {
+    const payload = { label, color, is_terminal };
+    let res;
+    if (_utCfgStatusEditId) {
+      res = await fetch(`/api/user/task-statuses/${encodeURIComponent(_utCfgStatusEditId)}`, {
+        method: 'PATCH',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } else {
+      res = await fetch('/api/user/task-statuses', {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    }
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    closeUtCfgStatusModal();
+    showToast('Status saved.');
+    await loadUtCfgStatuses();
+    await loadUtStatuses(); // rebuild kanban with updated statuses
+  } catch (err) {
+    document.getElementById('utCfgStatusFormLoading').style.display = 'none';
+    document.getElementById('utCfgStatusFormActions').style.display = '';
+    document.getElementById('utCfgStatusFormError').style.display = '';
+    document.getElementById('utCfgStatusErrorMsg').textContent = err.message;
+  }
+}
+
+async function deleteUtCfgStatus(id) {
+  const targetId = id ?? _utCfgStatusEditId;
+  if (!targetId) return;
+  if (!await showConfirm({ title: 'Delete Status', message: 'Delete this task status?', detail: 'Tasks with this status will remain but may appear uncategorised.', confirmText: 'Delete', danger: true })) return;
+  closeUtCfgStatusModal();
+  try {
+    const res = await fetch(`/api/user/task-statuses/${encodeURIComponent(targetId)}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Delete failed');
+    showToast('Status deleted.');
+    await loadUtCfgStatuses();
+    await loadUtStatuses();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+async function moveUtCfgStatus(id, direction) {
+  const idx = _utCfgStatusesCache.findIndex(s => s.id === id);
+  if (idx === -1) return;
+  const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+  if (swapIdx < 0 || swapIdx >= _utCfgStatusesCache.length) return;
+  const current = _utCfgStatusesCache[idx];
+  const swap    = _utCfgStatusesCache[swapIdx];
+  try {
+    await Promise.all([
+      fetch(`/api/user/task-statuses/${encodeURIComponent(current.id)}`, {
+        method: 'PATCH',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sort_order: swap.sort_order }),
+      }),
+      fetch(`/api/user/task-statuses/${encodeURIComponent(swap.id)}`, {
+        method: 'PATCH',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sort_order: current.sort_order }),
+      }),
+    ]);
+    await loadUtCfgStatuses();
+    await loadUtStatuses();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
 
 /* ── Workspace Issue Share Modal ── */
 function openWsIssShareModal() {

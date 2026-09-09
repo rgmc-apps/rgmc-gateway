@@ -6,14 +6,21 @@ from services.email import send_issue_resolved_email, send_task_status_email
 
 tasks_bp = Blueprint("tasks", __name__)
 
-VALID_STATUSES = ('open', 'in_progress', 'for_review', 'done')
-STATUS_ORDER   = {s: i for i, s in enumerate(VALID_STATUSES)}
-STATUS_LABELS  = {
-    'open':        'Open',
-    'in_progress': 'In Progress',
-    'for_review':  'For Review',
-    'done':        'Done',
-}
+
+def _get_status_meta(slugs):
+    """Return {slug: {is_terminal, is_initial, sort_order, label}} for all given slugs."""
+    if not slugs:
+        return {}
+    slug_list = ",".join(slugs)
+    try:
+        rows = supabase_req("GET", "/task_statuses", params={
+            "slug":  f"in.({slug_list})",
+            "scope": "eq.admin",
+            "select": "slug,label,is_terminal,is_initial,sort_order",
+        })
+        return {r["slug"]: r for r in rows}
+    except Exception:
+        return {}
 
 
 @tasks_bp.get("/tasks")
@@ -88,8 +95,6 @@ def api_update_task(task_id):
         return jsonify({"error": "Nothing to update"}), 400
 
     new_status = patch.get("status")
-    if new_status and new_status not in VALID_STATUSES:
-        return jsonify({"error": f"Invalid status: {new_status}"}), 400
 
     # Fetch current task for status comparison and issue link
     old_task = None
@@ -105,15 +110,33 @@ def api_update_task(task_id):
 
     old_status = old_task.get("status")
 
-    # Auto-set actual_end_date when done
-    if new_status == "done" and not old_task.get("actual_end_date") and "actual_end_date" not in patch:
+    # Resolve is_terminal / sort_order for old and new statuses
+    new_is_terminal = False
+    old_is_terminal = False
+    new_sort_order  = 0
+    old_sort_order  = 0
+    if new_status or old_status:
+        slugs_to_check = list({s for s in [new_status, old_status] if s})
+        sm = _get_status_meta(slugs_to_check)
+        if new_status:
+            new_is_terminal = sm.get(new_status, {}).get("is_terminal", False)
+            new_sort_order  = sm.get(new_status, {}).get("sort_order",  0)
+        if old_status:
+            old_is_terminal = sm.get(old_status, {}).get("is_terminal", False)
+            old_sort_order  = sm.get(old_status, {}).get("sort_order",  0)
+        label_map = {slug: info.get("label", slug) for slug, info in sm.items()}
+    else:
+        label_map = {}
+
+    # Auto-set actual_end_date when moving to terminal status
+    if new_status and new_is_terminal and not old_task.get("actual_end_date") and "actual_end_date" not in patch:
         patch["actual_end_date"] = datetime.now(timezone.utc).date().isoformat()
-    elif new_status and new_status != "done":
+    elif new_status and not new_is_terminal:
         if "actual_end_date" not in patch:
             patch["actual_end_date"] = None
 
-    # Auto-set start_date when first transitioning to in_progress
-    if new_status == "in_progress" and not old_task.get("start_date") and "start_date" not in patch:
+    # Auto-set start_date when first moving away from initial status (task is being worked on)
+    if new_status and not old_task.get("start_date") and "start_date" not in patch and not new_is_terminal:
         patch["start_date"] = datetime.now(timezone.utc).date().isoformat()
 
     patch["updated_at"] = datetime.now(timezone.utc).isoformat()
@@ -126,8 +149,8 @@ def api_update_task(task_id):
 
     # Post movement comment when status changes
     if new_status and old_status and new_status != old_status:
-        old_label = STATUS_LABELS.get(old_status, old_status)
-        new_label = STATUS_LABELS.get(new_status, new_status)
+        old_label = label_map.get(old_status, old_status)
+        new_label = label_map.get(new_status, new_status)
         try:
             supabase_req("POST", "/task_activity_logs", data={
                 "task_id":  task_id,
@@ -137,7 +160,7 @@ def api_update_task(task_id):
         except Exception as exc:
             current_app.logger.warning("api_update_task: movement log failed: %s", exc)
 
-    # Handle linked issue side-effects when task becomes done
+    # Handle linked issue side-effects when task reaches terminal status
     issue = None
     issue_id = old_task.get("issue_id")
     if issue_id:
@@ -151,7 +174,7 @@ def api_update_task(task_id):
     task_attach_urls = [u for u in (patch.get("resolution_attachment_urls") or []) if u]
     task_res_notes   = (patch.get("resolution_notes") or "").strip() or None
 
-    if new_status == "done" and old_status != "done" and issue:
+    if new_status and new_is_terminal and not old_is_terminal and issue:
         # Cascade resolve linked issue if not already terminal
         issue_status = issue.get("status", "")
         if issue_status not in ("resolved", "closed"):
@@ -191,14 +214,12 @@ def api_update_task(task_id):
 
     # Send task status email on forward status transitions
     if new_status and old_status and new_status != old_status:
-        old_order = STATUS_ORDER.get(old_status, -1)
-        new_order = STATUS_ORDER.get(new_status, -1)
-        if new_order > old_order and issue:
+        if new_sort_order > old_sort_order and issue:
             try:
-                email_action_names = resolve_action_names(task_action_ids) if new_status == "done" else []
+                email_action_names = resolve_action_names(task_action_ids) if new_is_terminal else []
                 send_task_status_email(
                     old_task, issue, old_status, new_status, admin_username,
-                    action_names=email_action_names, attachment_urls=task_attach_urls if new_status == "done" else [],
+                    action_names=email_action_names, attachment_urls=task_attach_urls if new_is_terminal else [],
                 )
             except Exception as exc:
                 current_app.logger.error("send_task_status_email failed: %s", exc)

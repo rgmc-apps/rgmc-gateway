@@ -65,8 +65,19 @@ function rollNumber(el, from, to, ms = 480) {
 }
 
 /* ── State ── */
-const STATUSES      = ['open', 'in_progress', 'for_review', 'done'];
-const STATUS_LABELS = { open: 'Open', in_progress: 'In Progress', for_review: 'For Review', done: 'Done' };
+let _taskStatuses = [];
+
+function _taskStatusSlugs() { return _taskStatuses.map(s => s.slug); }
+function _isTerminal(slug)   { return !!_taskStatuses.find(s => s.slug === slug)?.is_terminal; }
+function _statusLabel(slug)  { return _taskStatuses.find(s => s.slug === slug)?.label ?? slug; }
+function _statusColor(slug)  { return _taskStatuses.find(s => s.slug === slug)?.color ?? '#6b7280'; }
+function _initialStatus()    { return _taskStatuses.find(s => s.is_initial) ?? _taskStatuses[0]; }
+
+const _DEFAULT_STATUSES = [
+  { slug: 'open',    label: 'Open',    color: '#6b7280', sort_order: 0, is_initial: true,  is_terminal: false, is_system: true },
+  { slug: 'ongoing', label: 'Ongoing', color: '#f59e0b', sort_order: 1, is_initial: false, is_terminal: false, is_system: true },
+  { slug: 'done',    label: 'Done',    color: '#22c55e', sort_order: 2, is_initial: false, is_terminal: true,  is_system: true },
+];
 
 let _tasks              = [];
 let _members            = {};
@@ -192,9 +203,11 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>`;
   }
 
-  initColArcs();
   initPhysicsDrag();
-  loadTaskMembers().then(() => loadTasks()).then(() => hidePageLoader());
+  loadTaskStatuses().then(() => {
+    initColArcs();
+    return loadTaskMembers();
+  }).then(() => loadTasks()).then(() => hidePageLoader());
 
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeTaskDoneRemarksModal(); closeTaskDetailModal(); closeProfileMenu(); }
@@ -225,6 +238,60 @@ function devColor(username) {
   let h = 5381;
   for (let i = 0; i < username.length; i++) h = (h * 33 ^ username.charCodeAt(i)) >>> 0;
   return DEV_PALETTE[h % DEV_PALETTE.length];
+}
+
+/* ── Task statuses (dynamic) ── */
+async function loadTaskStatuses() {
+  try {
+    const res = await fetch('/api/admin/task-statuses', { headers: authHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      _taskStatuses = Array.isArray(data) && data.length ? data : _DEFAULT_STATUSES;
+    } else {
+      _taskStatuses = _DEFAULT_STATUSES;
+    }
+  } catch {
+    _taskStatuses = _DEFAULT_STATUSES;
+  }
+  _buildAdminKanbanCols();
+  _buildAdminStatsBar();
+  _populateTaskStatusSelect();
+}
+
+function _buildAdminKanbanCols() {
+  const board = document.getElementById('kanbanBoard');
+  if (!board) return;
+  board.innerHTML = _taskStatuses.map(s =>
+    `<div class="kanban-col" id="col-${escHtml(s.slug)}" data-status="${escHtml(s.slug)}">
+      <div class="kanban-col-header">
+        <span class="kanban-col-dot" style="background:${escHtml(s.color)};"></span>
+        ${escHtml(s.label)}
+        <span class="kanban-count" id="count-${escHtml(s.slug)}">0</span>
+      </div>
+      <div class="kanban-cards" id="cards-${escHtml(s.slug)}"></div>
+    </div>`
+  ).join('');
+}
+
+function _buildAdminStatsBar() {
+  const bar = document.getElementById('taskStatsBar');
+  if (!bar) return;
+  bar.innerHTML = _taskStatuses.map(s =>
+    `<div class="dev-stat-pill">
+      <span class="dev-stat-dot" style="background:${escHtml(s.color)};"></span>
+      <span class="dev-stat-count" id="stat-count-${escHtml(s.slug)}">—</span>
+      <span class="dev-stat-label">${escHtml(s.label)}</span>
+    </div>`
+  ).join('');
+}
+
+function _populateTaskStatusSelect(currentSlug) {
+  const sel = document.getElementById('taskStatus');
+  if (!sel) return;
+  const slug = currentSlug ?? sel.value ?? _initialStatus()?.slug ?? '';
+  sel.innerHTML = _taskStatuses.map(s =>
+    `<option value="${escHtml(s.slug)}"${s.slug === slug ? ' selected' : ''}>${escHtml(s.label)}</option>`
+  ).join('');
 }
 
 /* ── Members (avatars for cards) ── */
@@ -258,8 +325,8 @@ const ARC_R = 10;
 const ARC_C = +(2 * Math.PI * ARC_R).toFixed(1);
 
 function initColArcs() {
-  STATUSES.forEach(status => {
-    const header = document.querySelector(`#col-${status} .kanban-col-header`);
+  _taskStatuses.forEach(s => {
+    const header = document.querySelector(`#col-${s.slug} .kanban-col-header`);
     if (!header || header.querySelector('.col-arc')) return;
     const ns  = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(ns, 'svg');
@@ -284,10 +351,10 @@ function initColArcs() {
 
 function updateColArcs(counts) {
   const max = Math.max(...Object.values(counts), 1);
-  STATUSES.forEach(status => {
-    const fill = document.querySelector(`#col-${status} .col-arc-fill`);
+  _taskStatuses.forEach(s => {
+    const fill = document.querySelector(`#col-${s.slug} .col-arc-fill`);
     if (!fill) return;
-    const offset = ARC_C * (1 - counts[status] / max);
+    const offset = ARC_C * (1 - (counts[s.slug] || 0) / max);
     fill.style.strokeDashoffset = offset.toFixed(2);
   });
 }
@@ -312,12 +379,6 @@ function taskTypeBadge(taskType) {
 
 /* ── Skeleton loader ── */
 function _showSkeletons() {
-  const statusClr = {
-    open:        'rgba(107,114,128,0.18)',
-    in_progress: 'rgba(59,130,246,0.20)',
-    for_review:  'rgba(245,158,11,0.18)',
-    done:        'rgba(34,197,94,0.16)',
-  };
   const shapes = [
     ['82%', '54%', true ],
     ['70%', null,  false],
@@ -326,15 +387,14 @@ function _showSkeletons() {
     ['75%', '50%', true ],
     ['78%', null,  false],
   ];
-  STATUSES.forEach((status, colIdx) => {
-    const col = document.getElementById(`cards-${status}`);
+  _taskStatuses.forEach((s, colIdx) => {
+    const col = document.getElementById(`cards-${s.slug}`);
     if (!col) return;
-    const clr = statusClr[status];
-    const n   = colIdx === 0 ? 3 : 2;
+    const n = colIdx === 0 ? 3 : 2;
     col.innerHTML = Array.from({ length: n }, (_, i) => {
       const [w1, w2, hasTag] = shapes[(colIdx * 2 + i) % shapes.length];
       const delay = colIdx * 50 + i * 85;
-      return `<div class="kanban-skel" style="animation-delay:${delay}ms;border-left-color:${clr}">
+      return `<div class="kanban-skel" style="animation-delay:${delay}ms;border-left-color:${s.color}44">
         ${hasTag ? '<div class="skel-bar skel-tag"></div>' : ''}
         <div class="skel-bar skel-title" style="--sw:${w1}"></div>
         ${w2 ? `<div class="skel-bar skel-title" style="--sw:${w2}"></div>` : ''}
@@ -359,9 +419,9 @@ async function loadTasks() {
     _tasks = await res.json();
     renderTaskBoard();
   } catch (err) {
-    STATUSES.forEach(s => {
-      document.getElementById(`cards-${s}`).innerHTML =
-        `<div class="admin-error" style="margin:8px;">Failed to load: ${escHtml(err.message)}</div>`;
+    _taskStatuses.forEach(s => {
+      const col = document.getElementById(`cards-${s.slug}`);
+      if (col) col.innerHTML = `<div class="admin-error" style="margin:8px;">Failed to load: ${escHtml(err.message)}</div>`;
     });
   } finally {
     board.classList.remove('loading');
@@ -369,21 +429,33 @@ async function loadTasks() {
 }
 
 function renderTaskBoard() {
-  const counts = {};
-  const me = loadSession()?.username || '';
+  const counts  = {};
+  const slugs   = _taskStatusSlugs();
+  const me      = loadSession()?.username || '';
   const visible = _taskFilter === 'mine' ? _tasks.filter(t => t.created_by === me) : _tasks;
 
-  STATUSES.forEach(status => {
-    const col   = document.getElementById(`cards-${status}`);
-    const items = visible.filter(t => t.status === status);
+  // Bucket tasks by status; tasks with unrecognised status go to first column
+  const byStatus = {};
+  slugs.forEach(slug => { byStatus[slug] = []; counts[slug] = 0; });
+  visible.forEach(task => {
+    const slot = slugs.includes(task.status) ? task.status : (slugs[0] ?? '');
+    if (slot) byStatus[slot].push(task);
+  });
+
+  slugs.forEach(slug => {
+    const col   = document.getElementById(`cards-${slug}`);
+    if (!col) return;
+    const items = byStatus[slug];
     const count = items.length;
-    counts[status] = count;
+    counts[slug] = count;
 
-    const countEl = document.getElementById(`count-${status}`);
-    const prevCol = parseInt(countEl.textContent, 10);
-    rollNumber(countEl, isNaN(prevCol) ? 0 : prevCol, count);
+    const countEl = document.getElementById(`count-${slug}`);
+    if (countEl) {
+      const prevCol = parseInt(countEl.textContent, 10);
+      rollNumber(countEl, isNaN(prevCol) ? 0 : prevCol, count);
+    }
 
-    const statEl = document.getElementById(`stat-count-${status}`);
+    const statEl = document.getElementById(`stat-count-${slug}`);
     if (statEl) {
       const prevStat = parseInt(statEl.textContent, 10);
       rollNumber(statEl, isNaN(prevStat) ? 0 : prevStat, count);
@@ -403,7 +475,8 @@ function renderTaskCard(task, idx = 0) {
   const elapsed   = daysElapsed(task);
   const overdue   = task.estimated_end_date && !task.actual_end_date &&
                     new Date(task.estimated_end_date + 'T00:00:00') < new Date();
-  const statusIdx = STATUSES.indexOf(task.status);
+  const slugs     = _taskStatusSlugs();
+  const statusIdx = slugs.indexOf(task.status);
   const devClr    = devColor(task.created_by);
   const archived  = task.is_active === false;
 
@@ -440,7 +513,7 @@ function renderTaskCard(task, idx = 0) {
     </div>
     <div class="kcard-actions">
       ${statusIdx > 0
-        ? `<button class="kcard-btn" onclick="moveTask('${escHtml(task.id)}','${STATUSES[statusIdx-1]}')" title="Move left">
+        ? `<button class="kcard-btn" onclick="moveTask('${escHtml(task.id)}','${escHtml(slugs[statusIdx-1])}')" title="Move left">
              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
            </button>`
         : '<span class="kcard-btn-placeholder"></span>'}
@@ -449,8 +522,8 @@ function renderTaskCard(task, idx = 0) {
           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </button>
       </div>
-      ${statusIdx < STATUSES.length - 1
-        ? `<button class="kcard-btn" onclick="moveTask('${escHtml(task.id)}','${STATUSES[statusIdx+1]}')" title="Move right">
+      ${statusIdx < slugs.length - 1
+        ? `<button class="kcard-btn" onclick="moveTask('${escHtml(task.id)}','${escHtml(slugs[statusIdx+1])}')" title="Move right">
              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
            </button>`
         : '<span class="kcard-btn-placeholder"></span>'}
@@ -462,7 +535,7 @@ function renderTaskCard(task, idx = 0) {
 async function moveTask(id, newStatus) {
   const task = _tasks.find(t => t.id === id);
   if (!task) return;
-  if (newStatus === 'done' && task.status !== 'done') {
+  if (_isTerminal(newStatus) && !_isTerminal(task.status)) {
     openTaskDoneRemarksModal((remarks, actionIds, files) => _execMoveTask(id, newStatus, remarks, actionIds, files));
     return;
   }
@@ -472,14 +545,15 @@ async function moveTask(id, newStatus) {
 async function _execMoveTask(id, newStatus, remarks, actionIds = [], files = []) {
   const task = _tasks.find(t => t.id === id);
   if (!task) return;
+  const isTerminal = _isTerminal(newStatus);
   const patch = { status: newStatus };
-  if (newStatus === 'done' && !task.actual_end_date) {
+  if (isTerminal && !task.actual_end_date) {
     patch.actual_end_date = new Date().toISOString().slice(0, 10);
   }
-  if (newStatus !== 'done') {
+  if (!isTerminal) {
     patch.actual_end_date = null;
   }
-  if (newStatus === 'done') {
+  if (isTerminal) {
     if (remarks) patch.resolution_notes = remarks;
     if (actionIds.length) patch.resolution_action_ids = actionIds;
     if (files.length) {
@@ -667,10 +741,13 @@ function openTaskDetailModal(idOrNull) {
   document.getElementById('taskEditId').value      = task?.id ?? '';
   document.getElementById('taskName').value        = task?.task_name ?? '';
   document.getElementById('taskDesc').value        = task?.description ?? '';
-  document.getElementById('taskStatus').value      = task?.status ?? 'open';
   document.getElementById('taskStart').value       = task?.start_date ?? '';
   document.getElementById('taskEstEnd').value      = task?.estimated_end_date ?? '';
   document.getElementById('taskIsActive').checked  = task ? (task.is_active !== false) : true;
+
+  // Populate status select dynamically
+  const currentStatus = task?.status ?? _initialStatus()?.slug ?? '';
+  _populateTaskStatusSelect(currentStatus);
 
   // Task type — handle "Others: ..." case
   const savedType   = task?.task_type ?? '';
@@ -692,10 +769,10 @@ function openTaskDetailModal(idOrNull) {
   const logPane   = document.getElementById('taskDetailLogPane');
   const deleteBtn = document.getElementById('taskDetailDeleteBtn');
 
-  // Resolution notes — show only when done
+  // Resolution notes — show only when status is terminal
   const resNotesGroup = document.getElementById('taskResNotesGroup');
   const resNotesEl    = document.getElementById('taskResNotes');
-  if (task?.status === 'done') {
+  if (task && _isTerminal(task.status)) {
     if (resNotesEl)    resNotesEl.value    = task.resolution_notes ?? '';
     if (resNotesGroup) resNotesGroup.style.display = '';
   } else {
@@ -740,7 +817,7 @@ function closeTaskDetailModal() {
 function _toggleTaskResNotesGroup(status) {
   const group = document.getElementById('taskResNotesGroup');
   if (!group) return;
-  group.style.display = status === 'done' ? '' : 'none';
+  group.style.display = _isTerminal(status) ? '' : 'none';
 }
 
 function overlayCloseTaskDetail(e) {
@@ -863,7 +940,7 @@ async function saveTask(e) {
   const newStatus = document.getElementById('taskStatus').value;
   const prevTask  = _taskEditingId ? _tasks.find(t => t.id === _taskEditingId) : null;
 
-  if (newStatus === 'done' && prevTask?.status !== 'done') {
+  if (_isTerminal(newStatus) && !_isTerminal(prevTask?.status)) {
     openTaskDoneRemarksModal((remarks, actionIds, files) => _execSaveTask(remarks, actionIds, files));
     return;
   }
@@ -874,13 +951,14 @@ async function _execSaveTask(remarks, actionIds = [], files = []) {
   const taskName = document.getElementById('taskName').value.trim();
   if (!taskName) return;
 
-  const newStatus = document.getElementById('taskStatus').value;
-  const prevTask  = _taskEditingId ? _tasks.find(t => t.id === _taskEditingId) : null;
+  const newStatus  = document.getElementById('taskStatus').value;
+  const prevTask   = _taskEditingId ? _tasks.find(t => t.id === _taskEditingId) : null;
+  const isTerminal = _isTerminal(newStatus);
 
   let actual_end_date = prevTask?.actual_end_date ?? null;
-  if (newStatus === 'done' && !actual_end_date) {
+  if (isTerminal && !actual_end_date) {
     actual_end_date = new Date().toISOString().slice(0, 10);
-  } else if (newStatus !== 'done') {
+  } else if (!isTerminal) {
     actual_end_date = null;
   }
 
@@ -900,7 +978,7 @@ async function _execSaveTask(remarks, actionIds = [], files = []) {
     estimated_end_date: document.getElementById('taskEstEnd').value || null,
     actual_end_date,
   };
-  if (newStatus === 'done') {
+  if (isTerminal) {
     // remarks = from Done modal on transition; fall back to form field when editing already-done task
     const notesVal = (remarks !== null && remarks !== undefined)
       ? remarks

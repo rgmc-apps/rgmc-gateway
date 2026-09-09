@@ -233,52 +233,11 @@
         </button>
       </div>
 
-      <div class="dev-stats-bar">
-        <div class="dev-stat-pill stat-open">
-          <span class="dev-stat-dot dot-open"></span>
-          <span class="dev-stat-count" id="ut-stat-open">—</span>
-          <span class="dev-stat-label">Open</span>
-        </div>
-        <div class="dev-stat-pill stat-ongoing">
-          <span class="dev-stat-dot dot-ongoing"></span>
-          <span class="dev-stat-count" id="ut-stat-ongoing">—</span>
-          <span class="dev-stat-label">Ongoing</span>
-        </div>
-        <div class="dev-stat-pill stat-done">
-          <span class="dev-stat-dot dot-done"></span>
-          <span class="dev-stat-count" id="ut-stat-done">—</span>
-          <span class="dev-stat-label">Done</span>
-        </div>
-      </div>
+      <div class="dev-stats-bar" id="utStatsBar"></div>
 
-      <!-- Kanban view -->
+      <!-- Kanban view — columns built dynamically by user.js after loading statuses -->
       <div id="ut-kanban-wrap">
-        <div class="kanban-board" id="ut-kanban">
-          <div class="kanban-col" id="ut-col-open" data-status="open">
-            <div class="kanban-col-header">
-              <span class="kanban-col-dot dot-open"></span>
-              Open
-              <span class="kanban-count" id="ut-count-open">0</span>
-            </div>
-            <div class="kanban-cards" id="ut-cards-open"></div>
-          </div>
-          <div class="kanban-col" id="ut-col-ongoing" data-status="ongoing">
-            <div class="kanban-col-header">
-              <span class="kanban-col-dot dot-ongoing"></span>
-              Ongoing
-              <span class="kanban-count" id="ut-count-ongoing">0</span>
-            </div>
-            <div class="kanban-cards" id="ut-cards-ongoing"></div>
-          </div>
-          <div class="kanban-col" id="ut-col-done" data-status="done">
-            <div class="kanban-col-header">
-              <span class="kanban-col-dot dot-done"></span>
-              Done
-              <span class="kanban-count" id="ut-count-done">0</span>
-            </div>
-            <div class="kanban-cards" id="ut-cards-done"></div>
-          </div>
-        </div>
+        <div class="kanban-board" id="ut-kanban"></div>
       </div>
 
       <!-- List view (active tasks: open + ongoing) -->
@@ -326,6 +285,24 @@
               <tr><td colspan="6" class="dlt-empty">No completed tasks yet.</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Dept head: Task Status configuration — shown only to dept heads/admins -->
+      <div id="utCfgStatusSection" class="past-tasks-section" style="display:none;margin-top:28px;">
+        <div class="past-tasks-header" style="cursor:pointer;" onclick="toggleUtCfgStatus()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Configure Task Statuses
+          <span class="past-tasks-sub">Customize your department's task workflow</span>
+        </div>
+        <div id="utCfgStatusBody" style="display:none;margin-top:12px;">
+          <div class="admin-toolbar" style="margin-bottom:12px;">
+            <button class="btn-admin-add" onclick="openUtCfgStatusModal(null)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Status
+            </button>
+          </div>
+          <div id="utCfgStatusList"></div>
         </div>
       </div>
 
@@ -527,9 +504,7 @@
           <div class="form-group">
             <label class="form-label" for="ut-task-status">Status</label>
             <select class="form-input" id="ut-task-status">
-              <option value="open">Open</option>
-              <option value="ongoing">Ongoing</option>
-              <option value="done">Done</option>
+              <!-- Options populated dynamically by user.js -->
             </select>
           </div>
           <div class="form-group">
@@ -660,6 +635,52 @@
           </a>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ── Dept Head: Configure Task Status Modal ── -->
+  <div id="utCfgStatusModal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <div><h3 class="modal-title" id="utCfgStatusModalTitle">Add Status</h3></div>
+        <button class="modal-close" onclick="closeUtCfgStatusModal()" aria-label="Close">&times;</button>
+      </div>
+      <form id="utCfgStatusForm" class="modal-form" onsubmit="saveUtCfgStatus(event)">
+        <div class="form-row" style="align-items:flex-end;gap:10px;">
+          <div class="form-group" style="flex:1;">
+            <label class="form-label" for="utCfgTsLabel">Label <span class="required">*</span></label>
+            <input class="form-input" type="text" id="utCfgTsLabel" maxlength="60" placeholder="e.g. In Review">
+          </div>
+          <div class="form-group" style="flex-shrink:0;padding-bottom:4px;">
+            <label class="form-label" for="utCfgTsColor">Color</label>
+            <input type="color" class="itype-color-swatch itype-color-swatch--lg" id="utCfgTsColor" value="#6b7280" title="Status color">
+          </div>
+        </div>
+        <div class="form-group" style="max-width:280px;">
+          <label class="form-label">Terminal Status</label>
+          <label class="toggle-label">
+            <input type="checkbox" id="utCfgTsIsTerminal">
+            <span class="toggle-text">Marks task as complete when reached</span>
+          </label>
+        </div>
+        <div id="utCfgStatusFormActions" class="modal-actions">
+          <div style="display:flex;gap:8px;">
+            <button type="button" class="btn-tbl-danger" id="utCfgTsDeleteBtn" onclick="deleteUtCfgStatus()" style="display:none;">Delete</button>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button type="button" class="btn-modal-cancel" onclick="closeUtCfgStatusModal()">Cancel</button>
+            <button type="submit" class="btn-modal-submit">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Save
+            </button>
+          </div>
+        </div>
+        <div id="utCfgStatusFormLoading" class="form-state" style="display:none;"><div class="spinner"></div><span>Saving…</span></div>
+        <div id="utCfgStatusFormError" class="form-state form-error" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="utCfgStatusErrorMsg"></span>
+        </div>
+      </form>
     </div>
   </div>
 

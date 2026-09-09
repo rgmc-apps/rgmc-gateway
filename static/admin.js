@@ -96,6 +96,8 @@ let _cfgBrandsCache     = [];
 let _cfgDeptsCache          = [];
 let _cfgDevItemTypesCache   = [];
 let _cfgDevItemTypeEditId   = null;
+let _cfgTaskStatusesCache   = [];
+let _cfgTaskStatusEditId    = null;
 let _cfgCompanyEditCode = null;
 let _cfgCategoryEditId  = null;
 let _cfgTypeEditId      = null;
@@ -3136,7 +3138,7 @@ function _buildPutDeptList(q) {
   </div>`);
   depts.forEach(d => {
     const sel = _putDeptId == d.department_id ? ' selected' : '';
-    rows.push(`<div class="put-sd-opt${sel}" onclick="putDeptSelect(${d.department_id},${JSON.stringify(d.department_name)})">
+    rows.push(`<div class="put-sd-opt${sel}" onclick="putDeptSelect(${d.department_id},${escHtml(JSON.stringify(d.department_name))})">
       <div>
         <div class="put-sd-opt-name">${escHtml(d.department_name)}</div>
         ${d.department_code ? `<div class="put-sd-opt-meta">${escHtml(d.department_code)}</div>` : ''}
@@ -3210,7 +3212,7 @@ function _buildPutUserList(q) {
       ? `<span class="put-sd-opt-avatar"><img src="${escHtml(u.avatar_url)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;"></span>`
       : `<span class="put-sd-opt-avatar put-sd-opt-avatar--initials">${initials}</span>`;
     const meta = [u.position, u.department].filter(Boolean).join(' · ');
-    rows.push(`<div class="put-sd-opt${sel}" onclick="putUserSelect(${JSON.stringify(u.username)},${JSON.stringify(name)})">
+    rows.push(`<div class="put-sd-opt${sel}" onclick="putUserSelect(${escHtml(JSON.stringify(u.username))},${escHtml(JSON.stringify(name))})">
       ${avatar}
       <div>
         <div class="put-sd-opt-name">${escHtml(name)}</div>
@@ -4429,6 +4431,7 @@ function _loadCurrentConfigSub() {
   if (_currentConfigTab === 'departments')        loadCfgDepts();
   if (_currentConfigTab === 'actions')            loadCfgActions();
   if (_currentConfigTab === 'dev-item-types')     loadCfgDevItemTypes();
+  if (_currentConfigTab === 'task-statuses')      loadCfgTaskStatuses();
 }
 
 /* shared modal helpers */
@@ -6602,6 +6605,168 @@ async function _pollAdminOutages() {
       }
     }
   } catch { /* silently ignore */ }
+}
+
+/* ── Task Statuses ── */
+
+async function loadCfgTaskStatuses() {
+  const wrap = document.getElementById('config-task-statuses-body');
+  wrap.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  try {
+    const res = await fetch('/api/admin/task-statuses', { headers: authHeaders() });
+    if (!res.ok) throw new Error(await res.text());
+    _cfgTaskStatusesCache = await res.json();
+    _renderCfgTaskStatuses();
+  } catch (err) {
+    wrap.innerHTML = `<div class="admin-error">Failed: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function _renderCfgTaskStatuses() {
+  const wrap = document.getElementById('config-task-statuses-body');
+  if (!_cfgTaskStatusesCache.length) {
+    wrap.innerHTML = '<div class="admin-empty">No statuses configured. Add one above.</div>';
+    return;
+  }
+  wrap.innerHTML = `<table class="admin-table">
+    <thead><tr>
+      <th style="width:40px;"></th>
+      <th>Label</th>
+      <th>Slug</th>
+      <th>Terminal</th>
+      <th>Type</th>
+      <th class="action-cell">Actions</th>
+    </tr></thead>
+    <tbody>${_cfgTaskStatusesCache.map((s, i) => `
+      <tr>
+        <td><span class="dev-stat-dot" style="background:${escHtml(s.color)};display:inline-block;width:10px;height:10px;border-radius:50%;"></span></td>
+        <td><strong>${escHtml(s.label)}</strong></td>
+        <td><code>${escHtml(s.slug)}</code></td>
+        <td>${s.is_terminal ? '<span class="badge-visible">Yes</span>' : '<span class="badge-hidden">No</span>'}</td>
+        <td>${s.is_system ? '<span class="badge-visible">System</span>' : '<span class="badge-hidden">Custom</span>'}</td>
+        <td class="action-cell" style="display:flex;gap:6px;align-items:center;">
+          ${i > 0
+            ? `<button class="btn-tbl-secondary" title="Move up" onclick="moveCfgTaskStatus('${escHtml(s.id)}','up')">↑</button>`
+            : '<span style="width:32px;display:inline-block;"></span>'}
+          ${i < _cfgTaskStatusesCache.length - 1
+            ? `<button class="btn-tbl-secondary" title="Move down" onclick="moveCfgTaskStatus('${escHtml(s.id)}','down')">↓</button>`
+            : '<span style="width:32px;display:inline-block;"></span>'}
+          <button class="btn-tbl-secondary" onclick='openCfgTaskStatusModal(${JSON.stringify(s)})'>Edit</button>
+          ${!s.is_system
+            ? `<button class="btn-tbl-danger" onclick="deleteCfgTaskStatus('${escHtml(s.id)}')">Delete</button>`
+            : ''}
+        </td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function openCfgTaskStatusModal(status) {
+  _cfgTaskStatusEditId = status ? status.id : null;
+  document.getElementById('cfgTaskStatusModalTitle').textContent = _cfgTaskStatusEditId ? 'Edit Status' : 'Add Status';
+  document.getElementById('cfgTsLabel').value       = status?.label ?? '';
+  document.getElementById('cfgTsColor').value       = status?.color ?? '#6b7280';
+  document.getElementById('cfgTsIsTerminal').checked = !!status?.is_terminal;
+  const deleteBtn = document.getElementById('cfgTsDeleteBtn');
+  deleteBtn.style.display = (_cfgTaskStatusEditId && !status?.is_system) ? '' : 'none';
+  _resetCfgModal('cfgTaskStatus');
+  document.getElementById('cfgTaskStatusModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('cfgTsLabel').focus(), 60);
+}
+
+function closeCfgTaskStatusModal() {
+  document.getElementById('cfgTaskStatusModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function overlayCloseCfgTaskStatus(e) {
+  if (e.target === document.getElementById('cfgTaskStatusModal')) closeCfgTaskStatusModal();
+}
+
+function syncTsColorPreview() { /* color picker updates itself natively */ }
+
+async function saveCfgTaskStatus(e) {
+  e.preventDefault();
+  const label      = document.getElementById('cfgTsLabel').value.trim();
+  const color      = document.getElementById('cfgTsColor').value;
+  const is_terminal = document.getElementById('cfgTsIsTerminal').checked;
+  if (!label) {
+    document.getElementById('cfgTaskStatusFormError').style.display = '';
+    document.getElementById('cfgTaskStatusErrorMsg').textContent = 'Label is required.';
+    return;
+  }
+  _setCfgLoading('cfgTaskStatus', true);
+  try {
+    const payload = { label, color, is_terminal };
+    let res;
+    if (_cfgTaskStatusEditId) {
+      res = await fetch(`/api/admin/task-statuses/${encodeURIComponent(_cfgTaskStatusEditId)}`, {
+        method: 'PATCH',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } else {
+      res = await fetch('/api/admin/task-statuses', {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    }
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    const wasEdit = _cfgTaskStatusEditId;
+    closeCfgTaskStatusModal();
+    showToast(`Status ${wasEdit ? 'updated' : 'added'}.`);
+    loadCfgTaskStatuses();
+  } catch (err) {
+    _setCfgLoading('cfgTaskStatus', false);
+    document.getElementById('cfgTaskStatusFormError').style.display = '';
+    document.getElementById('cfgTaskStatusErrorMsg').textContent = err.message;
+  }
+}
+
+async function deleteCfgTaskStatus(id) {
+  const targetId = id ?? _cfgTaskStatusEditId;
+  if (!targetId) return;
+  if (!await showConfirm({ title: 'Delete Status', message: 'Delete this task status?', detail: 'Tasks with this status will remain but may appear uncategorised.', confirmText: 'Delete', danger: true })) return;
+  closeCfgTaskStatusModal();
+  try {
+    const res = await fetch(`/api/admin/task-statuses/${encodeURIComponent(targetId)}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Delete failed');
+    showToast('Status deleted.');
+    loadCfgTaskStatuses();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+async function moveCfgTaskStatus(id, direction) {
+  const idx = _cfgTaskStatusesCache.findIndex(s => s.id === id);
+  if (idx === -1) return;
+  const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+  if (swapIdx < 0 || swapIdx >= _cfgTaskStatusesCache.length) return;
+  const current = _cfgTaskStatusesCache[idx];
+  const swap    = _cfgTaskStatusesCache[swapIdx];
+  try {
+    await Promise.all([
+      fetch(`/api/admin/task-statuses/${encodeURIComponent(current.id)}`, {
+        method: 'PATCH',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sort_order: swap.sort_order }),
+      }),
+      fetch(`/api/admin/task-statuses/${encodeURIComponent(swap.id)}`, {
+        method: 'PATCH',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sort_order: current.sort_order }),
+      }),
+    ]);
+    loadCfgTaskStatuses();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
 }
 
 // Start polling when admin page loads
