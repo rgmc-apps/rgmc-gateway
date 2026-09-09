@@ -992,6 +992,12 @@ def admin_link_issue(issue_id):
         patch["linked_issue_id"] = target_id
         patch["is_duplicate"]    = is_duplicate
 
+        # Append to multi-link array (preserving existing links)
+        current_ids = list(issue.get("linked_issue_ids") or [])
+        if target_id not in current_ids:
+            current_ids.append(target_id)
+        patch["linked_issue_ids"] = current_ids
+
         # If the target issue is already linked to a dev item, carry that link forward
         if target.get("dev_item_id"):
             patch["dev_item_id"] = target["dev_item_id"]

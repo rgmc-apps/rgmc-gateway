@@ -67,6 +67,7 @@ let _developersCache    = [];
 let _devPerfCache       = [];
 let _devPerfSelected    = null;
 let _issFilteredRows    = [];
+let _linkedTargetIds    = new Set(); // IDs that other issues point to (reverse-link detection)
 
 /* ── Common Fixes state ── */
 let _cfCache              = null;
@@ -2109,6 +2110,13 @@ function _renderIssueTable(rows) {
     return;
   }
 
+  // Pre-compute all issue IDs that are referenced by other issues (for reverse-link badge)
+  _linkedTargetIds = new Set();
+  for (const i of _issuesCache) {
+    for (const id of (i.linked_issue_ids || [])) _linkedTargetIds.add(id);
+    if (i.linked_issue_id) _linkedTargetIds.add(i.linked_issue_id);
+  }
+
   wrap.innerHTML = `
     <table class="admin-table">
       <thead>
@@ -2272,7 +2280,11 @@ function renderIssueRow(issue) {
   const taskBadge     = issue.task_id      ? '<span class="badge-task"  title="Linked to task">Task</span>'         : '';
   const userTaskBadge = issue.user_task_id ? '<span class="badge-user-task" title="Linked to user task">User Task</span>' : '';
   const epicBadge     = issue.epic_id      ? '<span class="badge-epic"  title="Promoted to epic">Epic</span>'       : '';
-  const linkedBadge   = issue.linked_issue_id ? (issue.is_duplicate ? '<span class="badge-duplicate">Duplicate</span>' : '<span class="badge-linked">Linked</span>') : '';
+  const hasOutgoing   = (issue.linked_issue_ids || []).length > 0 || !!issue.linked_issue_id;
+  const hasIncoming   = _linkedTargetIds.has(issue.id);
+  const linkedBadge   = issue.is_duplicate
+    ? '<span class="badge-duplicate">Duplicate</span>'
+    : (hasOutgoing || hasIncoming) ? '<span class="badge-linked">Linked</span>' : '';
   const connectedHtml = [devBadge, taskBadge, userTaskBadge, epicBadge, linkedBadge].filter(Boolean).join(' ') || '<span class="text-muted">—</span>';
 
   const isTerminalStatus = ['resolved', 'closed'].includes((issue.status || '').toLowerCase());
@@ -2409,37 +2421,46 @@ async function openIssueModal(id) {
     epicGroup.style.display = 'none';
   }
 
-  // Linked issue / duplicate display
+  // Linked issues display (multi-link via linked_issue_ids array)
   const linkGroup   = document.getElementById('issueLinkGroup');
   const linkLabel   = document.getElementById('issueLinkLabel');
   const linkDisplay = document.getElementById('issueLinkDisplay');
-  if (issue.linked_issue_id) {
+  const allLinkedIds = Array.from(new Set([
+    ...(issue.linked_issue_ids || []),
+    ...(issue.linked_issue_id ? [issue.linked_issue_id] : []),
+  ]));
+  if (allLinkedIds.length) {
     linkGroup.style.display = '';
-    linkLabel.textContent   = issue.is_duplicate ? 'Duplicate of' : 'Related Issue';
-    // Find linked issue in cache for richer display
-    const linked = _issuesCache.find(i => i.id === issue.linked_issue_id);
-    const ticket = linked?.ticket_number || issue.linked_issue_id.slice(0, 8);
-    const title  = linked?.title || linked?.description?.slice(0, 80) || '';
-    const dupBadge = issue.is_duplicate ? '<span class="badge-duplicate">Duplicate</span>' : '<span class="badge-linked">Linked</span>';
-    linkDisplay.innerHTML = `${dupBadge} <span class="iss-link-ref">#${escHtml(ticket)}</span>${title ? ` — <span class="iss-link-ref-title">${escHtml(title)}</span>` : ''}`;
+    linkLabel.textContent   = issue.is_duplicate ? 'Duplicate of' : `Linked Issues (${allLinkedIds.length})`;
+    linkDisplay.innerHTML = allLinkedIds.map(lid => {
+      const linked   = _issuesCache.find(i => i.id === lid);
+      const ticket   = linked?.ticket_number || lid.slice(0, 8);
+      const title    = linked?.title || linked?.description?.slice(0, 80) || '';
+      const isDup    = issue.is_duplicate && lid === issue.linked_issue_id;
+      const badge    = isDup ? '<span class="badge-duplicate">Duplicate</span>' : '<span class="badge-linked">Linked</span>';
+      return `<div style="margin-bottom:4px;">${badge} <span class="iss-link-ref">#${escHtml(ticket)}</span>${title ? ` — <span class="iss-link-ref-title">${escHtml(title)}</span>` : ''}</div>`;
+    }).join('');
   } else {
     linkGroup.style.display = 'none';
     linkDisplay.innerHTML   = '';
   }
 
-  // Issues that reference this issue (reverse links from linked_issue_id)
+  // Issues that reference this issue (reverse links — from any issue's linked_issue_ids)
   const refByGroup = document.getElementById('issueReferencedByGroup');
   const refByList  = document.getElementById('issueReferencedByList');
   if (refByGroup && refByList) {
-    const referencers = _issuesCache.filter(i => i.linked_issue_id === issue.id);
+    const referencers = _issuesCache.filter(i =>
+      (i.linked_issue_ids || []).includes(issue.id) || i.linked_issue_id === issue.id
+    );
     if (referencers.length) {
       refByGroup.style.display = '';
       refByList.innerHTML = referencers.map(ref => {
-        const tk  = ref.ticket_number ? `#${escHtml(ref.ticket_number)}` : escHtml(ref.id.slice(0, 8)) + '…';
-        const ttl = escHtml(ref.title || (ref.description || '').slice(0, 80));
-        const badge = ref.is_duplicate ? '<span class="badge-duplicate">Duplicate</span>' : '<span class="badge-linked">Linked</span>';
-        return `${badge} <span class="iss-link-ref">${tk}</span>${ttl ? ` — <span class="iss-link-ref-title">${ttl}</span>` : ''}`;
-      }).join('<br>');
+        const tk    = ref.ticket_number ? `#${escHtml(ref.ticket_number)}` : escHtml(ref.id.slice(0, 8)) + '…';
+        const ttl   = escHtml(ref.title || (ref.description || '').slice(0, 80));
+        const isDup = ref.is_duplicate && ref.linked_issue_id === issue.id;
+        const badge = isDup ? '<span class="badge-duplicate">Duplicate</span>' : '<span class="badge-linked">Linked</span>';
+        return `<div style="margin-bottom:4px;">${badge} <span class="iss-link-ref">${tk}</span>${ttl ? ` — <span class="iss-link-ref-title">${ttl}</span>` : ''}</div>`;
+      }).join('');
     } else {
       refByGroup.style.display = 'none';
     }
@@ -3125,7 +3146,13 @@ async function _doIssueLinkSearch(tab, q) {
       // exclude the currently-editing issue
       const res = await fetch(`/api/admin/issues/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() });
       const all = res.ok ? await res.json() : [];
-      items = all.filter(i => i.id !== _editingIssueId);
+      // Exclude this issue itself and any already-linked issues
+      const editingIssue    = _issuesCache.find(i => i.id === _editingIssueId);
+      const alreadyLinked   = new Set([
+        ...(editingIssue?.linked_issue_ids || []),
+        ...(editingIssue?.linked_issue_id ? [editingIssue.linked_issue_id] : []),
+      ]);
+      items = all.filter(i => i.id !== _editingIssueId && !alreadyLinked.has(i.id));
     } else if (tab === 'task') {
       if (!_linkTasksCache) {
         const res = await fetch('/api/tasks', { headers: authHeaders() });
