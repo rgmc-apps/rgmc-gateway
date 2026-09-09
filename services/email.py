@@ -1344,6 +1344,91 @@ def send_password_changed_email(user_record: dict, admin_name: str, changed_at: 
     return _smtp_send(msg, [user_email])
 
 
+def send_outage_email(outage: dict, admin_emails: list, issue_count: int = 2) -> bool:
+    if not admin_emails:
+        return False
+    if not EMAIL_CONFIG["smtp_user"] or not EMAIL_CONFIG["smtp_password"]:
+        logger.warning("SMTP credentials not configured — skipping outage email")
+        return False
+
+    from_addr  = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    site_name  = outage.get("site_name", "Unknown System")
+    error_code = outage.get("error_code", "Unknown Error")
+    notif_num  = outage.get("notification_count", 1)
+    triggered  = outage.get("triggered_at") or outage.get("created_at", "")
+    outage_status = (outage.get("status") or "open").upper()
+
+    try:
+        from datetime import datetime as _dt
+        triggered_fmt = _dt.fromisoformat(triggered.replace("Z", "+00:00")).strftime("%b %d, %Y %I:%M %p UTC") if triggered else "—"
+    except Exception:
+        triggered_fmt = triggered or "—"
+
+    status_badge = {
+        "OPEN":    ("background:#fef9c3;color:#854d0e;", "OPEN"),
+        "ONGOING": ("background:#fee2e2;color:#7f1d1d;", "ONGOING"),
+    }.get(outage_status, ("background:#dcfce7;color:#14532d;", outage_status))
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#7f1d1d 0%,#450a0a 100%);padding:28px 32px;border-bottom:3px solid #ef4444;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:32px;">&#x1F6A8;</div>
+        <div>
+          <h2 style="margin:0;font-size:22px;color:#fca5a5;font-weight:700;">OUTAGE DETECTED</h2>
+          <p style="margin:4px 0 0;color:rgba(255,255,255,.7);font-size:13px;">RGMC System Gateway &mdash; Notification {notif_num} of 2</p>
+        </div>
+      </div>
+    </div>
+    <div style="padding:28px 32px;">
+      <div style="background:#fef2f2;border:1px solid #fca5a5;border-left:4px solid #ef4444;border-radius:0 6px 6px 0;padding:14px 16px;margin-bottom:24px;">
+        <p style="margin:0;font-size:14px;color:#7f1d1d;font-weight:600;">
+          Multiple users are reporting the same error on <strong>{site_name}</strong>. This may indicate a system outage.
+        </p>
+      </div>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;border-radius:8px;overflow:hidden;">
+        <tr style="background:#f8fafc;">
+          <td style="padding:11px 16px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;width:140px;border-bottom:1px solid #e2e8f0;">System</td>
+          <td style="padding:11px 16px;font-size:14px;color:#1e293b;border-bottom:1px solid #e2e8f0;font-weight:600;">{site_name}</td>
+        </tr>
+        <tr>
+          <td style="padding:11px 16px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e2e8f0;">Error Code</td>
+          <td style="padding:11px 16px;font-size:14px;color:#dc2626;border-bottom:1px solid #e2e8f0;font-family:monospace;font-weight:700;">{error_code}</td>
+        </tr>
+        <tr style="background:#f8fafc;">
+          <td style="padding:11px 16px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e2e8f0;">Reports</td>
+          <td style="padding:11px 16px;font-size:14px;color:#1e293b;border-bottom:1px solid #e2e8f0;">{issue_count} issue{'' if issue_count == 1 else 's'} with matching error code</td>
+        </tr>
+        <tr>
+          <td style="padding:11px 16px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e2e8f0;">Detected At</td>
+          <td style="padding:11px 16px;font-size:14px;color:#1e293b;border-bottom:1px solid #e2e8f0;">{triggered_fmt}</td>
+        </tr>
+        <tr style="background:#f8fafc;">
+          <td style="padding:11px 16px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Status</td>
+          <td style="padding:11px 16px;border-bottom:1px solid #e2e8f0;">
+            <span style="display:inline-block;padding:3px 10px;{status_badge[0]}border-radius:20px;font-size:12px;font-weight:700;">{status_badge[1]}</span>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">
+        Log in to the <strong>Admin Panel &rarr; Outages</strong> tab to view details and update the outage status.
+      </p>
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    msg            = MIMEMultipart("alternative")
+    msg["Subject"] = f"[OUTAGE DETECTED] {site_name} — Error: {error_code}"
+    msg["From"]    = from_addr
+    msg["To"]      = ", ".join(admin_emails)
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, admin_emails)
+
+
 def send_password_reset_email(user: dict, reset_url: str) -> bool:
     user_email = user.get("email", "")
     if not user_email:

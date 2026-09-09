@@ -10,6 +10,86 @@ from services.email import send_report_email, send_issue_resolved_email, send_is
 issues_bp = Blueprint("issues", __name__)
 
 
+def _check_outage(issue: dict) -> None:
+    """Detect if a new issue triggers an outage (2+ issues, same site + error_code)."""
+    from datetime import datetime, timezone
+    site_name  = (issue.get("site_name") or "").strip()
+    error_code = (issue.get("error_code") or "").strip()
+    if not site_name or not error_code:
+        return
+    try:
+        matching = supabase_req("GET", "/issues", params={
+            "site_name":  f"eq.{site_name}",
+            "error_code": f"eq.{error_code}",
+            "status":     "not.in.(resolved,closed)",
+            "select":     "id",
+        })
+        if not matching or len(matching) < 2:
+            return
+
+        issue_ids   = [r["id"] for r in matching]
+        issue_count = len(matching)
+
+        existing = supabase_req("GET", "/outages", params={
+            "site_name":  f"eq.{site_name}",
+            "error_code": f"eq.{error_code}",
+            "status":     "in.(open,ongoing)",
+            "select":     "*",
+            "limit":      "1",
+        })
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        if existing:
+            outage = existing[0]
+            patch  = {
+                "issue_ids":  issue_ids,
+                "status":     "ongoing",
+                "updated_at": now_iso,
+            }
+            if outage["notification_count"] < 2:
+                patch["notification_count"] = outage["notification_count"] + 1
+                supabase_req("PATCH", "/outages", data=patch,
+                             params={"id": f"eq.{outage['id']}"})
+                outage = {**outage, **patch}
+            else:
+                supabase_req("PATCH", "/outages", data=patch,
+                             params={"id": f"eq.{outage['id']}"})
+                return
+        else:
+            rows = supabase_req("POST", "/outages", data={
+                "site_name":          site_name,
+                "error_code":         error_code,
+                "status":             "open",
+                "issue_ids":          issue_ids,
+                "notification_count": 1,
+            }, extra_headers={"Prefer": "return=representation"})
+            if not rows:
+                return
+            outage = rows[0]
+
+        try:
+            admin_rows = supabase_req("GET", "/users", params={
+                "or":     "(is_admin.eq.true,is_management.eq.true)",
+                "select": "email,first_name,last_name",
+            })
+            admin_emails = [r["email"] for r in (admin_rows or []) if r.get("email")]
+            if admin_emails:
+                from services.email import send_outage_email
+                send_outage_email(outage, admin_emails, issue_count)
+        except Exception as exc:
+            current_app.logger.warning("Outage email notification failed: %s", exc)
+
+        try:
+            from services.it_bot import notify_outage_detected
+            notify_outage_detected(outage, issue_count)
+        except Exception as exc:
+            current_app.logger.warning("Outage IT bot notification failed: %s", exc)
+
+    except Exception as exc:
+        current_app.logger.error("_check_outage failed: %s", exc)
+
+
 def _strip_html(text):
     """Strip HTML tags from rich-editor content, returning plain text."""
     if not text:
@@ -132,6 +212,7 @@ def _submit_issue():
         if attachment_urls:
             created_issue["attachment_urls"] = attachment_urls
         notify_ticket_created(created_issue)
+        _check_outage(created_issue)
 
     msg = (f"Your report {ticket_number} has been submitted. The IT team will be in touch shortly."
            if ticket_number else
@@ -250,6 +331,7 @@ def _submit_helpdesk_issue():
         if attachment_urls:
             created_issue["attachment_urls"] = attachment_urls
         notify_ticket_created(created_issue)
+        _check_outage(created_issue)
 
     msg = (f"Your ticket {ticket_number} has been submitted. The IT team will be in touch shortly."
            if ticket_number else

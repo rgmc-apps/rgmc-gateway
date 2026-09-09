@@ -97,7 +97,6 @@
 
   /* XL modal footer: allow button row to wrap */
   .item-detail-footer { flex-wrap: wrap; gap: 10px; }
-  .item-detail-footer-right { flex: 1; min-width: 0; }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -241,8 +240,9 @@
   .modal { border-radius: var(--radius); }
   .modal-lg  { max-width: 100%; }
   .modal-xl  { max-width: 100%; overflow-y: auto; height: auto; display: block; }
-  .item-detail-body { grid-template-columns: 1fr !important; height: auto; max-height: none; }
-  .item-detail-log  { border-left: none; border-top: 1px solid var(--border-subtle); height: 300px; }
+  .item-detail-body { height: auto; max-height: none; overflow: visible; }
+  .item-detail-scroll { overflow: visible; height: auto; }
+  .activity-log-list { max-height: 260px; }
   .detail-new .item-detail-log { display: none !important; }
 
   /* ── Tour modal ── */

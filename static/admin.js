@@ -278,6 +278,7 @@ function switchTab(tab) {
   if (tab === 'commonfix')  loadCommonFixes();
   if (tab === 'devperf')    loadDevPerf();
   if (tab === 'config')     _loadCurrentConfigSub();
+  if (tab === 'outages')    loadOutages();
 }
 
 function switchStatus(status) {
@@ -6113,3 +6114,204 @@ async function deleteCfgDevItemType(id, name) {
     showToast(`Error: ${err.message}`);
   }
 }
+
+/* ── Outages Tab ─────────────────────────────────────────────────── */
+
+let _outagesCache      = [];
+let _editingOutageId   = null;
+
+const OUTAGE_STATUS_LABELS = { open: 'Open', ongoing: 'Ongoing', resolved: 'Resolved' };
+const OUTAGE_STATUS_STYLES = {
+  open:     'background:rgba(234,179,8,.15);color:#ca8a04;border:1px solid rgba(234,179,8,.3);',
+  ongoing:  'background:rgba(239,68,68,.15);color:#dc2626;border:1px solid rgba(239,68,68,.3);',
+  resolved: 'background:rgba(34,197,94,.12);color:#16a34a;border:1px solid rgba(34,197,94,.25);',
+};
+
+async function loadOutages() {
+  const wrap   = document.getElementById('outages-body');
+  const filter = (document.getElementById('outageStatusFilter')?.value || '').trim();
+  wrap.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading outages…</span></div>';
+  try {
+    const res  = await fetch('/api/admin/outages', { headers: authHeaders() });
+    if (!res.ok) throw new Error(await res.text());
+    let rows = await res.json();
+    _outagesCache = rows;
+
+    if (filter) rows = rows.filter(r => r.status === filter);
+
+    // Update sidebar badge
+    const active = _outagesCache.filter(r => r.status === 'open' || r.status === 'ongoing').length;
+    const badge  = document.getElementById('activeOutagesCount');
+    if (badge) { badge.textContent = active || ''; badge.style.display = active ? '' : 'none'; }
+
+    if (rows.length === 0) {
+      wrap.innerHTML = `<div class="admin-empty"><div class="admin-empty-icon">&#x26A0;</div><div class="admin-empty-title">No outages${filter ? ' with this status' : ''}</div></div>`;
+      return;
+    }
+
+    const table = document.createElement('table');
+    table.className = 'admin-table';
+    table.innerHTML = `
+      <thead><tr>
+        <th>System</th>
+        <th>Error Code</th>
+        <th>Status</th>
+        <th>Reports</th>
+        <th>Detected</th>
+        <th>Resolved</th>
+        <th>Notes</th>
+        <th></th>
+      </tr></thead>
+      <tbody id="outages-tbody"></tbody>`;
+    wrap.innerHTML = '';
+    wrap.appendChild(table);
+
+    const tbody = document.getElementById('outages-tbody');
+    tbody.innerHTML = rows.map(o => {
+      const statusStyle = OUTAGE_STATUS_STYLES[o.status] || '';
+      const statusLabel = OUTAGE_STATUS_LABELS[o.status] || o.status;
+      const count       = (o.issue_ids || []).length;
+      const notes       = o.notes ? escHtml(o.notes.slice(0, 60)) + (o.notes.length > 60 ? '…' : '') : '—';
+      return `<tr>
+        <td style="font-weight:600;">${escHtml(o.site_name)}</td>
+        <td><code style="font-size:12px;color:var(--error);">${escHtml(o.error_code)}</code></td>
+        <td><span style="padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:700;white-space:nowrap;${statusStyle}">${statusLabel}</span></td>
+        <td style="color:var(--text-secondary);">${count}</td>
+        <td style="color:var(--text-secondary);white-space:nowrap;">${fmtDateTime(o.triggered_at)}</td>
+        <td style="color:var(--text-secondary);white-space:nowrap;">${o.resolved_at ? fmtDate(o.resolved_at) : '—'}</td>
+        <td style="color:var(--text-secondary);max-width:200px;">${notes}</td>
+        <td style="white-space:nowrap;">
+          <button class="btn-tbl-secondary" onclick="openOutageNotesModal('${escHtml(o.id)}')">Edit</button>
+          ${o.status !== 'resolved' ? `<button class="btn-tbl-danger" onclick="resolveOutage('${escHtml(o.id)}')">Resolve</button>` : ''}
+        </td>
+      </tr>`;
+    }).join('');
+  } catch (err) {
+    wrap.innerHTML = `<div class="admin-empty"><div class="admin-empty-title">Failed to load outages</div><div class="admin-empty-sub">${escHtml(err.message)}</div></div>`;
+  }
+}
+
+function openOutageNotesModal(id) {
+  _editingOutageId = id;
+  const o = _outagesCache.find(x => x.id === id);
+  if (!o) return;
+  document.getElementById('outageNotesTitle').textContent   = `Outage: ${o.site_name} — ${o.error_code}`;
+  document.getElementById('outageNotesStatus').value        = o.status;
+  document.getElementById('outageNotesText').value          = o.notes || '';
+  const overlay = document.getElementById('outageNotesOverlay');
+  overlay.style.display = 'flex';
+}
+
+function closeOutageNotesModal() {
+  document.getElementById('outageNotesOverlay').style.display = 'none';
+  _editingOutageId = null;
+}
+
+function overlayCloseOutageNotes(e) {
+  if (e.target === document.getElementById('outageNotesOverlay')) closeOutageNotesModal();
+}
+
+async function saveOutageNotes() {
+  if (!_editingOutageId) return;
+  const status = document.getElementById('outageNotesStatus').value;
+  const notes  = document.getElementById('outageNotesText').value.trim();
+  try {
+    const res = await fetch(`/api/admin/outages/${encodeURIComponent(_editingOutageId)}`, {
+      method: 'PATCH',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, notes }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    showToast('Outage updated.');
+    closeOutageNotesModal();
+    loadOutages();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+async function resolveOutage(id) {
+  if (!await showConfirm({
+    title: 'Resolve Outage',
+    message: 'Mark this outage as resolved?',
+    confirmText: 'Resolve',
+  })) return;
+  try {
+    const res = await fetch(`/api/admin/outages/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'resolved' }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    showToast('Outage resolved.');
+    loadOutages();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+/* ── Outage alert modal (admin page) ──────────────────────────── */
+
+let _adminOutageAlertId    = null;
+let _adminOutageAlertCount = 0;
+
+function _outageSeenKey(id, count) {
+  return `rgmc_outage_seen_${id}_${count}`;
+}
+
+function adminOutageDismiss() {
+  if (_adminOutageAlertId) {
+    localStorage.setItem(_outageSeenKey(_adminOutageAlertId, _adminOutageAlertCount), '1');
+  }
+  document.getElementById('outageAlertOverlay').style.display = 'none';
+  _adminOutageAlertId    = null;
+  _adminOutageAlertCount = 0;
+}
+
+function adminOutageViewTab() {
+  adminOutageDismiss();
+  switchTab('outages');
+}
+
+function _showAdminOutageAlert(o) {
+  _adminOutageAlertId    = o.id;
+  _adminOutageAlertCount = o.notification_count;
+  const fmt = iso => {
+    if (!iso) return '—';
+    try { return new Date(iso).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+    catch { return iso; }
+  };
+  document.getElementById('oamSiteName').textContent   = o.site_name  || '—';
+  document.getElementById('oamErrorCode').textContent  = o.error_code || '—';
+  document.getElementById('oamIssueCount').textContent = `${(o.issue_ids || []).length} issue(s) with matching error code`;
+  document.getElementById('oamTriggered').textContent  = fmt(o.triggered_at);
+  document.getElementById('oamNotifNum').textContent   = `Notification ${o.notification_count} of 2`;
+  const overlay = document.getElementById('outageAlertOverlay');
+  overlay.style.display = 'flex';
+}
+
+async function _pollAdminOutages() {
+  try {
+    const res = await fetch('/api/outage-check', { headers: authHeaders() });
+    if (!res.ok) return;
+    const outages = await res.json();
+    if (!Array.isArray(outages)) return;
+
+    // Update sidebar badge
+    const badge = document.getElementById('activeOutagesCount');
+    if (badge) { badge.textContent = outages.length || ''; badge.style.display = outages.length ? '' : 'none'; }
+
+    for (const o of outages) {
+      if (!localStorage.getItem(_outageSeenKey(o.id, o.notification_count))) {
+        _showAdminOutageAlert(o);
+        break;
+      }
+    }
+  } catch { /* silently ignore */ }
+}
+
+// Start polling when admin page loads
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(_pollAdminOutages, 2000);
+  setInterval(_pollAdminOutages, 60000);
+});

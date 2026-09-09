@@ -236,14 +236,20 @@
 .modal-xl .dp-pdf-bar   { flex-shrink: 0; }
 
 .item-detail-body {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
-.detail-new {
-  grid-template-columns: 1fr;
+
+.item-detail-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
 }
+
 .detail-new .item-detail-log { display: none !important; }
 
 .item-detail-form {
@@ -251,17 +257,21 @@
   flex-direction: column;
   gap: 18px;
   padding: 24px 28px 0;
-  overflow-y: auto;
-  overflow-x: hidden;
   min-width: 0;
 }
 
 .item-detail-log {
   display: flex;
   flex-direction: column;
-  border-left: 1px solid var(--border-subtle);
-  overflow: hidden;
+  border-top: 1px solid var(--border-subtle);
   min-width: 0;
+}
+
+/* Restore 2-col grid for the epic modal which uses the same classes */
+#epicDetailModal .item-detail-body {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  overflow: visible;
 }
 
 .detail-log-header {
@@ -282,20 +292,12 @@
 .item-detail-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 18px 28px 24px;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 28px 20px;
   border-top: 1px solid var(--border-subtle);
   flex-shrink: 0;
   background: var(--bg-modal);
-}
-
-.item-detail-footer-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
 }
 
 .detail-save-group {
@@ -477,8 +479,9 @@
   .form-row-3 { grid-template-columns: 1fr; }
   .modal-lg  { max-width: 100%; }
   .modal-xl  { max-width: 100%; overflow-y: auto; height: auto; display: block; }
-  .item-detail-body { grid-template-columns: 1fr !important; height: auto; max-height: none; }
-  .item-detail-log  { border-left: none; border-top: 1px solid var(--border-subtle); height: 320px; }
+  .item-detail-body { height: auto; max-height: none; overflow: visible; }
+  .item-detail-scroll { overflow: visible; height: auto; }
+  .activity-log-list { max-height: 280px; }
   .detail-new .item-detail-log { display: none !important; }
   .systems-grid { grid-template-columns: 1fr; }
   .health-grid { grid-template-columns: 1fr; }

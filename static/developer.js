@@ -685,8 +685,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('click', e => {
     if (!e.target.closest('#sysMultiWrap'))     closeSysDropdown();
     if (!e.target.closest('#epicSysMultiWrap')) closeEpicSysDropdown();
-    if (!e.target.closest('.dup-type-wrap')) {
-      const m = document.getElementById('dupTypeMenu');
+    if (!e.target.closest('#detailActionsWrap')) {
+      const m = document.getElementById('detailActionsMenu');
       if (m) m.classList.remove('open');
     }
     closeProfileMenu();
@@ -1673,26 +1673,20 @@ function openDetailModal(idOrNull) {
     othersGroup.style.display = 'none';
   }
 
-  const body      = document.getElementById('itemDetailBody');
-  const logPane   = document.getElementById('detailLogPane');
-  const deleteBtn = document.getElementById('detailDeleteBtn');
-  const dupWrap   = document.getElementById('dupTypeWrap');
+  const body        = document.getElementById('itemDetailBody');
+  const logPane     = document.getElementById('detailLogPane');
+  const actionsWrap = document.getElementById('detailActionsWrap');
 
-  const scopeBtn = document.getElementById('scopeChangeBtn');
   if (item) {
     body.classList.remove('detail-new');
-    logPane.style.display   = '';
-    deleteBtn.style.display = '';
-    if (dupWrap) { dupWrap.style.display = ''; _buildDupTypeMenu(); }
-    if (scopeBtn) scopeBtn.style.display = '';
+    logPane.style.display = '';
+    if (actionsWrap) { actionsWrap.style.display = ''; _buildDupTypeMenu(); }
     refreshLogs();
     loadLinkedIssues(item.id);
   } else {
     body.classList.add('detail-new');
-    logPane.style.display   = 'none';
-    deleteBtn.style.display = 'none';
-    if (dupWrap) dupWrap.style.display = 'none';
-    if (scopeBtn) scopeBtn.style.display = 'none';
+    logPane.style.display = 'none';
+    if (actionsWrap) actionsWrap.style.display = 'none';
   }
 
   resetItemForm();
@@ -1708,8 +1702,8 @@ function openDetailModal(idOrNull) {
 
 function closeDetailModal() {
   closeSysDropdown();
-  const dupMenu = document.getElementById('dupTypeMenu');
-  if (dupMenu) dupMenu.classList.remove('open');
+  const actMenu = document.getElementById('detailActionsMenu');
+  if (actMenu) actMenu.classList.remove('open');
   const detailModal = document.getElementById('itemDetailModal');
   detailModal.classList.remove('open');
   detailModal.style.zIndex = '';
@@ -1724,6 +1718,18 @@ function closeDetailModal() {
 
 function overlayCloseDetail(e) {
   if (e.target === document.getElementById('itemDetailModal')) closeDetailModal();
+}
+
+function toggleDetailActionsMenu(e) {
+  e.stopPropagation();
+  const menu = document.getElementById('detailActionsMenu');
+  if (!menu) return;
+  menu.classList.toggle('open');
+}
+
+function closeDetailActionsMenu() {
+  const menu = document.getElementById('detailActionsMenu');
+  if (menu) menu.classList.remove('open');
 }
 
 /* ── Resolution helpers (actions checklist + image attachments) ── */
@@ -1847,8 +1853,7 @@ function toggleDupTypeMenu(e) {
 }
 
 async function duplicateItemAs(targetTypeName) {
-  const menu = document.getElementById('dupTypeMenu');
-  if (menu) menu.classList.remove('open');
+  closeDetailActionsMenu();
   if (!_editingId) return;
   const src = _items.find(i => i.id === _editingId);
   if (!src) return;

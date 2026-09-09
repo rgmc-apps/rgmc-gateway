@@ -134,6 +134,21 @@ def notify_issue_promoted_to_epic(ticket: dict, epic: dict) -> None:
         logger.warning("IT bot notify_issue_promoted_to_epic failed: %s", exc)
 
 
+def notify_outage_detected(outage: dict, issue_count: int = 2) -> None:
+    """POST outage.detected event to the IT bot. Fire-and-forget — never raises."""
+    if not _ready():
+        return
+    try:
+        requests.post(
+            f"{IT_BOT_URL.rstrip('/')}/api/notify/outage-detected",
+            headers=_headers(),
+            json={"event": "outage.detected", "outage": outage, "issue_count": issue_count},
+            timeout=5,
+        )
+    except Exception as exc:
+        logger.warning("IT bot notify_outage_detected failed: %s", exc)
+
+
 def build_changes(before: dict, patch: dict) -> dict:
     """Return a TicketChanges dict comparing before-state to patch fields."""
     changes = {}

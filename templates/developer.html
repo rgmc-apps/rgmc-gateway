@@ -604,176 +604,187 @@
           <h3 class="modal-title" id="detailModalTitle">New Item</h3>
           <p class="modal-site-name" id="detailModalMeta">Fill in the details below</p>
         </div>
-        <button class="modal-close" onclick="closeDetailModal()" aria-label="Close">&times;</button>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <!-- ── Actions submenu (existing items only) ── -->
+          <div class="detail-actions-wrap" id="detailActionsWrap" style="display:none;">
+            <button type="button" class="btn-detail-actions" onclick="toggleDetailActionsMenu(event)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+              Actions
+              <svg class="detail-actions-chevron" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="detail-actions-menu" id="detailActionsMenu">
+              <button type="button" class="dam-item dam-item-danger" id="detailDeleteBtn" onclick="deleteItemFromDetail()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                Delete Item
+              </button>
+              <div class="dam-sep"></div>
+              <div class="dam-label">Duplicate as…</div>
+              <div id="dupTypeMenu" class="dup-type-menu"></div>
+              <div class="dam-sep"></div>
+              <button type="button" class="dam-item" id="scopeChangeBtn" onclick="openScopeChangeModal();closeDetailActionsMenu()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                Scope Change
+              </button>
+            </div>
+          </div>
+          <button class="modal-close" onclick="closeDetailModal()" aria-label="Close">&times;</button>
+        </div>
       </div>
 
       <div class="item-detail-body detail-new" id="itemDetailBody">
 
-        <!-- ── Left: editable fields ── -->
-        <form id="itemForm" class="item-detail-form" onsubmit="saveItem(event)">
-          <input type="hidden" id="itemEditId">
+        <!-- ── Scrollable area: form fields + activity log ── -->
+        <div class="item-detail-scroll">
 
-          <div class="form-group">
-            <label class="form-label" for="itemTitle">Title <span class="required">*</span></label>
-            <input class="form-input" type="text" id="itemTitle" placeholder="Brief description of the task">
-          </div>
+          <form id="itemForm" class="item-detail-form" onsubmit="saveItem(event)">
+            <input type="hidden" id="itemEditId">
 
-          <div class="form-group">
-            <label class="form-label" for="itemType">Item Type</label>
-            <select class="form-input" id="itemType" onchange="onItemTypeChange()">
-              <option value="">— Select Type —</option>
-            </select>
-          </div>
-          <div class="form-group" id="itemTypeOthersGroup" style="display:none;">
-            <label class="form-label" for="itemTypeOthers">Please specify</label>
-            <input class="form-input" type="text" id="itemTypeOthers" placeholder="Describe the item type…">
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="itemEpic">Epic <span class="form-label-hint">(optional)</span></label>
-            <select class="form-input" id="itemEpic">
-              <option value="">— None —</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="itemDesc">Description</label>
-            <textarea class="form-input form-textarea" id="itemDesc" rows="3" placeholder="More detail, acceptance criteria, notes…"></textarea>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Systems <span class="form-label-hint">(optional)</span></label>
-            <div class="system-select-row">
-              <div class="sys-multi-wrap" id="sysMultiWrap">
-                <button type="button" class="form-input sys-multi-trigger" id="sysMultiTrigger" onclick="toggleSysDropdown()">
-                  <span id="sysMultiLabel" class="sys-multi-label-text is-placeholder">— None —</span>
-                  <svg class="sys-multi-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-                <div class="sys-multi-dropdown" id="sysMultiDropdown"></div>
-              </div>
-              <button type="button" class="btn-add-system" onclick="openAddSystemModal()" title="Add a new system">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                New System
-              </button>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="itemAssignedTo">Assigned To</label>
-            <select class="form-input" id="itemAssignedTo">
-              <option value="">— Unassigned —</option>
-            </select>
-          </div>
-
-          <div class="form-row">
             <div class="form-group">
-              <label class="form-label" for="itemStatus">Status</label>
-              <select class="form-input" id="itemStatus">
-                <option value="pending">Pending</option>
-                <option value="ongoing">Ongoing</option>
-                <option value="coding">Coding</option>
-                <option value="testing">Testing</option>
-                <option value="done">Done</option>
+              <label class="form-label" for="itemTitle">Title <span class="required">*</span></label>
+              <input class="form-input" type="text" id="itemTitle" placeholder="Brief description of the task">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="itemType">Item Type</label>
+              <select class="form-input" id="itemType" onchange="onItemTypeChange()">
+                <option value="">— Select Type —</option>
               </select>
             </div>
-            <div class="form-group">
-              <label class="form-label" for="itemStart">Start Date</label>
-              <input class="form-input" type="date" id="itemStart">
+            <div class="form-group" id="itemTypeOthersGroup" style="display:none;">
+              <label class="form-label" for="itemTypeOthers">Please specify</label>
+              <input class="form-input" type="text" id="itemTypeOthers" placeholder="Describe the item type…">
             </div>
-          </div>
 
-          <div class="form-row">
             <div class="form-group">
-              <label class="form-label" for="itemEstEnd">Estimated End Date</label>
-              <input class="form-input" type="date" id="itemEstEnd">
+              <label class="form-label" for="itemEpic">Epic <span class="form-label-hint">(optional)</span></label>
+              <select class="form-input" id="itemEpic">
+                <option value="">— None —</option>
+              </select>
             </div>
+
             <div class="form-group">
-              <label class="form-label" for="itemStoryPoints">Story Points <span class="form-label-hint">(1 pt = 1 day, 0.5 = half day)</span></label>
-              <input class="form-input" type="number" id="itemStoryPoints" min="0.25" step="0.25" placeholder="—">
+              <label class="form-label" for="itemDesc">Description</label>
+              <textarea class="form-input form-textarea" id="itemDesc" rows="3" placeholder="More detail, acceptance criteria, notes…"></textarea>
             </div>
-          </div>
 
-          <div class="form-group form-group-inline">
-            <input type="checkbox" class="form-checkbox" id="itemIsParked">
-            <label class="form-label form-label-inline" for="itemIsParked">Park this item <span class="form-label-hint">(hide from Kanban board)</span></label>
-          </div>
-
-          <div class="item-detail-footer">
-            <button type="button" class="btn-detail-delete" id="detailDeleteBtn" onclick="deleteItemFromDetail()" style="display:none;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-              Delete
-            </button>
-            <div class="dup-type-wrap" id="dupTypeWrap" style="display:none;">
-              <button type="button" class="btn-detail-dup" onclick="toggleDupTypeMenu(event)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                Duplicate as…
-                <svg class="dup-chevron" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
-              <div class="dup-type-menu" id="dupTypeMenu"></div>
-            </div>
-            <button type="button" class="btn-detail-scope" id="scopeChangeBtn" onclick="openScopeChangeModal()" style="display:none;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-              Scope Change
-            </button>
-            <div class="item-detail-footer-right">
-              <div id="itemFormLoading" class="form-state" style="display:none;"><div class="spinner"></div><span>Saving…</span></div>
-              <div id="itemFormError" class="form-state form-error" style="display:none;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                <span id="itemErrorMsg"></span>
+            <div class="form-group">
+              <label class="form-label">Systems <span class="form-label-hint">(optional)</span></label>
+              <div class="system-select-row">
+                <div class="sys-multi-wrap" id="sysMultiWrap">
+                  <button type="button" class="form-input sys-multi-trigger" id="sysMultiTrigger" onclick="toggleSysDropdown()">
+                    <span id="sysMultiLabel" class="sys-multi-label-text is-placeholder">— None —</span>
+                    <svg class="sys-multi-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <div class="sys-multi-dropdown" id="sysMultiDropdown"></div>
+                </div>
+                <button type="button" class="btn-add-system" onclick="openAddSystemModal()" title="Add a new system">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  New System
+                </button>
               </div>
-              <div id="itemFormActions" class="detail-save-group">
-                <button type="button" class="btn-modal-cancel" onclick="closeDetailModal()">Cancel</button>
-                <button type="submit" class="btn-modal-submit" id="itemSubmitBtn">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  Save
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="itemAssignedTo">Assigned To</label>
+              <select class="form-input" id="itemAssignedTo">
+                <option value="">— Unassigned —</option>
+              </select>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="itemStatus">Status</label>
+                <select class="form-input" id="itemStatus">
+                  <option value="pending">Pending</option>
+                  <option value="ongoing">Ongoing</option>
+                  <option value="coding">Coding</option>
+                  <option value="testing">Testing</option>
+                  <option value="done">Done</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="itemStart">Start Date</label>
+                <input class="form-input" type="date" id="itemStart">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="itemEstEnd">Estimated End Date</label>
+                <input class="form-input" type="date" id="itemEstEnd">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="itemStoryPoints">Story Points <span class="form-label-hint">(1 pt = 1 day, 0.5 = half day)</span></label>
+                <input class="form-input" type="number" id="itemStoryPoints" min="0.25" step="0.25" placeholder="—">
+              </div>
+            </div>
+
+            <div class="form-group form-group-inline" style="padding-bottom:24px;">
+              <input type="checkbox" class="form-checkbox" id="itemIsParked">
+              <label class="form-label form-label-inline" for="itemIsParked">Park this item <span class="form-label-hint">(hide from Kanban board)</span></label>
+            </div>
+          </form>
+
+          <!-- ── Activity log: below form on desktop ── -->
+          <div class="item-detail-log" id="detailLogPane" style="display:none;">
+
+            <!-- Linked Issues section -->
+            <div class="linked-iss-section" id="linkedIssSection" style="display:none;">
+              <div class="linked-iss-header">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                Linked Issues
+              </div>
+              <div id="linkedIssList" class="linked-iss-list"></div>
+            </div>
+
+            <div class="detail-log-header">
+              <div class="log-header-left">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Activity Log
+              </div>
+              <div id="logTotalHours" class="log-total-hours" style="display:none;"></div>
+            </div>
+            <div id="logList" class="activity-log-list">
+              <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
+            </div>
+            <div class="activity-log-add">
+              <textarea class="form-input form-textarea" id="logMessage" rows="2" placeholder="Add an activity note…"></textarea>
+              <div class="log-hours-row">
+                <label class="log-hours-label" for="logHours">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  Hours spent
+                </label>
+                <input class="form-input log-hours-input" type="number" id="logHours"
+                  placeholder="0.0" min="0" max="24" step="0.25">
+              </div>
+              <div class="log-post-row">
+                <div id="logAddError" class="form-state form-error" style="display:none;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <span id="logAddErrorMsg"></span>
+                </div>
+                <button type="button" class="btn-modal-submit" onclick="addLog()">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  Post
                 </button>
               </div>
             </div>
           </div>
-        </form>
 
-        <!-- ── Right: activity log (hidden for new items) ── -->
-        <div class="item-detail-log" id="detailLogPane" style="display:none;">
+        </div>
 
-          <!-- Linked Issues section -->
-          <div class="linked-iss-section" id="linkedIssSection" style="display:none;">
-            <div class="linked-iss-header">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-              Linked Issues
-            </div>
-            <div id="linkedIssList" class="linked-iss-list"></div>
+        <!-- ── Footer: always visible at bottom ── -->
+        <div class="item-detail-footer">
+          <div id="itemFormLoading" class="form-state" style="display:none;"><div class="spinner"></div><span>Saving…</span></div>
+          <div id="itemFormError" class="form-state form-error" style="display:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="itemErrorMsg"></span>
           </div>
-
-          <div class="detail-log-header">
-            <div class="log-header-left">
-              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              Activity Log
-            </div>
-            <div id="logTotalHours" class="log-total-hours" style="display:none;"></div>
-          </div>
-          <div id="logList" class="activity-log-list">
-            <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
-          </div>
-          <div class="activity-log-add">
-            <textarea class="form-input form-textarea" id="logMessage" rows="2" placeholder="Add an activity note…"></textarea>
-            <div class="log-hours-row">
-              <label class="log-hours-label" for="logHours">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                Hours spent
-              </label>
-              <input class="form-input log-hours-input" type="number" id="logHours"
-                placeholder="0.0" min="0" max="24" step="0.25">
-            </div>
-            <div class="log-post-row">
-              <div id="logAddError" class="form-state form-error" style="display:none;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                <span id="logAddErrorMsg"></span>
-              </div>
-              <button type="button" class="btn-modal-submit" onclick="addLog()">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                Post
-              </button>
-            </div>
+          <div id="itemFormActions" class="detail-save-group" style="margin-left:auto;">
+            <button type="button" class="btn-modal-cancel" onclick="closeDetailModal()">Cancel</button>
+            <button type="button" class="btn-modal-submit" id="itemSubmitBtn" onclick="document.getElementById('itemForm').requestSubmit()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Save
+            </button>
           </div>
         </div>
 
@@ -1129,5 +1140,6 @@
   <script src="/static/theme.js"></script>
   <script src="/static/rich-editor.js"></script>
   <script src="/static/developer.js"></script>
+  <script src="/static/outage-notifier.js"></script>
 </body>
 </html>

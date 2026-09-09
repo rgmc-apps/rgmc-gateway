@@ -1324,10 +1324,13 @@
 
 /* 2. Let the 2-col grid fill the modal-body flex space instead of a fixed 520px. */
 #epicDetailModal .item-detail-body {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
   flex: 1;
   height: auto;
   min-height: 0;
   max-height: none;
+  overflow: visible;
 }
 
 /* 3. The form column:
@@ -1797,6 +1800,114 @@
   accent-color: var(--gold);
 }
 
+
+/* ── Detail actions submenu (header) ── */
+.detail-actions-wrap {
+  position: relative;
+}
+.btn-detail-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.btn-detail-actions:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(196,151,42,0.07);
+}
+.detail-actions-chevron {
+  opacity: 0.6;
+  transition: transform 0.15s;
+}
+.detail-actions-wrap:has(#detailActionsMenu.open) .detail-actions-chevron {
+  transform: rotate(180deg);
+}
+.detail-actions-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 188px;
+  background: var(--bg-card, #1a1713);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.35);
+  padding: 4px;
+  z-index: 300;
+  display: none;
+  flex-direction: column;
+  gap: 1px;
+}
+.detail-actions-menu.open {
+  display: flex;
+}
+.dam-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.dam-item:hover {
+  background: rgba(196,151,42,0.09);
+  color: var(--gold);
+}
+.dam-item-danger { color: var(--error, #d85858); }
+.dam-item-danger:hover { background: var(--error-bg, rgba(216,88,88,0.09)); color: var(--error, #d85858); }
+.dam-sep {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 3px 4px;
+}
+.dam-label {
+  padding: 5px 10px 3px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+/* Override dup-type-menu popup styles when inside actions menu */
+.detail-actions-menu .dup-type-menu {
+  position: static !important;
+  display: flex !important;
+  flex-direction: column;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  min-width: 0 !important;
+  gap: 1px;
+}
+.detail-actions-menu .dup-type-option {
+  padding: 7px 10px 7px 28px;
+  font-size: 12.5px;
+}
+
+/* ── Activity log list: constrain height when below form ── */
+.item-detail-log .activity-log-list {
+  max-height: 320px;
+}
 
 /* ── Duplicate-as type dropdown ── */
 .dup-type-wrap {

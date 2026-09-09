@@ -11,6 +11,7 @@ from controllers.user_page import user_page_bp
 from controllers.general_helpdesk import general_helpdesk_bp
 from controllers.resolution import resolution_bp
 from controllers.webhooks import webhooks_bp
+from controllers.outages import outages_bp
 
 
 def create_app() -> Flask:
@@ -28,6 +29,7 @@ def create_app() -> Flask:
     app.register_blueprint(general_helpdesk_bp)
     app.register_blueprint(resolution_bp)
     app.register_blueprint(webhooks_bp)
+    app.register_blueprint(outages_bp)
 
     return app
 
