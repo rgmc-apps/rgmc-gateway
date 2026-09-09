@@ -480,6 +480,7 @@ async function _execMoveTask(id, newStatus, remarks, actionIds = [], files = [])
     patch.actual_end_date = null;
   }
   if (newStatus === 'done') {
+    if (remarks) patch.resolution_notes = remarks;
     if (actionIds.length) patch.resolution_action_ids = actionIds;
     if (files.length) {
       const urls = [];
@@ -691,15 +692,37 @@ function openTaskDetailModal(idOrNull) {
   const logPane   = document.getElementById('taskDetailLogPane');
   const deleteBtn = document.getElementById('taskDetailDeleteBtn');
 
+  // Resolution notes — show only when done
+  const resNotesGroup = document.getElementById('taskResNotesGroup');
+  const resNotesEl    = document.getElementById('taskResNotes');
+  if (task?.status === 'done') {
+    if (resNotesEl)    resNotesEl.value    = task.resolution_notes ?? '';
+    if (resNotesGroup) resNotesGroup.style.display = '';
+  } else {
+    if (resNotesEl)    resNotesEl.value    = '';
+    if (resNotesGroup) resNotesGroup.style.display = 'none';
+  }
+
   if (task) {
     body.classList.remove('detail-new');
     logPane.style.display   = '';
     deleteBtn.style.display = '';
+    // Show date started if set
+    const dsRow = document.getElementById('taskDateStartedRow');
+    const dsVal = document.getElementById('taskDateStartedVal');
+    if (task.start_date && dsRow && dsVal) {
+      dsVal.textContent   = fmtDate(task.start_date);
+      dsRow.style.display = '';
+    } else if (dsRow) {
+      dsRow.style.display = 'none';
+    }
     refreshTaskLogs();
   } else {
     body.classList.add('detail-new');
     logPane.style.display   = 'none';
     deleteBtn.style.display = 'none';
+    const dsRow = document.getElementById('taskDateStartedRow');
+    if (dsRow) dsRow.style.display = 'none';
   }
 
   resetTaskForm();
@@ -712,6 +735,12 @@ function closeTaskDetailModal() {
   document.getElementById('taskDetailModal').classList.remove('open');
   document.body.style.overflow = '';
   _taskEditingId = null;
+}
+
+function _toggleTaskResNotesGroup(status) {
+  const group = document.getElementById('taskResNotesGroup');
+  if (!group) return;
+  group.style.display = status === 'done' ? '' : 'none';
 }
 
 function overlayCloseTaskDetail(e) {
@@ -872,6 +901,11 @@ async function _execSaveTask(remarks, actionIds = [], files = []) {
     actual_end_date,
   };
   if (newStatus === 'done') {
+    // remarks = from Done modal on transition; fall back to form field when editing already-done task
+    const notesVal = (remarks !== null && remarks !== undefined)
+      ? remarks
+      : (document.getElementById('taskResNotes')?.value?.trim() ?? '');
+    if (notesVal) payload.resolution_notes = notesVal;
     if (actionIds.length) payload.resolution_action_ids = actionIds;
     if (files.length) {
       const entityId = _taskEditingId || 'new';
@@ -914,6 +948,20 @@ async function _execSaveTask(remarks, actionIds = [], files = []) {
     if (_taskEditingId) {
       const idx = _tasks.findIndex(t => t.id === _taskEditingId);
       if (idx !== -1) _tasks[idx] = saved;
+      // Refresh date started display if start_date was auto-set
+      const dsRow = document.getElementById('taskDateStartedRow');
+      const dsVal = document.getElementById('taskDateStartedVal');
+      if (saved.start_date && dsRow && dsVal) {
+        dsVal.textContent   = fmtDate(saved.start_date);
+        dsRow.style.display = '';
+      }
+      // Also sync the form field
+      if (saved.start_date) document.getElementById('taskStart').value = saved.start_date;
+      // Sync resolution notes field
+      const resNotesEl = document.getElementById('taskResNotes');
+      if (resNotesEl) resNotesEl.value = saved.resolution_notes ?? '';
+      // Refresh logs to show movement comment
+      await refreshTaskLogs();
     } else {
       _tasks.push(saved);
     }
@@ -961,7 +1009,25 @@ async function refreshTaskLogs() {
       return;
     }
     list.innerHTML = logs.map(log => {
-      const hrs = fmtHours(log.hours_spent);
+      const hrs        = fmtHours(log.hours_spent);
+      const isMovement = /^Status: .+ → .+$/.test(log.message);
+      if (isMovement) {
+        const parts   = log.message.slice('Status: '.length).split(' → ');
+        const fromLbl = escHtml(parts[0] || '');
+        const toLbl   = escHtml(parts[1] || '');
+        return `
+      <div class="activity-log-entry activity-log-movement">
+        <div class="log-movement-row">
+          <span class="log-movement-badge log-movement-from">${fromLbl}</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          <span class="log-movement-badge log-movement-to">${toLbl}</span>
+        </div>
+        <div class="log-meta log-meta-movement">
+          <span class="log-author">${escHtml(log.username)}</span>
+          <span class="log-time">${fmtDateTime(log.created_at)}</span>
+        </div>
+      </div>`;
+      }
       return `
       <div class="activity-log-entry">
         <div class="log-meta">

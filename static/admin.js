@@ -245,6 +245,8 @@ document.addEventListener('DOMContentLoaded', () => {
     closeProfileMenu();
     closeAllUserDropdowns();
     if (_issActionsOpen && !document.getElementById('issActionsWrap')?.contains(e.target)) _closeIssActionsMenu();
+    if (_putDeptOpen && !document.getElementById('putDeptWrap')?.contains(e.target)) _closePutDeptDropdown();
+    if (_putUserOpen && !document.getElementById('putUserWrap')?.contains(e.target)) _closePutUserDropdown();
   });
 
   // Show/hide resolution fields when status changes
@@ -3042,17 +3044,207 @@ async function promoteIssueToEpic() {
   }
 }
 
+/* ── Promote to User Task Modal ── */
+let _putDeptId       = null;
+let _putDeptName     = '';
+let _putUsername     = '';
+let _putUserDispName = '';
+let _putDeptOpen     = false;
+let _putUserOpen     = false;
+let _putDeptsCache   = null;
+let _putUsersCache   = null;
+
 async function promoteIssueToUserTask() {
   if (!_editingIssueId) return;
   _closeIssActionsMenu();
-  if (!await showConfirm({ title: 'Promote to User Task', message: 'Create a user task from this issue?', confirmText: 'Promote' })) return;
+
+  // Reset selections
+  _putDeptId       = null;
+  _putDeptName     = '';
+  _putUsername     = '';
+  _putUserDispName = '';
+  _setText('putDeptLabel', '— Any Department —');
+  _setText('putUserLabel', '— Unassigned —');
+  document.getElementById('putDeptDropdown')?.classList.remove('open');
+  document.getElementById('putDeptWrap')?.classList.remove('open');
+  document.getElementById('putUserDropdown')?.classList.remove('open');
+  document.getElementById('putUserWrap')?.classList.remove('open');
+
+  // Load data in background
+  _ensurePutDataLoaded();
+
+  document.getElementById('promoteUserTaskModal').classList.add('open');
+}
+
+function closePromoteUserTaskModal() {
+  document.getElementById('promoteUserTaskModal').classList.remove('open');
+  _closePutDeptDropdown();
+  _closePutUserDropdown();
+}
+
+async function _ensurePutDataLoaded() {
+  const deptPromise = _putDeptsCache
+    ? Promise.resolve()
+    : fetch('/api/admin/config/departments', { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : [])
+        .then(d => { _putDeptsCache = d; })
+        .catch(() => { _putDeptsCache = []; });
+
+  const userPromise = _putUsersCache
+    ? Promise.resolve()
+    : fetch('/api/admin/users', { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : [])
+        .then(d => { _putUsersCache = d; })
+        .catch(() => { _putUsersCache = []; });
+
+  await Promise.all([deptPromise, userPromise]);
+}
+
+/* -- Department dropdown -- */
+function putDeptToggle() {
+  _putDeptOpen ? _closePutDeptDropdown() : _openPutDeptDropdown();
+}
+async function _openPutDeptDropdown() {
+  _closePutUserDropdown();
+  await _ensurePutDataLoaded();
+  _putDeptOpen = true;
+  document.getElementById('putDeptWrap').classList.add('open');
+  document.getElementById('putDeptDropdown').classList.add('open');
+  const search = document.getElementById('putDeptSearch');
+  if (search) { search.value = ''; }
+  _buildPutDeptList('');
+  setTimeout(() => document.getElementById('putDeptSearch')?.focus(), 30);
+}
+function _closePutDeptDropdown() {
+  _putDeptOpen = false;
+  document.getElementById('putDeptWrap')?.classList.remove('open');
+  document.getElementById('putDeptDropdown')?.classList.remove('open');
+}
+function putDeptFilter(val) { _buildPutDeptList(val); }
+function putDeptKeydown(e)  { if (e.key === 'Escape') _closePutDeptDropdown(); }
+
+function _buildPutDeptList(q) {
+  const list = document.getElementById('putDeptList');
+  if (!list) return;
+  const depts = (_putDeptsCache || []).filter(d => {
+    if (!q) return true;
+    return (d.department_name || '').toLowerCase().includes(q.toLowerCase());
+  });
+  const rows = [];
+  rows.push(`<div class="put-sd-opt${!_putDeptId ? ' selected' : ''}" onclick="putDeptSelect(null,'')">
+    <span class="put-sd-opt-name" style="color:var(--text-muted);">— Any Department —</span>
+  </div>`);
+  depts.forEach(d => {
+    const sel = _putDeptId == d.department_id ? ' selected' : '';
+    rows.push(`<div class="put-sd-opt${sel}" onclick="putDeptSelect(${d.department_id},${JSON.stringify(d.department_name)})">
+      <div>
+        <div class="put-sd-opt-name">${escHtml(d.department_name)}</div>
+        ${d.department_code ? `<div class="put-sd-opt-meta">${escHtml(d.department_code)}</div>` : ''}
+      </div>
+    </div>`);
+  });
+  list.innerHTML = rows.length > 1 ? rows.join('') : rows[0] + `<div class="put-sd-empty">No departments found</div>`;
+}
+
+function putDeptSelect(id, name) {
+  _putDeptId   = id || null;
+  _putDeptName = name || '';
+  _setText('putDeptLabel', name || '— Any Department —');
+  _closePutDeptDropdown();
+  // Reset user selection when dept changes and rebuild user list
+  _putUsername     = '';
+  _putUserDispName = '';
+  _setText('putUserLabel', '— Unassigned —');
+  if (document.getElementById('putUserDropdown')?.classList.contains('open')) {
+    _buildPutUserList(document.getElementById('putUserSearch')?.value || '');
+  }
+}
+
+/* -- User dropdown -- */
+function putUserToggle() {
+  _putUserOpen ? _closePutUserDropdown() : _openPutUserDropdown();
+}
+async function _openPutUserDropdown() {
+  _closePutDeptDropdown();
+  await _ensurePutDataLoaded();
+  _putUserOpen = true;
+  document.getElementById('putUserWrap').classList.add('open');
+  document.getElementById('putUserDropdown').classList.add('open');
+  const search = document.getElementById('putUserSearch');
+  if (search) { search.value = ''; }
+  _buildPutUserList('');
+  setTimeout(() => document.getElementById('putUserSearch')?.focus(), 30);
+}
+function _closePutUserDropdown() {
+  _putUserOpen = false;
+  document.getElementById('putUserWrap')?.classList.remove('open');
+  document.getElementById('putUserDropdown')?.classList.remove('open');
+}
+function putUserFilter(val) { _buildPutUserList(val); }
+function putUserKeydown(e)  { if (e.key === 'Escape') _closePutUserDropdown(); }
+
+function _buildPutUserList(q) {
+  const list = document.getElementById('putUserList');
+  if (!list) return;
+  let users = _putUsersCache || [];
+  if (_putDeptName) {
+    users = users.filter(u => (u.department || '').toLowerCase() === _putDeptName.toLowerCase());
+  }
+  if (q) {
+    const lq = q.toLowerCase();
+    users = users.filter(u => {
+      const name = `${u.first_name || ''} ${u.last_name || ''}`.trim().toLowerCase();
+      return name.includes(lq) || (u.username || '').toLowerCase().includes(lq);
+    });
+  }
+  const rows = [];
+  rows.push(`<div class="put-sd-opt${!_putUsername ? ' selected' : ''}" onclick="putUserSelect('','')">
+    <span class="put-sd-opt-avatar put-sd-opt-avatar--empty">—</span>
+    <span class="put-sd-opt-name" style="color:var(--text-muted);">— Unassigned —</span>
+  </div>`);
+  users.forEach(u => {
+    const name     = u.display_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username;
+    const initials = name.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const sel      = _putUsername === u.username ? ' selected' : '';
+    const avatar   = u.avatar_url
+      ? `<span class="put-sd-opt-avatar"><img src="${escHtml(u.avatar_url)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;"></span>`
+      : `<span class="put-sd-opt-avatar put-sd-opt-avatar--initials">${initials}</span>`;
+    const meta = [u.position, u.department].filter(Boolean).join(' · ');
+    rows.push(`<div class="put-sd-opt${sel}" onclick="putUserSelect(${JSON.stringify(u.username)},${JSON.stringify(name)})">
+      ${avatar}
+      <div>
+        <div class="put-sd-opt-name">${escHtml(name)}</div>
+        ${meta ? `<div class="put-sd-opt-meta">${escHtml(meta)}</div>` : ''}
+      </div>
+    </div>`);
+  });
+  list.innerHTML = rows.length > 1
+    ? rows.join('')
+    : rows[0] + `<div class="put-sd-empty">No users found${_putDeptName ? ' in this department' : ''}</div>`;
+}
+
+function putUserSelect(username, displayName) {
+  _putUsername     = username || '';
+  _putUserDispName = displayName || '';
+  _setText('putUserLabel', displayName || '— Unassigned —');
+  _closePutUserDropdown();
+}
+
+async function submitPromoteUserTask() {
+  if (!_editingIssueId) return;
+  document.getElementById('promoteUserTaskModal').classList.remove('open');
   document.getElementById('issueModalActions').style.display = 'none';
   document.getElementById('issueModalLoading').style.display = '';
   document.getElementById('issueModalError').style.display   = 'none';
+  const body = {};
+  if (_putUsername)  body.assigned_to     = _putUsername;
+  if (_putDeptId)    body.department_id   = _putDeptId;
+  if (_putDeptName)  body.department_name = _putDeptName;
   try {
     const res = await fetch(`/api/admin/issues/${encodeURIComponent(_editingIssueId)}/promote-user-task`, {
       method:  'POST',
-      headers: authHeaders(),
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify(body),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Promote failed');
@@ -3064,6 +3256,7 @@ async function promoteIssueToUserTask() {
     document.getElementById('issueModalActions').style.display = '';
     document.getElementById('issueModalError').style.display   = '';
     document.getElementById('issueModalErrorMsg').textContent  = err.message;
+    document.getElementById('promoteUserTaskModal').classList.add('open');
   }
 }
 

@@ -1176,6 +1176,8 @@ def admin_promote_issue_to_user_task(issue_id):
     if issue.get("user_task_id"):
         return jsonify({"error": "Already promoted to a user task"}), 409
 
+    body = request.get_json(silent=True) or {}
+
     _plain_desc = _strip_html(issue.get('description') or '')
     title = (issue.get("title") or
              f"[{issue['site_name']}] {_plain_desc[:80]}{'…' if len(_plain_desc) > 80 else ''}")
@@ -1185,18 +1187,24 @@ def admin_promote_issue_to_user_task(issue_id):
         f"{_plain_desc}"
     )
 
-    dept_id   = issue.get("request_to_department_id")
-    dept_name = issue.get("department") or ""
+    # Use body-provided dept/assignee if given, otherwise fall back to issue values
+    if "department_id" in body or "department_name" in body:
+        dept_id   = body.get("department_id")
+        dept_name = str(body.get("department_name") or "").strip() or None
+    else:
+        dept_id   = issue.get("request_to_department_id")
+        dept_name = issue.get("department") or ""
+        if dept_id and not dept_name:
+            try:
+                dept_rows = supabase_req("GET", "/departments", params={
+                    "department_id": f"eq.{dept_id}", "select": "department_name",
+                })
+                if dept_rows:
+                    dept_name = dept_rows[0].get("department_name", "")
+            except Exception:
+                pass
 
-    if dept_id and not dept_name:
-        try:
-            dept_rows = supabase_req("GET", "/departments", params={
-                "department_id": f"eq.{dept_id}", "select": "department_name",
-            })
-            if dept_rows:
-                dept_name = dept_rows[0].get("department_name", "")
-        except Exception:
-            pass
+    assigned_to = str(body.get("assigned_to") or "").strip() or None
 
     try:
         new_task = supabase_req("POST", "/user_tasks", data={
@@ -1204,6 +1212,7 @@ def admin_promote_issue_to_user_task(issue_id):
             "description":     desc,
             "status":          "open",
             "created_by":      admin_username,
+            "assigned_to":     assigned_to,
             "department_id":   dept_id,
             "department_name": dept_name or None,
         }, extra_headers={"Prefer": "return=representation"})

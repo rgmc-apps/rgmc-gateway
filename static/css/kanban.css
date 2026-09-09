@@ -404,6 +404,52 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
   line-height: 1.55;
   white-space: pre-wrap;
 }
+.task-date-started-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 20px 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.task-date-started-row strong {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.activity-log-movement {
+  background: transparent;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+}
+.log-movement-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.log-movement-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.log-movement-from {
+  background: var(--bg-card);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.log-movement-to {
+  background: rgba(196,151,42,0.12);
+  color: var(--gold);
+  border: 1px solid rgba(196,151,42,0.3);
+}
+.log-meta-movement {
+  margin-bottom: 0;
+}
 .activity-log-add {
   flex-shrink: 0;
   padding: 14px 20px 18px;

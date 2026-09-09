@@ -8,6 +8,12 @@ tasks_bp = Blueprint("tasks", __name__)
 
 VALID_STATUSES = ('open', 'in_progress', 'for_review', 'done')
 STATUS_ORDER   = {s: i for i, s in enumerate(VALID_STATUSES)}
+STATUS_LABELS  = {
+    'open':        'Open',
+    'in_progress': 'In Progress',
+    'for_review':  'For Review',
+    'done':        'Done',
+}
 
 
 @tasks_bp.get("/tasks")
@@ -75,7 +81,7 @@ def api_update_task(task_id):
     allowed = {
         "task_name", "task_type", "description", "status",
         "is_active", "start_date", "estimated_end_date", "actual_end_date",
-        "resolution_action_ids", "resolution_attachment_urls",
+        "resolution_notes", "resolution_action_ids", "resolution_attachment_urls",
     }
     patch = {k: v for k, v in body.items() if k in allowed}
     if not patch:
@@ -106,6 +112,10 @@ def api_update_task(task_id):
         if "actual_end_date" not in patch:
             patch["actual_end_date"] = None
 
+    # Auto-set start_date when first transitioning to in_progress
+    if new_status == "in_progress" and not old_task.get("start_date") and "start_date" not in patch:
+        patch["start_date"] = datetime.now(timezone.utc).date().isoformat()
+
     patch["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     try:
@@ -113,6 +123,19 @@ def api_update_task(task_id):
     except Exception as exc:
         current_app.logger.error("api_update_task patch failed: %s", exc)
         return jsonify({"error": "Update failed"}), 500
+
+    # Post movement comment when status changes
+    if new_status and old_status and new_status != old_status:
+        old_label = STATUS_LABELS.get(old_status, old_status)
+        new_label = STATUS_LABELS.get(new_status, new_status)
+        try:
+            supabase_req("POST", "/task_activity_logs", data={
+                "task_id":  task_id,
+                "username": admin_username,
+                "message":  f"Status: {old_label} → {new_label}",
+            }, extra_headers={"Prefer": "return=representation"})
+        except Exception as exc:
+            current_app.logger.warning("api_update_task: movement log failed: %s", exc)
 
     # Handle linked issue side-effects when task becomes done
     issue = None
@@ -126,6 +149,7 @@ def api_update_task(task_id):
 
     task_action_ids  = patch.get("resolution_action_ids") or []
     task_attach_urls = [u for u in (patch.get("resolution_attachment_urls") or []) if u]
+    task_res_notes   = (patch.get("resolution_notes") or "").strip() or None
 
     if new_status == "done" and old_status != "done" and issue:
         # Cascade resolve linked issue if not already terminal
@@ -137,11 +161,13 @@ def api_update_task(task_id):
                     "resolution_action_ids":      task_action_ids or None,
                     "resolution_attachment_urls": task_attach_urls or None,
                 }
+                if task_res_notes:
+                    cascade_patch["resolution_notes"] = task_res_notes
                 supabase_req("PATCH", "/issues", data=cascade_patch, params={"id": f"eq.{issue_id}"})
                 task_action_names = resolve_action_names(task_action_ids)
                 try:
                     send_issue_resolved_email(
-                        issue, "", admin_username, "resolved",
+                        issue, task_res_notes or "", admin_username, "resolved",
                         action_names=task_action_names, attachment_urls=task_attach_urls,
                     )
                 except Exception as email_exc:
@@ -149,6 +175,8 @@ def api_update_task(task_id):
                 try:
                     assignee = old_task.get("assigned_to") or admin_username
                     _cp = [f"Linked task marked as done by {assignee}."]
+                    if task_res_notes:
+                        _cp.append(f"\nResolution notes: {task_res_notes}")
                     if task_action_names:
                         _cp.append(f"\nActions taken: {', '.join(task_action_names)}")
                     supabase_req("POST", "/issue_comments", data={

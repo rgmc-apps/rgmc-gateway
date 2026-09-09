@@ -1955,6 +1955,62 @@
     </div>
   </div>
 
+  <!-- ── Promote to User Task Modal ── -->
+  <div id="promoteUserTaskModal" class="modal-overlay">
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Promote to User Task</h3>
+          <p class="modal-site-name">A user task will be created and linked to this issue.</p>
+        </div>
+        <button class="modal-close" onclick="closePromoteUserTaskModal()" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-form promote-modal-form" style="gap:16px;">
+
+        <!-- Department -->
+        <div class="form-group form-group-full">
+          <label class="form-label">Department <span class="form-label-hint">(optional)</span></label>
+          <div class="put-sd-wrap" id="putDeptWrap">
+            <button type="button" class="put-sd-trigger" onclick="putDeptToggle()">
+              <span class="put-sd-label" id="putDeptLabel">— Any Department —</span>
+              <svg class="put-sd-chevron" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="put-sd-dropdown" id="putDeptDropdown">
+              <div class="put-sd-search-wrap">
+                <input class="put-sd-search" type="text" id="putDeptSearch" placeholder="Search departments…"
+                  oninput="putDeptFilter(this.value)" onkeydown="putDeptKeydown(event)" autocomplete="off">
+              </div>
+              <div class="put-sd-list" id="putDeptList"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Assignee -->
+        <div class="form-group form-group-full">
+          <label class="form-label">Assign To <span class="form-label-hint">(optional)</span></label>
+          <div class="put-sd-wrap" id="putUserWrap">
+            <button type="button" class="put-sd-trigger" onclick="putUserToggle()">
+              <span class="put-sd-label" id="putUserLabel">— Unassigned —</span>
+              <svg class="put-sd-chevron" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="put-sd-dropdown" id="putUserDropdown">
+              <div class="put-sd-search-wrap">
+                <input class="put-sd-search" type="text" id="putUserSearch" placeholder="Search users…"
+                  oninput="putUserFilter(this.value)" onkeydown="putUserKeydown(event)" autocomplete="off">
+              </div>
+              <div class="put-sd-list" id="putUserList"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-actions" style="padding:16px 28px 20px;">
+        <button type="button" class="btn-modal-cancel" onclick="closePromoteUserTaskModal()">Cancel</button>
+        <button type="button" class="btn-modal-submit" id="putSubmitBtn" onclick="submitPromoteUserTask()">Promote</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Issue Share Modal ── -->
   <div id="issShareModal" class="iss-share-modal-overlay">
     <div class="iss-share-modal" onclick="event.stopPropagation()">
