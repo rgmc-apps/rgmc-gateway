@@ -101,7 +101,7 @@ function showConfirm({ title = 'Confirm', message = '', detail = '', confirmText
     const onCancel  = () => dismiss(false);
     const onKey     = e => { if (e.key === 'Escape') { document.removeEventListener('keydown', onKey); dismiss(false); } };
 
-    overlay.onclick = e => { if (e.target === overlay) { document.removeEventListener('keydown', onKey); dismiss(false); } };
+    overlay.onclick = null;
     confirmBtn.onclick = () => { document.removeEventListener('keydown', onKey); onConfirm(); };
     cancelBtn.onclick  = () => { document.removeEventListener('keydown', onKey); onCancel();  };
     dismissBtn.onclick = () => { document.removeEventListener('keydown', onKey); onCancel();  };

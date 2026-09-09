@@ -392,7 +392,22 @@ def access_request_additional():
         return jsonify({"success": False, "error": "Failed to retrieve your account. Please try again."}), 500
 
     if not rows:
-        return jsonify({"success": False, "error": "Account not found. Please sign in again."}), 404
+        # User may have been created directly (no access_request row) — fall back to users table
+        try:
+            user_rows = supabase_req("GET", "/users", params={
+                "username": f"eq.{username}",
+                "select":   "first_name,last_name,middle_initial,company,department,position,email",
+                "limit":    "1",
+            })
+        except Exception as exc:
+            from flask import current_app
+            current_app.logger.error("Supabase users lookup failed: %s", exc)
+            return jsonify({"success": False, "error": "Failed to retrieve your account. Please try again."}), 500
+
+        if not user_rows:
+            return jsonify({"success": False, "error": "Account not found. Please sign in again."}), 404
+
+        rows = user_rows
 
     existing = rows[0]
     new_data = {

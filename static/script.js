@@ -1249,6 +1249,7 @@ function _initTourSwipe() {
 
   vp.addEventListener('pointerdown', e => {
     if (e.pointerType === 'touch') return;
+    if (e.target.closest('button, a, input, select, textarea, [onclick], [role="button"]')) return;
     _tourDragStart = e.clientX;
     vp.setPointerCapture(e.pointerId);
   });
