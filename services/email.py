@@ -1283,6 +1283,67 @@ def _full_name(record: dict) -> str:
     return " ".join(p for p in parts if p).replace("  ", " ").strip()
 
 
+def send_password_changed_email(user_record: dict, admin_name: str, changed_at: str) -> bool:
+    user_email = user_record.get("email", "")
+    if not user_email:
+        return False
+
+    from_addr  = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    it_email   = EMAIL_CONFIG["developer_email"] or from_addr
+    first_name = user_record.get("first_name", "there")
+    username   = user_record.get("username", "")
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid #C4972A;">
+      <h2 style="margin:0;font-size:22px;color:#C4972A;">Password Changed</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">RGMC System Gateway</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 16px;font-size:15px;">Hello <strong>{first_name}</strong>,</p>
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#374151;">
+        Your RGMC Gateway account password has been <strong>reset by an administrator</strong>.
+        Please use your new password the next time you sign in.
+      </p>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:28px;border-radius:8px;overflow:hidden;">
+        <tr style="background:#f8fafc;">
+          <td style="padding:11px 16px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;width:140px;border-bottom:1px solid #e2e8f0;">Username</td>
+          <td style="padding:11px 16px;font-size:14px;color:#1e293b;border-bottom:1px solid #e2e8f0;font-family:monospace;font-weight:600;">{username}</td>
+        </tr>
+        <tr>
+          <td style="padding:11px 16px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e2e8f0;">Changed By</td>
+          <td style="padding:11px 16px;font-size:14px;color:#1e293b;border-bottom:1px solid #e2e8f0;font-weight:600;">{admin_name}</td>
+        </tr>
+        <tr style="background:#f8fafc;">
+          <td style="padding:11px 16px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Date &amp; Time</td>
+          <td style="padding:11px 16px;font-size:14px;color:#1e293b;">{changed_at}</td>
+        </tr>
+      </table>
+      <div style="background:#fef9ec;border:1px solid rgba(196,151,42,.3);border-left:4px solid #C4972A;border-radius:0 6px 6px 0;padding:14px 16px;margin-bottom:24px;">
+        <p style="margin:0;font-size:13px;color:#374151;line-height:1.6;">
+          If you did not expect this change or believe this was done in error, please contact the IT department immediately.
+        </p>
+      </div>
+      <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">
+        For assistance, contact IT at
+        <a href="mailto:{it_email}" style="color:#C4972A;text-decoration:none;font-weight:600;">{it_email}</a>.
+      </p>
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    msg            = MIMEMultipart("alternative")
+    msg["Subject"] = "Your RGMC Gateway Password Has Been Changed"
+    msg["From"]    = from_addr
+    msg["To"]      = user_email
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [user_email])
+
+
 def send_password_reset_email(user: dict, reset_url: str) -> bool:
     user_email = user.get("email", "")
     if not user_email:

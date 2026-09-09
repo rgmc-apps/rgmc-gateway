@@ -1245,6 +1245,7 @@ function openEditUserModal(username) {
   document.getElementById('euEmail').value        = user.email         || '';
   document.getElementById('euViberNumber').value  = user.viber_number  || '';
   document.getElementById('euAnydeskId').value    = user.anydesk_id   || '';
+  document.getElementById('euNewPassword').value  = '';
   _fillCompanySelect('euCompany', user.company || '');
   _fillDeptSelect('euDepartment', user.department || '');
 
@@ -1264,6 +1265,26 @@ function closeEditUserModal() {
 
 function overlayCloseEditUser(e) {
   if (e.target === document.getElementById('editUserModal')) closeEditUserModal();
+}
+
+function generateUserPassword() {
+  const upper  = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower  = 'abcdefghijkmnpqrstuvwxyz';
+  const digits = '23456789';
+  const special = '!@#$%&*';
+  const all = upper + lower + digits + special;
+  let pw = upper[Math.floor(Math.random() * upper.length)]
+         + lower[Math.floor(Math.random() * lower.length)]
+         + digits[Math.floor(Math.random() * digits.length)]
+         + special[Math.floor(Math.random() * special.length)];
+  for (let i = 4; i < 12; i++) pw += all[Math.floor(Math.random() * all.length)];
+  pw = pw.split('').sort(() => Math.random() - 0.5).join('');
+  const field = document.getElementById('euNewPassword');
+  field.value = pw;
+  navigator.clipboard.writeText(pw).then(
+    () => showToast('Password generated and copied to clipboard'),
+    () => showToast('Password generated — copy it from the field'),
+  );
 }
 
 async function saveEditUser(e) {
@@ -1286,6 +1307,8 @@ async function saveEditUser(e) {
     viber_number: document.getElementById('euViberNumber').value.trim()   || null,
     anydesk_id:   document.getElementById('euAnydeskId').value.trim()     || null,
   };
+  const newPw = document.getElementById('euNewPassword').value.trim();
+  if (newPw) patch.password = newPw;
 
   try {
     const res = await fetch(`/api/admin/users/${encodeURIComponent(_editingUsername)}`, {

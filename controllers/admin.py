@@ -3,15 +3,17 @@ import re
 import time
 import uuid
 from collections import defaultdict
+from datetime import datetime, timezone
 import requests as http_requests
 
 from flask import Blueprint, request, jsonify, render_template, current_app
+from werkzeug.security import generate_password_hash
 
 from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
 from services.supabase import supabase_req
 from services.guards import _require_admin
 from services.sites import _invalidate_sites_cache
-from services.email import send_admin_granted_email, send_access_granted_email, send_access_rejected_email
+from services.email import send_admin_granted_email, send_access_granted_email, send_access_rejected_email, send_password_changed_email
 from models.access import _approve_record, _reject_record
 
 admin_bp = Blueprint("admin", __name__)
@@ -122,7 +124,7 @@ def admin_search_user_names():
 
 @admin_bp.route("/api/admin/users/<string:uname>", methods=["PATCH", "DELETE"])
 def admin_update_user(uname):
-    _, err = _require_admin()
+    admin_username, err = _require_admin()
     if err:
         return jsonify(err[0]), err[1]
 
@@ -138,12 +140,34 @@ def admin_update_user(uname):
                "first_name", "middle_initial", "last_name", "display_name",
                "company", "department", "position", "email", "viber_number", "anydesk_id"}
     patch = {k: v for k, v in data.items() if k in allowed}
+
+    new_password = str(data.get("password", "")).strip()
+    if new_password:
+        patch["password_hash"] = generate_password_hash(new_password)
+
     if not patch:
         return jsonify({"error": "No valid fields to update"}), 400
     try:
-        rows = supabase_req("PATCH", "/users", data=patch, params={"username": f"eq.{uname}"})
+        rows = supabase_req("PATCH", "/users", data=patch,
+                            params={"username": f"eq.{uname}"},
+                            extra_headers={"Prefer": "return=representation"})
         if patch.get("is_admin") is True and rows:
             send_admin_granted_email(rows[0])
+        if new_password and rows:
+            try:
+                admin_rows = supabase_req("GET", "/users", params={
+                    "username": f"eq.{admin_username}",
+                    "select":   "first_name,last_name,display_name",
+                })
+                if admin_rows:
+                    a = admin_rows[0]
+                    admin_name = a.get("display_name") or f"{a.get('first_name','')} {a.get('last_name','')}".strip() or admin_username
+                else:
+                    admin_name = admin_username
+            except Exception:
+                admin_name = admin_username
+            changed_at = datetime.now(timezone.utc).strftime("%B %d, %Y at %I:%M %p UTC")
+            send_password_changed_email(rows[0], admin_name, changed_at)
         return jsonify({"success": True})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
