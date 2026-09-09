@@ -57,6 +57,45 @@ def admin_get_users():
         return jsonify({"error": "Failed to fetch users"}), 500
 
 
+@admin_bp.get("/api/admin/users/suggest-username")
+def admin_suggest_username():
+    _, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+
+    first = str(request.args.get("first", "")).strip()
+    last  = str(request.args.get("last",  "")).strip()
+    mi    = str(request.args.get("mi",    "")).strip()
+    if not first or not last:
+        return jsonify({"username": ""})
+
+    def clean(s):
+        return re.sub(r"[^a-z0-9]", "", s.lower())
+
+    try:
+        rows = supabase_req("GET", "/users", params={"select": "username"})
+        used = {r["username"] for r in (rows or []) if r.get("username")}
+    except Exception:
+        used = set()
+
+    words          = [w for w in first.split() if w]
+    first_word     = clean(words[0]) if words else ""
+    other_initials = "".join(clean(w)[0] for w in words[1:] if clean(w))
+    mi_clean       = clean(mi[:1]) if mi else ""
+    clean_last     = clean(last.replace(" ", ""))
+
+    for n in range(1, len(first_word) + 1):
+        candidate = first_word[:n] + other_initials + mi_clean + clean_last
+        if candidate and candidate not in used:
+            return jsonify({"username": candidate})
+
+    base = (first_word + other_initials + mi_clean + clean_last) or "user"
+    i = 1
+    while f"{base}{i}" in used:
+        i += 1
+    return jsonify({"username": f"{base}{i}"})
+
+
 @admin_bp.post("/api/admin/users")
 def admin_create_user():
     _, err = _require_admin()
@@ -85,6 +124,10 @@ def admin_create_user():
         val = str(data.get(field, "")).strip()
         if val:
             payload[field] = val
+
+    new_password = str(data.get("password", "")).strip()
+    if new_password:
+        payload["password_hash"] = generate_password_hash(new_password)
 
     try:
         rows = supabase_req("POST", "/users", data=payload,

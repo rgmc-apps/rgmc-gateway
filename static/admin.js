@@ -661,7 +661,9 @@ async function deleteUser(username) {
 }
 
 /* ── Add User ── */
-let _auSearchTimer = null;
+let _auSearchTimer    = null;
+let _auSuggestTimer   = null;
+let _auUsernameManual = false;
 
 function openAddUserModal() {
   document.getElementById('addUserForm').reset();
@@ -669,6 +671,7 @@ function openAddUserModal() {
   document.getElementById('auFormActions').style.display = '';
   document.getElementById('auFormLoading').style.display = 'none';
   document.getElementById('auFormError').style.display   = 'none';
+  _auUsernameManual = false;
   _fillCompanySelect('auCompany', '');
   _fillDeptSelect('auDepartment', '');
   document.getElementById('addUserModal').classList.add('open');
@@ -676,10 +679,56 @@ function openAddUserModal() {
   setTimeout(() => document.getElementById('auFirstName').focus(), 60);
 }
 
+function auMarkUsernameManual() {
+  _auUsernameManual = true;
+}
+
+function auSuggestUsernameDebounced() {
+  clearTimeout(_auSuggestTimer);
+  _auSuggestTimer = setTimeout(auSuggestUsername, 400);
+}
+
+async function auSuggestUsername() {
+  if (_auUsernameManual) return;
+  const first = document.getElementById('auFirstName').value.trim();
+  const last  = document.getElementById('auLastName').value.trim();
+  const mi    = document.getElementById('auMiddleInitial').value.trim();
+  if (!first || !last) return;
+  try {
+    const res  = await fetch(`/api/admin/users/suggest-username?first=${encodeURIComponent(first)}&last=${encodeURIComponent(last)}&mi=${encodeURIComponent(mi)}`, { headers: authHeaders() });
+    const data = await res.json();
+    if (data.username && !_auUsernameManual) {
+      document.getElementById('auUsername').value = data.username;
+    }
+  } catch { /* silent */ }
+}
+
+function generateAddUserPassword() {
+  const upper   = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower   = 'abcdefghijkmnpqrstuvwxyz';
+  const digits  = '23456789';
+  const special = '!@#$%&*';
+  const all = upper + lower + digits + special;
+  let pw = upper[Math.floor(Math.random() * upper.length)]
+         + lower[Math.floor(Math.random() * lower.length)]
+         + digits[Math.floor(Math.random() * digits.length)]
+         + special[Math.floor(Math.random() * special.length)];
+  for (let i = 4; i < 12; i++) pw += all[Math.floor(Math.random() * all.length)];
+  pw = pw.split('').sort(() => Math.random() - 0.5).join('');
+  const field = document.getElementById('auPassword');
+  field.value = pw;
+  navigator.clipboard.writeText(pw).then(
+    () => showToast('Password generated and copied to clipboard'),
+    () => showToast('Password generated — copy it from the field'),
+  );
+}
+
 function closeAddUserModal() {
   document.getElementById('addUserModal').classList.remove('open');
   document.body.style.overflow = '';
   document.getElementById('auSuggestions').style.display = 'none';
+  clearTimeout(_auSuggestTimer);
+  _auUsernameManual = false;
 }
 
 function overlayCloseAddUser(e) {
@@ -713,7 +762,7 @@ function onAuNameSearch(val) {
   }, 300);
 }
 
-function auSelectSuggestion(idx) {
+async function auSelectSuggestion(idx) {
   const box  = document.getElementById('auSuggestions');
   const data = JSON.parse(box.dataset.results || '[]');
   const r    = data[idx];
@@ -725,12 +774,12 @@ function auSelectSuggestion(idx) {
   _fillCompanySelect('auCompany', r.company || '');
   _fillDeptSelect('auDepartment', r.department || '');
   document.getElementById('auPosition').value       = r.position        || '';
-  // Auto-suggest username: first initial + last name, lowercase, no spaces
-  const suggested = ((r.first_name || '').charAt(0) + (r.last_name || '')).toLowerCase().replace(/\s+/g, '');
-  if (suggested) document.getElementById('auUsername').value = suggested;
   const fullName = [r.first_name, r.middle_initial, r.last_name].filter(Boolean).join(' ');
   document.getElementById('auNameSearch').value = fullName;
   box.style.display = 'none';
+  // Use the backend suggest endpoint for a unique, properly formatted username
+  _auUsernameManual = false;
+  await auSuggestUsername();
   document.getElementById('auUsername').focus();
 }
 
@@ -740,6 +789,7 @@ async function submitAddUser(e) {
   document.getElementById('auFormError').style.display   = 'none';
   document.getElementById('auFormLoading').style.display = '';
 
+  const auPasswordVal = document.getElementById('auPassword').value.trim();
   const payload = {
     username:       document.getElementById('auUsername').value.trim().toLowerCase(),
     first_name:     document.getElementById('auFirstName').value.trim(),
@@ -756,6 +806,7 @@ async function submitAddUser(e) {
     is_department_head:  document.getElementById('auIsDepartmentHead').checked,
     systems:             [],
   };
+  if (auPasswordVal) payload.password = auPasswordVal;
 
   try {
     const res = await fetch('/api/admin/users', {
