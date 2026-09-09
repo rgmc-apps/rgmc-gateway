@@ -3771,10 +3771,29 @@ function _closeIssActionsMenu() {
   document.getElementById('issActionsWrap')?.classList.remove('open');
 }
 
-async function quickResolveIssue() {
+function quickResolveIssue() {
   if (!_editingIssueId) return;
   _closeIssActionsMenu();
-  if (!await showConfirm({ title: 'Resolve Issue', message: 'Mark this issue as resolved?', confirmText: 'Resolve' })) return;
+  const session = loadSession();
+  const fullName = (session?.fullName || session?.firstName || session?.username || '').trim();
+  document.getElementById('qrResolvedBy').value       = fullName;
+  document.getElementById('qrResolutionNotes').value  = '';
+  document.getElementById('quickResolveOverlay').style.display = '';
+}
+
+function closeQuickResolveModal() {
+  document.getElementById('quickResolveOverlay').style.display = 'none';
+}
+
+function overlayCloseQuickResolve(event) {
+  if (event.target === document.getElementById('quickResolveOverlay')) closeQuickResolveModal();
+}
+
+async function submitQuickResolve() {
+  if (!_editingIssueId) return;
+  const resolvedBy      = document.getElementById('qrResolvedBy').value.trim();
+  const resolutionNotes = document.getElementById('qrResolutionNotes').value.trim();
+  closeQuickResolveModal();
   document.getElementById('issueModalActions').style.display = 'none';
   document.getElementById('issueModalLoading').style.display = '';
   document.getElementById('issueModalError').style.display   = 'none';
@@ -3782,7 +3801,11 @@ async function quickResolveIssue() {
     const res = await fetch(`/api/admin/issues/${encodeURIComponent(_editingIssueId)}`, {
       method:  'PATCH',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ status: 'resolved' }),
+      body:    JSON.stringify({
+        status:           'resolved',
+        resolved_by:      resolvedBy || undefined,
+        resolution_notes: resolutionNotes || undefined,
+      }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to resolve issue');

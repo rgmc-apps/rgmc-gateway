@@ -10,6 +10,92 @@ from services.email import send_report_email, send_issue_resolved_email, send_is
 issues_bp = Blueprint("issues", __name__)
 
 
+def _cascade_linked_resolution(issue_id: str, issue: dict, patch: dict,
+                               admin_username: str, new_status: str) -> None:
+    """Cascade resolution + comment to all directly linked issues (both link directions)."""
+    from datetime import datetime, timezone
+
+    # Outgoing links: issues this issue explicitly links to
+    outgoing_ids = list(issue.get("linked_issue_ids") or [])
+
+    # Reverse links: issues whose linked_issue_ids contain this issue
+    reverse_ids = []
+    try:
+        rev_rows = supabase_req("GET", "/issues", params={
+            "linked_issue_ids": f"cs.{{{issue_id}}}",
+            "select":           "id,status",
+        })
+        reverse_ids = [r["id"] for r in (rev_rows or [])]
+    except Exception as exc:
+        current_app.logger.warning("cascade: reverse link lookup failed: %s", exc)
+
+    # Also catch legacy single-field reverse links
+    try:
+        leg_rows = supabase_req("GET", "/issues", params={
+            "linked_issue_id": f"eq.{issue_id}",
+            "select":          "id,status",
+        })
+        for r in (leg_rows or []):
+            if r["id"] not in reverse_ids:
+                reverse_ids.append(r["id"])
+    except Exception as exc:
+        current_app.logger.warning("cascade: legacy reverse link lookup failed: %s", exc)
+
+    all_linked = list(set(outgoing_ids + reverse_ids) - {issue_id})
+    if not all_linked:
+        return
+
+    resolution_notes = (patch.get("resolution_notes") or "").strip()
+    resolver_name    = (patch.get("resolved_by") or "").strip()
+    resolver_display = resolver_name or admin_username
+    resolved_at      = patch.get("resolved_at") or datetime.now(timezone.utc).isoformat()
+    plain_notes      = _strip_html(resolution_notes)
+
+    origin_ticket = issue.get("ticket_number") or issue_id[:8]
+    comment_text  = f"Resolved by {resolver_display} (cascaded from linked issue #{origin_ticket})."
+    if plain_notes:
+        comment_text += f"\n\nResolution Notes:\n{plain_notes}"
+
+    resolution_patch = {
+        "status":           new_status,
+        "resolution_notes": resolution_notes or f"Resolved along with linked issue #{origin_ticket}.",
+        "resolved_by":      resolver_name or admin_username,
+        "resolved_at":      resolved_at,
+    }
+
+    for linked_id in all_linked:
+        try:
+            rows = supabase_req("GET", "/issues", params={
+                "id":     f"eq.{linked_id}",
+                "select": "id,status,email,employee_name,ticket_number,site_name,dev_item_id,task_id,user_task_id",
+            })
+            if not rows:
+                continue
+            linked = rows[0]
+
+            if linked.get("status") in ("resolved", "closed"):
+                continue
+
+            supabase_req("PATCH", "/issues", data=resolution_patch,
+                         params={"id": f"eq.{linked_id}"})
+
+            supabase_req("POST", "/issue_comments", data={
+                "issue_id": linked_id,
+                "username": admin_username,
+                "comment":  comment_text,
+            }, extra_headers={"Prefer": "return=representation"})
+
+            try:
+                send_issue_resolved_email(
+                    linked, resolution_notes, resolver_display, new_status,
+                )
+            except Exception as exc:
+                current_app.logger.warning("cascade: resolved email failed for %s: %s", linked_id, exc)
+
+        except Exception as exc:
+            current_app.logger.warning("cascade: failed to resolve linked issue %s: %s", linked_id, exc)
+
+
 def _check_outage(issue: dict) -> None:
     """Detect if a new issue triggers an outage (2+ issues, same site + error_code)."""
     from datetime import datetime, timezone
@@ -490,6 +576,19 @@ def admin_patch_issue(issue_id):
                          params={"id": f"eq.{issue['user_task_id']}"})
         except Exception as exc:
             current_app.logger.warning("admin_patch_issue: user_task assigned_to sync failed: %s", exc)
+
+    # Cascade resolution to all directly linked issues
+    if notify_resolved and issue is not None:
+        try:
+            _cascade_linked_resolution(
+                issue_id=issue_id,
+                issue=issue,
+                patch=patch,
+                admin_username=admin_username,
+                new_status=new_status,
+            )
+        except Exception as exc:
+            current_app.logger.warning("cascade_linked_resolution failed: %s", exc)
 
     return jsonify({"success": True})
 

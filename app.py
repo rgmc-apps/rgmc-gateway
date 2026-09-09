@@ -1,3 +1,4 @@
+import os
 from flask import Flask
 
 from controllers.public import public_bp
@@ -13,8 +14,12 @@ from controllers.resolution import resolution_bp
 from controllers.webhooks import webhooks_bp
 from controllers.outages import outages_bp
 
+_scheduler_started = False
+
 
 def create_app() -> Flask:
+    global _scheduler_started
+
     app = Flask(__name__)
     app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # 20 MB max upload
 
@@ -30,6 +35,12 @@ def create_app() -> Flask:
     app.register_blueprint(resolution_bp)
     app.register_blueprint(webhooks_bp)
     app.register_blueprint(outages_bp)
+
+    # Start background scheduler once per process (skip Flask reloader child)
+    if not _scheduler_started and os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+        _scheduler_started = True
+        from services.scheduler import start_scheduler
+        start_scheduler(app)
 
     return app
 

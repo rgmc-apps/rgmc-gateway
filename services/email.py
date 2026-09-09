@@ -1477,3 +1477,90 @@ def send_password_reset_email(user: dict, reset_url: str) -> bool:
     msg["To"]      = user_email
     msg.attach(MIMEText(html, "html"))
     return _smtp_send(msg, [user_email])
+
+
+def send_resolution_reminder_email(issue: dict, reminder_number: int) -> bool:
+    user_email = issue.get("email", "")
+    if not user_email:
+        return False
+
+    from_addr     = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    it_email      = EMAIL_CONFIG["developer_email"] or from_addr
+    site_name     = issue.get("site_name", "Unknown System")
+    employee_name = issue.get("employee_name", "")
+    raw_desc      = issue.get("description", "")
+    title         = issue.get("title") or raw_desc[:80] + ("…" if len(raw_desc) > 80 else "")
+    resolution_notes = (issue.get("resolution_notes") or "").strip()
+    resolved_by   = (issue.get("resolved_by") or "").strip()
+    ticket_number = issue.get("ticket_number") or ""
+
+    def _he(s): return str(s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    suffix = {1: "st", 2: "nd", 3: "rd"}.get(reminder_number if reminder_number <= 20 else reminder_number % 10, "th")
+    ordinal = f"{reminder_number}{suffix}"
+
+    ticket_row = f"""
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;width:140px;border-bottom:1px solid #e2e8f0;">TICKET</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:monospace;font-weight:700;">{_he(ticket_number)}</td>
+        </tr>""" if ticket_number else ""
+
+    notes_block = ""
+    if resolution_notes:
+        notes_block = f"""
+      <div style="margin-bottom:24px;">
+        <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Resolution Provided</p>
+        <div style="background:#f0fdf4;border:1px solid rgba(21,128,61,.18);border-left:4px solid #15803d;border-radius:0 6px 6px 0;padding:14px 16px;font-size:14px;line-height:1.6;color:#374151;">{_he(resolution_notes).replace(chr(10), "<br>")}</div>
+      </div>"""
+
+    resolver_line = f" by <strong>{_he(resolved_by)}</strong>" if resolved_by else ""
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#78350f 0%,#451a03 100%);padding:28px 32px;border-bottom:3px solid #f59e0b;">
+      <h2 style="margin:0;font-size:22px;color:#fde68a;">Reminder: Please Confirm Your Issue Is Resolved</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">{_he(site_name)} &mdash; {ordinal} Reminder</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 16px;font-size:15px;">Hello <strong>{_he(employee_name)}</strong>,</p>
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#374151;">
+        Your issue with <strong>{_he(site_name)}</strong> was marked as resolved{resolver_line}, but we haven't received
+        your confirmation yet. If the fix worked on your end, please let us know by clicking the button below.
+      </p>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;border-radius:8px;overflow:hidden;">
+        {ticket_row}
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;width:140px;border-bottom:1px solid #e2e8f0;">SYSTEM</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:600;">{_he(site_name)}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">ISSUE</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:600;">{_he(title)}</td>
+        </tr>
+      </table>
+
+      {notes_block}
+
+      {_confirm_fix_btn_html(issue.get("id"))}
+
+      <p style="margin:20px 0 0;font-size:13px;color:#64748b;line-height:1.7;">
+        Still experiencing the issue? Contact IT at
+        <a href="mailto:{_he(it_email)}" style="color:#C4972A;text-decoration:none;font-weight:600;">{_he(it_email)}</a>.
+        You will continue to receive weekly reminders until your issue is confirmed as resolved.
+      </p>
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    suffix_word = {1: "1st", 2: "2nd", 3: "3rd"}.get(reminder_number, f"{reminder_number}th")
+    msg            = MIMEMultipart("alternative")
+    msg["Subject"] = f"Reminder ({suffix_word}): Please Confirm Your Issue Is Resolved — {site_name}"
+    msg["From"]    = from_addr
+    msg["To"]      = user_email
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [user_email])

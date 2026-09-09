@@ -2560,6 +2560,30 @@
     </div>
   </div>
 
+  <!-- Quick Resolve Modal -->
+  <div id="quickResolveOverlay" class="modal-overlay" style="display:none;" onclick="overlayCloseQuickResolve(event)">
+    <div class="modal modal-lg" style="max-width:480px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Resolve Issue</h3>
+        <button class="modal-close" onclick="closeQuickResolveModal()">&times;</button>
+      </div>
+      <div style="padding:20px 24px;">
+        <div class="form-group">
+          <label class="form-label">Resolved By</label>
+          <input type="text" class="form-input" id="qrResolvedBy" placeholder="Name of resolver" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Resolution Notes</label>
+          <textarea class="form-input" id="qrResolutionNotes" rows="5" placeholder="Describe how the issue was resolved…" style="resize:vertical;"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal-cancel" onclick="closeQuickResolveModal()">Cancel</button>
+        <button class="btn-modal-submit" onclick="submitQuickResolve()">Resolve</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/static/admin.js"></script>
   <script src="/static/outage-notifier.js"></script>
 </body>
