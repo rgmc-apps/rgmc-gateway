@@ -579,6 +579,9 @@ function applySession(session) {
 
   // 9. Load recent changelog
   loadChangelog(session);
+
+  // 10. Restore collapsed section states
+  _applySectionStates();
 }
 
 function buildAccessPanel(session) {
@@ -748,28 +751,87 @@ function buildAccessPanel(session) {
 
 /* ── Changelog ── */
 
+let _clAllData   = [];
+let _clPage      = 0;
+const _clPageSize = 10;
+let _clDays      = 30;
+let _clSession   = null;
+const _CL_DAYS_KEY = 'rgmc-cl-days';
+
 async function loadChangelog(session) {
+  _clSession = session;
+  _clDays    = parseInt(localStorage.getItem(_CL_DAYS_KEY) || '30', 10);
+  const sel  = document.getElementById('clDaysSelect');
+  if (sel) sel.value = String(_clDays);
+  await _fetchChangelog();
+}
+
+async function _fetchChangelog() {
   const section = document.getElementById('changelogSection');
   const feed    = document.getElementById('changelogFeed');
-  if (!section || !feed) return;
+  if (!section || !feed || !_clSession) return;
+
+  feed.innerHTML = '<div class="health-loading"><div class="spinner"></div><span>Loading changes…</span></div>';
+  const pgEl = document.getElementById('clPagination');
+  if (pgEl) pgEl.style.display = 'none';
 
   try {
-    const res  = await fetch('/api/changelog', { headers: { 'X-Gateway-Username': session.username } });
+    const res  = await fetch(`/api/changelog?days=${_clDays}`, { headers: { 'X-Gateway-Username': _clSession.username } });
     const data = await res.json();
 
-    if (!Array.isArray(data) || data.length === 0) {
-      feed.innerHTML = '<div class="changelog-empty">No resolved changes to display yet.</div>';
-      section.style.display = '';
-      _animateChangelogLabel();
-      return;
-    }
-
-    feed.innerHTML = data.map(_clEntryHtml).join('');
+    _clAllData = Array.isArray(data) ? data : [];
+    _clPage    = 0;
+    _renderClPage();
     section.style.display = '';
     _animateChangelogLabel();
   } catch {
     // Silently omit the section on error
   }
+}
+
+function _renderClPage() {
+  const feed    = document.getElementById('changelogFeed');
+  const pgEl    = document.getElementById('clPagination');
+  const prevBtn = document.getElementById('clPrevBtn');
+  const nextBtn = document.getElementById('clNextBtn');
+  const infoEl  = document.getElementById('clPageInfo');
+  if (!feed) return;
+
+  if (!_clAllData.length) {
+    feed.innerHTML = '<div class="changelog-empty">No changes in this time range.</div>';
+    if (pgEl) pgEl.style.display = 'none';
+    return;
+  }
+
+  const totalPages = Math.ceil(_clAllData.length / _clPageSize);
+  const start      = _clPage * _clPageSize;
+  const slice      = _clAllData.slice(start, start + _clPageSize);
+
+  feed.innerHTML = slice.map(_clEntryHtml).join('');
+
+  if (pgEl) {
+    if (totalPages > 1) {
+      pgEl.style.display = '';
+      if (prevBtn) prevBtn.disabled = _clPage === 0;
+      if (nextBtn) nextBtn.disabled = _clPage >= totalPages - 1;
+      if (infoEl) infoEl.textContent = `Page ${_clPage + 1} of ${totalPages}`;
+    } else {
+      pgEl.style.display = 'none';
+    }
+  }
+}
+
+function clGoPage(dir) {
+  const totalPages = Math.ceil(_clAllData.length / _clPageSize);
+  _clPage = Math.max(0, Math.min(totalPages - 1, _clPage + dir));
+  _renderClPage();
+  document.getElementById('changelogSection')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function clSetDays(n) {
+  _clDays = n;
+  localStorage.setItem(_CL_DAYS_KEY, String(n));
+  _fetchChangelog();
 }
 
 function _animateChangelogLabel() {
@@ -1413,6 +1475,37 @@ function setViewMode(mode) {
   }
 
   localStorage.setItem(VIEW_KEY, mode);
+}
+
+/* ── Section Collapse ── */
+
+const _SEC_STATE_KEY = 'rgmc-section-states';
+
+function _loadSecStates() {
+  try { return JSON.parse(localStorage.getItem(_SEC_STATE_KEY) || '{}'); } catch { return {}; }
+}
+
+function _saveSecStates(states) {
+  localStorage.setItem(_SEC_STATE_KEY, JSON.stringify(states));
+}
+
+function toggleSection(id) {
+  const section = document.querySelector(`[data-sec="${id}"]`);
+  if (!section) return;
+  const isCollapsed = section.classList.toggle('sec-section-collapsed');
+  const states = _loadSecStates();
+  if (isCollapsed) states[id] = 'c'; else delete states[id];
+  _saveSecStates(states);
+}
+
+function _applySectionStates() {
+  const states = _loadSecStates();
+  Object.entries(states).forEach(([id, val]) => {
+    if (val === 'c') {
+      const section = document.querySelector(`[data-sec="${id}"]`);
+      if (section) section.classList.add('sec-section-collapsed');
+    }
+  });
 }
 
 /* ── Init ── */

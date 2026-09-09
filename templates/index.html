@@ -55,11 +55,15 @@
     </div>
 
     <!-- RGMC Systems -->
-    <section class="section">
+    <section class="section" data-sec="rgmc">
       <div class="section-label">
         <span class="label-badge label-rgmc">RGMC</span>
         <h2 class="section-title">RGMC Systems</h2>
+        <button class="sec-toggle-btn" onclick="toggleSection('rgmc')" title="Collapse section" aria-label="Collapse RGMC Systems">
+          <svg class="sec-toggle-icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+        </button>
       </div>
+      <div class="section-body" id="sb-rgmc">
       <div class="systems-grid">
         {% for site in rgmc_sites %}
         <div class="site-card">
@@ -87,14 +91,19 @@
         </div>
         {% endfor %}
       </div>
+      </div><!-- /sb-rgmc -->
     </section>
 
     <!-- SBIC Systems -->
-    <section class="section">
+    <section class="section" data-sec="sbic">
       <div class="section-label">
         <span class="label-badge label-sbic">SBIC</span>
         <h2 class="section-title">SBIC Systems</h2>
+        <button class="sec-toggle-btn" onclick="toggleSection('sbic')" title="Collapse section" aria-label="Collapse SBIC Systems">
+          <svg class="sec-toggle-icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+        </button>
       </div>
+      <div class="section-body" id="sb-sbic">
       <div class="systems-grid">
         {% for site in sbic_sites %}
         <div class="site-card">
@@ -122,14 +131,19 @@
         </div>
         {% endfor %}
       </div>
+      </div><!-- /sb-sbic -->
     </section>
 
     <!-- NAV Sites -->
-    <section class="section">
+    <section class="section" data-sec="nav">
       <div class="section-label">
         <span class="label-badge label-nav">NAV</span>
         <h2 class="section-title">NAV Sites</h2>
+        <button class="sec-toggle-btn" onclick="toggleSection('nav')" title="Collapse section" aria-label="Collapse NAV Sites">
+          <svg class="sec-toggle-icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+        </button>
       </div>
+      <div class="section-body" id="sb-nav">
       <div class="systems-grid">
         {% for site in nav_sites %}
         <div class="site-card">
@@ -157,15 +171,20 @@
         </div>
         {% endfor %}
       </div>
+      </div><!-- /sb-nav -->
     </section>
 
     <!-- Windows Applications -->
     {% if windows_sites %}
-    <section class="section">
+    <section class="section" data-sec="win">
       <div class="section-label">
         <span class="label-badge label-win">WIN</span>
         <h2 class="section-title">Windows Applications</h2>
+        <button class="sec-toggle-btn" onclick="toggleSection('win')" title="Collapse section" aria-label="Collapse Windows Applications">
+          <svg class="sec-toggle-icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+        </button>
       </div>
+      <div class="section-body" id="sb-win">
       <div class="systems-grid">
         {% for site in windows_sites %}
         <div class="site-card">
@@ -193,16 +212,21 @@
         </div>
         {% endfor %}
       </div>
+      </div><!-- /sb-win -->
     </section>
     {% endif %}
 
     <!-- Tasks / Internal Tools -->
     {% if task_sites %}
-    <section class="section">
+    <section class="section" data-sec="task">
       <div class="section-label">
         <span class="label-badge label-task">TASK</span>
         <h2 class="section-title">Internal Tools</h2>
+        <button class="sec-toggle-btn" onclick="toggleSection('task')" title="Collapse section" aria-label="Collapse Internal Tools">
+          <svg class="sec-toggle-icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+        </button>
       </div>
+      <div class="section-body" id="sb-task">
       <div class="systems-grid">
         {% for site in task_sites %}
         <div class="site-card">
@@ -230,11 +254,12 @@
         </div>
         {% endfor %}
       </div>
+      </div><!-- /sb-task -->
     </section>
     {% endif %}
 
     <!-- Health Check Section -->
-    <section class="section health-section">
+    <section class="section health-section" data-sec="health">
       <div class="health-header-row">
         <div class="hd-label-group">
           <span class="label-badge label-health">API</span>
@@ -246,25 +271,58 @@
             <svg id="refreshIcon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
             Refresh
           </button>
+          <button class="sec-toggle-btn" onclick="toggleSection('health')" title="Collapse section" aria-label="Collapse Health Status">
+            <svg class="sec-toggle-icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+          </button>
         </div>
       </div>
+      <div class="section-body" id="sb-health">
       <div id="healthGrid" class="health-grid">
         <div class="health-loading">
           <div class="spinner"></div>
           <span>Checking API status…</span>
         </div>
       </div>
+      </div><!-- /sb-health -->
     </section>
 
     <!-- Recent Changes / Changelog -->
-    <section class="section changelog-section" id="changelogSection" style="display:none">
+    <section class="section changelog-section" id="changelogSection" data-sec="changelog" style="display:none">
       <div class="section-label" id="changelogLabel">
         <span class="label-badge label-changelog">NEW</span>
         <h2 class="section-title">Recent Changes</h2>
+        <div class="cl-sec-controls">
+          <label class="cl-days-label">
+            Show last
+            <select id="clDaysSelect" class="cl-days-sel" onchange="clSetDays(+this.value)">
+              <option value="7">7 days</option>
+              <option value="14">14 days</option>
+              <option value="30" selected>30 days</option>
+              <option value="60">60 days</option>
+              <option value="90">90 days</option>
+            </select>
+          </label>
+          <button class="sec-toggle-btn" onclick="toggleSection('changelog')" title="Collapse section" aria-label="Collapse Recent Changes">
+            <svg class="sec-toggle-icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+          </button>
+        </div>
       </div>
-      <div class="changelog-feed" id="changelogFeed">
-        <div class="health-loading"><div class="spinner"></div><span>Loading changes…</span></div>
-      </div>
+      <div class="section-body" id="sb-changelog">
+        <div class="changelog-feed" id="changelogFeed">
+          <div class="health-loading"><div class="spinner"></div><span>Loading changes…</span></div>
+        </div>
+        <div class="cl-pagination" id="clPagination" style="display:none;">
+          <button class="cl-pg-btn" id="clPrevBtn" onclick="clGoPage(-1)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Prev
+          </button>
+          <span class="cl-pg-info" id="clPageInfo"></span>
+          <button class="cl-pg-btn" id="clNextBtn" onclick="clGoPage(1)">
+            Next
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </div><!-- /sb-changelog -->
     </section>
 
   </div><!-- /portal-content -->

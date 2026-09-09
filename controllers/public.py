@@ -1,6 +1,6 @@
 import re
 import requests
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from flask import Blueprint, render_template, jsonify, request, redirect, current_app
 
 from config import HEALTH_CHECKS
@@ -336,6 +336,13 @@ def get_changelog():
     if not username:
         return jsonify([])
 
+    try:
+        days = max(1, min(365, int(request.args.get("days", 30))))
+    except (ValueError, TypeError):
+        days = 30
+
+    cutoff = (datetime.utcnow() - timedelta(days=days)).strftime('%Y-%m-%dT%H:%M:%SZ')
+
     is_privileged = False
     user_systems  = set()
     try:
@@ -355,8 +362,9 @@ def get_changelog():
         items = supabase_req("GET", "/dev_items", params={
             "status": "eq.done",
             "select": "id,title,description,dev_item_type,system_id,system_ids,assigned_to,resolution_action_ids,actual_end_date,created_at",
+            "or":     f"(actual_end_date.gte.{cutoff},and(actual_end_date.is.null,created_at.gte.{cutoff}))",
             "order":  "actual_end_date.desc.nullslast,created_at.desc",
-            "limit":  "50",
+            "limit":  "200",
         })
     except Exception as exc:
         current_app.logger.error("get_changelog: failed to fetch dev_items: %s", exc)
@@ -414,9 +422,6 @@ def get_changelog():
             "actual_end_date": item.get("actual_end_date"),
             "created_at":      item["created_at"],
         })
-        if len(result) >= 25:
-            break
-
     return jsonify(result)
 
 
