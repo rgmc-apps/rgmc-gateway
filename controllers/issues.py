@@ -291,7 +291,7 @@ def _submit_issue():
                     current_app.logger.error("Attachment URL save failed: %s", exc)
 
     email_attachments = [{"filename": f["filename"], "data": f["data"]} for f in raw_files]
-    send_report_email(form_data, email_attachments, ticket_number=ticket_number)
+    send_report_email(form_data, email_attachments, ticket_number=ticket_number, issue_id=issue_id)
 
     if created_issue:
         from services.it_bot import notify_ticket_created

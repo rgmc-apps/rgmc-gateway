@@ -4,6 +4,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
+from urllib.parse import quote as _url_quote
 
 from config import EMAIL_CONFIG, APPROVER_EMAIL, GATEWAY_BASE_URL
 
@@ -26,7 +27,7 @@ def _smtp_send(msg, to_addrs: list) -> bool:
         return False
 
 
-def send_report_email(form_data: dict, screenshots: list, ticket_number: str | None = None) -> bool:
+def send_report_email(form_data: dict, screenshots: list, ticket_number: str | None = None, issue_id: str | None = None) -> bool:
     if not EMAIL_CONFIG["smtp_user"] or not EMAIL_CONFIG["smtp_password"]:
         logger.warning("Email credentials not set — skipping send")
         return False
@@ -89,6 +90,7 @@ def send_report_email(form_data: dict, screenshots: list, ticket_number: str | N
       <h3 style="margin:0 0 10px;font-size:15px;color:#1e293b;">Problem Description</h3>
       <div style="background:#f8fafc;border-left:4px solid #2563eb;padding:14px 16px;border-radius:0 6px 6px 0;font-size:14px;line-height:1.6;">{description_html}</div>
       {'<p style="margin-top:16px;color:#64748b;font-size:13px;">&#128206; ' + str(len(screenshots)) + ' screenshot(s) attached.</p>' if screenshots else ''}
+      {_ticket_btn_html(issue_id)}
     </div>
     <div style="background:#f1f5f9;padding:12px 24px;font-size:12px;color:#94a3b8;">Sent via RGMC System Gateway</div>
   </div>
@@ -710,12 +712,28 @@ def send_task_status_email(
     return _smtp_send(msg, [user_email])
 
 
+def _qr_block_html(ticket_url: str) -> str:
+    if not ticket_url:
+        return ""
+    qr_img = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={_url_quote(ticket_url, safe='')}&margin=10&format=png"
+    return (f'<div style="text-align:center;margin:20px 0 16px;">'
+            f'<p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#64748b;'
+            f'text-transform:uppercase;letter-spacing:.06em;">Share via QR Code</p>'
+            f'<a href="{ticket_url}" style="display:inline-block;background:#fff;'
+            f'border:1px solid #e2e8f0;border-radius:6px;padding:8px;line-height:0;">'
+            f'<img src="{qr_img}" width="150" height="150" alt="QR Code — scan to open ticket" '
+            f'style="display:block;border:0;"></a>'
+            f'<p style="margin:6px 0 0;font-size:11px;color:#94a3b8;">Scan to open ticket</p>'
+            f'</div>')
+
+
 def _ticket_btn_html(issue_id: str | None) -> str:
     if not issue_id:
         return ""
     base = (GATEWAY_BASE_URL or "").rstrip("/")
     url  = f"{base}/admin/issues/{issue_id}"
     return (f'<div style="margin-top:24px;">'
+            f'{_qr_block_html(url)}'
             f'<a href="{url}" style="display:inline-block;padding:12px 28px;background:#C4972A;'
             f'color:#0d0a06;text-decoration:none;border-radius:7px;font-size:14px;font-weight:700;'
             f'letter-spacing:.02em;">View Ticket &rarr;</a></div>')
@@ -728,6 +746,7 @@ def _confirm_fix_btn_html(issue_id: str | None) -> str:
     confirm_url = f"{base}/api/public/issues/{issue_id}/confirm-fix"
     ticket_url  = f"{base}/admin/issues/{issue_id}"
     return f"""
+      {_qr_block_html(ticket_url)}
       <div style="margin-top:28px;padding:20px 24px;background:#f0fdf4;border:1px solid rgba(21,128,61,.18);border-top:3px solid #15803d;border-radius:0 0 8px 8px;">
         <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:.05em;">Was your issue resolved?</p>
         <p style="margin:0 0 16px;font-size:13px;color:#374151;line-height:1.6;">
