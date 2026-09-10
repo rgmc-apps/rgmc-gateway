@@ -191,6 +191,8 @@ function renderOpenIssuesTable(openIssues) {
       ? `<span class="open-iss-assignee">${escHtml(iss.assigned_to)}</span>`
       : '<span class="open-iss-unassigned">Unassigned</span>';
     const date    = escHtml(fmtDate(iss.created_at));
+    const safeQrId  = id.replace(/'/g, "\\'");
+    const safeTicket = ticket.replace(/'/g, "\\'");
     return `<tr class="open-iss-row" onclick="openIssueDetailById('${id}')" title="View issue">
       <td class="dlt-td open-iss-col-ticket"><span class="open-iss-ticket">${ticket}</span></td>
       <td class="dlt-td open-iss-col-title">
@@ -202,6 +204,11 @@ function renderOpenIssuesTable(openIssues) {
       <td class="dlt-td open-iss-col-cat">${cat}</td>
       <td class="dlt-td">${assignee}</td>
       <td class="dlt-td open-iss-col-date">${date}</td>
+      <td class="dlt-td open-iss-col-qr" onclick="event.stopPropagation()">
+        <button class="iss-qr-btn" onclick="showIssueQR('${safeQrId}','${safeTicket}',event)" title="Share via QR code">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg>
+        </button>
+      </td>
     </tr>`;
   }).join('');
 }
@@ -442,7 +449,12 @@ function renderIssueCard(iss) {
         ${prioBadgeHtml(iss.priority)}
         ${confirmedBadge}
       </div>
-      <span class="issue-card-date">${fmtDateTime(iss.created_at)}</span>
+      <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
+        <span class="issue-card-date">${fmtDateTime(iss.created_at)}</span>
+        <button class="iss-qr-btn iss-qr-btn--card" onclick="event.stopPropagation();showIssueQR('${id}','${escHtml(iss.ticket_number||'')}',event)" title="Share via QR code">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg>
+        </button>
+      </div>
     </div>
     <div class="issue-card-title">${escHtml(title)}</div>
     ${desc ? `<div class="issue-card-excerpt">${escHtml(desc.slice(0, 140))}${desc.length > 140 ? '…' : ''}</div>` : ''}
@@ -1789,7 +1801,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeWsIssShareModal(); closeReopenModal(); closeIssueDetail(); closeUtModal(); closeUtCfgStatusModal(); closeTeamMemberModal(); closeProfileMenu(); }
+    if (e.key === 'Escape') { closeWsIssShareModal(); closeReopenModal(); closeIssueDetail(); closeUtModal(); closeUtCfgStatusModal(); closeTeamMemberModal(); closeProfileMenu(); closeIssueQR(); }
   });
   document.addEventListener('click', e => {
     closeProfileMenu();
@@ -2032,6 +2044,16 @@ function openWsIssShareModal() {
   document.getElementById('wsIssShareModal').classList.add('active');
   document.body.style.overflow = 'hidden';
 
+  const _qrShareEl = document.getElementById('wsIssShareQr');
+  if (_qrShareEl) {
+    try {
+      const _qr = qrcode(0, 'M');
+      _qr.addData(url);
+      _qr.make();
+      _qrShareEl.innerHTML = _qr.createSvgTag(4, 4);
+    } catch(_e) { _qrShareEl.innerHTML = ''; }
+  }
+
   navigator.clipboard.writeText(url).then(() => {
     document.getElementById('wsIssShareCopied').classList.add('visible');
   }).catch(() => {});
@@ -2040,6 +2062,73 @@ function openWsIssShareModal() {
 function closeWsIssShareModal() {
   document.getElementById('wsIssShareModal').classList.remove('active');
   document.body.style.overflow = '';
+}
+
+/* ── Issue QR Popover ── */
+let _issQrPopoverEl = null;
+
+function showIssueQR(issueId, ticketNumber, event) {
+  event.stopPropagation();
+  if (_issQrPopoverEl) { _issQrPopoverEl.remove(); _issQrPopoverEl = null; }
+
+  const url = window.location.origin + '/admin/issues/' + encodeURIComponent(issueId);
+  const btn = event.currentTarget;
+
+  const pop = document.createElement('div');
+  pop.className = 'iss-qr-popover';
+
+  let qrHtml = '';
+  try {
+    const qr = qrcode(0, 'M');
+    qr.addData(url);
+    qr.make();
+    qrHtml = qr.createSvgTag(4, 4);
+  } catch(e) {
+    qrHtml = '<div class="iss-qr-unavail">QR unavailable</div>';
+  }
+
+  pop.innerHTML = `
+    <div class="iss-qr-head">
+      <span class="iss-qr-ticket-label">${escHtml(ticketNumber || 'Issue')}</span>
+      <button class="iss-qr-close-btn" onclick="closeIssueQR(event)" title="Close">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="iss-qr-body">${qrHtml}</div>
+    <div class="iss-qr-footer">Scan to open ticket</div>`;
+
+  document.body.appendChild(pop);
+  _issQrPopoverEl = pop;
+
+  const rect  = btn.getBoundingClientRect();
+  const popW  = 180;
+  const popH  = 215;
+  let top  = rect.bottom + window.scrollY + 6;
+  let left = rect.left + window.scrollX - popW / 2 + rect.width / 2;
+
+  if (left + popW > window.innerWidth - 12) left = window.innerWidth - popW - 12 + window.scrollX;
+  if (left < 8) left = 8;
+  if (top + popH > window.innerHeight + window.scrollY - 12) top = rect.top + window.scrollY - popH - 6;
+
+  pop.style.top  = `${top}px`;
+  pop.style.left = `${left}px`;
+
+  setTimeout(() => { document.addEventListener('click', _onIssQrOutside, { once: true }); }, 0);
+}
+
+function _onIssQrOutside(e) {
+  if (_issQrPopoverEl && !_issQrPopoverEl.contains(e.target)) {
+    _issQrPopoverEl.remove();
+    _issQrPopoverEl = null;
+  } else if (_issQrPopoverEl) {
+    document.addEventListener('click', _onIssQrOutside, { once: true });
+  }
+}
+
+function closeIssueQR(event) {
+  if (event) event.stopPropagation();
+  if (_issQrPopoverEl) { _issQrPopoverEl.remove(); _issQrPopoverEl = null; }
+  document.removeEventListener('click', _onIssQrOutside);
 }
 
 function copyWsIssShareLink() {

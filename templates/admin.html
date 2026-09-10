@@ -2058,6 +2058,10 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           Copied to clipboard
         </div>
+        <div class="iss-share-qr-row">
+          <div class="iss-share-qr-label">QR Code</div>
+          <div id="issShareQr" class="iss-share-qr-canvas"></div>
+        </div>
         <div class="iss-share-apps-label">Share via</div>
         <div class="iss-share-apps">
           <a class="iss-share-app" id="issShareWa" href="#" target="_blank" rel="noopener">
@@ -2245,6 +2249,7 @@
     <button class="cf-lightbox-nav cf-lightbox-next" id="cfLightboxNext" onclick="event.stopPropagation();_cfLightboxNav(1)" aria-label="Next">&#8250;</button>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
   <script src="/static/theme.js"></script>
   <script src="/static/rich-editor.js"></script>
   {% if open_issue_id %}

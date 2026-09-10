@@ -582,6 +582,149 @@ function applySession(session) {
 
   // 10. Restore collapsed section states
   _applySectionStates();
+
+  // 11. Load My Active Work panel
+  loadMyWork(session);
+}
+
+/* ── My Active Work panel ─────────────────────────────────────────────────── */
+
+const _MW_DEV_STATUS_COLOR = {
+  pending: '#6b7280',
+  ongoing: '#f59e0b',
+  coding:  '#3b82f6',
+  testing: '#8b5cf6',
+  done:    '#22c55e',
+};
+const _MW_DEV_STATUS_LABEL = {
+  pending: 'Pending', ongoing: 'Ongoing', coding: 'Coding', testing: 'Testing', done: 'Done',
+};
+
+async function loadMyWork(session) {
+  const section = document.getElementById('myWorkSection');
+  const cols    = document.getElementById('myWorkColumns');
+  if (!section || !cols || !session?.username) return;
+
+  // Always reveal the panel; show skeleton while fetching
+  section.style.display = '';
+  cols.innerHTML = `
+    <div class="mw-skeleton-col"><div class="mw-skel-bar mw-skel-bar--h"></div><div class="mw-skel-bar"></div><div class="mw-skel-bar mw-skel-bar--s"></div><div class="mw-skel-bar"></div><div class="mw-skel-bar mw-skel-bar--s"></div></div>
+    <div class="mw-skeleton-col"><div class="mw-skel-bar mw-skel-bar--h"></div><div class="mw-skel-bar mw-skel-bar--s"></div><div class="mw-skel-bar"></div><div class="mw-skel-bar mw-skel-bar--s"></div><div class="mw-skel-bar"></div></div>`;
+
+  const headers = { 'X-Gateway-Username': session.username };
+  const showDev = session.isDeveloper || session.isAdmin;
+
+  const [tasksRes, devRes] = await Promise.allSettled([
+    fetch('/api/user/tasks?scope=mine', { headers }),
+    showDev ? fetch('/api/dev/items', { headers }) : Promise.resolve(null),
+  ]);
+
+  const tasks = tasksRes.status === 'fulfilled' && tasksRes.value?.ok
+    ? await tasksRes.value.json().catch(() => [])
+    : [];
+  const devItems = (devRes.status === 'fulfilled' && devRes.value?.ok)
+    ? await devRes.value.json().catch(() => [])
+    : [];
+
+  const activeTasks   = Array.isArray(tasks) ? tasks.filter(t => t.status !== 'done' && t.status !== 'closed').slice(0, 5) : [];
+  const assignedItems = Array.isArray(devItems)
+    ? devItems.filter(d => d.assigned_to === session.username && d.status !== 'done').slice(0, 5)
+    : [];
+
+  // Empty state — no active work
+  if (!activeTasks.length && !assignedItems.length) {
+    cols.innerHTML = `
+      <div class="mw-empty-state">
+        <div class="mw-empty-orb" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="mw-empty-copy">
+          <span class="mw-empty-headline">All caught up</span>
+          <span class="mw-empty-sub">No active tasks or dev items assigned to you right now.</span>
+        </div>
+        <a href="/workspace" class="mw-empty-link">
+          Open Workspace
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>`;
+    return;
+  }
+
+  let html = '';
+
+  // Tasks column — always shown if any tasks
+  if (activeTasks.length) {
+    html += `<div class="mw-col">
+      <div class="mw-col-header">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Team Tasks
+        <span class="mw-col-count">${activeTasks.length}</span>
+      </div>
+      <div class="mw-items">
+        ${activeTasks.map(t => {
+          const code  = t.task_code ? `<span class="mw-code">${escapeHtml(t.task_code)}</span>` : '';
+          const title = escapeHtml((t.title || 'Untitled').slice(0, 72));
+          const due   = t.due_date ? `<span class="mw-due">${_mwFormatDate(t.due_date)}</span>` : '';
+          const slug  = t.status || 'open';
+          return `<div class="mw-item">
+            <span class="mw-status-dot" style="background:var(--mw-status-${escapeHtml(slug)}, #6b7280)" title="${escapeHtml(slug)}"></span>
+            <span class="mw-item-body">
+              ${code}
+              <span class="mw-item-title">${title}</span>
+            </span>
+            ${due}
+          </div>`;
+        }).join('')}
+      </div>
+      <a href="/workspace" class="mw-view-all">View all in Workspace
+        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>`;
+  }
+
+  // Dev items column — only if developer
+  if (assignedItems.length) {
+    html += `<div class="mw-col">
+      <div class="mw-col-header">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Dev Items
+        <span class="mw-col-count">${assignedItems.length}</span>
+      </div>
+      <div class="mw-items">
+        ${assignedItems.map(d => {
+          const status = d.status || 'pending';
+          const color  = _MW_DEV_STATUS_COLOR[status] || '#6b7280';
+          const label  = _MW_DEV_STATUS_LABEL[status] || status;
+          const title  = escapeHtml((d.title || 'Untitled').slice(0, 72));
+          return `<div class="mw-item">
+            <span class="mw-status-dot" style="background:${color}" title="${escapeHtml(label)}"></span>
+            <span class="mw-item-body">
+              <span class="mw-dev-label" style="color:${color}">${escapeHtml(label)}</span>
+              <span class="mw-item-title">${title}</span>
+            </span>
+          </div>`;
+        }).join('')}
+      </div>
+      <a href="/developer" class="mw-view-all">View all in Dev Board
+        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>`;
+  }
+
+  cols.innerHTML = html;
+}
+
+function _mwFormatDate(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const today = new Date();
+  const diff  = Math.round((d - today) / 86400000);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Tomorrow';
+  if (diff === -1) return 'Yesterday';
+  if (diff < 0) return `${Math.abs(diff)}d overdue`;
+  if (diff <= 7) return `${diff}d left`;
+  return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
 }
 
 function buildAccessPanel(session) {
@@ -921,11 +1064,11 @@ function filterSystems(approvedSystems) {
     card.style.display = approved.has(name.toLowerCase()) ? '' : 'none';
   });
 
-  // Hide entire section if it has no visible cards
+  // Hide entire section if it has no visible cards AND no compact empty state
   document.querySelectorAll('.section:not(.health-section)').forEach(section => {
-    const hasVisible = Array.from(section.querySelectorAll('.site-card'))
-      .some(c => c.style.display !== 'none');
-    section.style.display = hasVisible ? '' : 'none';
+    const hasVisible  = Array.from(section.querySelectorAll('.site-card')).some(c => c.style.display !== 'none');
+    const hasEmptyRow = !!section.querySelector('.st-empty-row');
+    section.style.display = (hasVisible || hasEmptyRow) ? '' : 'none';
   });
 }
 
@@ -1440,10 +1583,25 @@ function buildCompactTables(approvedSet) {
       </tr>`;
     }).join('');
 
+    const approvedCount = sites.filter(s => !approvedSet || approvedSet.has((s.name || '').toLowerCase())).length;
+    const hasEmptyState = approvedCount === 0 && !!approvedSet;
+    const emptyRow = hasEmptyState
+      ? `<tr class="st-empty-row"><td colspan="4" class="st-empty-cell">
+           <div class="st-empty-inner">
+             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+             <span>No ${badge} systems in your access list</span>
+             <button class="st-empty-request" onclick="openAdditionalAccess()">Request access</button>
+           </div>
+         </td></tr>`
+      : '';
+
     const wrap = document.createElement('div');
     wrap.className = 'systems-table-wrap';
-    wrap.innerHTML = `<table class="systems-table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
+    wrap.innerHTML = `<table class="systems-table"><thead><tr>${headers}</tr></thead><tbody>${rows}${emptyRow}</tbody></table>`;
     section.querySelector('.systems-grid')?.after(wrap);
+
+    // Force section visible when it has an empty state (filterSystems may have hidden it)
+    if (hasEmptyState) section.style.display = '';
   });
 
   _compactBuilt = true;
@@ -1462,7 +1620,8 @@ function filterCompact(query) {
       row.style.display = match ? '' : 'none';
       if (match) visibleCount++;
     });
-    section.style.display = (visibleCount === 0 && q) ? 'none' : '';
+    const hasEmptyState = !!section.querySelector('.st-empty-row');
+    section.style.display = (visibleCount === 0 && q && !hasEmptyState) ? 'none' : '';
   });
 }
 

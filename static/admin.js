@@ -5649,6 +5649,16 @@ function openIssueShareModal() {
   document.getElementById('issShareModal').classList.add('active');
   document.body.style.overflow = 'hidden';
 
+  const _issQrEl = document.getElementById('issShareQr');
+  if (_issQrEl) {
+    try {
+      const _qr = qrcode(0, 'M');
+      _qr.addData(url);
+      _qr.make();
+      _issQrEl.innerHTML = _qr.createSvgTag(4, 4);
+    } catch(_e) { _issQrEl.innerHTML = ''; }
+  }
+
   navigator.clipboard.writeText(url).then(() => {
     document.getElementById('issShareCopied').classList.add('visible');
   }).catch(() => {});

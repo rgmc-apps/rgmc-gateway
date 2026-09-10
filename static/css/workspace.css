@@ -983,3 +983,139 @@
   z-index: 3;
 }
 
+/* ── Issue QR Button & Popover ── */
+.open-iss-col-qr {
+  width: 44px;
+  text-align: center;
+}
+
+.iss-qr-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease), color 0.15s var(--ease);
+}
+.iss-qr-btn:hover {
+  background: var(--gold-dim);
+  border-color: var(--gold-border);
+  color: var(--gold);
+}
+.iss-qr-btn--card {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+}
+
+.iss-qr-popover {
+  position: absolute;
+  z-index: 9990;
+  width: 178px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.28), 0 2px 8px rgba(0,0,0,0.14);
+  padding: 12px;
+  animation: issQrIn 0.15s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+@keyframes issQrIn {
+  from { opacity: 0; transform: scale(0.92) translateY(-4px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0); }
+}
+
+.iss-qr-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.iss-qr-ticket-label {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  color: var(--gold);
+  letter-spacing: 0.05em;
+}
+
+.iss-qr-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.12s, color 0.12s;
+}
+.iss-qr-close-btn:hover { background: var(--bg-input); color: var(--text-primary); }
+
+.iss-qr-body {
+  width: 100%;
+  background: #fff;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  overflow: hidden;
+}
+.iss-qr-body svg { width: 100%; height: auto; display: block; }
+
+.iss-qr-footer {
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  letter-spacing: 0.02em;
+}
+
+.iss-qr-unavail {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 16px 0;
+}
+
+/* QR section in share modal */
+.iss-share-qr-row {
+  margin: 14px 0 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.iss-share-qr-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  align-self: flex-start;
+}
+
+.iss-share-qr-canvas {
+  width: 140px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.iss-share-qr-canvas svg { width: 100%; height: auto; display: block; }
+
