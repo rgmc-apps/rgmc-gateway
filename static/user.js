@@ -19,6 +19,15 @@ function showToast(msg, duration = 3500) {
 function escHtml(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+function _hexToRgba(hex, alpha) {
+  const h = (hex || '').replace('#', '');
+  if (h.length !== 6) return `rgba(107,114,128,${alpha})`;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return `rgba(107,114,128,${alpha})`;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
 function fmtDate(iso) {
   if (!iso) return '—';
   const [y, m, d] = iso.slice(0, 10).split('-');
@@ -73,7 +82,6 @@ const _UT_DEFAULT_STATUSES = [
 
 let _utCfgStatusesCache = [];
 let _utCfgStatusEditId  = null;
-let _utCfgStatusOpen    = false;
 
 /* ── Tab switching ── */
 function switchTab(tab) {
@@ -81,7 +89,7 @@ function switchTab(tab) {
   document.querySelectorAll('[data-main-tab]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mainTab === tab);
   });
-  ['issues', 'team', 'tasks'].forEach(t => {
+  ['issues', 'team', 'tasks', 'config'].forEach(t => {
     const panel = document.getElementById(`ws-panel-${t}`);
     if (!panel) return;
     panel.classList.toggle('ws-active', t === tab);
@@ -90,6 +98,7 @@ function switchTab(tab) {
   if (tab === 'issues' && _issues[_issueSubtab] === null) loadIssues(_issueSubtab);
   if (tab === 'team') { if (_teamMembers !== null) renderTeam(_teamMembers); else loadTeam(); }
   if (tab === 'tasks') { if (_utStatuses.length === 0) { loadUtStatuses().then(() => loadTasks()); } else if (_tasks.length === 0) { loadTasks(); } if (_teamMembers === null) _ensureTeamMembersLoaded(); }
+  if (tab === 'config') loadWsConfig();
 }
 
 function switchIssueSubtab(subtab) {
@@ -732,6 +741,117 @@ function renderTeam(members) {
   }).join('');
 }
 
+/* ── Team Config Tab ── */
+
+let _wsDeptDetails = null;
+let _wsConfigLoaded = false;
+
+async function loadWsConfig() {
+  if (!_wsConfigLoaded) {
+    _wsConfigLoaded = true;
+    await Promise.all([loadWsTeamRoles(), loadWsDeptDetails()]);
+    loadUtCfgStatuses();
+  }
+}
+
+async function loadWsTeamRoles() {
+  const el = document.getElementById('ws-config-team-roles');
+  if (!el) return;
+  el.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  try {
+    const res = await fetch('/api/user/team', { headers: authHeaders() });
+    if (!res.ok) throw new Error((await res.json()).error || 'Request failed');
+    const members = await res.json();
+    if (!_teamMembers) _teamMembers = members;
+    _renderWsTeamRoles(members, el);
+  } catch (err) {
+    el.innerHTML = `<div class="admin-error">${escHtml(err.message)}</div>`;
+  }
+}
+
+function _renderWsTeamRoles(members, el) {
+  const leads = members.filter(m => m.is_department_head || m.is_admin || m.is_management);
+  const rest  = members.filter(m => !m.is_department_head && !m.is_admin && !m.is_management);
+
+  function memberCard(m, compact) {
+    const name    = m.display_name || `${m.first_name || ''} ${m.last_name || ''}`.trim() || m.username;
+    const initial = (name.charAt(0) || '?').toUpperCase();
+    const av      = m.avatar_url && (m.avatar_url.startsWith('data:') || m.avatar_url.startsWith('https://')) ? m.avatar_url : '';
+    const avatarInner = av ? `<img src="${escHtml(av)}" alt="${escHtml(initial)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : escHtml(initial);
+    const roleBadges  = [
+      m.is_admin           ? '<span class="badge-admin">Admin</span>' : '',
+      m.is_management      ? '<span class="badge-admin" style="background:rgba(120,53,15,.18);color:#f59e0b;border:1px solid rgba(245,158,11,.3);">Mgmt</span>' : '',
+      m.is_department_head ? '<span class="badge-admin" style="background:rgba(14,165,233,.18);color:#38bdf8;border:1px solid rgba(56,189,248,.3);">Dept Head</span>' : '',
+    ].filter(Boolean).join('');
+    if (compact) {
+      return `<div class="team-member-card" style="display:flex;align-items:center;gap:10px;padding:10px 14px;flex-direction:row;text-align:left;min-width:0;">
+        <div class="team-avatar" style="width:36px;height:36px;min-width:36px;font-size:14px;">${avatarInner}</div>
+        <div style="min-width:0;">
+          <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(name)}</div>
+          ${m.position ? `<div style="font-size:11px;color:var(--text-muted);">${escHtml(m.position)}</div>` : ''}
+        </div>
+      </div>`;
+    }
+    return `<div class="team-member-card">
+      <div class="team-avatar">${avatarInner}</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-bottom:4px;">${roleBadges}</div>
+      <div class="team-member-name">${escHtml(name)}</div>
+      ${m.position ? `<div class="team-member-position">${escHtml(m.position)}</div>` : ''}
+      ${m.email ? `<a href="mailto:${escHtml(m.email)}" class="team-member-email" onclick="event.stopPropagation()">${escHtml(m.email)}</a>` : ''}
+    </div>`;
+  }
+
+  let html = '';
+  if (leads.length) {
+    html += `<div class="team-member-grid" style="margin-bottom:16px;">${leads.map(m => memberCard(m, false)).join('')}</div>`;
+  }
+  if (rest.length) {
+    html += `<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:8px;">Other Members (${rest.length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">${rest.map(m => memberCard(m, true)).join('')}</div>`;
+  }
+  if (!leads.length && !rest.length) {
+    html = '<div class="ws-empty-state" style="padding:20px 0;"><p style="color:var(--text-muted);font-size:14px;margin:0;">No team members found.</p></div>';
+  }
+  el.innerHTML = html;
+}
+
+async function loadWsDeptDetails() {
+  try {
+    const res = await fetch('/api/user/department', { headers: authHeaders() });
+    if (!res.ok) return;
+    _wsDeptDetails = await res.json();
+    document.getElementById('wsDeptCode').textContent  = _wsDeptDetails.department_code || '—';
+    document.getElementById('wsDeptName').value        = _wsDeptDetails.department_name || '';
+    document.getElementById('wsDeptDesc').value        = _wsDeptDetails.department_desc || '';
+  } catch { /* non-fatal */ }
+}
+
+async function saveWsDeptDetails(e) {
+  e.preventDefault();
+  const name = document.getElementById('wsDeptName').value.trim();
+  const desc = document.getElementById('wsDeptDesc').value.trim();
+  if (!name) return;
+  document.getElementById('wsDeptDetailsActions').style.display  = 'none';
+  document.getElementById('wsDeptDetailsSaving').style.display   = '';
+  document.getElementById('wsDeptDetailsError').style.display    = 'none';
+  try {
+    const res = await fetch('/api/user/department', {
+      method: 'PATCH',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ department_name: name, department_desc: desc || null }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    document.getElementById('wsDeptDetailsSaving').style.display  = 'none';
+    document.getElementById('wsDeptDetailsActions').style.display = '';
+    showToast('Department details updated.');
+  } catch (err) {
+    document.getElementById('wsDeptDetailsSaving').style.display  = 'none';
+    document.getElementById('wsDeptDetailsActions').style.display = '';
+    document.getElementById('wsDeptDetailsError').style.display   = '';
+    document.getElementById('wsDeptDetailsErrorMsg').textContent  = err.message;
+  }
+}
+
 /* ── Tasks ── */
 function setUtFilter(filter) {
   _taskFilter = filter;
@@ -790,13 +910,15 @@ function _buildUtKanbanCols() {
 function _buildUtStatsBar() {
   const bar = document.getElementById('utStatsBar');
   if (!bar) return;
-  bar.innerHTML = _utStatuses.map(s =>
-    `<div class="dev-stat-pill">
-      <span class="dev-stat-dot" style="background:${escHtml(s.color)};"></span>
-      <span class="dev-stat-count" id="ut-stat-${escHtml(s.slug)}">—</span>
+  bar.innerHTML = _utStatuses.map(s => {
+    const color = s.color || '#6b7280';
+    const bg    = _hexToRgba(color, 0.08);
+    const bd    = _hexToRgba(color, 0.28);
+    return `<div class="dev-stat-pill" style="background:${bg};border-color:${bd};border-top-color:${escHtml(color)};">
+      <span class="dev-stat-count" id="ut-stat-${escHtml(s.slug)}" style="color:${escHtml(color)};">—</span>
       <span class="dev-stat-label">${escHtml(s.label)}</span>
-    </div>`
-  ).join('');
+    </div>`;
+  }).join('');
 }
 
 function _populateUtStatusSelect(currentSlug) {
@@ -947,6 +1069,7 @@ function renderTaskCard(task) {
   const statusIdx = slugs.indexOf(task.status);
   const id        = escHtml(task.id);
   return `<div class="ut-card" id="utc-${id}">
+    ${task.task_code ? `<div class="ut-card-code">${escHtml(task.task_code)}</div>` : ''}
     <div class="ut-card-title">${escHtml(task.title)}</div>
     ${task.description ? `<div class="ut-card-desc">${escHtml(task.description)}</div>` : ''}
     <div class="ut-card-footer">
@@ -977,7 +1100,37 @@ function renderTaskCard(task) {
   </div>`;
 }
 
+function _renderCol(slug) {
+  const slugs  = _utStatusSlugs();
+  const col    = document.getElementById(`ut-cards-${slug}`);
+  if (!col) return;
+  const tasks  = _tasks.filter(t => (slugs.includes(t.status) ? t.status : slugs[0] ?? '') === slug);
+  const countEl = document.getElementById(`ut-count-${slug}`);
+  if (countEl) countEl.textContent = tasks.length;
+  const statEl  = document.getElementById(`ut-stat-${slug}`);
+  if (statEl)  statEl.textContent  = tasks.length;
+  col.innerHTML = tasks.length
+    ? tasks.map(t => renderTaskCard(t)).join('')
+    : `<div class="kanban-empty">
+         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+         No tasks
+       </div>`;
+}
+
 async function moveUtTask(id, newStatus) {
+  const idx = _tasks.findIndex(t => t.id === id);
+  if (idx === -1) return;
+  const task      = _tasks[idx];
+  const oldStatus = task.status;
+  if (oldStatus === newStatus) return;
+
+  // Optimistic update — card moves instantly, no wait for network
+  _tasks[idx] = { ...task, status: newStatus };
+  _renderCol(oldStatus);
+  _renderCol(newStatus);
+  if (_utViewMode === 'list') renderTaskList();
+  renderPastTasks();
+
   try {
     const res = await fetch(`/api/user/tasks/${encodeURIComponent(id)}`, {
       method:  'PATCH',
@@ -986,10 +1139,18 @@ async function moveUtTask(id, newStatus) {
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Failed');
     const updated = await res.json();
-    const idx = _tasks.findIndex(t => t.id === id);
-    if (idx !== -1) _tasks[idx] = updated;
-    renderTaskBoard();
+    // Reconcile with server response (updated_at, etc.)
+    _tasks[idx] = updated;
+    _renderCol(newStatus);
+    if (_utViewMode === 'list') renderTaskList();
+    renderPastTasks();
   } catch (err) {
+    // Revert on failure
+    _tasks[idx] = task;
+    _renderCol(newStatus);
+    _renderCol(oldStatus);
+    if (_utViewMode === 'list') renderTaskList();
+    renderPastTasks();
     showToast(`Error: ${err.message}`);
   }
 }
@@ -999,6 +1160,8 @@ async function openUtModal(idOrNull) {
   const task = typeof idOrNull === 'string' ? _tasks.find(t => t.id === idOrNull) : null;
   _taskEditId = task?.id ?? null;
   document.getElementById('ut-modal-title-text').textContent = task ? 'Edit Task' : 'New Task';
+  const subtitleEl = document.getElementById('ut-modal-subtitle');
+  if (subtitleEl) subtitleEl.textContent = task?.task_code ? task.task_code : 'Fill in the task details below';
   document.getElementById('ut-task-id').value    = task?.id          ?? '';
   document.getElementById('ut-task-title').value = task?.title       ?? '';
   document.getElementById('ut-task-desc').value  = task?.description ?? '';
@@ -1562,18 +1725,14 @@ document.addEventListener('DOMContentLoaded', () => {
   /* Load initial data */
   loadIssues('team').then(() => hidePageLoader());
   _ensureTeamMembersLoaded(); // pre-fetch so assignee dropdowns open instantly
-  // Pre-load statuses so the kanban is ready when user clicks Tasks tab
-  if (session && (session.isDepartmentHead || session.isAdmin || session.isManagement)) {
-    loadUtStatuses().then(() => {
-      // Show configure section for dept heads
-      const cfgSection = document.getElementById('utCfgStatusSection');
-      if (cfgSection) cfgSection.style.display = '';
-      loadUtCfgStatuses();
-    });
-  } else {
-    loadUtStatuses();
-  }
+  loadUtStatuses(); // pre-load statuses so the kanban is ready when user clicks Tasks tab
   initUtPhysicsDrag();
+
+  /* Show Team Config tab for dept heads / admins / management */
+  if (session && (session.isDepartmentHead || session.isAdmin || session.isManagement)) {
+    const cfgTabBtn = document.getElementById('ws-tab-config-btn');
+    if (cfgTabBtn) cfgTabBtn.style.display = '';
+  }
 
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeWsIssShareModal(); closeReopenModal(); closeIssueDetail(); closeUtModal(); closeUtCfgStatusModal(); closeProfileMenu(); }
@@ -1585,14 +1744,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* ── Dept Head: Task Status Config ── */
-
-function toggleUtCfgStatus() {
-  const body = document.getElementById('utCfgStatusBody');
-  if (!body) return;
-  _utCfgStatusOpen = !_utCfgStatusOpen;
-  body.style.display = _utCfgStatusOpen ? '' : 'none';
-  if (_utCfgStatusOpen && !_utCfgStatusesCache.length) loadUtCfgStatuses();
-}
 
 async function loadUtCfgStatuses() {
   const list = document.getElementById('utCfgStatusList');

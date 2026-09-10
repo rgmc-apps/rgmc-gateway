@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Workspace — RGMC Gateway</title>
+  <title>My Team Workspace — RGMC Gateway</title>
   <link rel="icon" type="image/png" href="/static/badge.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,7 +28,7 @@
           <img src="/static/logo.png" alt="RGMC Gateway" class="header-logo-img">
         </div>
         <div class="header-divider"></div>
-        <div class="header-tagline">My Workspace</div>
+        <div class="header-tagline">My Team Workspace</div>
       </a>
       <div id="wsHeaderUser" class="header-user"></div>
     </div>
@@ -38,7 +38,7 @@
 
     <div class="dev-page-header">
       <div>
-        <h1 class="admin-page-title">My Workspace</h1>
+        <h1 class="admin-page-title">My Team Workspace</h1>
         <p class="admin-page-sub" id="wsGreeting">Your issues, team, and tasks in one place.</p>
       </div>
     </div>
@@ -56,6 +56,10 @@
       <button class="admin-tab" data-main-tab="tasks" onclick="switchTab('tasks')">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         Tasks
+      </button>
+      <button class="admin-tab" data-main-tab="config" id="ws-tab-config-btn" onclick="switchTab('config')" style="display:none;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Team Config
       </button>
     </div>
 
@@ -288,14 +292,31 @@
         </div>
       </div>
 
-      <!-- Dept head: Task Status configuration — shown only to dept heads/admins -->
-      <div id="utCfgStatusSection" class="past-tasks-section" style="display:none;margin-top:28px;">
-        <div class="past-tasks-header" style="cursor:pointer;" onclick="toggleUtCfgStatus()">
-          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          Configure Task Statuses
-          <span class="past-tasks-sub">Customize your department's task workflow</span>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         TEAM CONFIG PANEL (dept heads & admins)
+    ══════════════════════════════════════════ -->
+    <div id="ws-panel-config" class="ws-tab-panel" style="display:none;">
+
+      <!-- Team Leads & Roles -->
+      <div class="past-tasks-section">
+        <div class="past-tasks-header">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Team Leads &amp; Roles
+          <span class="past-tasks-sub">Department members with elevated access</span>
         </div>
-        <div id="utCfgStatusBody" style="display:none;margin-top:12px;">
+        <div id="ws-config-team-roles" style="margin-top:12px;"></div>
+      </div>
+
+      <!-- Task Statuses -->
+      <div class="past-tasks-section" style="margin-top:20px;">
+        <div class="past-tasks-header">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Task Statuses
+          <span class="past-tasks-sub">Customize your department's workflow stages</span>
+        </div>
+        <div style="margin-top:12px;">
           <div class="admin-toolbar" style="margin-bottom:12px;">
             <button class="btn-admin-add" onclick="openUtCfgStatusModal(null)">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -303,6 +324,42 @@
             </button>
           </div>
           <div id="utCfgStatusList"></div>
+        </div>
+      </div>
+
+      <!-- Department Details -->
+      <div class="past-tasks-section" style="margin-top:20px;">
+        <div class="past-tasks-header">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          Department Details
+          <span class="past-tasks-sub">Edit your department's information</span>
+        </div>
+        <div style="margin-top:16px;max-width:520px;">
+          <form id="wsDeptDetailsForm" onsubmit="saveWsDeptDetails(event)">
+            <div class="form-group">
+              <label class="form-label">Department Code</label>
+              <p class="modal-detail-val" id="wsDeptCode" style="margin:4px 0 0;font-weight:600;color:var(--text-muted);font-family:monospace;font-size:13px;">—</p>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="wsDeptName">Department Name <span class="required">*</span></label>
+              <input class="form-input" type="text" id="wsDeptName" maxlength="150" placeholder="Department name">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="wsDeptDesc">Description <span class="form-label-hint">(optional)</span></label>
+              <textarea class="form-input form-textarea" id="wsDeptDesc" rows="2" placeholder="Brief description of this department…"></textarea>
+            </div>
+            <div id="wsDeptDetailsActions" style="display:flex;gap:8px;margin-top:4px;">
+              <button type="submit" class="btn-modal-submit" style="width:auto;padding:8px 20px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;"><polyline points="20 6 9 17 4 12"/></svg>
+                Save Changes
+              </button>
+            </div>
+            <div id="wsDeptDetailsSaving" class="form-state" style="display:none;"><div class="spinner"></div><span>Saving…</span></div>
+            <div id="wsDeptDetailsError" class="form-state form-error" style="display:none;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span id="wsDeptDetailsErrorMsg"></span>
+            </div>
+          </form>
         </div>
       </div>
 
@@ -483,7 +540,7 @@
       <div class="modal-header">
         <div>
           <h3 class="modal-title" id="ut-modal-title-text">New Task</h3>
-          <p class="modal-site-name">Fill in the task details below</p>
+          <p class="modal-site-name" id="ut-modal-subtitle">Fill in the task details below</p>
         </div>
         <button class="modal-close" onclick="closeUtModal()" aria-label="Close">&times;</button>
       </div>

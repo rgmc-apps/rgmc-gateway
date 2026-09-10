@@ -481,7 +481,7 @@ function applySession(session) {
       </a>`,
       `<a href="/workspace" class="profile-menu-item">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-        My Workspace
+        My Team Workspace
       </a>`,
     ];
     if (session.isDeveloper || session.isAdmin) {
@@ -635,7 +635,7 @@ function buildAccessPanel(session) {
 
   const featDefs = [
     {
-      label: 'My Workspace',
+      label: 'My Team Workspace',
       href:  '/workspace',
       icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`,
       ok: true,
@@ -1341,11 +1341,13 @@ function _selectCompanyOption(sel, value) {
 
 /* ── Departments dropdown ── */
 
+let _allDepts = [];
+
 async function _loadDepartments() {
   try {
     const res = await fetch('/api/departments');
-    const depts = await res.json();
-    const opts = depts.map(d =>
+    _allDepts = await res.json();
+    const opts = _allDepts.map(d =>
       `<option value="${d.department_name}">${d.department_code} — ${d.department_name}</option>`
     ).join('');
     ['department', 'arDepartment'].forEach(id => {
@@ -1363,6 +1365,16 @@ async function _loadDepartments() {
     // Wire "Others" option for the report modal department select
     deptOtherInit('department', 'department-other-input', 'department-other-wrap');
   } catch { /* non-fatal */ }
+}
+
+function arDeptChanged(deptName) {
+  const dept = _allDepts.find(d => d.department_name === deptName);
+  const needed = dept?.systems_needed;
+  if (!needed || !needed.length) return;
+  const neededSet = new Set(needed.map(n => n.toLowerCase()));
+  document.querySelectorAll('#accessRequestForm input[name="systems"]').forEach(cb => {
+    cb.checked = neededSet.has((cb.value || '').toLowerCase());
+  });
 }
 
 /* ── View Toggle (Cards / Compact) ── */

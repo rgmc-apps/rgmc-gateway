@@ -801,11 +801,15 @@ def config_create_department():
     name = str(data.get("department_name", "")).strip()
     if not code or not name:
         return jsonify({"error": "department_code and department_name are required"}), 400
+    systems_needed = data.get("systems_needed")
+    if systems_needed is not None:
+        systems_needed = [str(s) for s in systems_needed if s] or None
     payload = {
         "department_code": code,
         "department_name": name,
         "department_desc": str(data.get("department_desc", "")).strip() or None,
         "is_active":       bool(data.get("is_active", True)),
+        "systems_needed":  systems_needed,
     }
     try:
         rows = supabase_req("POST", "/departments", data=payload,
@@ -831,6 +835,9 @@ def config_update_department(dept_id):
     if "department_code" in data: patch["department_code"] = str(data["department_code"]).strip().upper()
     if "department_desc" in data: patch["department_desc"] = str(data["department_desc"]).strip() or None
     if "is_active"       in data: patch["is_active"]       = bool(data["is_active"])
+    if "systems_needed"  in data:
+        sn = data["systems_needed"]
+        patch["systems_needed"] = [str(s) for s in sn if s] if sn else None
     if not patch:
         return jsonify({"error": "Nothing to update"}), 400
     try:

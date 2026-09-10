@@ -143,7 +143,7 @@ def get_departments():
     rows = supabase_req("GET", "/departments", params={
         "is_active": "eq.true",
         "order":     "department_name.asc",
-        "select":    "department_id,department_name,department_code",
+        "select":    "department_id,department_name,department_code,systems_needed",
     })
     return jsonify(rows or [])
 

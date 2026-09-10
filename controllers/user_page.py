@@ -144,13 +144,57 @@ def user_team_members():
     try:
         rows = supabase_req("GET", "/users", params={
             "department": f"eq.{dept_name}",
-            "select":     "username,first_name,last_name,display_name,avatar_url,position,email,company",
+            "select":     "username,first_name,last_name,display_name,avatar_url,position,email,company,is_department_head,is_admin,is_management",
             "order":      "first_name.asc",
         })
         return jsonify(rows or [])
     except Exception as exc:
         current_app.logger.error("user_team_members: %s", exc)
         return jsonify({"error": "Failed to fetch team members"}), 500
+
+
+@user_page_bp.get("/api/user/department")
+def user_get_department():
+    _, user_row, err = _require_dept_head()
+    if err:
+        return jsonify(err[0]), err[1]
+    dept_name = (user_row.get("department") or "").strip()
+    if not dept_name:
+        return jsonify({"error": "No department assigned"}), 400
+    try:
+        rows = supabase_req("GET", "/departments", params={
+            "department_name": f"eq.{dept_name}",
+            "select": "department_id,department_code,department_name,department_desc,systems_needed",
+        })
+        return jsonify(rows[0] if rows else {})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@user_page_bp.patch("/api/user/department")
+def user_update_department():
+    _, user_row, err = _require_dept_head()
+    if err:
+        return jsonify(err[0]), err[1]
+    dept_name = (user_row.get("department") or "").strip()
+    if not dept_name:
+        return jsonify({"error": "No department assigned"}), 400
+    data  = request.get_json(silent=True) or {}
+    patch = {}
+    if "department_name" in data:
+        v = str(data["department_name"]).strip()
+        if v:
+            patch["department_name"] = v
+    if "department_desc" in data:
+        patch["department_desc"] = str(data["department_desc"]).strip() or None
+    if not patch:
+        return jsonify({"error": "Nothing to update"}), 400
+    try:
+        supabase_req("PATCH", "/departments", data=patch,
+                     params={"department_name": f"eq.{dept_name}"})
+        return jsonify({"success": True})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
 
 
 @user_page_bp.get("/api/user/tasks")

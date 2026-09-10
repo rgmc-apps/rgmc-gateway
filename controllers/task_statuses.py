@@ -55,14 +55,25 @@ def admin_list_task_statuses():
     _, err = _require_admin()
     if err:
         return jsonify(err[0]), err[1]
-    rows = supabase_req("GET", "/task_statuses", params={
-        "scope":           "eq.admin",
-        "department_name": "is.null",
-        "order":           "sort_order.asc",
-        "select":          "*",
-    })
-    if not rows:
-        rows = _seed_admin_statuses()
+    dept = (request.args.get("department_name") or "").strip()
+    if dept:
+        rows = supabase_req("GET", "/task_statuses", params={
+            "scope":           "eq.department",
+            "department_name": f"eq.{dept}",
+            "order":           "sort_order.asc",
+            "select":          "*",
+        })
+        if not rows:
+            rows = _seed_dept_statuses(dept)
+    else:
+        rows = supabase_req("GET", "/task_statuses", params={
+            "scope":           "eq.admin",
+            "department_name": "is.null",
+            "order":           "sort_order.asc",
+            "select":          "*",
+        })
+        if not rows:
+            rows = _seed_admin_statuses()
     return jsonify(rows or [])
 
 
@@ -75,21 +86,27 @@ def admin_create_task_status():
     label = str(data.get("label", "")).strip()
     if not label:
         return jsonify({"error": "label is required"}), 400
-    slug = _slugify(label)
-    existing = supabase_req("GET", "/task_statuses", params={
-        "scope": "eq.admin", "slug": f"eq.{slug}", "select": "id",
-    })
+    dept  = (data.get("department_name") or "").strip() or None
+    scope = "department" if dept else "admin"
+    slug  = _slugify(label)
+    slug_params = {"scope": f"eq.{scope}", "slug": f"eq.{slug}", "select": "id"}
+    if dept:
+        slug_params["department_name"] = f"eq.{dept}"
+    else:
+        slug_params["department_name"] = "is.null"
+    existing = supabase_req("GET", "/task_statuses", params=slug_params)
     if existing:
         slug = f"{slug}_{len(existing) + 1}"
     payload = {
-        "scope":       "admin",
-        "label":       label,
-        "slug":        slug,
-        "color":       str(data.get("color", "#6b7280")),
-        "sort_order":  _next_sort_order("admin"),
-        "is_terminal": bool(data.get("is_terminal", False)),
-        "is_initial":  False,
-        "is_system":   False,
+        "scope":           scope,
+        "department_name": dept,
+        "label":           label,
+        "slug":            slug,
+        "color":           str(data.get("color", "#6b7280")),
+        "sort_order":      _next_sort_order(scope, dept),
+        "is_terminal":     bool(data.get("is_terminal", False)),
+        "is_initial":      False,
+        "is_system":       False,
     }
     rows = supabase_req("POST", "/task_statuses", data=payload,
                         extra_headers={"Prefer": "return=representation"})
@@ -110,7 +127,7 @@ def admin_update_task_status(status_id):
     if not patch:
         return jsonify({"error": "Nothing to update"}), 400
     supabase_req("PATCH", "/task_statuses", data=patch,
-                 params={"id": f"eq.{status_id}", "scope": "eq.admin"})
+                 params={"id": f"eq.{status_id}"})
     return jsonify({"success": True})
 
 

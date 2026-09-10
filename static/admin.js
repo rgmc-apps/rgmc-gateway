@@ -68,6 +68,7 @@ let _devPerfCache       = [];
 let _devPerfSelected    = null;
 let _issFilteredRows    = [];
 let _linkedTargetIds    = new Set(); // IDs that other issues point to (reverse-link detection)
+let _userTaskCodeCache  = {};        // user_task id -> task_code
 
 /* ── Common Fixes state ── */
 let _cfCache              = null;
@@ -98,6 +99,8 @@ let _cfgDevItemTypesCache   = [];
 let _cfgDevItemTypeEditId   = null;
 let _cfgTaskStatusesCache   = [];
 let _cfgTaskStatusEditId    = null;
+let _cfgTaskStatusDeptFilter = '';
+let _cfgTsDeptNamesCache     = null;
 let _cfgCompanyEditCode = null;
 let _cfgCategoryEditId  = null;
 let _cfgTypeEditId      = null;
@@ -188,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
       </a>`,
       `<a href="/workspace" class="profile-menu-item">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-        My Workspace
+        My Team Workspace
       </a>`,
     ];
     if (session.isDeveloper || session.isAdmin) {
@@ -2459,7 +2462,14 @@ async function openIssueModal(id) {
   const userTaskGroup = document.getElementById('issueUserTaskGroup');
   if (issue.user_task_id) {
     userTaskGroup.style.display = '';
-    document.getElementById('issueUserTaskId').textContent = issue.user_task_id.slice(0, 8) + '…';
+    const userTaskIdEl = document.getElementById('issueUserTaskId');
+    const cachedCode = _userTaskCodeCache[issue.user_task_id];
+    userTaskIdEl.textContent = cachedCode || issue.user_task_id.slice(0, 8) + '…';
+    if (!cachedCode) {
+      _fetchUserTaskCode(issue.user_task_id).then(code => {
+        if (code) userTaskIdEl.textContent = code;
+      });
+    }
     const userTaskBtn = document.getElementById('issueUserTaskBtn');
     userTaskBtn.onclick = () => openLinkedItemModal('user_task', issue.user_task_id);
   } else {
@@ -2611,6 +2621,18 @@ const _linkedItemTypeLabels = {
   user_task: { title: 'User Task',       endpoint: id => `/api/admin/linked/user-task/${id}`  },
 };
 
+async function _fetchUserTaskCode(id) {
+  if (_userTaskCodeCache[id]) return _userTaskCodeCache[id];
+  try {
+    const res = await fetch(`/api/admin/linked/user-task/${encodeURIComponent(id)}`, { headers: authHeaders() });
+    if (!res.ok) return null;
+    const item = await res.json();
+    const code = item.task_code || null;
+    if (code) _userTaskCodeCache[id] = code;
+    return code;
+  } catch { return null; }
+}
+
 async function openLinkedItemModal(type, id) {
   const meta  = _linkedItemTypeLabels[type];
   document.getElementById('linkedItemModalTitle').textContent = meta?.title || 'Linked Item';
@@ -2634,6 +2656,7 @@ async function openLinkedItemModal(type, id) {
 function _linkedItemCode(type, item) {
   if (type === 'dev_item') return item.dev_item_code || '';
   if (type === 'task')     return item.task_code     || '';
+  if (type === 'user_task') return item.task_code    || '';
   return '';
 }
 
@@ -5056,7 +5079,36 @@ function _renderCfgDepts() {
     </table>`;
 }
 
-function openCfgDeptModal(deptOrId) {
+function _renderCfgDeptSystemsGrid(currentSystems) {
+  const grid = document.getElementById('cfgDeptSystemsGrid');
+  if (!grid) return;
+  const checked = new Set((currentSystems || []).map(n => n.toLowerCase()));
+  const visible = (_systemsCache || []).filter(s => s.is_visible !== false && !s.is_task);
+  if (!visible.length) {
+    grid.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">No systems configured yet.</span>';
+    return;
+  }
+  const categories = ['RGMC', 'SBIC', 'NAV Sites'];
+  const grouped = {};
+  categories.forEach(c => { grouped[c] = []; });
+  visible.forEach(s => {
+    const cat = categories.includes(s.category) ? s.category : 'RGMC';
+    grouped[cat].push(s);
+  });
+  grid.innerHTML = categories.filter(c => grouped[c].length).map(cat => `
+    <div class="edit-systems-group" style="margin-bottom:10px;">
+      <div class="edit-systems-cat-label" style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:4px;">${escHtml(cat)}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px 14px;">
+        ${grouped[cat].map(s => `
+          <label class="edit-systems-item" style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;">
+            <input type="checkbox" name="dept_sys" value="${escHtml(s.name)}" ${checked.has(s.name.toLowerCase()) ? 'checked' : ''}>
+            <span>${escHtml(s.name)}</span>
+          </label>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+async function openCfgDeptModal(deptOrId) {
   const dept = typeof deptOrId === 'number'
     ? (_cfgDeptsCache.find(d => d.department_id === deptOrId) ?? null)
     : deptOrId;
@@ -5065,9 +5117,16 @@ function openCfgDeptModal(deptOrId) {
   const codeField = document.getElementById('cfgDeptCode');
   codeField.value    = dept?.department_code ?? '';
   codeField.disabled = !!_cfgDeptEditId;
-  document.getElementById('cfgDeptName').value   = dept?.department_name ?? '';
-  document.getElementById('cfgDeptDesc').value   = dept?.department_desc ?? '';
+  document.getElementById('cfgDeptName').value    = dept?.department_name ?? '';
+  document.getElementById('cfgDeptDesc').value    = dept?.department_desc ?? '';
   document.getElementById('cfgDeptActive').checked = dept ? (dept.is_active !== false) : true;
+  if (!_systemsCache || !_systemsCache.length) {
+    try {
+      const r = await fetch('/api/admin/systems', { headers: authHeaders() });
+      if (r.ok) _systemsCache = await r.json();
+    } catch { /* non-fatal */ }
+  }
+  _renderCfgDeptSystemsGrid(dept?.systems_needed ?? []);
   _resetCfgModal('cfgDept');
   document.getElementById('cfgDeptModal').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -5089,6 +5148,9 @@ async function saveCfgDept(e) {
   const name     = document.getElementById('cfgDeptName').value.trim();
   const desc     = document.getElementById('cfgDeptDesc').value.trim() || null;
   const isActive = document.getElementById('cfgDeptActive').checked;
+  const systems_needed = Array.from(
+    document.querySelectorAll('#cfgDeptSystemsGrid input[name="dept_sys"]:checked')
+  ).map(cb => cb.value);
   if (!name) { _showCfgError('cfgDept', 'Name is required.'); return; }
   if (!_cfgDeptEditId && !code) { _showCfgError('cfgDept', 'Code is required.'); return; }
   _setCfgLoading('cfgDept', true);
@@ -5097,12 +5159,12 @@ async function saveCfgDept(e) {
     if (_cfgDeptEditId) {
       res = await fetch(`/api/admin/config/departments/${_cfgDeptEditId}`, {
         method: 'PATCH', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ department_name: name, department_desc: desc, is_active: isActive }),
+        body: JSON.stringify({ department_name: name, department_desc: desc, is_active: isActive, systems_needed }),
       });
     } else {
       res = await fetch('/api/admin/config/departments', {
         method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ department_code: code, department_name: name, department_desc: desc, is_active: isActive }),
+        body: JSON.stringify({ department_code: code, department_name: name, department_desc: desc, is_active: isActive, systems_needed }),
       });
     }
     if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
@@ -6609,17 +6671,42 @@ async function _pollAdminOutages() {
 
 /* ── Task Statuses ── */
 
+async function _ensureTsDeptNamesLoaded() {
+  if (_cfgTsDeptNamesCache) return;
+  try {
+    const res = await fetch('/api/admin/config/departments', { headers: authHeaders() });
+    _cfgTsDeptNamesCache = res.ok ? (await res.json()).map(d => d.department_name).filter(Boolean).sort() : [];
+  } catch { _cfgTsDeptNamesCache = []; }
+}
+
+function _populateTsDeptFilter() {
+  const sel = document.getElementById('cfgTsDeptFilter');
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">All Departments</option>' +
+    (_cfgTsDeptNamesCache || []).map(n => `<option value="${escHtml(n)}"${n === prev ? ' selected' : ''}>${escHtml(n)}</option>`).join('');
+  sel.value = _cfgTaskStatusDeptFilter || '';
+}
+
 async function loadCfgTaskStatuses() {
   const wrap = document.getElementById('config-task-statuses-body');
   wrap.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  await _ensureTsDeptNamesLoaded();
+  _populateTsDeptFilter();
   try {
-    const res = await fetch('/api/admin/task-statuses', { headers: authHeaders() });
+    const qs  = _cfgTaskStatusDeptFilter ? `?department_name=${encodeURIComponent(_cfgTaskStatusDeptFilter)}` : '';
+    const res = await fetch(`/api/admin/task-statuses${qs}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     _cfgTaskStatusesCache = await res.json();
     _renderCfgTaskStatuses();
   } catch (err) {
     wrap.innerHTML = `<div class="admin-error">Failed: ${escHtml(err.message)}</div>`;
   }
+}
+
+function changeCfgTaskStatusDeptFilter(val) {
+  _cfgTaskStatusDeptFilter = val || '';
+  loadCfgTaskStatuses();
 }
 
 function _renderCfgTaskStatuses() {
@@ -6661,12 +6748,24 @@ function _renderCfgTaskStatuses() {
   </table>`;
 }
 
+function _populateTsDeptSelect(currentDept, disabled) {
+  const sel = document.getElementById('cfgTsDepartment');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">All Departments</option>' +
+    (_cfgTsDeptNamesCache || []).map(n => `<option value="${escHtml(n)}"${n === currentDept ? ' selected' : ''}>${escHtml(n)}</option>`).join('');
+  sel.value    = currentDept || '';
+  sel.disabled = !!disabled;
+}
+
 function openCfgTaskStatusModal(status) {
   _cfgTaskStatusEditId = status ? status.id : null;
   document.getElementById('cfgTaskStatusModalTitle').textContent = _cfgTaskStatusEditId ? 'Edit Status' : 'Add Status';
-  document.getElementById('cfgTsLabel').value       = status?.label ?? '';
-  document.getElementById('cfgTsColor').value       = status?.color ?? '#6b7280';
+  document.getElementById('cfgTsLabel').value        = status?.label ?? '';
+  document.getElementById('cfgTsColor').value        = status?.color ?? '#6b7280';
   document.getElementById('cfgTsIsTerminal').checked = !!status?.is_terminal;
+  const deptDefault = status?.department_name ?? _cfgTaskStatusDeptFilter ?? '';
+  _populateTsDeptSelect(deptDefault, !!_cfgTaskStatusEditId);
+  document.getElementById('cfgTsDeptHint').style.display = _cfgTaskStatusEditId ? '' : 'none';
   const deleteBtn = document.getElementById('cfgTsDeleteBtn');
   deleteBtn.style.display = (_cfgTaskStatusEditId && !status?.is_system) ? '' : 'none';
   _resetCfgModal('cfgTaskStatus');
@@ -6688,9 +6787,10 @@ function syncTsColorPreview() { /* color picker updates itself natively */ }
 
 async function saveCfgTaskStatus(e) {
   e.preventDefault();
-  const label      = document.getElementById('cfgTsLabel').value.trim();
-  const color      = document.getElementById('cfgTsColor').value;
+  const label       = document.getElementById('cfgTsLabel').value.trim();
+  const color       = document.getElementById('cfgTsColor').value;
   const is_terminal = document.getElementById('cfgTsIsTerminal').checked;
+  const dept        = document.getElementById('cfgTsDepartment').value || null;
   if (!label) {
     document.getElementById('cfgTaskStatusFormError').style.display = '';
     document.getElementById('cfgTaskStatusErrorMsg').textContent = 'Label is required.';
@@ -6699,6 +6799,7 @@ async function saveCfgTaskStatus(e) {
   _setCfgLoading('cfgTaskStatus', true);
   try {
     const payload = { label, color, is_terminal };
+    if (!_cfgTaskStatusEditId) payload.department_name = dept;
     let res;
     if (_cfgTaskStatusEditId) {
       res = await fetch(`/api/admin/task-statuses/${encodeURIComponent(_cfgTaskStatusEditId)}`, {
@@ -6717,6 +6818,11 @@ async function saveCfgTaskStatus(e) {
     const wasEdit = _cfgTaskStatusEditId;
     closeCfgTaskStatusModal();
     showToast(`Status ${wasEdit ? 'updated' : 'added'}.`);
+    if (!wasEdit && dept !== (_cfgTaskStatusDeptFilter || null)) {
+      _cfgTaskStatusDeptFilter = dept || '';
+      const filterSel = document.getElementById('cfgTsDeptFilter');
+      if (filterSel) filterSel.value = _cfgTaskStatusDeptFilter;
+    }
     loadCfgTaskStatuses();
   } catch (err) {
     _setCfgLoading('cfgTaskStatus', false);
