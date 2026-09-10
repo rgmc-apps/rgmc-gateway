@@ -232,13 +232,44 @@ def get_public_issue(issue_id):
             "ticket_type,request_category,request_subcategory,"
             "from_helpdesk,error_code,assigned_to,resolved_by,"
             "created_at,resolved_at,resolution_notes,attachment_urls,"
-            "dev_item_id,task_id,user_task_id,"
+            "dev_item_id,task_id,user_task_id,epic_id,"
             "confirmed_fix,confirmed_fix_at"
         ),
     })
     if not rows:
         return jsonify({"error": "Not found"}), 404
     return jsonify(rows[0])
+
+
+@public_bp.get("/api/public/issues/<issue_id>/epic")
+def get_public_issue_epic(issue_id):
+    rows = supabase_req("GET", "/issues", params={"id": f"eq.{issue_id}", "select": "epic_id"})
+    if not rows or not rows[0].get("epic_id"):
+        return jsonify({"error": "Not found"}), 404
+    epic_id = rows[0]["epic_id"]
+    epic_rows = supabase_req("GET", "/epics", params={
+        "epic_id": f"eq.{epic_id}",
+        "select":  "epic_id,epic_name,epic_status",
+    })
+    if not epic_rows:
+        return jsonify({"error": "Epic not found"}), 404
+    epic = epic_rows[0]
+    epic["dev_items"] = supabase_req("GET", "/dev_items", params={
+        "epic_id": f"eq.{epic_id}",
+        "select":  "id,dev_item_code,title,status,dev_item_type,estimated_end_date",
+        "order":   "created_at.asc",
+    }) or []
+    return jsonify(epic)
+
+
+@public_bp.get("/api/public/issues/<issue_id>/comments")
+def get_public_issue_comments(issue_id):
+    rows = supabase_req("GET", "/issue_comments", params={
+        "issue_id": f"eq.{issue_id}",
+        "select":   "id,username,comment,created_at",
+        "order":    "created_at.asc",
+    })
+    return jsonify(rows or [])
 
 
 @public_bp.get("/api/public/issues/<issue_id>/confirm-fix")
