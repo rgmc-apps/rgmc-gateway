@@ -1230,7 +1230,11 @@
         <!-- Epic link -->
         <div class="form-group form-group-full" id="issueEpicGroup" style="display:none;">
           <label class="form-label">Developer Board Epic</label>
-          <div id="issueEpicDisplay" class="iss-link-display"></div>
+          <button type="button" class="linked-item-btn" id="issueEpicBtn" onclick="">
+            <span class="badge-epic">Epic</span>
+            <span id="issueEpicName" class="linked-item-ref">—</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="linked-item-arrow"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
         </div>
 
         <!-- Linked issue / duplicate -->
@@ -2033,6 +2037,30 @@
       <div class="modal-actions" style="padding:16px 28px 20px;">
         <button type="button" class="btn-modal-cancel" onclick="closePromoteUserTaskModal()">Cancel</button>
         <button type="button" class="btn-modal-submit" id="putSubmitBtn" onclick="submitPromoteUserTask()">Promote</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Promote to Epic Modal ── -->
+  <div id="promoteEpicModal" class="modal-overlay">
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Promote to Epic</h3>
+          <p class="modal-site-name">A Developer Board epic will be created and linked to this issue.</p>
+        </div>
+        <button class="modal-close" onclick="closePromoteEpicModal()" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-form promote-modal-form" style="gap:16px;">
+        <div class="form-group form-group-full">
+          <label class="form-label" for="promoteEpicName">Epic Name</label>
+          <input class="form-input" type="text" id="promoteEpicName" placeholder="Enter a name for the epic…">
+        </div>
+        <div id="promoteEpicError" class="admin-error" style="display:none;margin:0;"></div>
+      </div>
+      <div class="modal-actions" style="padding:16px 28px 20px;">
+        <button type="button" class="btn-modal-cancel" onclick="closePromoteEpicModal()">Cancel</button>
+        <button type="button" class="btn-modal-submit" id="promoteEpicSubmitBtn" onclick="submitPromoteEpic()">Promote</button>
       </div>
     </div>
   </div>

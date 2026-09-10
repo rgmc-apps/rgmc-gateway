@@ -838,8 +838,11 @@ def admin_promote_issue_to_epic(issue_id):
         return jsonify({"error": "Already promoted to an epic"}), 409
 
     _plain_desc = _strip_html(issue.get('description') or '')
-    epic_name = (issue.get("title") or
-                 f"[{issue['site_name']}] {_plain_desc[:80]}{'…' if len(_plain_desc) > 80 else ''}")
+    body = request.get_json(silent=True) or {}
+    epic_name = (body.get("epic_name") or "").strip() or (
+        issue.get("title") or
+        f"[{issue['site_name']}] {_plain_desc[:80]}{'…' if len(_plain_desc) > 80 else ''}"
+    )
     epic_desc = (
         f"Reported by {issue['employee_name']} ({issue['company_name']}, {issue.get('department', '')})\n"
         f"Email: {issue['email']}\n\n"
@@ -861,7 +864,7 @@ def admin_promote_issue_to_epic(issue_id):
     epic_id = new_epic[0]["epic_id"] if new_epic else None
     if epic_id:
         try:
-            supabase_req("PATCH", "/issues", data={"epic_id": epic_id},
+            supabase_req("PATCH", "/issues", data={"epic_id": epic_id, "status": "in_progress"},
                          params={"id": f"eq.{issue_id}"})
         except Exception as exc:
             current_app.logger.error("promote-epic link issue failed: %s", exc)

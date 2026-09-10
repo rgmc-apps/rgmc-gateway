@@ -242,7 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(hidePageLoader, 600);
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape')      { closeLinkedItemModal(); closeLightbox(); closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); closeCfgCompanyModal(); closeCfgCategoryModal(); closeCfgTypeModal(); closeCfgNsiModal(); closeCfgBrandModal(); closeCfgDeptModal(); closeCfgDevItemTypeModal(); closeAddUserModal(); closeAllUserDropdowns(); _closeIssActionsMenu(); }
+    if (e.key === 'Escape')      { closeLinkedItemModal(); closeLightbox(); closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); closeCfgCompanyModal(); closeCfgCategoryModal(); closeCfgTypeModal(); closeCfgNsiModal(); closeCfgBrandModal(); closeCfgDeptModal(); closeCfgDevItemTypeModal(); closeAddUserModal(); closeAllUserDropdowns(); _closeIssActionsMenu(); closePromoteEpicModal(); }
     if (e.key === 'ArrowLeft')   lightboxNav(-1);
     if (e.key === 'ArrowRight')  lightboxNav(1);
   });
@@ -2477,11 +2477,19 @@ async function openIssueModal(id) {
   }
 
   // Epic link
-  const epicGroup   = document.getElementById('issueEpicGroup');
-  const epicDisplay = document.getElementById('issueEpicDisplay');
-  if (issue.epic_id && epicGroup && epicDisplay) {
+  const epicGroup = document.getElementById('issueEpicGroup');
+  if (issue.epic_id && epicGroup) {
     epicGroup.style.display = '';
-    epicDisplay.innerHTML   = `<span class="badge-epic">Epic</span> <span class="iss-link-ref">${escHtml(issue.epic_id.slice(0, 8))}…</span>`;
+    const epicNameEl = document.getElementById('issueEpicName');
+    const epicBtn    = document.getElementById('issueEpicBtn');
+    const cached = _epicNameCache[issue.epic_id];
+    epicNameEl.textContent = cached || (issue.epic_id.slice(0, 8) + '…');
+    epicBtn.onclick = () => openLinkedItemModal('epic', issue.epic_id);
+    if (!cached) {
+      _fetchEpicName(issue.epic_id).then(name => {
+        if (name) epicNameEl.textContent = name;
+      });
+    }
   } else if (epicGroup) {
     epicGroup.style.display = 'none';
   }
@@ -2619,7 +2627,22 @@ const _linkedItemTypeLabels = {
   dev_item:  { title: 'Dev Board Item',  endpoint: id => `/api/admin/linked/dev-item/${id}`  },
   task:      { title: 'Task Board Item', endpoint: id => `/api/admin/linked/task/${id}`       },
   user_task: { title: 'User Task',       endpoint: id => `/api/admin/linked/user-task/${id}`  },
+  epic:      { title: 'Developer Board Epic', endpoint: id => `/api/admin/linked/epic/${id}`  },
 };
+
+const _epicNameCache = {};
+
+async function _fetchEpicName(id) {
+  if (_epicNameCache[id]) return _epicNameCache[id];
+  try {
+    const res = await fetch(`/api/admin/linked/epic/${encodeURIComponent(id)}`, { headers: authHeaders() });
+    if (!res.ok) return null;
+    const item = await res.json();
+    const name = item.epic_name || null;
+    if (name) _epicNameCache[id] = name;
+    return name;
+  } catch { return null; }
+}
 
 async function _fetchUserTaskCode(id) {
   if (_userTaskCodeCache[id]) return _userTaskCodeCache[id];
@@ -2657,6 +2680,7 @@ function _linkedItemCode(type, item) {
   if (type === 'dev_item') return item.dev_item_code || '';
   if (type === 'task')     return item.task_code     || '';
   if (type === 'user_task') return item.task_code    || '';
+  if (type === 'epic')     return item.epic_id ? item.epic_id.slice(0, 8) + '…' : '';
   return '';
 }
 
@@ -2730,7 +2754,7 @@ function _renderLinkedItemBody(type, item) {
       `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${desc.replace(/\n/g,'<br>')}</p></div>`
     );
 
-  } else { // user_task
+  } else if (type === 'user_task') {
     const name = escHtml(item.title || '—');
     const desc = item.description ? escHtml(item.description) : '';
     rows.push(
@@ -2742,6 +2766,20 @@ function _renderLinkedItemBody(type, item) {
     );
     if (item.created_by) rows.push(
       `<div class="form-group"><label class="form-label">Created by</label><p class="modal-detail-val">${escHtml(item.created_by)}</p></div>`
+    );
+    if (desc) rows.push(
+      `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${desc.replace(/\n/g,'<br>')}</p></div>`
+    );
+
+  } else { // epic
+    const epicStatusHtml = item.epic_status
+      ? `<span class="linked-status-badge linked-status-${escHtml((item.epic_status || '').replace('_','-'))}">${escHtml((item.epic_status || '').replace('_',' '))}</span>`
+      : '—';
+    const name = escHtml(item.epic_name || '—');
+    const desc = item.epic_description ? escHtml(item.epic_description) : '';
+    rows.push(
+      `<div class="form-group form-group-full"><label class="form-label">Epic Name</label><p class="modal-detail-val">${name}</p></div>`,
+      `<div class="form-group"><label class="form-label">Status</label><p class="modal-detail-val">${epicStatusHtml}</p></div>`,
     );
     if (desc) rows.push(
       `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${desc.replace(/\n/g,'<br>')}</p></div>`
@@ -3042,30 +3080,51 @@ async function promoteIssueToTask()     { openPromoteModal('task'); }
 async function promoteIssueToEpic() {
   if (!_editingIssueId) return;
   _closeIssActionsMenu();
-  if (!await showConfirm({
-    title:       'Promote to Epic',
-    message:     'Create a Developer Board epic from this issue?',
-    detail:      'The issue title and description will be used to create a new epic in Planning status.',
-    confirmText: 'Promote',
-  })) return;
-  document.getElementById('issueModalActions').style.display = 'none';
-  document.getElementById('issueModalLoading').style.display = '';
-  document.getElementById('issueModalError').style.display   = 'none';
+  openPromoteEpicModal();
+}
+
+function openPromoteEpicModal() {
+  const issue = _issuesCache.find(i => i.id === _editingIssueId);
+  const defaultName = issue?.title || '';
+  const nameEl = document.getElementById('promoteEpicName');
+  if (nameEl) nameEl.value = defaultName;
+  const errEl = document.getElementById('promoteEpicError');
+  if (errEl) errEl.style.display = 'none';
+  const submitBtn = document.getElementById('promoteEpicSubmitBtn');
+  if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Promote'; }
+  document.getElementById('promoteEpicModal').classList.add('open');
+  setTimeout(() => nameEl?.focus(), 80);
+}
+
+function closePromoteEpicModal() {
+  document.getElementById('promoteEpicModal').classList.remove('open');
+}
+
+async function submitPromoteEpic() {
+  if (!_editingIssueId) return;
+  const nameEl    = document.getElementById('promoteEpicName');
+  const errEl     = document.getElementById('promoteEpicError');
+  const submitBtn = document.getElementById('promoteEpicSubmitBtn');
+  const epicName  = (nameEl?.value || '').trim();
+
+  if (errEl) errEl.style.display = 'none';
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Promoting…'; }
+
   try {
     const res = await fetch(`/api/admin/issues/${encodeURIComponent(_editingIssueId)}/promote-epic`, {
       method:  'POST',
-      headers: authHeaders(),
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ epic_name: epicName }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Promote failed');
+    closePromoteEpicModal();
     closeIssueModal();
     showToast('Issue promoted to epic.');
     loadIssues(_currentIssueStatus);
   } catch (err) {
-    document.getElementById('issueModalLoading').style.display = 'none';
-    document.getElementById('issueModalActions').style.display = '';
-    document.getElementById('issueModalError').style.display   = '';
-    document.getElementById('issueModalErrorMsg').textContent  = err.message;
+    if (errEl) { errEl.textContent = err.message; errEl.style.display = ''; }
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Promote'; }
   }
 }
 

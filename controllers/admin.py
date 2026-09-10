@@ -1133,6 +1133,18 @@ def admin_get_linked_user_task(task_id):
         return jsonify({"error": str(exc)}), 500
 
 
+@admin_bp.get("/api/admin/linked/epic/<epic_id>")
+def admin_get_linked_epic(epic_id):
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/epics", params={"epic_id": f"eq.{epic_id}", "select": "*"})
+        if not rows: return jsonify({"error": "Not found"}), 404
+        return jsonify(rows[0])
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
 # ── Config: Actions ───────────────────────────────────────────────────────────
 
 @admin_bp.get("/api/admin/config/actions")
