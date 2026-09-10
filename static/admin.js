@@ -2784,6 +2784,23 @@ function _renderLinkedItemBody(type, item) {
     if (desc) rows.push(
       `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${desc.replace(/\n/g,'<br>')}</p></div>`
     );
+
+    const devItems = item.dev_items || [];
+    const devLabel = `Dev Items${devItems.length ? ` (${devItems.length})` : ''}`;
+    if (devItems.length) {
+      const devHtml = devItems.map(di => {
+        const code  = di.dev_item_code ? escHtml(di.dev_item_code) : escHtml(di.id.slice(0, 8) + '…');
+        const title = escHtml(di.title || '—');
+        const stCls = _linkedItemStatusCls(di.status);
+        const stBadge = di.status
+          ? `<span class="linked-status-badge ${stCls}">${escHtml(di.status.replace('_',' '))}</span>`
+          : '';
+        return `<div class="epic-dev-item-row"><span class="linked-item-ref">${code}</span><span class="epic-dev-item-title">${title}</span>${stBadge}</div>`;
+      }).join('');
+      rows.push(`<div class="form-group form-group-full"><label class="form-label">${devLabel}</label><div class="epic-dev-items-list">${devHtml}</div></div>`);
+    } else {
+      rows.push(`<div class="form-group form-group-full"><label class="form-label">Dev Items</label><p class="modal-detail-val" style="color:var(--text-muted);font-style:italic;">No dev items yet</p></div>`);
+    }
   }
 
   return rows.join('');

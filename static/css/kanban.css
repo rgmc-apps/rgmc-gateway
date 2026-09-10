@@ -641,6 +641,31 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
   white-space: pre-wrap;
 }
 
+.epic-dev-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 4px;
+}
+.epic-dev-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  min-width: 0;
+}
+.epic-dev-item-title {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 [data-theme="light"] .linked-item-btn { background: #f8f6f1; border-color: #e0d9ca; }
 [data-theme="light"] .linked-item-btn:hover { border-color: #b8862a; background: rgba(184,134,42,0.05); }
 

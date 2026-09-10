@@ -1140,7 +1140,13 @@ def admin_get_linked_epic(epic_id):
     try:
         rows = supabase_req("GET", "/epics", params={"epic_id": f"eq.{epic_id}", "select": "*"})
         if not rows: return jsonify({"error": "Not found"}), 404
-        return jsonify(rows[0])
+        epic = rows[0]
+        epic["dev_items"] = supabase_req("GET", "/dev_items", params={
+            "epic_id": f"eq.{epic_id}",
+            "select":  "id,dev_item_code,title,status,dev_item_type",
+            "order":   "created_at.asc",
+        }) or []
+        return jsonify(epic)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 
