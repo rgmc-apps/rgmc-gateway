@@ -301,6 +301,25 @@ def user_update_task(task_id):
     assigned_to_changed = "assigned_to" in patch
     if (new_status or assigned_to_changed) and updated_task:
         try:
+            new_is_terminal = False
+            if new_status:
+                dept_name = (updated_task.get("department_name") or "").strip()
+                try:
+                    sm_rows = supabase_req("GET", "/task_statuses", params={
+                        "slug":            f"eq.{new_status}",
+                        "scope":           "eq.department",
+                        "department_name": f"eq.{dept_name}",
+                        "select":          "is_terminal",
+                    }) if dept_name else []
+                    if not sm_rows:
+                        sm_rows = supabase_req("GET", "/task_statuses", params={
+                            "slug":   f"eq.{new_status}",
+                            "scope":  "eq.admin",
+                            "select": "is_terminal",
+                        })
+                    new_is_terminal = bool(sm_rows[0]["is_terminal"]) if sm_rows else False
+                except Exception:
+                    pass
             issue_rows = supabase_req("GET", "/issues", params={
                 "user_task_id": f"eq.{task_id}",
                 "select":       "id,status",
@@ -308,9 +327,9 @@ def user_update_task(task_id):
             if issue_rows:
                 issue       = issue_rows[0]
                 issue_patch = {}
-                if new_status == "done" and issue.get("status") not in ("resolved", "closed"):
+                if new_status and new_is_terminal and issue.get("status") not in ("resolved", "closed"):
                     issue_patch["status"] = "resolved"
-                elif new_status in ("open", "ongoing") and issue.get("status") not in ("in_progress", "resolved", "closed"):
+                elif new_status and not new_is_terminal and issue.get("status") not in ("in_progress", "resolved", "closed"):
                     issue_patch["status"] = "in_progress"
                 if assigned_to_changed:
                     issue_patch["assigned_to"] = patch["assigned_to"]
