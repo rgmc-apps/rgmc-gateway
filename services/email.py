@@ -712,18 +712,18 @@ def send_task_status_email(
     return _smtp_send(msg, [user_email])
 
 
-def _qr_block_html(ticket_url: str) -> str:
+def _qr_block_html(ticket_url: str, heading: str = "Share via QR Code", sublabel: str = "Scan to open ticket") -> str:
     if not ticket_url:
         return ""
     qr_img = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={_url_quote(ticket_url, safe='')}&margin=10&format=png"
     return (f'<div style="text-align:center;margin:20px 0 16px;">'
             f'<p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#64748b;'
-            f'text-transform:uppercase;letter-spacing:.06em;">Share via QR Code</p>'
+            f'text-transform:uppercase;letter-spacing:.06em;">{heading}</p>'
             f'<a href="{ticket_url}" style="display:inline-block;background:#fff;'
             f'border:1px solid #e2e8f0;border-radius:6px;padding:8px;line-height:0;">'
-            f'<img src="{qr_img}" width="150" height="150" alt="QR Code — scan to open ticket" '
+            f'<img src="{qr_img}" width="150" height="150" alt="QR Code" '
             f'style="display:block;border:0;"></a>'
-            f'<p style="margin:6px 0 0;font-size:11px;color:#94a3b8;">Scan to open ticket</p>'
+            f'<p style="margin:6px 0 0;font-size:11px;color:#94a3b8;">{sublabel}</p>'
             f'</div>')
 
 
@@ -746,7 +746,7 @@ def _confirm_fix_btn_html(issue_id: str | None) -> str:
     confirm_url = f"{base}/api/public/issues/{issue_id}/confirm-fix"
     ticket_url  = f"{base}/admin/issues/{issue_id}"
     return f"""
-      {_qr_block_html(ticket_url)}
+      {_qr_block_html(confirm_url, heading="Scan QR Code to Confirm", sublabel="Scan to confirm fix")}
       <div style="margin-top:28px;padding:20px 24px;background:#f0fdf4;border:1px solid rgba(21,128,61,.18);border-top:3px solid #15803d;border-radius:0 0 8px 8px;">
         <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:.05em;">Was your issue resolved?</p>
         <p style="margin:0 0 16px;font-size:13px;color:#374151;line-height:1.6;">
