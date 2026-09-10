@@ -315,6 +315,9 @@
       border-bottom: 1px solid var(--border-subtle);
     }
     .section-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       font-size: 10px;
       font-weight: 700;
       letter-spacing: 0.1em;
@@ -1015,135 +1018,252 @@
     .pub-share-app-icon--messenger { background: #0084FF; }
     .pub-share-app-name { font-size: 10px; font-weight: 600; color: var(--text-secondary); }
 
-    /* ── Developer Board Epic section ── */
+    /* ── Entrance animations ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    #ticketCard { animation: fadeUp 0.38s ease-out both; }
+    #accountCta { animation: fadeUp 0.38s ease-out 0.15s both; }
+
+    /* ── Section label — gold bar accent ── */
+    .section-label::before {
+      content: '';
+      display: block;
+      width: 14px;
+      height: 2px;
+      background: var(--gold);
+      border-radius: 1px;
+      flex-shrink: 0;
+      opacity: 0.8;
+    }
+
+    /* ── Developer Board Epic ── */
     .ticket-epic {
       padding: 24px 32px;
       border-bottom: 1px solid var(--border-subtle);
     }
-    .epic-card {
-      background: var(--bg-section);
+    .epic-wrapper {
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-sm);
       overflow: hidden;
     }
-    .epic-header {
+    .epic-hd {
       display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 14px 16px;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 16px 18px;
+      background: linear-gradient(135deg, rgba(99,102,241,0.05) 0%, transparent 65%);
       border-bottom: 1px solid var(--border-subtle);
     }
-    .epic-icon-wrap {
-      width: 34px;
-      height: 34px;
-      border-radius: 8px;
-      background: rgba(99,102,241,0.1);
+    .epic-zing {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: rgba(99,102,241,0.12);
       color: #818cf8;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
+      margin-top: 2px;
     }
-    .epic-body { flex: 1; min-width: 0; }
-    .epic-kind {
-      font-size: 9.5px;
+    .epic-hd-body { flex: 1; min-width: 0; }
+    .epic-kicker {
+      font-size: 9px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.09em;
-      color: var(--text-muted);
-      margin-bottom: 3px;
+      letter-spacing: 0.12em;
+      color: #818cf8;
+      margin-bottom: 5px;
     }
-    .epic-name {
-      font-size: 14px;
-      font-weight: 600;
+    .epic-title {
+      font-family: var(--font-display);
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1.3;
       color: var(--text-primary);
-      margin: 0 0 6px;
+      margin: 0 0 8px;
       overflow: hidden;
       text-overflow: ellipsis;
-      white-space: nowrap;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
     }
-    .epic-status-badge {
+    .epic-pill {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
+      gap: 5px;
       padding: 3px 9px;
       border-radius: 20px;
       font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.06em;
     }
-    .epic-status--planning  { background: rgba(196,151,42,0.12);  color: var(--gold); }
-    .epic-status--active    { background: var(--status-progress-bg); color: var(--status-progress); }
-    .epic-status--done      { background: var(--status-resolved-bg); color: var(--status-resolved); }
-    .epic-status--on_hold   { background: var(--status-closed-bg);   color: var(--status-closed); }
-    .epic-status--cancelled { background: var(--status-closed-bg);   color: var(--status-closed); }
-    .epic-dev-items { }
-    .epic-dev-item {
+    .epic-pill-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
+    }
+    .epic-status--planning  { background: rgba(196,151,42,0.12); color: var(--gold);  border: 1px solid rgba(196,151,42,0.25); }
+    .epic-status--active    { background: rgba(59,130,246,0.1);  color: #60a5fa;      border: 1px solid rgba(59,130,246,0.25); }
+    .epic-status--done      { background: rgba(34,197,94,0.1);   color: #4ade80;      border: 1px solid rgba(34,197,94,0.25); }
+    .epic-status--on_hold   { background: rgba(107,114,128,0.1); color: #9ca3af;      border: 1px solid rgba(107,114,128,0.25); }
+    .epic-status--cancelled { background: rgba(107,114,128,0.1); color: #9ca3af;      border: 1px solid rgba(107,114,128,0.25); }
+
+    .epic-items-hd {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 9px 16px;
+      justify-content: space-between;
+      padding: 8px 18px;
+      background: var(--bg-section);
       border-bottom: 1px solid var(--border-subtle);
     }
-    .epic-dev-item:last-child { border-bottom: none; }
-    .epic-dev-code {
-      font-family: 'Courier New', monospace;
-      font-size: 11px;
+    .epic-items-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
       color: var(--text-muted);
-      flex-shrink: 0;
-      min-width: 64px;
     }
-    .epic-dev-title {
-      flex: 1;
+    .epic-items-count {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      padding: 1px 8px;
+    }
+    .epic-dev-row {
+      display: grid;
+      grid-template-columns: 3px 68px 1fr auto;
+      align-items: stretch;
+      min-height: 40px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .epic-dev-row:last-child { border-bottom: none; }
+    .epic-dev-bar { }
+    .epic-dev-bar--pending     { background: rgba(196,151,42,0.45); }
+    .epic-dev-bar--ongoing     { background: rgba(59,130,246,0.55); }
+    .epic-dev-bar--coding      { background: rgba(59,130,246,0.8); }
+    .epic-dev-bar--testing     { background: rgba(168,85,247,0.55); }
+    .epic-dev-bar--done        { background: rgba(34,197,94,0.55); }
+    .epic-dev-bar--in_progress { background: rgba(59,130,246,0.55); }
+    .epic-dev-bar--default     { background: rgba(148,163,184,0.3); }
+    .epic-dev-code {
+      display: flex;
+      align-items: center;
+      padding: 0 10px 0 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 10px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      border-right: 1px solid var(--border-subtle);
+    }
+    .epic-dev-title-cell {
+      display: flex;
+      align-items: center;
+      padding: 8px 10px;
       font-size: 13px;
       color: var(--text-primary);
+      overflow: hidden;
+    }
+    .epic-dev-title-cell span {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .epic-empty-note {
-      padding: 12px 16px;
+    .epic-dev-stat {
+      display: flex;
+      align-items: center;
+      padding: 0 14px 0 8px;
+    }
+    .epic-dev-empty {
+      padding: 18px;
       font-size: 13px;
       color: var(--text-muted);
       font-style: italic;
+      text-align: center;
+      background: var(--bg-section);
     }
 
-    /* ── Comments section ── */
+    /* ── Comments — timeline ── */
     .ticket-comments {
       padding: 24px 32px;
       border-bottom: 1px solid var(--border-subtle);
     }
-    .comments-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-top: 12px;
+    .comments-list { /* outer wrapper */ }
+    .comments-timeline {
+      position: relative;
+      margin-top: 16px;
+      padding-left: 32px;
     }
-    .comment-entry {
-      padding: 12px 14px;
-      background: var(--bg-section);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-sm);
+    .comments-timeline::before {
+      content: '';
+      position: absolute;
+      left: 9px;
+      top: 10px;
+      bottom: 10px;
+      width: 1px;
+      background: linear-gradient(to bottom, rgba(196,151,42,0.6) 0%, var(--border-subtle) 100%);
     }
-    .comment-meta {
+    .comment-node {
+      position: relative;
+      margin-bottom: 14px;
+    }
+    .comment-node:last-child { margin-bottom: 0; }
+    .comment-avatar {
+      position: absolute;
+      left: -32px;
+      top: 5px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--gold);
+      border: 2.5px solid var(--bg-card);
       display: flex;
       align-items: center;
-      gap: 8px;
+      justify-content: center;
+      font-size: 7px;
+      font-weight: 800;
+      color: #1A1408;
+      text-transform: uppercase;
+      z-index: 1;
+    }
+    .comment-bubble {
+      background: var(--bg-section);
+      border: 1px solid var(--border-subtle);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) var(--radius-sm);
+      padding: 11px 14px;
+    }
+    .comment-meta-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
       margin-bottom: 6px;
       flex-wrap: wrap;
     }
-    .comment-author {
+    .comment-uname {
       font-size: 12px;
       font-weight: 700;
       color: var(--text-secondary);
     }
-    .comment-sep { color: var(--border-subtle); font-size: 12px; }
-    .comment-date {
+    .comment-micro-dot {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      flex-shrink: 0;
+    }
+    .comment-ts {
       font-size: 11px;
       color: var(--text-muted);
     }
-    .comment-body {
+    .comment-msg {
       font-size: 13px;
       line-height: 1.75;
       color: var(--text-secondary);
@@ -1161,6 +1281,8 @@
       .ticket-footer { padding: 14px 20px; }
       .ticket-title { font-size: 20px; }
       .ticket-epic, .ticket-comments { padding: 18px 20px; }
+      .comments-timeline { padding-left: 28px; }
+      .epic-dev-row { grid-template-columns: 3px 58px 1fr auto; }
     }
   </style>
 </head>
@@ -1831,34 +1953,46 @@
         const statusLabel = EPIC_STATUS_LABELS[sk] || epic.epic_status || '—';
 
         const devItems = epic.dev_items || [];
-        const devHtml  = devItems.length
-          ? `<div class="epic-dev-items">${devItems.map(di => {
-              const code  = di.dev_item_code ? escHtml(di.dev_item_code) : escHtml(di.id.slice(0, 8) + '…');
-              const title = escHtml(di.title || '—');
-              const dsk   = (di.status || '').toLowerCase().replace(/ /g, '_');
-              const dsl   = CI_STATUS_LABELS[dsk] || di.status || '';
-              const stBadge = dsk
-                ? `<span class="ci-status ci-status--${dsk}"><span class="ci-status-dot"></span>${escHtml(dsl)}</span>`
-                : '';
-              return `<div class="epic-dev-item">
-                <span class="epic-dev-code">${code}</span>
-                <span class="epic-dev-title" title="${title}">${title}</span>
-                ${stBadge}
-              </div>`;
-            }).join('')}</div>`
-          : `<div class="epic-empty-note">No dev items assigned to this epic yet.</div>`;
+        let devHtml = '';
+        if (devItems.length) {
+          const rowsHtml = devItems.map(di => {
+            const code   = di.dev_item_code ? escHtml(di.dev_item_code) : escHtml(di.id.slice(0, 8) + '…');
+            const title  = escHtml(di.title || '—');
+            const dsk    = (di.status || '').toLowerCase().replace(/ /g, '_');
+            const dsl    = CI_STATUS_LABELS[dsk] || di.status || '';
+            const barCls = ['pending','ongoing','coding','testing','done','in_progress'].includes(dsk)
+              ? `epic-dev-bar--${dsk}` : 'epic-dev-bar--default';
+            const stBadge = dsk
+              ? `<span class="ci-status ci-status--${dsk}"><span class="ci-status-dot"></span>${escHtml(dsl)}</span>`
+              : '';
+            return `<div class="epic-dev-row">
+              <div class="epic-dev-bar ${barCls}"></div>
+              <div class="epic-dev-code">${code}</div>
+              <div class="epic-dev-title-cell"><span title="${title}">${title}</span></div>
+              <div class="epic-dev-stat">${stBadge}</div>
+            </div>`;
+          }).join('');
+          devHtml = `
+            <div class="epic-items-hd">
+              <span class="epic-items-label">Dev Items</span>
+              <span class="epic-items-count">${devItems.length}</span>
+            </div>
+            ${rowsHtml}`;
+        } else {
+          devHtml = `<div class="epic-dev-empty">No dev items assigned to this epic yet</div>`;
+        }
 
         document.getElementById('epicContent').innerHTML = `
-          <div class="epic-card">
-            <div class="epic-header">
-              <div class="epic-icon-wrap">
+          <div class="epic-wrapper">
+            <div class="epic-hd">
+              <div class="epic-zing">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
               </div>
-              <div class="epic-body">
-                <div class="epic-kind">Developer Board Epic</div>
-                <div class="epic-name">${escHtml(epic.epic_name || '—')}</div>
-                <span class="epic-status-badge epic-status--${sk}">
-                  <span class="ci-status-dot"></span>${escHtml(statusLabel)}
+              <div class="epic-hd-body">
+                <div class="epic-kicker">Developer Board Epic</div>
+                <div class="epic-title">${escHtml(epic.epic_name || '—')}</div>
+                <span class="epic-pill epic-status--${sk}">
+                  <span class="epic-pill-dot"></span>${escHtml(statusLabel)}
                 </span>
               </div>
             </div>
@@ -1874,15 +2008,21 @@
         if (!res.ok) return;
         const comments = await res.json();
         if (!comments.length) return;
-        document.getElementById('commentsList').innerHTML = comments.map(c => `
-          <div class="comment-entry">
-            <div class="comment-meta">
-              <span class="comment-author">${escHtml(c.username)}</span>
-              <span class="comment-sep">·</span>
-              <span class="comment-date">${fmtDateTime(c.created_at) || ''}</span>
+        const timelineHtml = `<div class="comments-timeline">${comments.map(c => {
+          const initials = (c.username || '?').replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase() || '?';
+          return `<div class="comment-node">
+            <div class="comment-avatar">${escHtml(initials)}</div>
+            <div class="comment-bubble">
+              <div class="comment-meta-row">
+                <span class="comment-uname">${escHtml(c.username)}</span>
+                <span class="comment-micro-dot"></span>
+                <span class="comment-ts">${fmtDateTime(c.created_at) || ''}</span>
+              </div>
+              <div class="comment-msg">${escHtml(c.comment)}</div>
             </div>
-            <div class="comment-body">${escHtml(c.comment)}</div>
-          </div>`).join('');
+          </div>`;
+        }).join('')}</div>`;
+        document.getElementById('commentsList').innerHTML = timelineHtml;
         document.getElementById('commentsSection').style.display = '';
       } catch (_) { /* non-critical */ }
     }
