@@ -167,6 +167,30 @@
 @media (max-width: 960px) { #utStatsBar { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); } }
 @media (max-width: 600px) { #utStatsBar { grid-template-columns: repeat(2, 1fr); } }
 
+/* Department details form */
+.ws-dept-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ws-dept-code-field {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(107,114,128,0.06);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+  font-family: monospace;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+  user-select: all;
+}
+
 /* User task cards */
 @keyframes ut-card-enter {
   from { opacity: 0; transform: translateY(-5px); }
