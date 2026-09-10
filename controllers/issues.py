@@ -869,7 +869,7 @@ def admin_promote_issue_to_epic(issue_id):
         except Exception as exc:
             current_app.logger.error("promote-epic link issue failed: %s", exc)
 
-        # Email notification (fire-and-forget)
+        # Fetch admin display name (used by comments and email)
         try:
             admin_rows = supabase_req("GET", "/users",
                                       params={"username": f"eq.{admin_username}", "select": "first_name,last_name,display_name"})
@@ -879,6 +879,37 @@ def admin_promote_issue_to_epic(issue_id):
                 f"{admin_info.get('first_name','')} {admin_info.get('last_name','')}".strip() or
                 admin_username
             )
+        except Exception:
+            promoted_by = admin_username
+
+        # Activity comment on the issue (fire-and-forget)
+        try:
+            supabase_req("POST", "/issue_comments", data={
+                "issue_id": issue_id,
+                "username": admin_username,
+                "comment":  f'Promoted to Developer Board Epic "{epic_name}" by {promoted_by}.',
+            }, extra_headers={"Prefer": "return=representation"})
+        except Exception as exc:
+            current_app.logger.warning("promote-epic issue comment failed: %s", exc)
+
+        # Activity comment on the new epic (fire-and-forget)
+        ticket_ref = issue.get("ticket_number") or issue_id[:8]
+        issue_title = issue.get("title") or _plain_desc[:80] or "Untitled"
+        try:
+            supabase_req("POST", "/epic_comments", data={
+                "epic_id":  str(epic_id),
+                "username": admin_username,
+                "comment":  (
+                    f"Epic created from issue #{ticket_ref} — {issue_title}, "
+                    f"promoted by {promoted_by}.\n\n"
+                    f"Dev items should be created to resolve this issue."
+                ),
+            }, extra_headers={"Prefer": "return=representation"})
+        except Exception as exc:
+            current_app.logger.warning("promote-epic epic comment failed: %s", exc)
+
+        # Email notification (fire-and-forget)
+        try:
             send_issue_promoted_to_epic_email(issue, new_epic[0], promoted_by)
         except Exception as exc:
             current_app.logger.warning("promote-epic email failed: %s", exc)

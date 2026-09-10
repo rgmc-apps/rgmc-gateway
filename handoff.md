@@ -1,55 +1,68 @@
 # Handoff
 
 ## Goal
-Maintain and extend the RGMC Gateway developer board (`/dev`). This is an internal Flask portal (Flask + Supabase backend) used daily by RGMC Group IT staff. The session completed three independent improvements and the codebase is clean.
+Extend the RGMC Gateway admin issue management system with: QR codes on issue emails and UI, a promote-to-epic workflow with a named-epic form modal, automatic `in_progress` status on promotion, an epic linked-item preview inside issue modals, and activity comments logged on both the issue and the epic when promotion occurs. The broader arc is making issues fully trackable through the dev pipeline with clear audit trails.
+
+---
 
 ## Current State
-All three features from this session are fully implemented, committed, and pushed to `origin/master`. No partial work remains.
 
-**Commits this session:**
-- `d22e190` — Kanban large-screen adaptation + bulk field edit feature
-- `c4ca155` — Fix developer avatar elongation bug
+**Working and committed (3 commits this session):**
+- `bc4114d` — QR code images in all issue-related emails via `api.qrserver.com`; changes to `_ticket_btn_html()` and `_confirm_fix_btn_html()` in `services/email.py`; `send_report_email()` now receives `issue_id`
+- `3ceb4ea` — Confirm-fix reminder email QR heading changed to "Scan QR Code to Confirm"; QR points to the confirm URL
+- `3de3b94` — Full promote-to-epic feature:
+  - `controllers/admin.py`: `GET /api/admin/linked/epic/<epic_id>` endpoint
+  - `controllers/issues.py`: reads `epic_name` from POST body JSON; sets `status: in_progress` on issue after linking
+  - `templates/admin.html`: `#issueEpicGroup` converted to `<button class="linked-item-btn" id="issueEpicBtn">` with `<span id="issueEpicName">`; new `#promoteEpicModal` with name input, error display, Promote/Cancel
+  - `static/admin.js`: `epic` added to `_linkedItemTypeLabels`; `_epicNameCache` + `_fetchEpicName()` added; `openIssueModal()` epic section sets button onclick and async-fetches name; `_linkedItemCode()` and `_renderLinkedItemBody()` handle `epic`; `promoteIssueToEpic()` rewrote to open form modal; added `openPromoteEpicModal()`, `closePromoteEpicModal()`, `submitPromoteEpic()`; Escape handler includes `closePromoteEpicModal()`
 
-**What was built/fixed:**
+**Uncommitted (only outstanding change):**
+- `controllers/issues.py` — Two activity comments added inside `admin_promote_issue_to_epic()` (lines 885–909):
+  1. **Issue comment** → `issue_comments` table: `Promoted to Developer Board Epic "{epic_name}" by {promoted_by}.`
+  2. **Epic comment** → `epic_comments` table: `Epic created from issue #{ticket_ref} — {issue_title}, promoted by {promoted_by}.\n\nDev items should be created to resolve this issue.`
+  - `promoted_by` fetch block moved before comments+email and given a bare `except Exception: promoted_by = admin_username` fallback
+  - This is the **only uncommitted change** — everything else is clean
 
-1. **Kanban large-screen adaptation** — The kanban board was capped at 1200px (inherited `admin-main` constraint), meaning columns were only ~218px wide on any screen larger than 1200px. Fixed by:
-   - Adding `.admin-main--dev` class to `<main>` in `developer.html`, giving the dev board a 1760px max-width (2100px at 2200px+ viewports)
-   - Board gap now `clamp(14px, 1.4vw, 26px)` — scales fluidly
-   - 3-column breakpoint pushed from 1300px → 1000px (5 cols are comfortable down to 1000px with wider container)
-   - Card content scales at three tiers: 1440px (font+3-line desc), 1800px (larger fonts, more padding, bigger buttons), 2200px (maximum density for 2K/4K)
-
-2. **Bulk field edit** — New "Edit Fields…" button in the bulk action bar. Opens a panel above the bar with 4 fields: Story Points, Start Date, Est. End Date, Assign To. Each field has a checkbox — only checked fields are sent. Typing in a field auto-checks it. Hits existing `/api/dev/items/<id>` PATCH endpoint in parallel for all selected items.
-
-3. **Developer avatar elongation bug** — `.dlt-avatar-initial` had `width: 100%; height: 100%` which overrode the `width: 26px; height: 26px` from `.dlt-avatar` when both classes landed on the same `<div>`. In flex containers (`.dlt-dev-cell`, `.ana-dev-name-cell`), the avatar stretched to full column width. Fixed by removing those overrides.
+---
 
 ## Files Actively Being Edited
-All clean — no in-progress edits.
 
-- `templates/developer.html` — Added `admin-main--dev` class to `<main>` (line 37); added `bulkEditBtn` button and `#bulkEditPanel` HTML (inside `#bulkActionBar`, around lines 509–545)
-- `static/css/dev-board.css` — Added `.admin-main--dev` max-width override (near top, after `.dev-stats-bar` comment); added `.bulk-edit-panel` + all `.bep-*` component styles (at end of file); removed `width: 100%; height: 100%` and redundant flex properties from `.dlt-avatar-initial` (~line 395)
-- `static/css/kanban.css` — Updated `.kanban-board` gap to `clamp()`, changed breakpoint from 1300px→1000px; added three `@media (min-width: ...)` blocks for large-screen card scaling (at end of file, after `.sys-tags-field::placeholder`)
-- `static/developer.js` — Added `openBulkEditPanel()`, `closeBulkEditPanel()`, `_initBulkEditPanel()`, `bulkApplyEdit()` functions (after `bulkApplyStatus`, before `_doneWeeks` declaration); updated `clearBulkSelection()` to call `closeBulkEditPanel()`; added Escape key handler and click-outside handler for the new panel; added `_initBulkEditPanel()` call in `DOMContentLoaded`
+- `controllers/issues.py` — **UNCOMMITTED CHANGE.** Two fire-and-forget comment blocks added at lines 885–909 inside `admin_promote_issue_to_epic()`. The `promoted_by` fetch block restructured: now sits before comments and email, has a `except Exception: promoted_by = admin_username` fallback. Email block unchanged but now uses the pre-fetched `promoted_by`.
+
+- `controllers/admin.py` — committed in `3de3b94`. `admin_get_linked_epic()` added around line 1135.
+
+- `templates/admin.html` — committed in `3de3b94`. `#issueEpicGroup` (~line 1231) converted to button; `#promoteEpicModal` added before `#issShareModal` (~line 2040).
+
+- `static/admin.js` — committed in `3de3b94`. Changes: `_linkedItemTypeLabels` (~line 2618), `_epicNameCache`/`_fetchEpicName` (~line 2633), epic section in `openIssueModal()` (~line 2480), `_linkedItemCode()` and `_renderLinkedItemBody()` epic cases, `promoteIssueToEpic()` rewrite + new modal functions (~line 3080), Escape handler (~line 245).
+
+---
 
 ## Failed Attempts
-None. All changes applied cleanly on the first attempt.
+
+None this session. All changes applied cleanly on first attempt.
+
+---
 
 ## Next Step
-No immediate next step — session is complete and all work is committed/pushed. If the user wants to continue, likely candidates are:
 
-1. **Test the bulk edit panel** — Select multiple items in list view, click "Edit Fields…", verify panel appears, check a field (e.g. Assign To), apply, and confirm items update in the board without a page reload.
-2. **Test the large-screen kanban** — Open the board on a 1920×1080 monitor and verify columns are ~328px wide (was ~218px), and card text scales up appropriately.
-3. **Velocity trend chart** — Carry-over from prior session: add actual SP per week/month over time to the analytics view.
-4. **Kanban card SP badges** — Done-column kanban cards currently don't show actual SP badges (only the list view does). Could add them for consistency.
+**Commit the only outstanding change:**
+```bash
+git add controllers/issues.py
+git commit -m "added activity comments for epic promotion on issue and epic"
+```
+
+That closes out everything from this session. No other pending work.
+
+---
 
 ## Context & Gotchas
 
-- **`admin-main--dev` is additive** — The base `.admin-main` in `admin.css` still exists with `max-width: 1200px`. The dev board overrides this via the modifier class. Any future page that uses `admin-main` without the modifier is unaffected.
-- **Bulk edit panel is absolute-positioned inside `#bulkActionBar`** — `#bulkActionBar` has `position: fixed` (the floating bar at screen bottom). The `#bulkEditPanel` is `position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%)` inside it — so it floats above the bar automatically regardless of scroll position.
-- **Bulk edit only sends checked fields** — An unchecked field is never sent, even if it has a value. This is intentional: users should explicitly opt in to each field change.
-- **`_initBulkEditPanel()` must run after DOM is ready** — It's called in `DOMContentLoaded`. The checkbox↔input wiring uses `querySelector` on the panel, so the panel HTML must exist in the DOM first. It does — it's static in `developer.html`.
-- **`.dlt-avatar` class is used on both `<img>` and `<div>` elements** — `display: flex` on `<img>` is unusual but harmless (replaced elements have no flex children). Only the `<div>` variant needs the flex centering for the initial letter.
-- **Kanban column breakpoints are viewport-width, not container-width** — `@media (max-width: 1000px)` fires at 1000px viewport regardless of whether the wider container is in play. On a 1000px screen the 5-col layout collapses to 3 cols. This is correct behavior.
-- **SP is 1 point = 1 calendar day** — Actual SP is `Math.floor((actual_end_date - start_date) / 86400000)`. Only computed for done items with both dates set.
-- **Rich editor stores HTML** — `item.description` and `epic.epic_description` contain raw HTML from `initRichEditor`. Use `innerHTML` to render, never `textContent`. The `_descPreview()` helper strips tags for text previews.
-- **Auth pattern** — All API calls use `authHeaders()` which reads `localStorage.getItem('rgmc_gateway_session')` and sends `X-Gateway-Username`. Backend reads `request.headers.get("X-Gateway-Username")`.
-- **Supabase via proxy** — All DB operations go through Flask's `supabase_req()` helper in `services/supabase.py`, not a JS client.
+- **`epic_id` is an integer PK, not a UUID.** The `epics` table uses `epic_id` (integer sequence). PostgREST endpoint must use `?epic_id=eq.<id>` — not `?id=eq.<id>`. `admin_get_linked_epic()` already does this correctly.
+- **`epic_comments.epic_id` is TEXT.** Per `supabase-migrations/epic_comments_migration.sql`: `epic_id TEXT NOT NULL`. Casting the integer epic_id via `str(epic_id)` before insert is intentional and required.
+- **`_renderLinkedItemBody()` else-branch:** Was a catch-all for `user_task`. Changed to explicit `elif type === 'user_task'` with a final `else` for `epic`. Future types need explicit `elif` or they'll render nothing silently.
+- **QR popover library:** `qrcode-generator@1.4.4` CDN is loaded in both `admin.html` and `user.html`. API: `qrcode(typeNumber, errorCorrectionLevel)` → `.addData(url)` → `.make()` → `.createSvgTag(cellSize, margin)` returns SVG string. `typeNumber: 0` = auto.
+- **Email QR images** use external `api.qrserver.com` — intentional, since emails cannot execute JS.
+- **`send_report_email()` signature changed** earlier this session to accept `issue_id: str | None = None`. Call site at `controllers/issues.py` line 294 already passes it.
+- **`#promoteEpicModal` has no overlay-click-to-close.** Clicking the backdrop does nothing — only Escape key and the Cancel/X buttons close it. This is consistent with `#promoteModal` and `#promoteUserTaskModal` which also lack overlay-click handlers.
+- **All DB calls go through `supabase_req()`** (PostgREST wrapper, not a direct driver). Use `extra_headers={"Prefer": "return=representation"}` when a returned row is needed; omit it for fire-and-forget writes.
+- **Flask dev server hot-reloads on file save.** The uncommitted `issues.py` change is already live in the running dev server if it was saved; no restart needed.
