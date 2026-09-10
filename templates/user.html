@@ -741,6 +741,24 @@
     </div>
   </div>
 
+  <!-- ══════════════════════════════════════════
+       TEAM MEMBER PROFILE MODAL
+  ══════════════════════════════════════════ -->
+  <div id="teamMemberModal" class="modal-overlay" onclick="if(event.target===this)closeTeamMemberModal()">
+    <div class="modal team-profile-modal">
+      <button class="modal-close" onclick="closeTeamMemberModal()" aria-label="Close">&times;</button>
+      <div class="tpm-hero">
+        <div class="tpm-avatar" id="tpmAvatar"></div>
+      </div>
+      <div class="tpm-body">
+        <div class="tpm-name" id="tpmName"></div>
+        <div class="tpm-username" id="tpmUsername"></div>
+        <div class="tpm-badges" id="tpmBadges"></div>
+        <div class="tpm-details" id="tpmDetails"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="/static/theme.js"></script>
   <script src="/static/user.js"></script>
 </body>

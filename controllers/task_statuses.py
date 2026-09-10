@@ -65,6 +65,7 @@ def admin_list_task_statuses():
         })
         if not rows:
             rows = _seed_dept_statuses(dept)
+        return jsonify(_annotate_hidden(rows or [], dept))
     else:
         rows = supabase_req("GET", "/task_statuses", params={
             "scope":           "eq.admin",
@@ -149,12 +150,40 @@ def admin_delete_task_status(status_id):
 
 # ── Department-head endpoints ────────────────────────────────────────────────
 
+def _annotate_hidden(rows, dept):
+    """Add a `hidden` bool to each status row based on department_status_hidden."""
+    if not rows or not dept:
+        return rows
+    try:
+        hidden_rows = supabase_req("GET", "/department_status_hidden", params={
+            "department_name": f"eq.{dept}",
+            "select":          "status_id",
+        })
+        hidden_ids = {r["status_id"] for r in (hidden_rows or [])}
+    except Exception:
+        hidden_ids = set()
+    for s in rows:
+        s["hidden"] = s["id"] in hidden_ids
+    return rows
+
+
 @task_statuses_bp.get("/api/user/task-statuses")
 def user_list_task_statuses():
-    _, user_row, err = _require_dept_head()
-    if err:
-        return jsonify(err[0]), err[1]
-    dept = (user_row.get("department") or "").strip()
+    # Accessible to any authenticated user (not just dept heads) so all
+    # team members see the correct filtered kanban columns.
+    username = request.headers.get("X-Gateway-Username", "").strip().lower()
+    if not username:
+        return jsonify([])
+    try:
+        user_rows = supabase_req("GET", "/users", params={
+            "username": f"eq.{username}",
+            "select":   "username,department",
+        })
+    except Exception:
+        return jsonify([])
+    if not user_rows:
+        return jsonify([])
+    dept = (user_rows[0].get("department") or "").strip()
     if not dept:
         return jsonify([])
     rows = supabase_req("GET", "/task_statuses", params={
@@ -165,7 +194,7 @@ def user_list_task_statuses():
     })
     if not rows:
         rows = _seed_dept_statuses(dept)
-    return jsonify(rows or [])
+    return jsonify(_annotate_hidden(rows or [], dept))
 
 
 @task_statuses_bp.post("/api/user/task-statuses")
@@ -243,4 +272,54 @@ def user_delete_task_status(status_id):
         "scope":           "eq.department",
         "department_name": f"eq.{dept}",
     })
+    return jsonify({"success": True})
+
+
+@task_statuses_bp.put("/api/admin/task-statuses/<status_id>/dept-visibility")
+def admin_toggle_status_visibility(status_id):
+    _, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+    dept = (request.args.get("department_name") or "").strip()
+    if not dept:
+        return jsonify({"error": "department_name query param required"}), 400
+    data   = request.get_json(silent=True) or {}
+    hidden = bool(data.get("hidden", False))
+    try:
+        if hidden:
+            supabase_req("POST", "/department_status_hidden",
+                         data={"department_name": dept, "status_id": status_id},
+                         extra_headers={"Prefer": "resolution=ignore-duplicates,return=minimal"})
+        else:
+            supabase_req("DELETE", "/department_status_hidden", params={
+                "department_name": f"eq.{dept}",
+                "status_id":       f"eq.{status_id}",
+            })
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+    return jsonify({"success": True})
+
+
+@task_statuses_bp.put("/api/user/task-statuses/<status_id>/visibility")
+def user_toggle_status_visibility(status_id):
+    _, user_row, err = _require_dept_head()
+    if err:
+        return jsonify(err[0]), err[1]
+    dept = (user_row.get("department") or "").strip()
+    if not dept:
+        return jsonify({"error": "No department assigned"}), 400
+    data   = request.get_json(silent=True) or {}
+    hidden = bool(data.get("hidden", False))
+    try:
+        if hidden:
+            supabase_req("POST", "/department_status_hidden",
+                         data={"department_name": dept, "status_id": status_id},
+                         extra_headers={"Prefer": "resolution=ignore-duplicates,return=minimal"})
+        else:
+            supabase_req("DELETE", "/department_status_hidden", params={
+                "department_name": f"eq.{dept}",
+                "status_id":       f"eq.{status_id}",
+            })
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
     return jsonify({"success": True})

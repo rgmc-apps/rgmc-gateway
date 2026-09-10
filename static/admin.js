@@ -6716,19 +6716,24 @@ function _renderCfgTaskStatuses() {
     wrap.innerHTML = '<div class="admin-empty">No statuses configured. Add one above.</div>';
     return;
   }
-  const HANDLE_SVG = `<svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><circle cx="4" cy="2.5" r="1.1"/><circle cx="8" cy="2.5" r="1.1"/><circle cx="4" cy="6" r="1.1"/><circle cx="8" cy="6" r="1.1"/><circle cx="4" cy="9.5" r="1.1"/><circle cx="8" cy="9.5" r="1.1"/></svg>`;
+  const HANDLE_SVG  = `<svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><circle cx="4" cy="2.5" r="1.1"/><circle cx="8" cy="2.5" r="1.1"/><circle cx="4" cy="6" r="1.1"/><circle cx="8" cy="6" r="1.1"/><circle cx="4" cy="9.5" r="1.1"/><circle cx="8" cy="9.5" r="1.1"/></svg>`;
+  const EYE_SVG     = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+  const EYE_OFF_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+  const deptActive  = !!_cfgTaskStatusDeptFilter;
   wrap.innerHTML = `<div class="ts-list" id="cfgTsList">${_cfgTaskStatusesCache.map(s => `
-    <div class="ts-item" draggable="true" data-id="${escHtml(s.id)}">
+    <div class="ts-item${deptActive && s.hidden ? ' ts-item--hidden' : ''}" draggable="true" data-id="${escHtml(s.id)}">
       <span class="ts-drag-handle" title="Drag to reorder">${HANDLE_SVG}</span>
-      <span class="ts-color-dot" style="background:${escHtml(s.color)};"></span>
+      <span class="ts-color-dot" style="background:${escHtml(s.color)};${deptActive && s.hidden ? 'opacity:0.4' : ''}"></span>
       <span class="ts-item-label">${escHtml(s.label)}</span>
       <span class="ts-item-slug">${escHtml(s.slug)}</span>
       <span class="ts-item-badges">
         ${s.is_terminal ? '<span class="badge-visible">Terminal</span>' : ''}
         ${s.department_name ? `<span class="badge-hidden">${escHtml(s.department_name)}</span>` : ''}
         ${s.is_system ? '<span class="badge-hidden">System</span>' : ''}
+        ${deptActive && s.hidden ? '<span class="badge-ts-hidden">Hidden</span>' : ''}
       </span>
       <span class="ts-item-actions">
+        ${deptActive ? `<button class="btn-tbl-icon ts-visibility-btn${s.hidden ? ' ts-visibility-btn--hidden' : ''}" title="${s.hidden ? 'Show on task board' : 'Hide from task board'}" onclick="event.stopPropagation();toggleCfgStatusVisibility('${escHtml(s.id)}',${!s.hidden})">${s.hidden ? EYE_OFF_SVG : EYE_SVG}</button>` : ''}
         <button class="btn-tbl-secondary" onclick='event.stopPropagation();openCfgTaskStatusModal(${escHtml(JSON.stringify(s))})'>Edit</button>
         ${!s.is_system ? `<button class="btn-tbl-danger" onclick="event.stopPropagation();deleteCfgTaskStatus('${escHtml(s.id)}')">Delete</button>` : ''}
       </span>
@@ -6897,6 +6902,25 @@ async function deleteCfgTaskStatus(id) {
     if (!res.ok) throw new Error((await res.json()).error || 'Delete failed');
     showToast('Status deleted.');
     loadCfgTaskStatuses();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+async function toggleCfgStatusVisibility(id, hide) {
+  if (!_cfgTaskStatusDeptFilter) return;
+  try {
+    const res = await fetch(
+      `/api/admin/task-statuses/${encodeURIComponent(id)}/dept-visibility?department_name=${encodeURIComponent(_cfgTaskStatusDeptFilter)}`,
+      {
+        method: 'PUT',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hidden: hide }),
+      }
+    );
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    loadCfgTaskStatuses();
+    showToast(hide ? 'Status hidden from that department\'s task board.' : 'Status shown on that department\'s task board.');
   } catch (err) {
     showToast(`Error: ${err.message}`);
   }

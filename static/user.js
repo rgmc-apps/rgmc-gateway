@@ -731,7 +731,8 @@ function renderTeam(members) {
     const avatarInner = av
       ? `<img src="${escHtml(av)}" alt="${escHtml(initial)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
       : escHtml(initial);
-    return `<div class="team-member-card">
+    const mJson = escHtml(JSON.stringify(m));
+    return `<div class="team-member-card" style="cursor:pointer;" onclick="openTeamMemberModal(${mJson})">
       <div class="team-avatar">${avatarInner}</div>
       <div class="team-member-name">${escHtml(name)}</div>
       ${m.position ? `<div class="team-member-position">${escHtml(m.position)}</div>` : ''}
@@ -739,6 +740,58 @@ function renderTeam(members) {
       ${m.email    ? `<a href="mailto:${escHtml(m.email)}" class="team-member-email" onclick="event.stopPropagation()">${escHtml(m.email)}</a>` : ''}
     </div>`;
   }).join('');
+}
+
+function openTeamMemberModal(m) {
+  const name    = m.display_name || `${m.first_name || ''} ${m.last_name || ''}`.trim() || m.username;
+  const initial = (name.charAt(0) || '?').toUpperCase();
+  const av      = m.avatar_url && (m.avatar_url.startsWith('data:') || m.avatar_url.startsWith('https://')) ? m.avatar_url : '';
+
+  // Avatar
+  const avatarEl = document.getElementById('tpmAvatar');
+  if (av) {
+    avatarEl.innerHTML = `<img src="${escHtml(av)}" alt="${escHtml(initial)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+  } else {
+    avatarEl.innerHTML = escHtml(initial);
+  }
+
+  // Name & username
+  document.getElementById('tpmName').textContent = name;
+  document.getElementById('tpmUsername').textContent = `@${m.username}`;
+
+  // Role badges
+  const badges = [];
+  if (m.is_admin)           badges.push('<span class="tpm-badge tpm-badge--admin">Admin</span>');
+  if (m.is_management)      badges.push('<span class="tpm-badge tpm-badge--mgmt">Management</span>');
+  if (m.is_department_head) badges.push('<span class="tpm-badge tpm-badge--head">Dept Head</span>');
+  document.getElementById('tpmBadges').innerHTML = badges.join('');
+
+  // Details rows
+  const rows = [];
+  if (m.position) rows.push(`
+    <div class="tpm-detail-row">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+      <span>${escHtml(m.position)}</span>
+    </div>`);
+  if (m.company) rows.push(`
+    <div class="tpm-detail-row">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>${escHtml(m.company)}</span>
+    </div>`);
+  if (m.email) rows.push(`
+    <div class="tpm-detail-row">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      <a href="mailto:${escHtml(m.email)}" class="tpm-email-link">${escHtml(m.email)}</a>
+    </div>`);
+  document.getElementById('tpmDetails').innerHTML = rows.join('');
+
+  document.getElementById('teamMemberModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeTeamMemberModal() {
+  document.getElementById('teamMemberModal').classList.remove('open');
+  document.body.style.overflow = '';
 }
 
 /* ── Team Config Tab ── */
@@ -880,7 +933,8 @@ async function loadUtStatuses() {
     const res = await fetch('/api/user/task-statuses', { headers: authHeaders() });
     if (res.ok) {
       const data = await res.json();
-      _utStatuses = Array.isArray(data) && data.length ? data : _UT_DEFAULT_STATUSES;
+      const visible = Array.isArray(data) ? data.filter(s => !s.hidden) : [];
+      _utStatuses = visible.length ? visible : _UT_DEFAULT_STATUSES;
     } else {
       _utStatuses = _UT_DEFAULT_STATUSES;
     }
@@ -1735,7 +1789,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeWsIssShareModal(); closeReopenModal(); closeIssueDetail(); closeUtModal(); closeUtCfgStatusModal(); closeProfileMenu(); }
+    if (e.key === 'Escape') { closeWsIssShareModal(); closeReopenModal(); closeIssueDetail(); closeUtModal(); closeUtCfgStatusModal(); closeTeamMemberModal(); closeProfileMenu(); }
   });
   document.addEventListener('click', e => {
     closeProfileMenu();
@@ -1766,18 +1820,22 @@ function _renderUtCfgStatuses() {
     list.innerHTML = '<div class="admin-empty">No statuses yet. Add one above.</div>';
     return;
   }
-  const HANDLE_SVG = `<svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><circle cx="4" cy="2.5" r="1.1"/><circle cx="8" cy="2.5" r="1.1"/><circle cx="4" cy="6" r="1.1"/><circle cx="8" cy="6" r="1.1"/><circle cx="4" cy="9.5" r="1.1"/><circle cx="8" cy="9.5" r="1.1"/></svg>`;
+  const HANDLE_SVG  = `<svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><circle cx="4" cy="2.5" r="1.1"/><circle cx="8" cy="2.5" r="1.1"/><circle cx="4" cy="6" r="1.1"/><circle cx="8" cy="6" r="1.1"/><circle cx="4" cy="9.5" r="1.1"/><circle cx="8" cy="9.5" r="1.1"/></svg>`;
+  const EYE_SVG     = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+  const EYE_OFF_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
   list.innerHTML = `<div class="ts-list" id="utCfgTsList">${_utCfgStatusesCache.map(s => `
-    <div class="ts-item" draggable="true" data-id="${escHtml(s.id)}">
+    <div class="ts-item${s.hidden ? ' ts-item--hidden' : ''}" draggable="true" data-id="${escHtml(s.id)}">
       <span class="ts-drag-handle" title="Drag to reorder">${HANDLE_SVG}</span>
-      <span class="ts-color-dot" style="background:${escHtml(s.color)};"></span>
+      <span class="ts-color-dot" style="background:${escHtml(s.color)};${s.hidden ? 'opacity:0.4' : ''}"></span>
       <span class="ts-item-label">${escHtml(s.label)}</span>
       <span class="ts-item-slug">${escHtml(s.slug)}</span>
       <span class="ts-item-badges">
         ${s.is_terminal ? '<span class="badge-visible">Terminal</span>' : ''}
         ${s.is_system   ? '<span class="badge-hidden">System</span>'   : ''}
+        ${s.hidden      ? '<span class="badge-ts-hidden">Hidden</span>' : ''}
       </span>
       <span class="ts-item-actions">
+        <button class="btn-tbl-icon ts-visibility-btn${s.hidden ? ' ts-visibility-btn--hidden' : ''}" title="${s.hidden ? 'Show on task board' : 'Hide from task board'}" onclick="event.stopPropagation();toggleUtCfgStatusVisibility('${escHtml(s.id)}',${!s.hidden})">${s.hidden ? EYE_OFF_SVG : EYE_SVG}</button>
         <button class="btn-tbl-secondary" onclick='event.stopPropagation();openUtCfgStatusModal(${escHtml(JSON.stringify(s))})'>Edit</button>
         ${!s.is_system ? `<button class="btn-tbl-danger" onclick="event.stopPropagation();deleteUtCfgStatus('${escHtml(s.id)}')">Delete</button>` : ''}
       </span>
@@ -1927,6 +1985,22 @@ async function deleteUtCfgStatus(id) {
     showToast('Status deleted.');
     await loadUtCfgStatuses();
     await loadUtStatuses();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
+}
+
+async function toggleUtCfgStatusVisibility(id, hide) {
+  try {
+    const res = await fetch(`/api/user/task-statuses/${encodeURIComponent(id)}/visibility`, {
+      method: 'PUT',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hidden: hide }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    await loadUtCfgStatuses();
+    await loadUtStatuses();
+    showToast(hide ? 'Status hidden from task board.' : 'Status shown on task board.');
   } catch (err) {
     showToast(`Error: ${err.message}`);
   }

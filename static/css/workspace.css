@@ -249,6 +249,58 @@
   margin-left: 4px;
 }
 
+/* Hidden status row */
+.ts-item--hidden {
+  opacity: 0.55;
+}
+.ts-item--hidden .ts-item-label {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+/* Badge for "hidden from board" indicator */
+.badge-ts-hidden {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  background: rgba(107,114,128,0.12);
+  border: 1px solid rgba(107,114,128,0.25);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* Eye toggle button */
+.btn-tbl-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.btn-tbl-icon:hover {
+  background: rgba(107,114,128,0.1);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+.ts-visibility-btn--hidden {
+  color: rgba(239,68,68,0.7);
+  border-color: rgba(239,68,68,0.3);
+}
+.ts-visibility-btn--hidden:hover {
+  background: rgba(239,68,68,0.08);
+  color: #f87171;
+  border-color: rgba(239,68,68,0.5);
+}
+
 /* Workspace stats bar — auto-fit grid for dynamic status count */
 #utStatsBar {
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -796,5 +848,138 @@
   background: rgba(0,0,0,0.04);
   border-color: rgba(0,0,0,0.09);
   color: var(--text-secondary);
+}
+
+/* ── Team Member Profile Modal ── */
+.team-profile-modal {
+  max-width: 380px;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Gold gradient header band */
+.tpm-hero {
+  background: linear-gradient(135deg, rgba(196,151,42,0.15) 0%, rgba(196,151,42,0.07) 100%);
+  border-bottom: 1px solid var(--gold-border);
+  height: 96px;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+/* Avatar overlapping the hero band */
+.tpm-avatar {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: var(--gold-dim);
+  border: 3px solid var(--bg-card);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--gold);
+  overflow: hidden;
+  position: absolute;
+  bottom: -44px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+}
+
+.tpm-body {
+  padding: 56px 28px 28px;
+  text-align: center;
+}
+
+.tpm-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+.tpm-username {
+  font-size: 12px;
+  font-family: monospace;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.tpm-badges {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 20px;
+  min-height: 4px;
+}
+
+.tpm-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.tpm-badge--admin {
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.28);
+  color: #f87171;
+}
+.tpm-badge--mgmt {
+  background: rgba(139,92,246,0.1);
+  border: 1px solid rgba(139,92,246,0.28);
+  color: #a78bfa;
+}
+.tpm-badge--head {
+  background: var(--gold-dim);
+  border: 1px solid var(--gold-border);
+  color: var(--gold);
+}
+
+.tpm-details {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+
+.tpm-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.tpm-detail-row svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.tpm-email-link {
+  color: var(--gold);
+  text-decoration: none;
+  word-break: break-all;
+}
+.tpm-email-link:hover { text-decoration: underline; }
+
+/* Position the close button inside the hero (top-right) */
+.team-profile-modal .modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
 }
 

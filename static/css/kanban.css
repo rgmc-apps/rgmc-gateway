@@ -24,7 +24,7 @@
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: clamp(14px, 1.4vw, 26px);
-  align-items: start;
+  align-items: stretch;
 }
 /* With the wider dev board container, 5 cols are comfortable down to ~1000px viewport */
 @media (max-width: 1000px) { .kanban-board { grid-template-columns: repeat(3, 1fr); } }
@@ -42,6 +42,17 @@
   flex-direction: column;
   transition: border-color 0.18s var(--ease), box-shadow 0.18s var(--ease);
 }
+/* Generic drop-over highlight — works for any dynamic slug (workspace, tasks board) */
+.kanban-col.drag-over {
+  border-color: rgba(196,151,42,0.5);
+  box-shadow: 0 0 0 2px rgba(196,151,42,0.12);
+}
+.kanban-col.drag-over .kanban-cards {
+  background: rgba(196,151,42,0.04);
+  border-radius: var(--radius-sm);
+}
+
+/* Dev board overrides — color-matched to specific status slugs */
 #col-pending.drag-over  { border-color: rgba(107,114,128,0.55); box-shadow: 0 0 0 2px rgba(107,114,128,0.14); }
 #col-ongoing.drag-over  { border-color: rgba(168,85,247,0.55);  box-shadow: 0 0 0 2px rgba(168,85,247,0.14); }
 #col-coding.drag-over   { border-color: rgba(59,130,246,0.55);  box-shadow: 0 0 0 2px rgba(59,130,246,0.14); }
