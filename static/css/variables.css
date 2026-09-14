@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
 
 /* ── Variables ── */
 :root {
@@ -30,8 +30,9 @@
   --warning:       #D49632;
   --warning-bg:    rgba(212,150,50,0.12);
 
-  --font-display:  'Playfair Display', Georgia, serif;
-  --font-ui:       'Plus Jakarta Sans', -apple-system, sans-serif;
+  --font-display:  'IBM Plex Sans', system-ui, sans-serif;
+  --font-ui:       'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono:     'IBM Plex Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
 
   --radius-sm:     8px;
   --radius:        12px;
