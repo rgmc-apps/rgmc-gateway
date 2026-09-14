@@ -260,6 +260,66 @@ def dev_update_item(item_id):
         except Exception as exc:
             current_app.logger.error("dev_update_item issue cascade failed: %s", exc)
 
+        # ── Epic auto-resolve ─────────────────────────────────────────────────
+        # When an item is marked done, check if every item in its epic is now
+        # done.  If so, resolve the issue that was promoted to that epic.
+        if becoming_done:
+            epic_id = (rows[0] if rows else {}).get("epic_id")
+            if epic_id is not None:
+                try:
+                    epic_items = supabase_req("GET", "/dev_items", params={
+                        "epic_id": f"eq.{epic_id}",
+                        "select":  "id,title,status",
+                        "order":   "created_at.asc",
+                    })
+                    all_done = bool(epic_items) and all(
+                        it.get("status") == "done" for it in epic_items
+                    )
+                    if all_done:
+                        epic_issues = supabase_req("GET", "/issues", params={
+                            "epic_id": f"eq.{epic_id}",
+                            "select":  "*",
+                        })
+                        epic_resolver = dev_username
+                        try:
+                            dev_row = supabase_req("GET", "/users", params={
+                                "username": f"eq.{dev_username}",
+                                "select":   "first_name,last_name",
+                            })
+                            if dev_row:
+                                u = dev_row[0]
+                                epic_resolver = (
+                                    f"{u.get('first_name') or ''} {u.get('last_name') or ''}".strip()
+                                    or dev_username
+                                )
+                        except Exception:
+                            pass
+                        for issue in (epic_issues or []):
+                            if issue.get("status") in ("resolved", "closed"):
+                                continue
+                            supabase_req("PATCH", "/issues", data={
+                                "status":       "resolved",
+                                "resolved_by":  epic_resolver or None,
+                                "resolved_at":  datetime.now(timezone.utc).isoformat(),
+                            }, params={"id": f"eq.{issue['id']}"})
+                            send_issue_resolved_email(
+                                issue, "", epic_resolver, "resolved",
+                                dev_items=epic_items,
+                            )
+                            try:
+                                supabase_req("POST", "/issue_comments", data={
+                                    "issue_id": issue["id"],
+                                    "username": dev_username,
+                                    "comment":  (
+                                        f"All items on the linked Developer Board Epic were completed. "
+                                        f"Issue auto-resolved by {epic_resolver}."
+                                    ),
+                                }, extra_headers={"Prefer": "return=representation"})
+                            except Exception:
+                                pass
+                except Exception as exc:
+                    current_app.logger.error("dev_update_item epic auto-resolve failed: %s", exc)
+
     return jsonify(rows[0] if rows else {})
 
 

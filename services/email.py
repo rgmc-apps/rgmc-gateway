@@ -371,6 +371,7 @@ def send_issue_resolved_email(
     new_status: str,
     action_names: list | None = None,
     attachment_urls: list | None = None,
+    dev_items: list | None = None,
 ) -> bool:
     user_email = issue.get("email", "")
     if not user_email:
@@ -419,6 +420,23 @@ def send_issue_resolved_email(
         <div style="line-height:2;">{pills}</div>
       </div>"""
 
+    dev_items_block = ""
+    if dev_items:
+        rows_html = "".join(
+            f'<tr style="border-bottom:1px solid #f1f5f9;">'
+            f'<td style="padding:9px 0;font-size:14px;color:#1e293b;line-height:1.4;">{_he(it.get("title") or "Untitled")}</td>'
+            f'<td style="padding:9px 0;text-align:right;white-space:nowrap;">'
+            f'<span style="display:inline-block;padding:2px 10px;background:#f0fdf4;border:1px solid rgba(21,128,61,.2);'
+            f'border-radius:20px;font-size:12px;color:#15803d;font-weight:600;">&#10003;&nbsp;Done</span>'
+            f'</td></tr>'
+            for it in dev_items
+        )
+        dev_items_block = f"""
+      <div style="margin-bottom:24px;">
+        <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Work Completed</p>
+        <table style="width:100%;border-collapse:collapse;">{rows_html}</table>
+      </div>"""
+
     attachments_block = ""
     valid_urls = [u for u in (attachment_urls or []) if u][:5]
     if valid_urls:
@@ -462,6 +480,7 @@ def send_issue_resolved_email(
 
       {notes_block}
       {resolver_block}
+      {dev_items_block}
       {actions_block}
       {attachments_block}
 
