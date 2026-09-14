@@ -2483,7 +2483,7 @@ async function openIssueModal(id) {
     const epicNameEl = document.getElementById('issueEpicName');
     const epicBtn    = document.getElementById('issueEpicBtn');
     const cached = _epicNameCache[issue.epic_id];
-    epicNameEl.textContent = cached || (issue.epic_id.slice(0, 8) + '…');
+    epicNameEl.textContent = cached || String(issue.epic_id);
     epicBtn.onclick = () => openLinkedItemModal('epic', issue.epic_id);
     if (!cached) {
       _fetchEpicName(issue.epic_id).then(name => {
