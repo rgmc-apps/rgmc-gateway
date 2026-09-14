@@ -617,7 +617,7 @@ def dev_add_epic_comment(epic_id):
     comment = (data.get("comment") or "").strip()
     if not comment:
         return jsonify({"error": "Comment cannot be empty"}), 400
-    username = user.get("username") or "unknown"
+    username = user or "unknown"
     try:
         rows = supabase_req("POST", "/epic_comments", data={
             "epic_id":  epic_id,
@@ -635,12 +635,14 @@ def dev_delete_epic_comment(epic_id, comment_id):
     user, err = _require_developer()
     if err:
         return jsonify(err[0]), err[1]
-    username = user.get("username") or ""
+    username = user or ""
     try:
         rows = supabase_req("GET", "/epic_comments", params={"id": f"eq.{comment_id}", "select": "username"})
         if not rows:
             return jsonify({"error": "Not found"}), 404
-        if rows[0].get("username") != username and not user.get("is_admin"):
+        user_info = supabase_req("GET", "/users", params={"username": f"eq.{username}", "select": "is_admin"})
+        is_admin = bool(user_info and user_info[0].get("is_admin"))
+        if rows[0].get("username") != username and not is_admin:
             return jsonify({"error": "Not allowed"}), 403
         supabase_req("DELETE", "/epic_comments", params={"id": f"eq.{comment_id}"})
         return jsonify({"success": True})
