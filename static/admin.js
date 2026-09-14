@@ -4123,11 +4123,11 @@ function quickResolveIssue() {
   const fullName = (session?.fullName || session?.firstName || session?.username || '').trim();
   document.getElementById('qrResolvedBy').value       = fullName;
   document.getElementById('qrResolutionNotes').value  = '';
-  document.getElementById('quickResolveOverlay').style.display = '';
+  document.getElementById('quickResolveOverlay').classList.add('open');
 }
 
 function closeQuickResolveModal() {
-  document.getElementById('quickResolveOverlay').style.display = 'none';
+  document.getElementById('quickResolveOverlay').classList.remove('open');
 }
 
 function overlayCloseQuickResolve(event) {
