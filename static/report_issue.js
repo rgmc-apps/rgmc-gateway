@@ -43,24 +43,84 @@ async function _fetchAndPopulateDepartments() {
   } catch { /* non-fatal */ }
 }
 
-/* ── Priority hint ────────────────────────────────────────── */
+/* ── Priority (computed from Business Impact × Urgency — same as the IT Helpdesk form) ── */
 
-const _PRIORITY_INFO = {
-  P1: { color: '#D85858', desc: 'Severe impact — system down or entire company affected. Immediate response required.' },
-  P2: { color: '#E8873A', desc: 'Significant impact — department or team affected. Urgent attention needed.' },
-  P3: { color: '#D49632', desc: 'Moderate impact — single user or minor workflow disruption. Prompt action needed.' },
-  P4: { color: '#52A870', desc: 'Minimal impact — cosmetic issue or minor inconvenience. No immediate urgency.' },
+const RI_PRIORITY_META = {
+  P1: { label: 'P1 — Critical / Show Stopper', cls: 'p1' },
+  P2: { label: 'P2 — High Risk',               cls: 'p2' },
+  P3: { label: 'P3 — Medium Risk',             cls: 'p3' },
+  P4: { label: 'P4 — Low Risk',                cls: 'p4' },
 };
 
-function riUpdatePriorityHint() {
-  const sel  = document.getElementById('riPriority');
-  const hint = document.getElementById('riPriorityHint');
-  if (!hint) return;
-  const info = _PRIORITY_INFO[sel.value];
-  if (!info) { hint.innerHTML = ''; return; }
-  hint.innerHTML =
-    `<span class="ri-prio-dot" style="background:${info.color}"></span>`
-    + `<span>${info.desc}</span>`;
+const RI_PRIORITY_NOTES = {
+  P1: {
+    mod:   'hd-priority-note--p1',
+    icon:  `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+    title: 'P1 — Critical Priority',
+    body:  'Reserved for company-wide outages where all operations are halted. Confirm this truly affects the entire company and cannot wait before submitting.',
+  },
+  P2: {
+    mod:   'hd-priority-note--p2',
+    icon:  `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+    title: 'P2 — High Risk',
+    body:  'Major disruption affecting multiple teams or departments. The IT team will prioritize this promptly.',
+  },
+  P3: {
+    mod:   'hd-priority-note--p3',
+    icon:  `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+    title: 'P3 — Medium Risk',
+    body:  'Moderate impact on a small group or individual. Will be addressed within 1 business day.',
+  },
+  P4: {
+    mod:   'hd-priority-note--p4',
+    icon:  `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+    title: 'P4 — Low Risk',
+    body:  'Minor issue with minimal business impact. Will be resolved in the normal queue.',
+  },
+};
+
+function _riComputePriority(impact, urgency) {
+  if (!impact || !urgency) return null;
+  if (impact === 'high'   && urgency === 'high')   return 'P1';
+  if (impact === 'high'   && urgency === 'medium') return 'P2';
+  if (impact === 'medium' && urgency === 'high')   return 'P2';
+  if (impact === 'medium' && urgency === 'medium') return 'P3';
+  return 'P4';
+}
+
+function riComputePriority() {
+  const impact  = document.getElementById('riBusinessImpact').value;
+  const urgency = document.getElementById('riUrgency').value;
+  const p       = _riComputePriority(impact, urgency);
+
+  const emptyEl  = document.getElementById('riPriorityEmpty');
+  const badgeEl  = document.getElementById('riPriorityBadge');
+  const subEl    = document.getElementById('riPrioritySub');
+  const hiddenEl = document.getElementById('riPriorityValue');
+  const noteEl   = document.getElementById('riPriorityNote');
+
+  if (!p) {
+    emptyEl.style.display = '';
+    badgeEl.style.display = 'none';
+    subEl.style.display   = 'none';
+    hiddenEl.value        = '';
+    noteEl.style.display  = 'none';
+    return;
+  }
+
+  const meta = RI_PRIORITY_META[p];
+  emptyEl.style.display  = 'none';
+  badgeEl.className      = `hd-priority-badge ${meta.cls}`;
+  badgeEl.textContent    = p;
+  badgeEl.style.display  = '';
+  subEl.textContent      = meta.label.split('—')[1]?.trim() || meta.label;
+  subEl.style.display    = '';
+  hiddenEl.value         = p;
+
+  const note = RI_PRIORITY_NOTES[p];
+  noteEl.className     = `hd-priority-note ${note.mod}`;
+  noteEl.innerHTML     = `${note.icon}<div><strong>${_esc(note.title)}</strong><p>${_esc(note.body)}</p></div>`;
+  noteEl.style.display = '';
 }
 
 /* ── Category + Subcategory dropdowns ─────────────────────── */
@@ -286,15 +346,75 @@ function riUpdateFiles(input) {
   }
 }
 
+/* ── Pre-fill from an active Gateway session ─────────────────
+   If the reporter is logged into the Gateway (same browser), skip having
+   them retype identity fields we already have on file. ── */
+
+const RI_SESSION_KEY = 'rgmc_gateway_session';
+
+function _riLoadSession() {
+  try { return JSON.parse(localStorage.getItem(RI_SESSION_KEY)); } catch { return null; }
+}
+
+async function _riPrefillFromSession() {
+  const session = _riLoadSession();
+  if (!session?.username) return;
+
+  let profile = null;
+  try {
+    const res = await fetch('/api/profile', { headers: { 'X-Gateway-Username': session.username } });
+    if (res.ok) profile = await res.json();
+  } catch { /* fall back to the cached session fields below */ }
+
+  const fullName = (profile && [profile.first_name, profile.last_name].filter(Boolean).join(' '))
+    || session.fullName || session.firstName || session.username;
+  const email      = profile?.email        || session.email      || '';
+  const viber      = profile?.viber_number || '';
+  const company    = profile?.company      || session.company    || '';
+  const department = profile?.department   || session.department || '';
+
+  const nameEl = document.getElementById('riEmployeeName');
+  if (nameEl && !nameEl.value && fullName) nameEl.value = fullName;
+
+  const emailEl = document.getElementById('riEmail');
+  if (emailEl && !emailEl.value && email) emailEl.value = email;
+
+  const viberEl = document.getElementById('riViberNumber');
+  if (viberEl && !viberEl.value && viber) viberEl.value = viber;
+
+  const companySel = document.getElementById('riCompanyName');
+  if (companySel && !companySel.value && company) companySel.value = company;
+
+  const deptSel = document.getElementById('riDepartment');
+  if (deptSel && !deptSel.value && department) {
+    deptSel.value = department;
+    deptSel.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  if (fullName) _riShowAccountBadge();
+}
+
+function _riShowAccountBadge() {
+  const input  = document.getElementById('riEmployeeName');
+  const parent = input?.parentElement;
+  if (!parent) return;
+  parent.classList.add('us-wrap');
+  parent.querySelectorAll('.us-filled-badge').forEach(b => b.remove());
+  const badge = document.createElement('div');
+  badge.className = 'us-filled-badge';
+  badge.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Filled from your account`;
+  parent.appendChild(badge);
+  setTimeout(() => badge.remove(), 4000);
+}
+
 /* ── Bootstrap ────────────────────────────────────────────── */
 
 document.addEventListener('DOMContentLoaded', async () => {
   _riDescEditor = initRichEditor('riDescription');
   document.getElementById('riForm').addEventListener('reset', () => _riDescEditor?.setValue(''));
 
-  _fetchAndPopulateCompanies();
-  _fetchAndPopulateDepartments();
-  riUpdatePriorityHint(); // show hint for default P4
+  const companiesReady   = _fetchAndPopulateCompanies();
+  const departmentsReady = _fetchAndPopulateDepartments();
 
   initUserSearch('riEmployeeName', {
     email:      'riEmail',
@@ -337,6 +457,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (payload) {
     document.getElementById('riUserPayload').value = payload;
   }
+
+  // Pre-fill the reporter's own details if they're logged into the Gateway —
+  // avoids re-typing name/email/viber/company/department they already have on file.
+  // Waits for the company/department dropdowns to finish populating first, otherwise
+  // setting .value on them before their <option>s exist would silently no-op.
+  await Promise.all([companiesReady, departmentsReady]);
+  await _riPrefillFromSession();
 
   // Close payload help modal on ESC
   document.addEventListener('keydown', e => { if (e.key === 'Escape') riClosePayloadHelp(); });

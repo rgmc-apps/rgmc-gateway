@@ -221,6 +221,8 @@ def _submit_issue():
         "error_code":               request.form.get("error_code", "").strip() or None,
         "user_payload":             request.form.get("user_payload", "").strip() or None,
         "request_category":         request.form.get("request_category", "").strip() or None,
+        "business_impact":          request.form.get("business_impact", "").strip() or None,
+        "urgency":                  request.form.get("urgency", "").strip() or None,
         "priority":                 request.form.get("priority", "").strip() or None,
         "request_to_department_id": int(_raw_dept_id) if _raw_dept_id.isdigit() else None,
     }
@@ -264,6 +266,10 @@ def _submit_issue():
                 issue_row["user_payload"] = form_data["user_payload"]
             if form_data["request_category"]:
                 issue_row["request_category"] = form_data["request_category"]
+            if form_data["business_impact"]:
+                issue_row["business_impact"] = form_data["business_impact"]
+            if form_data["urgency"]:
+                issue_row["urgency"] = form_data["urgency"]
             if form_data["priority"]:
                 issue_row["priority"] = form_data["priority"]
             if form_data["request_to_department_id"]:

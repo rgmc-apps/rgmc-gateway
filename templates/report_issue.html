@@ -73,24 +73,46 @@
             </div>
           </div>
 
-          <!-- Category + Priority row -->
+          <!-- Category -->
+          <div class="form-group form-group-full">
+            <label class="form-label" for="riCategory">Category <span class="required">*</span></label>
+            <select class="form-input" id="riCategory" name="request_category" onchange="riOnCategoryChange()">
+              <option value="" disabled>Loading…</option>
+            </select>
+          </div>
+
+          <!-- Business Impact + Urgency row -->
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label" for="riCategory">Category <span class="required">*</span></label>
-              <select class="form-input" id="riCategory" name="request_category" onchange="riOnCategoryChange()">
-                <option value="" disabled>Loading…</option>
+              <label class="form-label" for="riBusinessImpact">Business Impact</label>
+              <select class="form-input" id="riBusinessImpact" name="business_impact" onchange="riComputePriority()">
+                <option value="">— Select impact —</option>
+                <option value="high">High — Company Wide</option>
+                <option value="medium">Medium — Department to Team Wide</option>
+                <option value="low">Low — Single Person / User</option>
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label" for="riPriority">Priority</label>
-              <select class="form-input" id="riPriority" name="priority" onchange="riUpdatePriorityHint()">
-                <option value="P1">P1 — Critical</option>
-                <option value="P2">P2 — High</option>
-                <option value="P3">P3 — Medium</option>
-                <option value="P4" selected>P4 — Low</option>
+              <label class="form-label" for="riUrgency">Urgency</label>
+              <select class="form-input" id="riUrgency" name="urgency" onchange="riComputePriority()">
+                <option value="">— Select urgency —</option>
+                <option value="high">High — Immediate</option>
+                <option value="medium">Medium — Needs Prompt Action</option>
+                <option value="low">Low — Can Wait</option>
               </select>
-              <div class="ri-priority-hint" id="riPriorityHint"></div>
             </div>
+          </div>
+
+          <!-- Priority (computed read-only, same mechanism as the IT Helpdesk form) -->
+          <div class="form-group form-group-full">
+            <label class="form-label">Priority <span class="form-label-hint">(auto-computed from Business Impact &amp; Urgency)</span></label>
+            <div class="hd-priority-display" id="riPriorityDisplay">
+              <span class="hd-priority-empty" id="riPriorityEmpty">Select Business Impact and Urgency to compute priority</span>
+              <span class="hd-priority-badge" id="riPriorityBadge" style="display:none;"></span>
+              <span class="hd-priority-sub" id="riPrioritySub" style="display:none;"></span>
+            </div>
+            <input type="hidden" id="riPriorityValue" name="priority">
+            <div class="hd-priority-note" id="riPriorityNote" style="display:none;"></div>
           </div>
 
           <!-- Affected System (subcategory — hidden when ?system= is pre-filled) -->
