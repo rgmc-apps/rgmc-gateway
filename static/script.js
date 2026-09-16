@@ -1027,7 +1027,7 @@ function _clEntryHtml(item) {
 
   const plainDesc = _clStripHtml(item.description);
   const descHtml  = plainDesc
-    ? `<div class="cl-desc">${escapeHtml(plainDesc)}</div>`
+    ? `<div class="cl-desc">${linkifyText(plainDesc)}</div>`
     : '';
 
   const actionTags = (item.action_names || []).map(a =>

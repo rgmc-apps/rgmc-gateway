@@ -1534,6 +1534,7 @@
     <img id="lightboxImg" class="lightbox-img" src="" alt="" onclick="event.stopPropagation()">
   </div>
 
+  <script src="/static/linkify.js"></script>
   <script>
     const ISSUE_ID = {{ issue_id | tojson }};
 
@@ -1704,7 +1705,7 @@
       });
 
       // Description
-      document.getElementById('descText').innerHTML = issue.description || '';
+      document.getElementById('descText').innerHTML = linkifyHtml(issue.description || '');
 
       // Error code
       if (issue.error_code) {
@@ -1720,7 +1721,7 @@
         ].filter(Boolean).join(' on ');
         document.getElementById('resolutionMeta').textContent = resMeta;
         if (issue.resolution_notes) {
-          document.getElementById('resolutionNotes').innerHTML = issue.resolution_notes;
+          document.getElementById('resolutionNotes').innerHTML = linkifyHtml(issue.resolution_notes);
         } else {
           document.getElementById('resolutionNotes').style.display = 'none';
         }
@@ -2018,7 +2019,7 @@
                 <span class="comment-micro-dot"></span>
                 <span class="comment-ts">${fmtDateTime(c.created_at) || ''}</span>
               </div>
-              <div class="comment-msg">${escHtml(c.comment)}</div>
+              <div class="comment-msg">${linkifyText(c.comment)}</div>
             </div>
           </div>`;
         }).join('')}</div>`;

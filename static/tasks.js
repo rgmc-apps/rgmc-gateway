@@ -1113,7 +1113,7 @@ async function refreshTaskLogs() {
           ${hrs ? `<span class="log-hours-badge">${escHtml(hrs)}</span>` : ''}
           <span class="log-time">${fmtDateTime(log.created_at)}</span>
         </div>
-        <div class="log-message">${escHtml(log.message)}</div>
+        <div class="log-message">${linkifyText(log.message)}</div>
       </div>`;
     }).join('');
     list.scrollTop = list.scrollHeight;

@@ -2441,7 +2441,7 @@ async function openIssueModal(id) {
   } else {
     deptRow.style.display = 'none';
   }
-  document.getElementById('issueDescription').innerHTML = issue.description || '';
+  document.getElementById('issueDescription').innerHTML = linkifyHtml(issue.description || '');
 
   const ecGroup = document.getElementById('issueErrorCodeGroup');
   const ecEl    = document.getElementById('issueErrorCode');
@@ -2768,7 +2768,7 @@ function _renderLinkedItemBody(type, item) {
       `<div class="form-group"><label class="form-label">Created by</label><p class="modal-detail-val">${escHtml(item.created_by)}</p></div>`
     );
     if (desc) rows.push(
-      `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${desc.replace(/\n/g,'<br>')}</p></div>`
+      `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${linkifyHtml(desc.replace(/\n/g,'<br>'))}</p></div>`
     );
 
   } else if (type === 'task') {
@@ -2792,7 +2792,7 @@ function _renderLinkedItemBody(type, item) {
       `<div class="form-group"><label class="form-label">Created by</label><p class="modal-detail-val">${escHtml(item.created_by)}</p></div>`
     );
     if (desc) rows.push(
-      `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${desc.replace(/\n/g,'<br>')}</p></div>`
+      `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${linkifyHtml(desc.replace(/\n/g,'<br>'))}</p></div>`
     );
 
   } else if (type === 'user_task') {
@@ -2809,7 +2809,7 @@ function _renderLinkedItemBody(type, item) {
       `<div class="form-group"><label class="form-label">Created by</label><p class="modal-detail-val">${escHtml(item.created_by)}</p></div>`
     );
     if (desc) rows.push(
-      `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${desc.replace(/\n/g,'<br>')}</p></div>`
+      `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${linkifyHtml(desc.replace(/\n/g,'<br>'))}</p></div>`
     );
 
   } else { // epic
@@ -2823,7 +2823,7 @@ function _renderLinkedItemBody(type, item) {
       `<div class="form-group"><label class="form-label">Status</label><p class="modal-detail-val">${epicStatusHtml}</p></div>`,
     );
     if (desc) rows.push(
-      `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${desc.replace(/\n/g,'<br>')}</p></div>`
+      `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${linkifyHtml(desc.replace(/\n/g,'<br>'))}</p></div>`
     );
 
     const devItems = item.dev_items || [];
@@ -2888,7 +2888,7 @@ function _renderIssueActivityEntries(entries) {
     let tag = '', body = '';
     if (e.type === 'comment') {
       tag  = '<span class="iss-act-tag iss-act-tag--comment">Comment</span>';
-      body = `<div class="iss-act-text">${escHtml(e.text || '')}</div>`;
+      body = `<div class="iss-act-text">${linkifyText(e.text || '')}</div>`;
     } else if (e.type === 'moved') {
       const src = e.source === 'dev' ? 'Dev' : 'Task';
       tag  = `<span class="iss-act-tag iss-act-tag--moved">Moved · ${src}</span>`;
@@ -2896,7 +2896,7 @@ function _renderIssueActivityEntries(entries) {
     } else {
       const src = e.source === 'dev' ? 'Dev' : 'Task';
       tag  = `<span class="iss-act-tag iss-act-tag--note">Note · ${src}</span>`;
-      body = `<div class="iss-act-text">${escHtml(e.text || '')}</div>`;
+      body = `<div class="iss-act-text">${linkifyText(e.text || '')}</div>`;
     }
     return `<div class="iss-act-entry">
       <div class="iss-act-avatar">${avatar}</div>
@@ -4063,7 +4063,7 @@ function _renderCiResolution(r) {
     : '';
 
   const noteHtml = r.resolution_notes
-    ? `<div class="ci-res-notes">${r.resolution_notes}</div>`
+    ? `<div class="ci-res-notes">${linkifyHtml(r.resolution_notes)}</div>`
     : '';
 
   const actionHtml = (r.resolution_action_names || []).length
@@ -6264,9 +6264,9 @@ async function openCfDetail(fixId) {
           </button>
         </div>
         <div class="cf-detail-section-label">Problem Description</div>
-        <div class="cf-detail-content">${fix.problem_desc || '<em>Not specified.</em>'}</div>
+        <div class="cf-detail-content">${fix.problem_desc ? linkifyHtml(fix.problem_desc) : '<em>Not specified.</em>'}</div>
         <div class="cf-detail-section-label">Fix Description</div>
-        <div class="cf-detail-content">${fix.fix_description || '<em>Not specified.</em>'}</div>
+        <div class="cf-detail-content">${fix.fix_description ? linkifyHtml(fix.fix_description) : '<em>Not specified.</em>'}</div>
         ${attachHtml ? `<div class="cf-detail-section-label">Attachments</div><div class="cf-detail-attach-row">${attachHtml}</div>` : ''}
       </div>
       <div class="cf-detail-card">

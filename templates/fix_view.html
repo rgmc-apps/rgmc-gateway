@@ -634,6 +634,7 @@
     <img id="lightboxImg" class="lightbox-img" src="" alt="" onclick="event.stopPropagation()">
   </div>
 
+  <script src="/static/linkify.js"></script>
   <script>
     const FIX_ID = {{ fix_id | tojson }};
 
@@ -693,13 +694,13 @@
 
       // Problem description
       if (fix.problem_desc) {
-        document.getElementById('problemDesc').innerHTML          = fix.problem_desc;
+        document.getElementById('problemDesc').innerHTML          = linkifyHtml(fix.problem_desc);
         document.getElementById('problemSection').style.display   = '';
       }
 
       // Fix description
       if (fix.fix_description) {
-        document.getElementById('fixDesc').innerHTML          = fix.fix_description;
+        document.getElementById('fixDesc').innerHTML          = linkifyHtml(fix.fix_description);
         document.getElementById('fixSection').style.display   = '';
       }
 

@@ -2207,7 +2207,7 @@ async function refreshLogs() {
           ${hrs ? `<span class="log-hours-badge">${escHtml(hrs)}</span>` : ''}
           <span class="log-time">${fmtDateTime(entry.created_at)}</span>
         </div>
-        <div class="log-message">${escHtml(entry.message)}</div>
+        <div class="log-message">${linkifyText(entry.message)}</div>
       </div>`;
     }).join('');
     list.scrollTop = list.scrollHeight;
@@ -3952,7 +3952,7 @@ function _populateEpicPage(epic) {
 
   const descEl = document.getElementById('epicPageDesc');
   if (descEl) {
-    if (epic.epic_description) { descEl.innerHTML = epic.epic_description; descEl.style.display = ''; }
+    if (epic.epic_description) { descEl.innerHTML = linkifyHtml(epic.epic_description); descEl.style.display = ''; }
     else                        { descEl.style.display = 'none'; }
   }
 
@@ -4174,7 +4174,7 @@ function _renderEpicComments() {
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
           </button>` : ''}
         </div>
-        <div class="epic-comment-text">${escHtml(c.comment)}</div>
+        <div class="epic-comment-text">${linkifyText(c.comment)}</div>
       </div>
     </div>`;
   }).join('');
