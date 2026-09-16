@@ -314,7 +314,22 @@
 .dp-gh-stat { display: flex; flex-direction: column; align-items: center; }
 .dp-gh-stat-n { font-size: 15px; font-weight: 700; color: var(--gold); }
 .dp-gh-stat-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
-.dp-gh-widget { max-width: 100%; border-radius: 8px; display: block; }
+.dp-gh-widget { max-width: 100%; border-radius: 8px; display: block; margin-bottom: 10px; }
+.dp-gh-contrib-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin: 6px 0 8px;
+}
+.dp-gh-heatmap-wrap {
+  background: #fff;
+  border-radius: 8px;
+  padding: 10px;
+  overflow-x: auto;
+}
+.dp-gh-heatmap { display: block; min-width: 640px; }
 
 /* Items table */
 .dp-items-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }

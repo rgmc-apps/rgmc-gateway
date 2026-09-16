@@ -4440,6 +4440,10 @@ async function _loadDevPerfGithub(login) {
     if (!current || current.dataset.login !== login) return;
     if (!res.ok) throw new Error(data.error || 'Failed to load GitHub profile');
 
+    const isDark     = (typeof _getTheme === 'function') && _getTheme() === 'dark';
+    const statsTheme = isDark ? 'dark' : 'default';
+    const chartColor = isDark ? 'C4972A' : 'b8862a';
+
     const stats = [
       { n: data.public_repos, lbl: 'Repos' },
       { n: data.followers,    lbl: 'Followers' },
@@ -4458,7 +4462,12 @@ async function _loadDevPerfGithub(login) {
         </div>
         <div class="dp-gh-stats">${stats}</div>
       </div>
-      <img class="dp-gh-widget" src="https://github-readme-stats.vercel.app/api?username=${encodeURIComponent(data.login)}&show_icons=true&hide_title=true&theme=transparent" alt="${escHtml(data.login)} GitHub stats" loading="lazy" onerror="this.style.display='none'">`;
+      <img class="dp-gh-widget" src="https://github-readme-stats.vercel.app/api?username=${encodeURIComponent(data.login)}&show_icons=true&hide_title=true&theme=${statsTheme}" alt="${escHtml(data.login)} GitHub stats" loading="lazy" onerror="this.style.display='none'">
+      <div class="dp-gh-contrib-label">Contribution Activity</div>
+      <img class="dp-gh-widget" src="https://github-readme-streak-stats.herokuapp.com/?user=${encodeURIComponent(data.login)}&theme=${statsTheme}&hide_border=true" alt="${escHtml(data.login)} contribution streak stats" loading="lazy" onerror="this.style.display='none'">
+      <div class="dp-gh-heatmap-wrap">
+        <img class="dp-gh-heatmap" src="https://ghchart.rshah.org/${chartColor}/${encodeURIComponent(data.login)}" alt="${escHtml(data.login)} contribution heatmap" loading="lazy" onerror="this.closest('.dp-gh-heatmap-wrap').style.display='none'">
+      </div>`;
   } catch (err) {
     const current = document.getElementById('dpGithubSection');
     if (!current || current.dataset.login !== login) return;
