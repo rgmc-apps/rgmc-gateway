@@ -260,6 +260,29 @@ def dev_update_item(item_id):
         except Exception as exc:
             current_app.logger.error("dev_update_item issue cascade failed: %s", exc)
 
+        # ── Epic auto-activate ───────────────────────────────────────────────
+        # When an item under an epic starts moving (ongoing/coding/testing),
+        # flip the epic from Planning to Active automatically.
+        if new_status in ("ongoing", "coding", "testing"):
+            epic_id = (rows[0] if rows else {}).get("epic_id")
+            if epic_id is not None:
+                try:
+                    activated_epic = supabase_req("PATCH", "/epics", data={
+                        "epic_status": "active",
+                    }, params={
+                        "epic_id":     f"eq.{epic_id}",
+                        "epic_status": "eq.planning",
+                    }, extra_headers={"Prefer": "return=representation"})
+                    if activated_epic:
+                        epic_name = activated_epic[0].get("epic_name") or f"Epic #{epic_id}"
+                        supabase_req("POST", "/epic_comments", data={
+                            "epic_id":  str(epic_id),
+                            "username": dev_username,
+                            "comment":  f'Work has started on a dev item — epic "{epic_name}" automatically marked as Active.',
+                        })
+                except Exception as exc:
+                    current_app.logger.error("dev_update_item epic auto-activate failed: %s", exc)
+
         # ── Epic auto-resolve ─────────────────────────────────────────────────
         # When an item is marked done, check if every item in its epic is now
         # done.  If so, resolve the issue that was promoted to that epic.
@@ -276,6 +299,23 @@ def dev_update_item(item_id):
                         it.get("status") == "done" for it in epic_items
                     )
                     if all_done:
+                        try:
+                            updated_epic = supabase_req("PATCH", "/epics", data={
+                                "epic_status": "done",
+                            }, params={
+                                "epic_id":     f"eq.{epic_id}",
+                                "epic_status": "eq.active",
+                            }, extra_headers={"Prefer": "return=representation"})
+                            if updated_epic:
+                                epic_name = updated_epic[0].get("epic_name") or f"Epic #{epic_id}"
+                                supabase_req("POST", "/epic_comments", data={
+                                    "epic_id":  str(epic_id),
+                                    "username": dev_username,
+                                    "comment":  f'All dev items completed — epic "{epic_name}" automatically marked as Done.',
+                                })
+                        except Exception as exc:
+                            current_app.logger.error("dev_update_item epic auto-done failed: %s", exc)
+
                         epic_issues = supabase_req("GET", "/issues", params={
                             "epic_id": f"eq.{epic_id}",
                             "select":  "*",
