@@ -4440,6 +4440,12 @@ async function _loadDevPerfGithub(login) {
     if (!current || current.dataset.login !== login) return;
     if (!res.ok) throw new Error(data.error || 'Failed to load GitHub profile');
 
+    // Cache the fetched profile onto the selected developer so the plain-text
+    // activity report (downloadDevPerfPdf) can include the same metrics.
+    if (_devPerfSelected && _devPerfSelected.github_username === login) {
+      _devPerfSelected.github_profile = data;
+    }
+
     const isDark     = (typeof _getTheme === 'function') && _getTheme() === 'dark';
     const statsTheme = isDark ? 'dark' : 'default';
     const chartColor = isDark ? 'C4972A' : 'b8862a';
@@ -5632,6 +5638,29 @@ function _buildPrintHtml(dev, opts = {}) {
     dev.is_developer ? '<span style="background:#eff6ff;color:#2563eb;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">Developer</span>' : '',
   ].join('');
 
+  // GitHub metrics — plain text only (no widget images) so the report prints cleanly.
+  let githubHtml = '';
+  if (dev.github_username) {
+    const gp = dev.github_profile || {};
+    const ghRows = [
+      ['GitHub Handle', `@${dev.github_username}`],
+      ['Name',          gp.name],
+      ['Bio',           gp.bio],
+      ['Company',       gp.company],
+      ['Location',      gp.location],
+      ['Public Repos',  gp.public_repos != null ? String(gp.public_repos) : null],
+      ['Followers',     gp.followers    != null ? String(gp.followers)    : null],
+      ['Following',     gp.following    != null ? String(gp.following)    : null],
+      ['Profile URL',   gp.html_url || `https://github.com/${dev.github_username}`],
+    ].filter(([, v]) => v).map(([l, v]) =>
+      `<tr><td style="padding:4px 12px 4px 0;color:#64748b;font-weight:600;white-space:nowrap;vertical-align:top">${escHtml(l)}</td><td style="padding:4px 0">${escHtml(v)}</td></tr>`
+    ).join('');
+    githubHtml = `<div style="margin-bottom:24px">
+      <div style="font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">GitHub</div>
+      <table>${ghRows}</table>
+    </div>`;
+  }
+
   return `<div style="font-family:Arial,sans-serif;max-width:900px;margin:0 auto;padding:32px 24px;color:#1e293b">
     ${includeHeader ? `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #e2e8f0">
@@ -5663,6 +5692,8 @@ function _buildPrintHtml(dev, opts = {}) {
       <div style="font-size:18px;font-weight:700">${escHtml(displayName)}</div>
       <div style="font-size:12px;color:#94a3b8">${dateRangeLabel ? escHtml(dateRangeLabel.replace(' · ', '')) : 'Performance Report'}</div>
     </div>`}
+
+    ${githubHtml}
 
     <div style="margin-bottom:24px">
       <div style="font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Dev Items (${dev.items.length})</div>
