@@ -535,7 +535,7 @@ def dev_get_members():
         return jsonify(err[0]), err[1]
     try:
         rows = supabase_req("GET", "/users", params={
-            "or":            "(is_developer.eq.true,is_admin.eq.true)",
+            "is_developer":  "eq.true",
             "is_management": "eq.false",
             "select":        "username,first_name,last_name,display_name,avatar_url,github_username,is_admin,is_developer,company,department,position",
         })
