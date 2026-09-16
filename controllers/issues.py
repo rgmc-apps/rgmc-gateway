@@ -1013,6 +1013,24 @@ def get_issue_activity(issue_id):
         except Exception:
             pass
 
+    usernames = {r["username"] for r in result if r.get("username")}
+    user_info = {}
+    if usernames:
+        try:
+            urows = supabase_req("GET", "/users", params={
+                "username": f"in.({','.join(usernames)})",
+                "select":   "username,first_name,last_name,display_name,avatar_url",
+            })
+            for u in (urows or []):
+                display = u.get("display_name") or f"{u.get('first_name','')} {u.get('last_name','')}".strip() or u["username"]
+                user_info[u["username"]] = {"display_name": display, "avatar_url": u.get("avatar_url") or ""}
+        except Exception:
+            pass
+    for r in result:
+        info = user_info.get(r.get("username"), {})
+        r["display_name"] = info.get("display_name") or r.get("username")
+        r["avatar_url"]   = info.get("avatar_url") or ""
+
     result.sort(key=lambda x: x.get("created_at") or "")
     return jsonify(result)
 

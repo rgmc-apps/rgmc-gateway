@@ -650,7 +650,12 @@ function _renderIssActivityEntries(entries) {
   }
   list.innerHTML = entries.map(e => {
     const time = fmtDateTime(e.created_at);
-    const user = escHtml(e.username || '?');
+    const name = e.display_name || e.username || '?';
+    const user = escHtml(name);
+    const initial = escHtml((name.charAt(0) || '?').toUpperCase());
+    const avatar  = e.avatar_url
+      ? `<img src="${escHtml(e.avatar_url)}" alt="${initial}">`
+      : initial;
     let tag = '', body = '';
     if (e.type === 'comment') {
       tag  = '<span class="iss-act-tag iss-act-tag--comment">Comment</span>';
@@ -665,8 +670,11 @@ function _renderIssActivityEntries(entries) {
       body = `<div class="iss-act-text">${escHtml(e.text || '')}</div>`;
     }
     return `<div class="iss-act-entry">
-      <div class="iss-act-meta">${tag}<span class="iss-act-user">${user}</span><span class="iss-act-time">${time}</span></div>
-      ${body}
+      <div class="iss-act-avatar">${avatar}</div>
+      <div class="iss-act-body">
+        <div class="iss-act-meta">${tag}<span class="iss-act-user">${user}</span><span class="iss-act-time">${time}</span></div>
+        ${body}
+      </div>
     </div>`;
   }).join('');
 }

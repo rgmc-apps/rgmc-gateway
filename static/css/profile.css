@@ -415,3 +415,68 @@
 .profile-pw-status.saved  { color: var(--success); }
 .profile-pw-status.error  { color: var(--error); }
 
+/* ── GitHub account linking ── */
+.github-link-prompt {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  border: 1px solid var(--gold-border, rgba(196,151,42,0.35));
+  border-left: 3px solid var(--gold, #C4972A);
+  border-radius: 0 8px 8px 0;
+  background: var(--gold-dim, rgba(196,151,42,0.08));
+}
+.github-link-prompt-emoji { font-size: 18px; line-height: 1.4; }
+.github-link-prompt-text { font-size: 13px; line-height: 1.6; color: var(--text-secondary); }
+.github-link-prompt-text strong { color: var(--text-primary); }
+
+.github-connect-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-card-inner, rgba(0,0,0,0.03));
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s;
+}
+.github-connect-btn:hover { background: var(--hover, rgba(0,0,0,0.06)); border-color: var(--border-hover, rgba(0,0,0,0.2)); }
+
+.github-link-connected {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card-inner, rgba(0,0,0,0.03));
+}
+.github-link-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+}
+.github-link-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.github-link-handle { font-size: 13px; font-weight: 700; color: var(--text-primary); text-decoration: none; }
+.github-link-handle:hover { color: var(--gold); }
+.github-link-status { font-size: 11px; color: var(--success); }
+.github-link-unlink {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.18s, border-color 0.18s;
+}
+.github-link-unlink:hover { color: var(--error); border-color: var(--error); }
+

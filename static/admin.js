@@ -475,6 +475,7 @@ async function loadUsers() {
             <th>Email</th>
             <th>Systems</th>
             <th>Role</th>
+            <th>GitHub</th>
             <th>Joined</th>
             <th></th>
           </tr>
@@ -485,6 +486,34 @@ async function loadUsers() {
       </table>`;
   } catch (err) {
     wrap.innerHTML = `<div class="admin-error">Failed to load users: ${escHtml(err.message)}</div>`;
+  }
+}
+
+const GH_ICON_SVG = '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>';
+
+function _renderGithubCell(u) {
+  if (!u.is_developer) return '<span class="text-muted">—</span>';
+  if (!u.github_username) return '<span class="text-muted">Not linked</span>';
+  const login = escHtml(u.github_username);
+  return `<span class="gh-cell">
+    <a href="https://github.com/${login}" target="_blank" rel="noopener" class="gh-badge">${GH_ICON_SVG}@${login}</a>
+    <button type="button" class="gh-unlink-btn" title="Unlink GitHub account" onclick="adminUnlinkGithub('${escHtml(u.username)}')">&times;</button>
+  </span>`;
+}
+
+async function adminUnlinkGithub(uname) {
+  if (!await showConfirm({ title: 'Unlink GitHub Account', message: `Unlink GitHub account for "${uname}"?`, confirmText: 'Unlink', danger: true })) return;
+  try {
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(uname)}`, {
+      method:  'PATCH',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ github_username: null }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed to unlink');
+    showToast(`GitHub account unlinked for ${uname}.`);
+    loadUsers();
+  } catch (err) {
+    showToast(err.message);
   }
 }
 
@@ -519,6 +548,7 @@ function renderUserRow(u) {
     <td><a href="mailto:${escHtml(u.email)}" class="tbl-link">${escHtml(u.email)}</a></td>
     <td><span class="systems-count">${systems} system${systems !== 1 ? 's' : ''}</span></td>
     <td>${adminBadge} ${devBadge} ${mgmtBadge} ${deptHeadBadge}</td>
+    <td>${_renderGithubCell(u)}</td>
     <td class="date-cell">${fmtDate(u.created_at)}</td>
     <td class="action-cell">
       <div class="user-action-dropdown">
@@ -2849,7 +2879,12 @@ function _renderIssueActivityEntries(entries) {
   }
   list.innerHTML = entries.map(e => {
     const time = fmtDateTime(e.created_at);
-    const user = escHtml(e.username || '?');
+    const name = e.display_name || e.username || '?';
+    const user = escHtml(name);
+    const initial = escHtml((name.charAt(0) || '?').toUpperCase());
+    const avatar  = e.avatar_url
+      ? `<img src="${escHtml(e.avatar_url)}" alt="${initial}">`
+      : initial;
     let tag = '', body = '';
     if (e.type === 'comment') {
       tag  = '<span class="iss-act-tag iss-act-tag--comment">Comment</span>';
@@ -2864,8 +2899,11 @@ function _renderIssueActivityEntries(entries) {
       body = `<div class="iss-act-text">${escHtml(e.text || '')}</div>`;
     }
     return `<div class="iss-act-entry">
-      <div class="iss-act-meta">${tag}<span class="iss-act-user">${user}</span><span class="iss-act-time">${time}</span></div>
-      ${body}
+      <div class="iss-act-avatar">${avatar}</div>
+      <div class="iss-act-body">
+        <div class="iss-act-meta">${tag}<span class="iss-act-user">${user}</span><span class="iss-act-time">${time}</span></div>
+        ${body}
+      </div>
     </div>`;
   }).join('');
 }
@@ -3626,6 +3664,7 @@ let _ciExpanded  = new Set();
 let _ciShowCharts = true;
 let _ciMetric     = 'volume'; // 'volume' | 'open_age' | 'res_time'
 let _ciFilter     = 'all';    // 'all' | 'dev_item' | 'task' | 'quick' | 'duplicate'
+let _ciKeywordOpen = new Set(); // `${group}::${keyword}` — expanded keyword-cluster panels
 
 async function loadCommonIssues(force = false) {
   if (_ciData && !force) { _renderCommonIssues(); return; }
@@ -3646,9 +3685,51 @@ async function loadCommonIssues(force = false) {
 function ciSetGroupBy(mode) {
   _ciGroupBy = mode;
   _ciExpanded.clear();
+  _ciKeywordOpen.clear();
   document.getElementById('ciToggleSystem').classList.toggle('active', mode === 'system');
   document.getElementById('ciToggleCategory').classList.toggle('active', mode === 'category');
   _renderCommonIssues();
+}
+
+function ciToggleKeyword(group, keyword) {
+  const key = `${group}::${keyword}`;
+  if (_ciKeywordOpen.has(key)) _ciKeywordOpen.delete(key);
+  else _ciKeywordOpen.add(key);
+  _renderCommonIssues();
+}
+
+function _renderCiKeywordClusters(g) {
+  const clusters = g.keyword_clusters || [];
+  if (!clusters.length) return '';
+
+  const pills = clusters.map(c => {
+    const open = _ciKeywordOpen.has(`${g.group}::${c.keyword}`);
+    return `<button type="button" class="ci-kw-pill${open ? ' active' : ''}" onclick='ciToggleKeyword(${JSON.stringify(g.group)},${JSON.stringify(c.keyword)})'>
+      ${escHtml(c.keyword)}<span class="ci-kw-count">${c.count}</span>
+    </button>`;
+  }).join('');
+
+  const panels = clusters
+    .filter(c => _ciKeywordOpen.has(`${g.group}::${c.keyword}`))
+    .map(c => `
+      <div class="ci-kw-issues">
+        <div class="ci-kw-issues-label">Issues matching "${escHtml(c.keyword)}"</div>
+        ${c.issues.map(it => {
+          const st = (it.status || '').replace('_', '-');
+          return `<div class="ci-kw-issue-row">
+            <span class="ci-res-ticket">${escHtml(it.ticket_number || '—')}</span>
+            <span class="ci-kw-issue-title">${escHtml(it.title || '(untitled)')}</span>
+            <span class="linked-status-badge linked-status-${escHtml(st)}">${escHtml((it.status || '').replace('_',' '))}</span>
+          </div>`;
+        }).join('')}
+      </div>`)
+    .join('');
+
+  return `<div class="ci-kw-section">
+    <div class="ci-kw-label">Common Keywords <span class="ci-kw-hint">— recurring terms across this group's issues</span></div>
+    <div class="ci-kw-pills">${pills}</div>
+    ${panels}
+  </div>`;
 }
 
 function ciSetFilter(f) {
@@ -3954,6 +4035,7 @@ function _renderCiGroup(g) {
       </div>
     </div>
     <div class="ci-group-body">
+      ${_renderCiKeywordClusters(g)}
       ${hasRes ? g.resolutions.map(_renderCiResolution).join('') : '<p class="ci-no-res">No resolutions recorded yet.</p>'}
     </div>
   </div>`;
@@ -4328,6 +4410,8 @@ function openDevPerfModal(username) {
   document.getElementById('devPerfModalContent').innerHTML =
     _buildDevPerfModalHtml(dev, av, initial, displayName);
 
+  if (dev.github_username) _loadDevPerfGithub(dev.github_username);
+
   setDpPdfPreset('year');
 
   const overlay = document.getElementById('devPerfModal');
@@ -4343,6 +4427,43 @@ function closeDevPerfModal() {
 
 function overlayCloseDevPerf(e) {
   if (e.target === document.getElementById('devPerfModal')) closeDevPerfModal();
+}
+
+async function _loadDevPerfGithub(login) {
+  const section = document.getElementById('dpGithubSection');
+  if (!section) return;
+  try {
+    const res  = await fetch(`/api/admin/github-profile/${encodeURIComponent(login)}`, { headers: authHeaders() });
+    const data = await res.json();
+    // Guard against the modal having been reopened for a different developer while this was in flight
+    const current = document.getElementById('dpGithubSection');
+    if (!current || current.dataset.login !== login) return;
+    if (!res.ok) throw new Error(data.error || 'Failed to load GitHub profile');
+
+    const stats = [
+      { n: data.public_repos, lbl: 'Repos' },
+      { n: data.followers,    lbl: 'Followers' },
+      { n: data.following,    lbl: 'Following' },
+    ].map(s => `<div class="dp-gh-stat"><span class="dp-gh-stat-n">${s.n ?? '—'}</span><span class="dp-gh-stat-lbl">${s.lbl}</span></div>`).join('');
+
+    current.innerHTML = `
+      <div class="dp-section-title">GitHub</div>
+      <div class="dp-gh-card">
+        <img class="dp-gh-avatar" src="${escHtml(data.avatar_url || '')}" alt="${escHtml(data.login)}">
+        <div class="dp-gh-info">
+          <a class="dp-gh-name" href="${escHtml(data.html_url)}" target="_blank" rel="noopener">${GH_ICON_SVG} ${escHtml(data.name || data.login)}</a>
+          <span class="dp-gh-handle">@${escHtml(data.login)}</span>
+          ${data.bio ? `<p class="dp-gh-bio">${escHtml(data.bio)}</p>` : ''}
+          ${data.company || data.location ? `<span class="dp-gh-meta">${[data.company, data.location].filter(Boolean).map(escHtml).join(' · ')}</span>` : ''}
+        </div>
+        <div class="dp-gh-stats">${stats}</div>
+      </div>
+      <img class="dp-gh-widget" src="https://github-readme-stats.vercel.app/api?username=${encodeURIComponent(data.login)}&show_icons=true&hide_title=true&theme=transparent" alt="${escHtml(data.login)} GitHub stats" loading="lazy" onerror="this.style.display='none'">`;
+  } catch (err) {
+    const current = document.getElementById('dpGithubSection');
+    if (!current || current.dataset.login !== login) return;
+    current.innerHTML = `<div class="dp-section-title">GitHub</div><span class="dp-no-data">Could not load GitHub profile for @${escHtml(login)}.</span>`;
+  }
 }
 
 function _buildDevPerfModalHtml(dev, av, initial, displayName) {
@@ -4404,6 +4525,16 @@ function _buildDevPerfModalHtml(dev, av, initial, displayName) {
       </table>
     </div>` : '<span class="dp-no-data">No items assigned.</span>';
 
+  const githubSectionHtml = dev.github_username
+    ? `<div class="dp-section" id="dpGithubSection" data-login="${escHtml(dev.github_username)}">
+        <div class="dp-section-title">GitHub</div>
+        <div class="dp-gh-loading"><div class="spinner"></div><span>Loading GitHub profile…</span></div>
+      </div>`
+    : `<div class="dp-section">
+        <div class="dp-section-title">GitHub</div>
+        <span class="dp-no-data">Not linked. The developer can connect their GitHub account from their profile page.</span>
+      </div>`;
+
   return `
     <div class="dp-profile-section">
         <div class="dp-modal-avatar">${avatarHtml}</div>
@@ -4413,6 +4544,8 @@ function _buildDevPerfModalHtml(dev, av, initial, displayName) {
           <div class="dp-info-grid">${infoFields}</div>
         </div>
       </div>
+
+      ${githubSectionHtml}
 
       <div class="dp-metrics-strip">
         <div class="dp-metrics-label">Performance Metrics</div>

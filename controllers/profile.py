@@ -1,9 +1,10 @@
 import base64 as _b64
 import requests
-from flask import Blueprint, request, jsonify, render_template, current_app
+from flask import Blueprint, request, jsonify, render_template, current_app, redirect
 
-from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
+from config import SUPABASE_URL, SUPABASE_SERVICE_KEY, GATEWAY_BASE_URL
 from services.supabase import supabase_req
+from services import github as github_service
 
 profile_bp = Blueprint("profile", __name__)
 
@@ -21,7 +22,7 @@ def api_profile_get():
     try:
         rows = supabase_req("GET", "/users", params={
             "username": f"eq.{username}",
-            "select":   "username,first_name,middle_initial,last_name,display_name,avatar_url,company,department,position,email,viber_number,anydesk_id,password_hash",
+            "select":   "username,first_name,middle_initial,last_name,display_name,avatar_url,company,department,position,email,viber_number,anydesk_id,password_hash,is_developer,github_username",
         })
     except Exception as exc:
         current_app.logger.error("Profile GET failed: %s", exc)
@@ -43,6 +44,8 @@ def api_profile_get():
         "viber_number":    u.get("viber_number") or "",
         "anydesk_id":      u.get("anydesk_id") or "",
         "has_password":    bool(u.get("password_hash")),
+        "is_developer":    bool(u.get("is_developer")),
+        "github_username": u.get("github_username") or "",
     })
 
 
@@ -147,3 +150,65 @@ def api_profile_avatar_delete():
         return jsonify({"error": "Failed to remove avatar"}), 500
 
     return jsonify({"success": True, "avatar_url": ""})
+
+
+def _github_redirect_uri() -> str:
+    return f"{GATEWAY_BASE_URL.rstrip('/')}/api/profile/github/callback"
+
+
+@profile_bp.get("/api/profile/github/connect")
+def api_profile_github_connect():
+    username = request.args.get("u", "").strip().lower()
+    if not username:
+        return jsonify({"error": "Missing username"}), 400
+    if not github_service.is_configured():
+        return jsonify({"error": "GitHub linking is not configured on this server"}), 503
+    if not GATEWAY_BASE_URL:
+        return jsonify({"error": "GATEWAY_BASE_URL is not configured on this server"}), 503
+
+    state = github_service.sign_state(username)
+    url   = github_service.build_authorize_url(state, _github_redirect_uri())
+    return redirect(url)
+
+
+@profile_bp.get("/api/profile/github/callback")
+def api_profile_github_callback():
+    error = request.args.get("error")
+    if error:
+        return redirect(f"/profile?github=error&msg={requests.utils.quote(error)}")
+
+    code  = request.args.get("code", "")
+    state = request.args.get("state", "")
+    username = github_service.verify_state(state) if state else None
+    if not code or not username:
+        return redirect("/profile?github=error&msg=Invalid+or+expired+request")
+
+    try:
+        token = github_service.exchange_code_for_token(code, _github_redirect_uri())
+        login = github_service.fetch_authenticated_login(token)
+    except Exception as exc:
+        current_app.logger.error("GitHub OAuth exchange failed: %s", exc)
+        return redirect("/profile?github=error&msg=GitHub+authorization+failed")
+
+    try:
+        supabase_req("PATCH", "/users", data={"github_username": login},
+                     params={"username": f"eq.{username}"})
+    except Exception as exc:
+        current_app.logger.error("GitHub username save failed: %s", exc)
+        return redirect("/profile?github=error&msg=Failed+to+save+GitHub+account")
+
+    return redirect(f"/profile?github=linked&login={requests.utils.quote(login)}")
+
+
+@profile_bp.delete("/api/profile/github")
+def api_profile_github_unlink():
+    username = request.headers.get("X-Gateway-Username", "").strip().lower()
+    if not username:
+        return jsonify({"error": "Not authenticated"}), 401
+    try:
+        supabase_req("PATCH", "/users", data={"github_username": None},
+                     params={"username": f"eq.{username}"})
+    except Exception as exc:
+        current_app.logger.error("GitHub unlink failed: %s", exc)
+        return jsonify({"error": "Failed to unlink GitHub account"}), 500
+    return jsonify({"success": True})

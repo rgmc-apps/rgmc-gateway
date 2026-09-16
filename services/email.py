@@ -364,6 +364,60 @@ def send_admin_granted_email(user_record: dict) -> bool:
     return _smtp_send(msg, [user_email])
 
 
+def send_developer_promoted_email(user_record: dict) -> bool:
+    user_email = user_record.get("email", "")
+    if not user_email:
+        return False
+
+    from_addr    = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    first_name   = user_record.get("first_name", "")
+    username     = user_record.get("username", "")
+    profile_url  = (GATEWAY_BASE_URL or "").rstrip("/") + "/profile"
+    already_linked = bool(user_record.get("github_username"))
+
+    github_block = "" if already_linked else f"""
+      <div style="background:linear-gradient(135deg,#f8fafc,#f1f5f9);border:1px solid #e2e8f0;border-left:4px solid #24292f;border-radius:0 8px 8px 0;padding:18px 20px;margin-bottom:28px;">
+        <p style="margin:0 0 8px;font-size:14px;font-weight:700;color:#1a120a;">Link your GitHub account</p>
+        <p style="margin:0 0 14px;font-size:13px;color:#374151;line-height:1.6;">
+          Connect GitHub from your profile so your work shows up on your Developer Performance profile —
+          avatar, bio, repos, and contribution stats, all pulled in automatically.
+        </p>
+        {'<a href="' + profile_url + '" style="display:inline-block;padding:10px 22px;background:#24292f;color:#fff;text-decoration:none;border-radius:7px;font-size:13px;font-weight:700;">Connect GitHub on My Profile</a>' if profile_url.strip('/') else ''}
+      </div>"""
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid #C4972A;">
+      <h2 style="margin:0;font-size:22px;color:#C4972A;">Developer Access Granted</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">RGMC System Gateway</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 16px;font-size:15px;">Hello <strong>{first_name}</strong>,</p>
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#374151;">
+        You have been granted <strong>Developer access</strong> to the RGMC Gateway. You can now access the
+        Developer Board, pick up dev items, and track your work from there.
+      </p>
+      <div style="background:linear-gradient(135deg,#f8fafc,#f1f5f9);border:1px solid #e2e8f0;border-left:4px solid #C4972A;border-radius:0 8px 8px 0;padding:18px 20px;margin-bottom:20px;">
+        <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.1em;">Your Username</p>
+        <p style="margin:0;font-size:24px;font-weight:700;color:#1a120a;font-family:monospace;">{username}</p>
+      </div>
+      {github_block}
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    msg            = MIMEMultipart("alternative")
+    msg["Subject"] = "Developer Access Granted — RGMC Gateway"
+    msg["From"]    = from_addr
+    msg["To"]      = user_email
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [user_email])
+
+
 def send_user_created_email(user_record: dict, created_by: str, password: str | None = None) -> bool:
     user_email = user_record.get("email", "")
     if not user_email:

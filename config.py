@@ -17,6 +17,12 @@ GATEWAY_BASE_URL     = os.environ.get("GATEWAY_BASE_URL", "")
 IT_BOT_URL     = os.environ.get("IT_BOT_URL", "")
 IT_BOT_API_KEY = os.environ.get("IT_BOT_API_KEY", "")
 
+# GitHub OAuth App — lets developers link their GitHub account from their profile.
+# Register at: https://github.com/settings/developers → New OAuth App
+# Authorization callback URL must be: {GATEWAY_BASE_URL}/api/profile/github/callback
+GITHUB_CLIENT_ID     = os.environ.get("GITHUB_CLIENT_ID", "")
+GITHUB_CLIENT_SECRET = os.environ.get("GITHUB_CLIENT_SECRET", "")
+
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")
 
 # Fallback site list used when the systems table is empty or DB is unreachable.

@@ -271,6 +271,51 @@
 }
 .dp-no-data { font-size: 13px; color: var(--text-dim); font-style: italic; }
 
+/* ── GitHub section (Dev Performance modal) ── */
+.dp-gh-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.dp-gh-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card-inner, rgba(255,255,255,0.02));
+  margin-bottom: 12px;
+}
+.dp-gh-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  flex-shrink: 0;
+}
+.dp-gh-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.dp-gh-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.dp-gh-name:hover { color: var(--gold); }
+.dp-gh-handle { font-size: 12px; color: var(--text-muted); }
+.dp-gh-bio { font-size: 12px; color: var(--text-secondary); margin: 2px 0 0; line-height: 1.5; }
+.dp-gh-meta { font-size: 11px; color: var(--text-dim); }
+.dp-gh-stats { display: flex; gap: 14px; flex-shrink: 0; }
+.dp-gh-stat { display: flex; flex-direction: column; align-items: center; }
+.dp-gh-stat-n { font-size: 15px; font-weight: 700; color: var(--gold); }
+.dp-gh-stat-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
+.dp-gh-widget { max-width: 100%; border-radius: 8px; display: block; }
+
 /* Items table */
 .dp-items-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
 .dp-items-table {
@@ -715,6 +760,34 @@
   font-weight: 700;
   color: var(--gold);
 }
+
+/* ── GitHub link cell (Users table) ── */
+.gh-cell { display: inline-flex; align-items: center; gap: 6px; }
+.gh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  background: rgba(148,163,184,0.12);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+.gh-badge:hover { background: rgba(148,163,184,0.2); border-color: var(--border-hover, rgba(255,255,255,0.2)); }
+.gh-unlink-btn {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.gh-unlink-btn:hover { color: #f87171; }
 
 /* ── Profile section labels ── */
 .profile-section-label {

@@ -13,7 +13,8 @@ from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
 from services.supabase import supabase_req
 from services.guards import _require_admin
 from services.sites import _invalidate_sites_cache
-from services.email import send_admin_granted_email, send_access_granted_email, send_access_rejected_email, send_password_changed_email, send_user_created_email
+from services.email import send_admin_granted_email, send_access_granted_email, send_access_rejected_email, send_password_changed_email, send_user_created_email, send_developer_promoted_email
+from services import github as github_service
 from models.access import _approve_record, _reject_record
 
 admin_bp = Blueprint("admin", __name__)
@@ -48,7 +49,7 @@ def admin_get_users():
         return jsonify(err[0]), err[1]
     try:
         rows = supabase_req("GET", "/users", params={
-            "select": "username,first_name,middle_initial,last_name,display_name,avatar_url,company,department,position,email,viber_number,anydesk_id,systems,is_admin,is_developer,is_management,is_department_head,created_at",
+            "select": "username,first_name,middle_initial,last_name,display_name,avatar_url,company,department,position,email,viber_number,anydesk_id,github_username,systems,is_admin,is_developer,is_management,is_department_head,created_at",
             "order":  "created_at.asc",
         })
         return jsonify(rows)
@@ -200,7 +201,8 @@ def admin_update_user(uname):
     data  = request.get_json(silent=True) or {}
     allowed = {"is_admin", "is_developer", "is_management", "is_department_head", "systems",
                "first_name", "middle_initial", "last_name", "display_name",
-               "company", "department", "position", "email", "viber_number", "anydesk_id"}
+               "company", "department", "position", "email", "viber_number", "anydesk_id",
+               "github_username"}
     patch = {k: v for k, v in data.items() if k in allowed}
 
     new_password = str(data.get("password", "")).strip()
@@ -215,6 +217,8 @@ def admin_update_user(uname):
                             extra_headers={"Prefer": "return=representation"})
         if patch.get("is_admin") is True and rows:
             send_admin_granted_email(rows[0])
+        if patch.get("is_developer") is True and rows:
+            send_developer_promoted_email(rows[0])
         if new_password and rows:
             try:
                 admin_rows = supabase_req("GET", "/users", params={
@@ -244,7 +248,7 @@ def admin_dev_performance():
     try:
         users = supabase_req("GET", "/users", params={
             "is_developer": "eq.true",
-            "select":       "username,first_name,last_name,display_name,avatar_url,company,department,position,email,is_admin,is_developer",
+            "select":       "username,first_name,last_name,display_name,avatar_url,company,department,position,email,is_admin,is_developer,github_username",
         })
     except Exception as exc:
         current_app.logger.error("admin_dev_performance users: %s", exc)
@@ -359,6 +363,7 @@ def admin_dev_performance():
             "position":     user.get("position") or "",
             "is_admin":     bool(user.get("is_admin")),
             "is_developer": bool(user.get("is_developer")),
+            "github_username": user.get("github_username") or "",
             "counts":       counts,
             "systems":      sys_names,
             "items":        enriched,
@@ -368,6 +373,17 @@ def admin_dev_performance():
 
     result.sort(key=lambda u: (-u["counts"]["total"], (u["first_name"] + u["last_name"]).lower()))
     return jsonify(result)
+
+
+@admin_bp.get("/api/admin/github-profile/<login>")
+def admin_github_profile(login):
+    _, err = _require_admin()
+    if err:
+        return jsonify(err[0]), err[1]
+    profile = github_service.fetch_public_profile(login)
+    if profile is None:
+        return jsonify({"error": "GitHub user not found"}), 404
+    return jsonify(profile)
 
 
 @admin_bp.get("/api/admin/systems")
@@ -955,6 +971,74 @@ def admin_reject_request(request_id):
     return jsonify({"success": True})
 
 
+_CI_STOPWORDS = {
+    "the","a","an","and","or","but","is","are","was","were","be","been","being",
+    "to","of","in","on","at","for","with","by","from","up","down","out","off",
+    "this","that","these","those","it","its","as","if","then","than","so",
+    "i","you","he","she","we","they","my","your","our","their","me","us","him","her",
+    "not","no","yes","do","does","did","doing","have","has","had","having",
+    "can","could","will","would","shall","should","may","might","must",
+    "please","need","needed","needs","issue","issues","problem","problems",
+    "error","errors","system","systems","app","application","portal","request",
+    "unable","cannot","cant","dont","doesnt","isnt","wont","again","also","already",
+    "when","where","why","how","what","who","which","there","here","into","onto",
+    "still","just","only","very","get","getting","got","make","made","using","use",
+    "used","after","before","some","any","all","each","every","other","such","same",
+    "own","new","old","one","two","first","second","via","per","etc","kindly",
+}
+_CI_WORD_RE = re.compile(r"[a-z][a-z'-]{2,}")
+
+
+def _ci_tokenize(text: str) -> list[str]:
+    return _CI_WORD_RE.findall((text or "").lower())
+
+
+def _ci_keyword_phrases(title: str, description: str, exclude: set) -> set:
+    words = [w for w in _ci_tokenize(f"{title} {description}")
+             if w not in _CI_STOPWORDS and w not in exclude]
+    phrases = set(words)
+    for i in range(len(words) - 1):
+        phrases.add(f"{words[i]} {words[i + 1]}")
+    return phrases
+
+
+def _ci_cluster_by_keywords(items: list, exclude: set = frozenset(), min_count: int = 2, max_clusters: int = 8) -> list:
+    """Group issue items by shared significant keywords/phrases in their title+description.
+    Multi-word phrases are preferred over single words so a more specific recurring
+    complaint (e.g. "mode of transport") isn't buried under a generic word (e.g. "mode")."""
+    phrase_issue_map = defaultdict(list)
+    for it in items:
+        for p in _ci_keyword_phrases(it.get("title", ""), it.get("description", ""), exclude):
+            phrase_issue_map[p].append(it)
+
+    counts = {p: len(v) for p, v in phrase_issue_map.items()}
+    candidates = [p for p, c in counts.items() if c >= min_count]
+    candidates.sort(key=lambda p: (-len(p.split()), -counts[p], p))
+
+    chosen, used_issue_sets = [], []
+    for p in candidates:
+        issue_ids = {it.get("id") for it in phrase_issue_map[p]}
+        if any(issue_ids <= s for s in used_issue_sets):
+            continue
+        used_issue_sets.append(issue_ids)
+        chosen.append(p)
+        if len(chosen) >= max_clusters:
+            break
+
+    return [
+        {
+            "keyword": p,
+            "count":   counts[p],
+            "issues": [
+                {"id": it.get("id"), "ticket_number": it.get("ticket_number"),
+                 "title": it.get("title"), "status": it.get("status")}
+                for it in phrase_issue_map[p]
+            ],
+        }
+        for p in chosen
+    ]
+
+
 @admin_bp.get("/api/admin/common-issues")
 def admin_common_issues():
     _, err = _require_admin()
@@ -1045,7 +1129,7 @@ def admin_common_issues():
     def _new_group():
         return {
             "total": 0, "open": 0, "resolved": 0,
-            "resolutions": [], "open_ages_days": [],
+            "resolutions": [], "open_ages_days": [], "_items": [],
             "via_dev_item": 0, "via_task": 0, "quick_resolved": 0, "duplicates": 0,
         }
 
@@ -1059,6 +1143,13 @@ def admin_common_issues():
 
         for grp, key in ((by_system, sys_key), (by_category, cat_key)):
             grp[key]["total"] += 1
+            grp[key]["_items"].append({
+                "id":             iss.get("id"),
+                "ticket_number":  iss.get("ticket_number"),
+                "title":          iss.get("title"),
+                "description":    iss.get("description"),
+                "status":         iss.get("status"),
+            })
             if terminal:
                 grp[key]["resolved"] += 1
                 enriched = _enrich(iss)
@@ -1083,11 +1174,13 @@ def admin_common_issues():
         return round(sum(vals) / len(vals), 1) if vals else None
 
     def _sort(d):
-        return sorted(
-            [{"group": k, **v} for k, v in d.items()],
-            key=lambda x: x["total"],
-            reverse=True,
-        )
+        out = []
+        for k, v in d.items():
+            items = v.pop("_items")
+            exclude = set(_ci_tokenize(k))
+            v["keyword_clusters"] = _ci_cluster_by_keywords(items, exclude=exclude)
+            out.append({"group": k, **v})
+        return sorted(out, key=lambda x: x["total"], reverse=True)
 
     # Global stats across all issues
     all_open_ages  = [a for g in by_system.values() for a in g["open_ages_days"]]
