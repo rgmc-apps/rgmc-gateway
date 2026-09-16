@@ -672,18 +672,22 @@ let _auSearchTimer    = null;
 let _auSuggestTimer   = null;
 let _auUsernameManual = false;
 
-function openAddUserModal() {
+async function openAddUserModal() {
   document.getElementById('addUserForm').reset();
   document.getElementById('auSuggestions').style.display = 'none';
   document.getElementById('auFormActions').style.display = '';
   document.getElementById('auFormLoading').style.display = 'none';
   document.getElementById('auFormError').style.display   = 'none';
+  document.getElementById('auSendEmail').checked = true;
   _auUsernameManual = false;
   _fillCompanySelect('auCompany', '');
   _fillDeptSelect('auDepartment', '');
   document.getElementById('addUserModal').classList.add('open');
   document.body.style.overflow = 'hidden';
   setTimeout(() => document.getElementById('auFirstName').focus(), 60);
+
+  await _ensureSystemsCache();
+  document.getElementById('auSystemsGrid').innerHTML = _systemsGridHtml([]);
 }
 
 function auMarkUsernameManual() {
@@ -797,6 +801,8 @@ async function submitAddUser(e) {
   document.getElementById('auFormLoading').style.display = '';
 
   const auPasswordVal = document.getElementById('auPassword').value.trim();
+  const auSystems = Array.from(document.querySelectorAll('#auSystemsGrid input[name="sys"]'))
+    .filter(cb => cb.checked).map(cb => cb.value);
   const payload = {
     username:       document.getElementById('auUsername').value.trim().toLowerCase(),
     first_name:     document.getElementById('auFirstName').value.trim(),
@@ -811,7 +817,8 @@ async function submitAddUser(e) {
     is_developer:        document.getElementById('auIsDeveloper').checked,
     is_management:       document.getElementById('auIsManagement').checked,
     is_department_head:  document.getElementById('auIsDepartmentHead').checked,
-    systems:             [],
+    systems:             auSystems,
+    send_email:          document.getElementById('auSendEmail').checked,
   };
   if (auPasswordVal) payload.password = auPasswordVal;
 
@@ -1398,14 +1405,7 @@ async function openEditSystemsModal(username) {
 
   document.getElementById('editSystemsUser').textContent = `${user.first_name} ${user.last_name}`.trim() || username;
 
-  // Ensure systems cache is populated
-  if (_systemsCache.length === 0) {
-    try {
-      const res = await fetch('/api/admin/systems', { headers: authHeaders() });
-      if (res.ok) _systemsCache = await res.json();
-    } catch { /* non-fatal — grid will be empty */ }
-  }
-
+  await _ensureSystemsCache();
   renderEditSystemsGrid(user.systems || []);
   resetEditSystemsModal();
   document.getElementById('editSystemsModal').classList.add('open');
@@ -1428,9 +1428,8 @@ function resetEditSystemsModal() {
   document.getElementById('editSystemsError').style.display   = 'none';
 }
 
-function renderEditSystemsGrid(currentSystems) {
-  const grid = document.getElementById('editSystemsGrid');
-  const checked = new Set(currentSystems);
+function _systemsGridHtml(currentSystems) {
+  const checked = new Set(currentSystems || []);
 
   const categories = ['RGMC', 'SBIC', 'NAV Sites'];
   const grouped = {};
@@ -1456,7 +1455,19 @@ function renderEditSystemsGrid(currentSystems) {
     </div>`;
   });
 
-  grid.innerHTML = html || '<p class="text-muted">No systems defined yet.</p>';
+  return html || '<p class="text-muted">No systems defined yet.</p>';
+}
+
+function renderEditSystemsGrid(currentSystems) {
+  document.getElementById('editSystemsGrid').innerHTML = _systemsGridHtml(currentSystems);
+}
+
+async function _ensureSystemsCache() {
+  if (_systemsCache.length > 0) return;
+  try {
+    const res = await fetch('/api/admin/systems', { headers: authHeaders() });
+    if (res.ok) _systemsCache = await res.json();
+  } catch { /* non-fatal — grid will be empty */ }
 }
 
 async function saveUserSystems() {

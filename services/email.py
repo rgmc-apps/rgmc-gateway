@@ -364,6 +364,107 @@ def send_admin_granted_email(user_record: dict) -> bool:
     return _smtp_send(msg, [user_email])
 
 
+def send_user_created_email(user_record: dict, created_by: str, password: str | None = None) -> bool:
+    user_email = user_record.get("email", "")
+    if not user_email:
+        return False
+
+    from datetime import datetime as _dt
+
+    from_addr  = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    it_email   = EMAIL_CONFIG["developer_email"] or from_addr
+    first_name = user_record.get("first_name", "there")
+    username   = user_record.get("username", "")
+    full_name  = _full_name(user_record) or username
+
+    created_at      = user_record.get("created_at", "")
+    created_display = str(created_at) if created_at else ""
+    if created_at:
+        try:
+            created_display = _dt.fromisoformat(str(created_at).replace("Z", "+00:00")).strftime("%B %d, %Y at %I:%M %p UTC")
+        except Exception:
+            pass
+
+    roles = []
+    if user_record.get("is_admin"):           roles.append("Admin")
+    if user_record.get("is_developer"):       roles.append("Developer")
+    if user_record.get("is_management"):      roles.append("Management")
+    if user_record.get("is_department_head"): roles.append("Department Head")
+    roles_display = ", ".join(roles) if roles else "Standard User"
+
+    systems_list = user_record.get("systems") or []
+    systems_html = "".join(
+        f'<li style="margin:5px 0;font-size:14px;color:#374151;">{s}</li>'
+        for s in systems_list
+    ) or '<li style="margin:5px 0;font-size:14px;color:#94a3b8;list-style:none;margin-left:-18px;">No systems assigned yet</li>'
+
+    password_block = "" if not password else f"""
+      <div style="background:linear-gradient(135deg,#f8fafc,#f1f5f9);border:1px solid #e2e8f0;border-left:4px solid #C4972A;border-radius:0 8px 8px 0;padding:18px 20px;margin-bottom:20px;">
+        <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.1em;">Initial Password</p>
+        <p style="margin:0;font-size:20px;font-weight:700;color:#1a120a;font-family:monospace;letter-spacing:.04em;">{password}</p>
+        <p style="margin:10px 0 0;font-size:12px;color:#94a3b8;">Please change this password after your first sign-in.</p>
+      </div>"""
+
+    detail_pairs = [
+        ("Full Name",    full_name or "—"),
+        ("Company",      user_record.get("company", "")      or "—"),
+        ("Department",   user_record.get("department", "")   or "—"),
+        ("Position",     user_record.get("position", "")     or "—"),
+        ("Viber Number", user_record.get("viber_number", "") or "—"),
+        ("AnyDesk ID",   user_record.get("anydesk_id", "")   or "—"),
+        ("Role(s)",      roles_display),
+        ("Created By",   created_by or "—"),
+        ("Created On",   created_display or "—"),
+    ]
+    detail_rows = "".join(
+        f"""
+        <tr style="{'background:#f8fafc;' if i % 2 == 0 else ''}">
+          <td style="padding:11px 16px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;width:160px;border-bottom:1px solid #e2e8f0;">{label}</td>
+          <td style="padding:11px 16px;font-size:14px;color:#1e293b;border-bottom:1px solid #e2e8f0;">{value}</td>
+        </tr>"""
+        for i, (label, value) in enumerate(detail_pairs)
+    )
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid #C4972A;">
+      <h2 style="margin:0;font-size:22px;color:#C4972A;">Your Account Has Been Created</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">RGMC System Gateway</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 16px;font-size:15px;">Hello <strong>{first_name}</strong>,</p>
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#374151;">
+        An account has been created for you on the <strong>RGMC Gateway</strong>. Your account details and system access are below.
+      </p>
+      <div style="background:linear-gradient(135deg,#f8fafc,#f1f5f9);border:1px solid #e2e8f0;border-left:4px solid #C4972A;border-radius:8px;padding:22px 24px;margin-bottom:20px;text-align:center;">
+        <p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.1em;">Your Username</p>
+        <p style="margin:0;font-size:32px;font-weight:700;color:#1a120a;font-family:monospace;letter-spacing:.06em;">{username}</p>
+      </div>
+      {password_block}
+      <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Systems Access Included</p>
+      <ul style="margin:0 0 28px;padding:0 0 0 18px;line-height:1.9;">{systems_html}</ul>
+      <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Account Details</p>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:28px;border-radius:8px;overflow:hidden;">{detail_rows}</table>
+      <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">
+        For any questions or assistance, please contact the IT department at
+        <a href="mailto:{it_email}" style="color:#C4972A;text-decoration:none;font-weight:600;">{it_email}</a>.
+      </p>
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    msg            = MIMEMultipart("alternative")
+    msg["Subject"] = "Your RGMC Gateway Account Has Been Created"
+    msg["From"]    = from_addr
+    msg["To"]      = user_email
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [user_email])
+
+
 def send_issue_resolved_email(
     issue: dict,
     resolution_notes: str,

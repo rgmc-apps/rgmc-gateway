@@ -13,7 +13,7 @@ from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
 from services.supabase import supabase_req
 from services.guards import _require_admin
 from services.sites import _invalidate_sites_cache
-from services.email import send_admin_granted_email, send_access_granted_email, send_access_rejected_email, send_password_changed_email
+from services.email import send_admin_granted_email, send_access_granted_email, send_access_rejected_email, send_password_changed_email, send_user_created_email
 from models.access import _approve_record, _reject_record
 
 admin_bp = Blueprint("admin", __name__)
@@ -98,7 +98,7 @@ def admin_suggest_username():
 
 @admin_bp.post("/api/admin/users")
 def admin_create_user():
-    _, err = _require_admin()
+    admin_username, err = _require_admin()
     if err:
         return jsonify(err[0]), err[1]
 
@@ -132,9 +132,28 @@ def admin_create_user():
     try:
         rows = supabase_req("POST", "/users", data=payload,
                             extra_headers={"Prefer": "return=representation"})
-        return jsonify(rows[0] if rows else {}), 201
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
+
+    if rows and bool(data.get("send_email")):
+        try:
+            admin_rows = supabase_req("GET", "/users", params={
+                "username": f"eq.{admin_username}",
+                "select":   "first_name,last_name,display_name",
+            })
+            if admin_rows:
+                a = admin_rows[0]
+                admin_name = a.get("display_name") or f"{a.get('first_name','')} {a.get('last_name','')}".strip() or admin_username
+            else:
+                admin_name = admin_username
+        except Exception:
+            admin_name = admin_username
+        try:
+            send_user_created_email(rows[0], admin_name, password=new_password or None)
+        except Exception as exc:
+            current_app.logger.error("send_user_created_email failed: %s", exc)
+
+    return jsonify(rows[0] if rows else {}), 201
 
 
 @admin_bp.get("/api/admin/users/search")
