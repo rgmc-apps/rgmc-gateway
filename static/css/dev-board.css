@@ -2526,3 +2526,82 @@
   color: var(--text-muted);
   margin-right: auto;
 }
+
+/* ── Dev Board: Team view ── */
+.dboard-team-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.dboard-team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.dboard-team-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 20px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-card, rgba(255,255,255,0.02));
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.dboard-team-card:hover {
+  border-color: var(--gold-border, rgba(196,151,42,0.4));
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+
+.dboard-team-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--gold-dim);
+  border: 1.5px solid var(--gold-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.dboard-team-avatar-img { width: 100%; height: 100%; object-fit: cover; }
+.dboard-team-avatar-initial { font-size: 20px; font-weight: 700; color: var(--gold); }
+
+.dboard-team-name { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.dboard-team-username { font-size: 12px; color: var(--text-muted); margin-top: -4px; }
+
+.dboard-team-badges { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.dboard-team-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+.dboard-team-badge--admin { background: rgba(216,88,88,0.12); color: #f87171; border: 1px solid rgba(216,88,88,0.25); }
+.dboard-team-badge--dev   { background: rgba(59,130,246,0.12); color: #60a5fa; border: 1px solid rgba(59,130,246,0.25); }
+
+.dboard-team-org { font-size: 12px; color: var(--text-secondary); }
+.dboard-team-no-github { font-size: 12px; color: var(--text-dim); font-style: italic; }
+
+.dboard-team-stats {
+  display: flex;
+  gap: 16px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+  width: 100%;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.dboard-team-stats strong { color: var(--gold); font-size: 14px; }

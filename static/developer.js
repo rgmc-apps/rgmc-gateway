@@ -72,7 +72,8 @@ function rollNumber(el, from, to, ms = 480) {
 /* ── State ── */
 let _items               = [];
 let _systems             = [];
-let _members             = {};   // username → { displayName, avatarUrl }
+let _members             = {};   // username → { displayName, avatarUrl, githubUsername, isAdmin, isDeveloper, company, department, position }
+let _membersList         = [];   // raw array from /api/dev/members, for the Team view
 let _editingId           = null;
 let _filter              = 'all'; // 'all' | 'mine'
 let _doneRemarksCallback = null;
@@ -508,6 +509,7 @@ function setViewMode(mode) {
   document.getElementById('devListView').style.display      = mode === 'list'      ? '' : 'none';
   document.getElementById('devAnalyticsView').style.display = mode === 'analytics' ? '' : 'none';
   document.getElementById('devEpicsView').style.display      = mode === 'epics'     ? '' : 'none';
+  document.getElementById('devTeamView').style.display       = mode === 'team'      ? '' : 'none';
   // Hide epic detail page when navigating away
   if (mode !== 'epics') {
     const epv = document.getElementById('epicPageView');
@@ -519,6 +521,7 @@ function setViewMode(mode) {
   if (mode === 'list')      renderListView();
   if (mode === 'analytics') renderAnalytics();
   if (mode === 'epics')     renderEpicsView();
+  if (mode === 'team')      renderTeamView();
 
   // Pause canvas animation when kanban is not visible
   Object.values(_ambiences).forEach(a => mode === 'kanban' ? a.resume() : a.pause());
@@ -730,10 +733,17 @@ async function loadMembers() {
     const res = await fetch('/api/dev/members', { headers: authHeaders() });
     const data = await res.json();
     _members = {};
-    (Array.isArray(data) ? data : []).forEach(m => {
+    _membersList = Array.isArray(data) ? data : [];
+    _membersList.forEach(m => {
       _members[m.username] = {
-        displayName: m.display_name || m.first_name || m.username,
-        avatarUrl:   m.avatar_url && (m.avatar_url.startsWith('data:') || m.avatar_url.startsWith('https://')) ? m.avatar_url : '',
+        displayName:    m.display_name || m.first_name || m.username,
+        avatarUrl:      m.avatar_url && (m.avatar_url.startsWith('data:') || m.avatar_url.startsWith('https://')) ? m.avatar_url : '',
+        githubUsername: m.github_username || '',
+        isAdmin:        !!m.is_admin,
+        isDeveloper:    !!m.is_developer,
+        company:        m.company    || '',
+        department:     m.department || '',
+        position:       m.position   || '',
       };
     });
   } catch { /* fallback: show initials only */ }
@@ -748,6 +758,79 @@ function authorBubble(username) {
     return `<img src="${m.avatarUrl}" class="kcard-avatar" alt="${initial}" title="${label}">`;
   }
   return `<div class="kcard-avatar kcard-avatar-initial" title="${label}">${initial}</div>`;
+}
+
+/* ── Team view ── */
+const _DBOARD_GH_ICON_SVG = '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>';
+
+function renderTeamView() {
+  const wrap    = document.getElementById('devTeamBody');
+  const countEl = document.getElementById('teamCount');
+  if (!wrap) return;
+
+  const q = (document.getElementById('teamSearch')?.value || '').trim().toLowerCase();
+  let members = _membersList.slice();
+  if (q) {
+    members = members.filter(m => {
+      const name = (m.display_name || `${m.first_name || ''} ${m.last_name || ''}`).toLowerCase();
+      return name.includes(q) || (m.username || '').toLowerCase().includes(q) || (m.github_username || '').toLowerCase().includes(q);
+    });
+  }
+  members.sort((a, b) =>
+    (a.display_name || a.first_name || a.username || '').localeCompare(b.display_name || b.first_name || b.username || ''));
+
+  if (countEl) countEl.textContent = `${members.length} member${members.length !== 1 ? 's' : ''}`;
+
+  if (!members.length) {
+    wrap.innerHTML = '<div class="dlt-empty">No team members found.</div>';
+    return;
+  }
+
+  wrap.innerHTML = members.map(m => {
+    const info    = _members[m.username] || {};
+    const name    = info.displayName || m.username;
+    const initial = escHtml((name.charAt(0) || '?').toUpperCase());
+    const avatarHtml = info.avatarUrl
+      ? `<img class="dboard-team-avatar-img" src="${escHtml(info.avatarUrl)}" alt="${initial}">`
+      : `<span class="dboard-team-avatar-initial">${initial}</span>`;
+
+    const badges = [
+      info.isAdmin     ? '<span class="dboard-team-badge dboard-team-badge--admin">Admin</span>'     : '',
+      info.isDeveloper ? '<span class="dboard-team-badge dboard-team-badge--dev">Developer</span>'    : '',
+    ].join('');
+
+    const orgLine = [info.company, info.department, info.position].filter(Boolean).join(' · ');
+
+    const devItems    = _items.filter(i => (i.assigned_to || i.created_by) === m.username);
+    const activeCount = devItems.filter(i => i.status !== 'done').length;
+    const totalCount  = devItems.length;
+
+    const githubHtml = info.githubUsername
+      ? `<a href="https://github.com/${encodeURIComponent(info.githubUsername)}" target="_blank" rel="noopener" class="gh-badge" onclick="event.stopPropagation()">${_DBOARD_GH_ICON_SVG}@${escHtml(info.githubUsername)}</a>`
+      : '<span class="dboard-team-no-github">GitHub not linked</span>';
+
+    return `<div class="dboard-team-card" onclick="viewTeamMemberItems('${escHtml(m.username)}')" title="View ${escHtml(name)}'s dev items">
+      <div class="dboard-team-avatar">${avatarHtml}</div>
+      <div class="dboard-team-name">${escHtml(name)}</div>
+      <div class="dboard-team-username">@${escHtml(m.username)}</div>
+      ${badges ? `<div class="dboard-team-badges">${badges}</div>` : ''}
+      ${orgLine ? `<div class="dboard-team-org">${escHtml(orgLine)}</div>` : ''}
+      <div class="dboard-team-github">${githubHtml}</div>
+      <div class="dboard-team-stats">
+        <span><strong>${activeCount}</strong> active</span>
+        <span><strong>${totalCount}</strong> total</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function viewTeamMemberItems(username) {
+  setViewMode('list');
+  const sel = document.getElementById('listDevFilter');
+  if (sel && Array.from(sel.options).some(o => o.value === username)) {
+    sel.value = username;
+  }
+  renderListView();
 }
 
 /* ── Column arcs ── */
