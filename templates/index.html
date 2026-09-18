@@ -81,8 +81,14 @@
         {% for site in rgmc_sites %}
         <div class="site-card">
           <div class="site-card-inner">
-            <div class="site-card-name">{{ site.name }}</div>
+            <div class="site-card-name">{{ site.name }}{% if site.is_wip %}<span class="site-wip-badge">WIP</span>{% endif %}</div>
             <div class="site-card-actions">
+              {% if site.is_wip %}
+              <span class="site-card-wip-note">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Work in progress — check back soon
+              </span>
+              {% else %}
               {% if site.primary_url %}
               <a href="{{ site.primary_url }}" target="_blank" rel="noopener" class="btn btn-primary">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
@@ -99,6 +105,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 Report Problem
               </button>
+              {% endif %}
             </div>
           </div>
         </div>
@@ -121,8 +128,14 @@
         {% for site in sbic_sites %}
         <div class="site-card">
           <div class="site-card-inner">
-            <div class="site-card-name">{{ site.name }}</div>
+            <div class="site-card-name">{{ site.name }}{% if site.is_wip %}<span class="site-wip-badge">WIP</span>{% endif %}</div>
             <div class="site-card-actions">
+              {% if site.is_wip %}
+              <span class="site-card-wip-note">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Work in progress — check back soon
+              </span>
+              {% else %}
               {% if site.primary_url %}
               <a href="{{ site.primary_url }}" target="_blank" rel="noopener" class="btn btn-primary">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
@@ -139,6 +152,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 Report Problem
               </button>
+              {% endif %}
             </div>
           </div>
         </div>
@@ -161,8 +175,14 @@
         {% for site in nav_sites %}
         <div class="site-card">
           <div class="site-card-inner">
-            <div class="site-card-name">{{ site.name }}</div>
+            <div class="site-card-name">{{ site.name }}{% if site.is_wip %}<span class="site-wip-badge">WIP</span>{% endif %}</div>
             <div class="site-card-actions">
+              {% if site.is_wip %}
+              <span class="site-card-wip-note">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Work in progress — check back soon
+              </span>
+              {% else %}
               {% if site.primary_url %}
               <a href="{{ site.primary_url }}" target="_blank" rel="noopener" class="btn btn-primary">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
@@ -179,6 +199,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 Report Problem
               </button>
+              {% endif %}
             </div>
           </div>
         </div>
@@ -202,7 +223,7 @@
         {% for site in windows_sites %}
         <div class="site-card">
           <div class="site-card-inner">
-            <div class="site-card-name">{{ site.name }}</div>
+            <div class="site-card-name">{{ site.name }}{% if site.is_wip %}<span class="site-wip-badge">WIP</span>{% endif %}</div>
             <div class="site-card-actions">
               {% if site.windows_launcher_url %}
               <a href="{{ site.windows_launcher_url }}" download class="btn btn-win-launch">
@@ -244,8 +265,14 @@
         {% for site in task_sites %}
         <div class="site-card">
           <div class="site-card-inner">
-            <div class="site-card-name">{{ site.name }}</div>
+            <div class="site-card-name">{{ site.name }}{% if site.is_wip %}<span class="site-wip-badge">WIP</span>{% endif %}</div>
             <div class="site-card-actions">
+              {% if site.is_wip %}
+              <span class="site-card-wip-note">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Work in progress — check back soon
+              </span>
+              {% else %}
               {% if site.primary_url %}
               <a href="{{ site.primary_url }}" target="_blank" rel="noopener" class="btn btn-primary">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
@@ -262,6 +289,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 Report Problem
               </button>
+              {% endif %}
             </div>
           </div>
         </div>

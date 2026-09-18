@@ -903,7 +903,7 @@ function _buildSystemChecklist(selectedIds = []) {
     return `<label class="sys-multi-item${checked ? ' checked' : ''}">
       <input type="checkbox" value="${escHtml(s.id)}" ${checked ? 'checked' : ''}
              onchange="this.closest('.sys-multi-item').classList.toggle('checked',this.checked);_updateSysLabel()">
-      <span>${escHtml(s.name)}</span>
+      <span>${escHtml(s.name)}${s.is_wip ? ' <span class="sys-wip-tag">WIP</span>' : ''}</span>
     </label>`;
   }).join('');
   _updateSysLabel(selectedIds);
@@ -2288,7 +2288,16 @@ function openAddSystemModal() {
   document.getElementById('addSysFormActions').style.display = '';
   document.getElementById('addSysFormLoading').style.display = 'none';
   document.getElementById('addSysFormError').style.display   = 'none';
+  toggleNewSysWip(false);
   document.getElementById('addSystemModal').classList.add('open');
+}
+
+function toggleNewSysWip(isWip) {
+  document.getElementById('newSysWipHint').style.display        = isWip ? '' : 'none';
+  document.getElementById('newSysPrimaryUrlReq').style.display   = isWip ? 'none' : '';
+  document.getElementById('newSysPrimaryLabelReq').style.display = isWip ? 'none' : '';
+  document.getElementById('newSysPrimaryUrl').placeholder   = isWip ? 'https:// (add later)' : 'https://…';
+  document.getElementById('newSysPrimaryLabel').placeholder = isWip ? 'Open (add later)'     : 'Open';
 }
 
 function closeAddSystemModal() {
@@ -2310,10 +2319,16 @@ async function saveNewSystem(e) {
   const backupLabel  = document.getElementById('newSysBackupLabel').value.trim() || null;
   const sortOrder    = parseInt(document.getElementById('newSysSortOrder').value, 10) || 0;
   const isVisible    = document.getElementById('newSysIsVisible').checked;
+  const isWip        = document.getElementById('newSysIsWip').checked;
 
-  if (!id || !name || !primaryUrl || !primaryLabel) {
+  if (!id || !name) {
     document.getElementById('addSysFormError').style.display = '';
-    document.getElementById('addSysErrorMsg').textContent    = 'ID, Name, Primary URL, and Button Label are required.';
+    document.getElementById('addSysErrorMsg').textContent    = 'ID and Name are required.';
+    return;
+  }
+  if (!isWip && (!primaryUrl || !primaryLabel)) {
+    document.getElementById('addSysFormError').style.display = '';
+    document.getElementById('addSysErrorMsg').textContent    = 'Primary URL and Button Label are required, unless marked as Work in Progress.';
     return;
   }
 
@@ -2324,7 +2339,7 @@ async function saveNewSystem(e) {
     const res = await fetch('/api/dev/systems', {
       method:  'POST',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ id, name, category, primary_url: primaryUrl, primary_label: primaryLabel, backup_url: backupUrl, backup_label: backupLabel, sort_order: sortOrder, is_visible: isVisible }),
+      body:    JSON.stringify({ id, name, category, primary_url: primaryUrl || null, primary_label: primaryLabel || null, backup_url: backupUrl, backup_label: backupLabel, sort_order: sortOrder, is_visible: isVisible, is_wip: isWip }),
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
     const saved = await res.json();
@@ -2989,7 +3004,7 @@ function _buildEpicSysChecklist(selectedIds = []) {
     return `<label class="sys-multi-item${checked ? ' checked' : ''}">
       <input type="checkbox" value="${escHtml(s.id)}" ${checked ? 'checked' : ''}
              onchange="this.closest('.sys-multi-item').classList.toggle('checked',this.checked);_updateEpicSysLabel()">
-      <span>${escHtml(s.name)}</span>
+      <span>${escHtml(s.name)}${s.is_wip ? ' <span class="sys-wip-tag">WIP</span>' : ''}</span>
     </label>`;
   }).join('');
   _updateEpicSysLabel(selectedIds);
@@ -3393,6 +3408,11 @@ function _epicProgress(e) {
   return { total, done, pct: total ? Math.round(done / total * 100) : 0 };
 }
 
+function _epicHasNewSystem(e) {
+  const sysIds = Array.isArray(e.system_ids) ? e.system_ids : [];
+  return sysIds.some(id => _systems.find(s => s.id === id)?.is_wip);
+}
+
 function _epicTableRowHtml(e) {
   const sysIds   = Array.isArray(e.system_ids) ? e.system_ids : [];
   const sysNames = sysIds.map(id => _systems.find(s => s.id === id)?.name).filter(Boolean);
@@ -3403,10 +3423,13 @@ function _epicTableRowHtml(e) {
   const sysTags  = sysNames.length
     ? `<div class="etbl-sys">${sysNames.slice(0,2).map(n => `<span class="kcard-system-tag">${escHtml(n)}</span>`).join('')}${sysNames.length > 2 ? `<span class="kcard-system-tag">+${sysNames.length - 2}</span>` : ''}</div>`
     : '<span style="color:var(--text-muted);font-size:11px;">—</span>';
+  const newSysBadge = _epicHasNewSystem(e)
+    ? `<span class="epic-new-sys-badge" title="Delivers a new system"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>New System</span>`
+    : '';
 
   return `<tr onclick="openEpicPage('${escHtml(e.epic_id)}')">
     <td>
-      <div class="etbl-name">${escHtml(e.epic_name)}</div>
+      <div class="etbl-name">${escHtml(e.epic_name)}${newSysBadge}</div>
       ${e.epic_code ? `<div class="etbl-code">${escHtml(e.epic_code)}</div>` : ''}
     </td>
     <td>
@@ -3948,6 +3971,9 @@ function _populateEpicPage(epic) {
 
   const activeEl = document.getElementById('epicPageActiveFlag');
   if (activeEl) activeEl.style.display = epic.is_active !== false ? 'none' : '';
+
+  const newSysEl = document.getElementById('epicPageNewSysBadge');
+  if (newSysEl) newSysEl.style.display = _epicHasNewSystem(epic) ? '' : 'none';
 
   const descEl = document.getElementById('epicPageDesc');
   if (descEl) {

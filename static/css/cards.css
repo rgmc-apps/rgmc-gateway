@@ -153,6 +153,29 @@
 .btn-report:hover { background: var(--error-bg); border-color: var(--error); transform: translateY(-1px); }
 .btn-report:active { transform: scale(0.98); }
 
+/* Work-in-progress system badge on site cards */
+.site-wip-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  background: rgba(234,179,8,0.12);
+  border: 1px solid rgba(234,179,8,0.3);
+  border-radius: var(--radius-pill);
+  color: #eab308;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+.site-card-wip-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 
 /* ── My Active Work Panel ────────────────────────────────────────────────── */
 .my-work-section {

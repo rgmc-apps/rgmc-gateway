@@ -282,11 +282,13 @@ def get_public_epic(epic_id):
         ids_csv = ",".join(str(i) for i in sys_ids)
         systems = supabase_req("GET", "/systems", params={
             "id":     f"in.({ids_csv})",
-            "select": "id,name",
+            "select": "id,name,is_wip",
         })
-        epic["system_names"] = [s["name"] for s in (systems or [])]
+        epic["system_names"]   = [s["name"] for s in (systems or [])]
+        epic["has_new_system"] = any(s.get("is_wip") for s in (systems or []))
     else:
-        epic["system_names"] = []
+        epic["system_names"]   = []
+        epic["has_new_system"] = False
 
     epic["dev_items"] = supabase_req("GET", "/dev_items", params={
         "epic_id": f"eq.{epic_id}",

@@ -536,7 +536,7 @@ def dev_get_systems():
         return jsonify(err[0]), err[1]
     try:
         rows = supabase_req("GET", "/systems", params={
-            "select": "id,name,category,primary_url,primary_label,backup_url,backup_label,sort_order,is_visible",
+            "select": "id,name,category,primary_url,primary_label,backup_url,backup_label,sort_order,is_visible,is_wip",
             "order":  "sort_order.asc,name.asc",
         })
         return jsonify(rows)
@@ -551,10 +551,14 @@ def dev_create_system():
     if err:
         return jsonify(err[0]), err[1]
     data     = request.get_json(silent=True) or {}
-    required = ["id", "name", "category", "primary_url", "primary_label"]
+    is_wip   = bool(data.get("is_wip", False))
+    required = ["id", "name", "category"] + ([] if is_wip else ["primary_url", "primary_label"])
     missing  = [f for f in required if not str(data.get(f, "")).strip()]
     if missing:
         return jsonify({"error": f"Missing: {', '.join(missing)}"}), 400
+    data["is_wip"]       = is_wip
+    data["primary_url"]  = (data.get("primary_url") or "").strip() or None
+    data["primary_label"] = (data.get("primary_label") or "").strip() or None
     if "sort_order" not in data:
         data["sort_order"] = 999
     if "is_visible" not in data:

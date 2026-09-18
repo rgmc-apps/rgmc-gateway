@@ -441,6 +441,10 @@
           <h2 id="epicPageTitle" class="epic-page-name"></h2>
           <span id="epicPageStatus" class="epic-status-badge es-planning"></span>
           <span id="epicPageActiveFlag" class="epic-inactive-badge" style="display:none;">Inactive</span>
+          <span id="epicPageNewSysBadge" class="epic-new-sys-badge" style="display:none;" title="Delivers a new system">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            New System
+          </span>
         </div>
         <div id="epicPageDesc" class="epic-page-desc" style="display:none;"></div>
         <div class="epic-page-meta-row">
@@ -834,13 +838,22 @@
           <label class="form-label" for="newSysName">System Name <span class="required">*</span></label>
           <input class="form-input" type="text" id="newSysName" placeholder="RGMC My System">
         </div>
+        <div class="form-group form-group-full">
+          <label class="toggle-label">
+            <input type="checkbox" id="newSysIsWip" onchange="toggleNewSysWip(this.checked)">
+            <span class="toggle-text">Work in progress — no website link yet</span>
+          </label>
+          <p class="form-label-hint" id="newSysWipHint" style="display:none; margin-top:4px;">
+            You can leave the Primary URL and Button Label blank. The system will show a "Work in Progress" badge wherever it's listed until you add a link later.
+          </p>
+        </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label" for="newSysPrimaryUrl">Primary URL <span class="required">*</span></label>
+            <label class="form-label" for="newSysPrimaryUrl">Primary URL <span class="required" id="newSysPrimaryUrlReq">*</span></label>
             <input class="form-input" type="url" id="newSysPrimaryUrl" placeholder="https://…">
           </div>
           <div class="form-group">
-            <label class="form-label" for="newSysPrimaryLabel">Button Label <span class="required">*</span></label>
+            <label class="form-label" for="newSysPrimaryLabel">Button Label <span class="required" id="newSysPrimaryLabelReq">*</span></label>
             <input class="form-input" type="text" id="newSysPrimaryLabel" placeholder="Open" value="Open">
           </div>
         </div>
