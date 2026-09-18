@@ -5,7 +5,7 @@ from flask import Blueprint, render_template, jsonify, request, redirect, curren
 
 from config import HEALTH_CHECKS
 from services.sites import get_sites
-from services.supabase import supabase_req
+from services.supabase import supabase_req, resolve_action_names
 
 public_bp = Blueprint("public", __name__)
 
@@ -492,15 +492,48 @@ def get_changelog():
     return jsonify(result)
 
 
+@public_bp.get("/dev-items/<item_id>")
+def dev_item_view(item_id):
+    return render_template("dev_item_view.html", item_id=item_id)
+
+
 @public_bp.get("/api/public/dev-items/<item_id>")
 def get_public_dev_item(item_id):
     rows = supabase_req("GET", "/dev_items", params={
         "id":     f"eq.{item_id}",
-        "select": "id,title,status,dev_item_type,estimated_end_date,created_at",
+        "select": (
+            "id,dev_item_code,title,description,status,dev_item_type,"
+            "start_date,estimated_end_date,actual_end_date,story_points,"
+            "system_ids,epic_id,assigned_to,resolution_action_ids,created_at"
+        ),
     })
     if not rows:
         return jsonify({"error": "Not found"}), 404
-    return jsonify(rows[0])
+    item = rows[0]
+
+    sys_ids = item.get("system_ids") or []
+    if sys_ids:
+        ids_csv = ",".join(str(i) for i in sys_ids)
+        systems = supabase_req("GET", "/systems", params={
+            "id":     f"in.({ids_csv})",
+            "select": "id,name",
+        })
+        item["system_names"] = [s["name"] for s in (systems or [])]
+    else:
+        item["system_names"] = []
+
+    if item.get("epic_id"):
+        epic_rows = supabase_req("GET", "/epics", params={
+            "epic_id": f"eq.{item['epic_id']}",
+            "select":  "epic_id,epic_code,epic_name,epic_status",
+        })
+        item["epic"] = epic_rows[0] if epic_rows else None
+    else:
+        item["epic"] = None
+
+    item["action_names"] = resolve_action_names(item.get("resolution_action_ids") or [])
+
+    return jsonify(item)
 
 
 @public_bp.get("/api/public/tasks/<task_id>")

@@ -1759,17 +1759,20 @@ function openDetailModal(idOrNull) {
   const body        = document.getElementById('itemDetailBody');
   const logPane     = document.getElementById('detailLogPane');
   const actionsWrap = document.getElementById('detailActionsWrap');
+  const shareBtn    = document.getElementById('detailShareBtn');
 
   if (item) {
     body.classList.remove('detail-new');
     logPane.style.display = '';
     if (actionsWrap) { actionsWrap.style.display = ''; _buildDupTypeMenu(); }
+    if (shareBtn) shareBtn.style.display = '';
     refreshLogs();
     loadLinkedIssues(item.id);
   } else {
     body.classList.add('detail-new');
     logPane.style.display = 'none';
     if (actionsWrap) actionsWrap.style.display = 'none';
+    if (shareBtn) shareBtn.style.display = 'none';
   }
 
   resetItemForm();
@@ -3951,6 +3954,16 @@ function shareEpicPage() {
   const url = `${window.location.origin}/epics/${encodeURIComponent(_epicPageId)}`;
   navigator.clipboard.writeText(url).then(() => {
     showToast('Public epic link copied to clipboard.');
+  }).catch(() => {
+    showToast('Copy failed — link: ' + url, 'error');
+  });
+}
+
+function shareItemDetail() {
+  if (!_editingId) return;
+  const url = `${window.location.origin}/dev-items/${encodeURIComponent(_editingId)}`;
+  navigator.clipboard.writeText(url).then(() => {
+    showToast('Public dev item link copied to clipboard.');
   }).catch(() => {
     showToast('Copy failed — link: ' + url, 'error');
   });
