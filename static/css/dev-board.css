@@ -2480,6 +2480,39 @@
   font-size: 13px;
 }
 
+/* Dev item log / resolution-note entries in the epic comments feed */
+.epic-comment-avatar--sys {
+  background: rgba(107,114,128,0.16);
+  color: var(--text-muted);
+}
+.epic-comment-avatar--res {
+  background: rgba(34,197,94,0.16);
+  color: #22c55e;
+}
+.epic-comment-item-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: rgba(196,151,42,0.12);
+  color: var(--gold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+.epic-comment-item-tag--res {
+  background: rgba(34,197,94,0.12);
+  color: #22c55e;
+}
+.epic-comment-kind-label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 /* Compose area */
 .epic-comment-compose {
   display: flex;

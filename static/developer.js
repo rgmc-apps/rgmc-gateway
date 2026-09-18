@@ -4156,12 +4156,50 @@ function _renderEpicComments() {
 
   const me = loadSession()?.username || '';
   list.innerHTML = _epicComments.map(c => {
+    const kind = c.kind || 'comment';
     const m     = _members[c.username] || {};
-    const name  = m.displayName || c.username;
+    const name  = m.displayName || c.username || 'Unknown';
     const init  = (name.charAt(0) || '?').toUpperCase();
     const avatar = m.avatarUrl
       ? `<img src="${escHtml(m.avatarUrl)}" alt="${escHtml(init)}">`
       : escHtml(init);
+
+    const itemLabel = c.dev_item_code || (c.dev_item_title ? c.dev_item_title.slice(0, 24) : null);
+
+    if (kind === 'dev_log') {
+      return `<div class="epic-comment-entry">
+        <div class="epic-comment-avatar epic-comment-avatar--sys">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        </div>
+        <div class="epic-comment-body">
+          <div class="epic-comment-meta">
+            <span class="epic-comment-author">${escHtml(name)}</span>
+            <span class="epic-comment-kind-label">logged progress on</span>
+            ${itemLabel ? `<span class="epic-comment-item-tag" title="${escHtml(c.dev_item_title || '')}">${escHtml(itemLabel)}</span>` : ''}
+            <span class="epic-comment-time">${fmtDateTime(c.created_at)}</span>
+          </div>
+          <div class="epic-comment-text">${linkifyText(c.comment)}${c.hours_spent ? ` <span class="epic-comment-kind-label">(${c.hours_spent}h)</span>` : ''}</div>
+        </div>
+      </div>`;
+    }
+
+    if (kind === 'resolution_note') {
+      return `<div class="epic-comment-entry">
+        <div class="epic-comment-avatar epic-comment-avatar--res">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div class="epic-comment-body">
+          <div class="epic-comment-meta">
+            <span class="epic-comment-author">${escHtml(name)}</span>
+            <span class="epic-comment-kind-label">resolved${c.issue_ticket_number ? ` #${escHtml(c.issue_ticket_number)}` : ' an issue'} via</span>
+            ${itemLabel ? `<span class="epic-comment-item-tag epic-comment-item-tag--res" title="${escHtml(c.dev_item_title || '')}">${escHtml(itemLabel)}</span>` : ''}
+            <span class="epic-comment-time">${fmtDateTime(c.created_at)}</span>
+          </div>
+          <div class="epic-comment-text">${linkifyText(c.comment)}</div>
+        </div>
+      </div>`;
+    }
+
     const canDel = c.username === me;
     return `<div class="epic-comment-entry">
       <div class="epic-comment-avatar">${avatar}</div>
@@ -4202,6 +4240,7 @@ async function postEpicComment() {
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Failed');
     const saved = await res.json();
+    saved.kind = 'comment';
     _epicComments.push(saved);
     if (input) input.value = '';
     _renderEpicComments();

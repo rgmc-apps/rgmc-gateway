@@ -697,12 +697,67 @@ def dev_get_epic_comments(epic_id):
     if err:
         return jsonify(err[0]), err[1]
     try:
-        rows = supabase_req("GET", "/epic_comments", params={
+        comments = supabase_req("GET", "/epic_comments", params={
             "epic_id": f"eq.{epic_id}",
             "select":  "*",
             "order":   "created_at.asc",
-        })
-        return jsonify(rows or [])
+        }) or []
+        for c in comments:
+            c["kind"] = "comment"
+        entries = list(comments)
+
+        dev_items = supabase_req("GET", "/dev_items", params={
+            "epic_id": f"eq.{epic_id}",
+            "select":  "id,dev_item_code,title",
+        }) or []
+        item_map = {i["id"]: i for i in dev_items}
+        item_ids = list(item_map.keys())
+
+        if item_ids:
+            ids_csv = ",".join(item_ids)
+
+            logs = supabase_req("GET", "/dev_activity_logs", params={
+                "item_id": f"in.({ids_csv})",
+                "select":  "id,item_id,username,message,hours_spent,created_at",
+            }) or []
+            for log in logs:
+                item = item_map.get(log.get("item_id"), {})
+                entries.append({
+                    "kind":           "dev_log",
+                    "id":             f"log-{log.get('id')}",
+                    "username":       log.get("username"),
+                    "comment":        log.get("message"),
+                    "created_at":     log.get("created_at"),
+                    "hours_spent":    log.get("hours_spent"),
+                    "dev_item_id":    log.get("item_id"),
+                    "dev_item_code":  item.get("dev_item_code"),
+                    "dev_item_title": item.get("title"),
+                })
+
+            issues = supabase_req("GET", "/issues", params={
+                "dev_item_id":      f"in.({ids_csv})",
+                "resolution_notes": "not.is.null",
+                "select":           "id,ticket_number,dev_item_id,resolution_notes,resolved_by,resolved_at",
+            }) or []
+            for iss in issues:
+                if not (iss.get("resolution_notes") or "").strip():
+                    continue
+                item = item_map.get(iss.get("dev_item_id"), {})
+                entries.append({
+                    "kind":                "resolution_note",
+                    "id":                  f"res-{iss['id']}",
+                    "username":            iss.get("resolved_by"),
+                    "comment":             iss.get("resolution_notes"),
+                    "created_at":          iss.get("resolved_at"),
+                    "dev_item_id":         iss.get("dev_item_id"),
+                    "dev_item_code":       item.get("dev_item_code"),
+                    "dev_item_title":      item.get("title"),
+                    "issue_id":            iss.get("id"),
+                    "issue_ticket_number": iss.get("ticket_number"),
+                })
+
+        entries.sort(key=lambda e: e.get("created_at") or "")
+        return jsonify(entries)
     except Exception as exc:
         current_app.logger.error("dev_get_epic_comments failed: %s", exc)
         return jsonify({"error": "Failed to fetch comments"}), 500
