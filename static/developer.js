@@ -3925,12 +3925,11 @@ function closeEpicPage() {
 
 function shareEpicPage() {
   if (!_epicPageId) return;
-  const url = new URL(window.location.href);
-  url.searchParams.set('epic', _epicPageId);
-  navigator.clipboard.writeText(url.toString()).then(() => {
-    showToast('Epic link copied to clipboard.');
+  const url = `${window.location.origin}/epics/${encodeURIComponent(_epicPageId)}`;
+  navigator.clipboard.writeText(url).then(() => {
+    showToast('Public epic link copied to clipboard.');
   }).catch(() => {
-    showToast('Copy failed — link: ' + url.toString(), 'error');
+    showToast('Copy failed — link: ' + url, 'error');
   });
 }
 

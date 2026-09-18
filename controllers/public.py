@@ -262,6 +262,40 @@ def get_public_issue_epic(issue_id):
     return jsonify(epic)
 
 
+@public_bp.get("/epics/<epic_id>")
+def epic_view(epic_id):
+    return render_template("epic_view.html", epic_id=epic_id)
+
+
+@public_bp.get("/api/public/epics/<epic_id>")
+def get_public_epic(epic_id):
+    rows = supabase_req("GET", "/epics", params={
+        "epic_id": f"eq.{epic_id}",
+        "select":  "epic_id,epic_code,epic_name,epic_status,epic_description,system_ids,date_created",
+    })
+    if not rows:
+        return jsonify({"error": "Not found"}), 404
+    epic = rows[0]
+
+    sys_ids = epic.get("system_ids") or []
+    if sys_ids:
+        ids_csv = ",".join(str(i) for i in sys_ids)
+        systems = supabase_req("GET", "/systems", params={
+            "id":     f"in.({ids_csv})",
+            "select": "id,name",
+        })
+        epic["system_names"] = [s["name"] for s in (systems or [])]
+    else:
+        epic["system_names"] = []
+
+    epic["dev_items"] = supabase_req("GET", "/dev_items", params={
+        "epic_id": f"eq.{epic_id}",
+        "select":  "id,dev_item_code,title,status,dev_item_type,estimated_end_date",
+        "order":   "created_at.asc",
+    }) or []
+    return jsonify(epic)
+
+
 @public_bp.get("/api/public/issues/<issue_id>/comments")
 def get_public_issue_comments(issue_id):
     rows = supabase_req("GET", "/issue_comments", params={
