@@ -536,6 +536,16 @@ def get_public_dev_item(item_id):
     return jsonify(item)
 
 
+@public_bp.get("/api/public/dev-items/<item_id>/comments")
+def get_public_dev_item_comments(item_id):
+    rows = supabase_req("GET", "/dev_activity_logs", params={
+        "item_id": f"eq.{item_id}",
+        "select":  "id,username,message,hours_spent,created_at",
+        "order":   "created_at.asc",
+    })
+    return jsonify(rows or [])
+
+
 @public_bp.get("/api/public/tasks/<task_id>")
 def get_public_task(task_id):
     rows = supabase_req("GET", "/tasks", params={

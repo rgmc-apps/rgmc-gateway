@@ -249,6 +249,31 @@
       color: var(--dev-done);
     }
 
+    /* ── Comments ── */
+    .comment-entry { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border-subtle); }
+    .comment-entry:last-child { border-bottom: none; }
+    .comment-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(196,151,42,0.14);
+      color: var(--gold);
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .comment-body { flex: 1; min-width: 0; }
+    .comment-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
+    .comment-author { font-size: 12px; font-weight: 700; color: var(--gold); }
+    .comment-time { font-size: 11px; color: var(--text-muted); }
+    .comment-hours { font-size: 11px; color: var(--text-muted); font-style: italic; }
+    .comment-text { font-size: 13.5px; color: var(--text-secondary); line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+    .comments-empty { font-size: 13px; color: var(--text-muted); text-align: center; padding: 12px 0; }
+
     /* ── Footer ── */
     .item-footer { padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
     .footer-text { font-size: 11px; color: var(--text-muted); letter-spacing: 0.04em; }
@@ -467,6 +492,11 @@
         <div id="itemActionsList" class="item-actions-list"></div>
       </div>
 
+      <div class="item-section">
+        <div class="section-label">Comments</div>
+        <div id="commentsList"></div>
+      </div>
+
       <div class="item-footer">
         <span class="footer-text">RGMC Group &middot; IT Support Portal &middot; Read-only view</span>
         <a href="/helpdesk" class="footer-link">Submit a helpdesk ticket</a>
@@ -657,6 +687,39 @@
       document.getElementById('accountCta').style.display = 'flex';
     }
 
+    function renderComments(comments) {
+      const list = document.getElementById('commentsList');
+      if (!comments.length) {
+        list.innerHTML = '<div class="comments-empty">No comments yet.</div>';
+        return;
+      }
+      list.innerHTML = comments.map(c => {
+        const name = c.username || 'Unknown';
+        const init = (name.charAt(0) || '?').toUpperCase();
+        return `<div class="comment-entry">
+          <div class="comment-avatar">${escHtml(init)}</div>
+          <div class="comment-body">
+            <div class="comment-meta">
+              <span class="comment-author">${escHtml(name)}</span>
+              <span class="comment-time">${fmtDate(c.created_at) || ''}</span>
+              ${c.hours_spent ? `<span class="comment-hours">(${escHtml(c.hours_spent)}h logged)</span>` : ''}
+            </div>
+            <div class="comment-text">${linkifyText(c.message || '')}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    async function loadComments() {
+      try {
+        const res = await fetch('/api/public/dev-items/' + encodeURIComponent(ITEM_ID) + '/comments');
+        if (!res.ok) return;
+        renderComments(await res.json());
+      } catch (_) {
+        renderComments([]);
+      }
+    }
+
     async function init() {
       try {
         const res = await fetch('/api/public/dev-items/' + encodeURIComponent(ITEM_ID));
@@ -667,6 +730,7 @@
         if (!res.ok) throw new Error('Server error ' + res.status);
         const item = await res.json();
         renderItem(item);
+        loadComments();
       } catch (err) {
         showError('Unable to Load Dev Item', 'Please check your connection and try again.');
       }
