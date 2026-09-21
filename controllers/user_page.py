@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify, render_template, current_app
 from services.supabase import supabase_req
 from services.guards import _require_dept_head
+from services.shift import validate_shift_fields
 
 user_page_bp = Blueprint("user_page", __name__)
 
@@ -144,13 +145,47 @@ def user_team_members():
     try:
         rows = supabase_req("GET", "/users", params={
             "department": f"eq.{dept_name}",
-            "select":     "username,first_name,last_name,display_name,avatar_url,position,email,company,is_department_head,is_admin,is_management",
+            "select":     "username,first_name,last_name,display_name,avatar_url,position,email,company,is_department_head,is_admin,is_management,shift_days,shift_start,shift_end",
             "order":      "first_name.asc",
         })
         return jsonify(rows or [])
     except Exception as exc:
         current_app.logger.error("user_team_members: %s", exc)
         return jsonify({"error": "Failed to fetch team members"}), 500
+
+
+@user_page_bp.patch("/api/user/team/<string:username>/shift")
+def user_update_team_member_shift(username):
+    _, head_row, err = _require_dept_head()
+    if err:
+        return jsonify(err[0]), err[1]
+    head_dept = (head_row.get("department") or "").strip()
+    if not head_row.get("is_admin") and not head_row.get("is_management"):
+        if not head_dept:
+            return jsonify({"error": "No department assigned"}), 400
+        try:
+            target = supabase_req("GET", "/users", params={
+                "username": f"eq.{username}",
+                "select":   "department",
+            })
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
+        if not target or (target[0].get("department") or "").strip() != head_dept:
+            return jsonify({"error": "That user is not in your department"}), 403
+
+    data = request.get_json(silent=True) or {}
+    try:
+        patch = validate_shift_fields(data)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    if not patch:
+        return jsonify({"error": "No valid fields to update"}), 400
+    try:
+        supabase_req("PATCH", "/users", data=patch, params={"username": f"eq.{username}"})
+        return jsonify({"success": True})
+    except Exception as exc:
+        current_app.logger.error("user_update_team_member_shift: %s", exc)
+        return jsonify({"error": "Failed to update shift"}), 500
 
 
 @user_page_bp.get("/api/user/department")

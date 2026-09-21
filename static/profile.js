@@ -255,6 +255,9 @@ async function saveProfile() {
     const company       = document.getElementById('fieldCompany').value;
     const department    = document.getElementById('fieldDepartment').value.trim();
     const position      = document.getElementById('fieldPosition').value.trim();
+    const shiftDays     = Array.from(document.querySelectorAll('#shiftDaysGrid input[type="checkbox"]:checked')).map(cb => cb.value);
+    const shiftStart    = document.getElementById('fieldShiftStart').value || null;
+    const shiftEnd      = document.getElementById('fieldShiftEnd').value || null;
 
     if (anydeskId && !/^\d{9}$/.test(anydeskId)) {
       status.textContent = 'AnyDesk ID must be exactly 9 digits.';
@@ -269,7 +272,8 @@ async function saveProfile() {
       body:    JSON.stringify({ first_name: firstName, middle_initial: middleInitial || null,
                                 last_name: lastName, display_name: displayName, email,
                                 viber_number: viberNumber, anydesk_id: anydeskId || null,
-                                company, department, position }),
+                                company, department, position,
+                                shift_days: shiftDays, shift_start: shiftStart, shift_end: shiftEnd }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Unknown error');
@@ -527,6 +531,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('fieldAnydeskId').value   = data.anydesk_id   || '';
       document.getElementById('fieldDepartment').value  = data.department    || '';
       document.getElementById('fieldPosition').value    = data.position      || '';
+      document.getElementById('fieldShiftStart').value  = data.shift_start   || '';
+      document.getElementById('fieldShiftEnd').value    = data.shift_end     || '';
+      const shiftDays = data.shift_days || [];
+      document.querySelectorAll('#shiftDaysGrid input[type="checkbox"]').forEach(cb => {
+        const checked = shiftDays.includes(cb.value);
+        cb.checked = checked;
+        cb.closest('.res-action-item').classList.toggle('checked', checked);
+      });
       _populateProfileCompany(data.company || '');
       if (data.is_developer) {
         document.getElementById('devSectionLabel').style.display = '';

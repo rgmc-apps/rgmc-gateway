@@ -13,6 +13,7 @@ from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
 from services.supabase import supabase_req
 from services.guards import _require_admin
 from services.sites import _invalidate_sites_cache
+from services.shift import validate_shift_fields
 from services.email import send_admin_granted_email, send_access_granted_email, send_access_rejected_email, send_password_changed_email, send_user_created_email, send_developer_promoted_email
 from services import github as github_service
 from models.access import _approve_record, _reject_record
@@ -49,7 +50,7 @@ def admin_get_users():
         return jsonify(err[0]), err[1]
     try:
         rows = supabase_req("GET", "/users", params={
-            "select": "username,first_name,middle_initial,last_name,display_name,avatar_url,company,department,position,email,viber_number,anydesk_id,github_username,systems,is_admin,is_developer,is_management,is_department_head,created_at",
+            "select": "username,first_name,middle_initial,last_name,display_name,avatar_url,company,department,position,email,viber_number,anydesk_id,github_username,systems,is_admin,is_developer,is_management,is_department_head,created_at,shift_days,shift_start,shift_end",
             "order":  "created_at.asc",
         })
         return jsonify(rows)
@@ -204,6 +205,11 @@ def admin_update_user(uname):
                "company", "department", "position", "email", "viber_number", "anydesk_id",
                "github_username"}
     patch = {k: v for k, v in data.items() if k in allowed}
+
+    try:
+        patch.update(validate_shift_fields(data))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
     new_password = str(data.get("password", "")).strip()
     if new_password:
@@ -1049,7 +1055,7 @@ def admin_common_issues():
         issues = supabase_req("GET", "/issues", params={
             "select": "id,ticket_number,title,description,status,site_name,request_category,"
                       "employee_name,company_name,resolved_by,resolved_at,resolution_notes,"
-                      "resolution_action_ids,resolution_attachment_urls,created_at,"
+                      "resolution_action_ids,resolution_attachment_urls,created_at,assigned_to,"
                       "dev_item_id,task_id,user_task_id,is_duplicate",
             "order":  "created_at.desc",
         })
@@ -1068,27 +1074,16 @@ def admin_common_issues():
     except Exception:
         pass
 
-    from datetime import datetime, timezone
-    now = datetime.now(timezone.utc)
+    from services.shift import shift_age_days, fetch_shift_map
+    shift_map = fetch_shift_map()
 
-    def _parse_dt(s):
-        if not s:
+    def _age_days(iss):
+        return shift_age_days(iss.get("created_at"), None, shift_map.get(iss.get("assigned_to")))
+
+    def _res_days(iss):
+        if not iss.get("resolved_at"):
             return None
-        try:
-            return datetime.fromisoformat(s.replace("Z", "+00:00"))
-        except Exception:
-            return None
-
-    def _age_days(created_at):
-        ct = _parse_dt(created_at)
-        return round((now - ct).total_seconds() / 86400, 1) if ct else None
-
-    def _res_days(created_at, resolved_at):
-        ct = _parse_dt(created_at)
-        rt = _parse_dt(resolved_at)
-        if ct and rt:
-            return max(0.0, round((rt - ct).total_seconds() / 86400, 1))
-        return None
+        return shift_age_days(iss.get("created_at"), iss.get("resolved_at"), shift_map.get(iss.get("assigned_to")))
 
     def _enrich(iss):
         ids          = iss.get("resolution_action_ids") or []
@@ -1118,7 +1113,7 @@ def admin_common_issues():
             "resolution_action_names":    [action_name_map[i] for i in ids if i in action_name_map],
             "resolution_attachment_urls": [u for u in (iss.get("resolution_attachment_urls") or []) if u],
             "created_at":                 iss.get("created_at"),
-            "resolution_days":            _res_days(iss.get("created_at"), iss.get("resolved_at")),
+            "resolution_days":            _res_days(iss),
             "dev_item_id":                dev_item_id,
             "task_id":                    task_id,
             "user_task_id":               user_task_id,
@@ -1165,7 +1160,7 @@ def admin_common_issues():
                     grp[key]["quick_resolved"] += 1
             else:
                 grp[key]["open"] += 1
-                age = _age_days(iss.get("created_at"))
+                age = _age_days(iss)
                 if age is not None:
                     grp[key]["open_ages_days"].append(age)
 

@@ -5,6 +5,7 @@ from flask import Blueprint, request, jsonify, current_app, render_template
 from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
 from services.supabase import supabase_req, resolve_action_names
 from services.guards import _require_admin
+from services.shift import shift_age_days, fetch_shift_map
 from services.email import send_report_email, send_issue_resolved_email, send_issue_assigned_email, send_helpdesk_email, send_helpdesk_confirmation_email, send_issue_promoted_to_epic_email, send_issue_promoted_to_dev_email, send_issue_promoted_to_task_email, send_issue_comment_email
 
 issues_bp = Blueprint("issues", __name__)
@@ -461,8 +462,12 @@ def admin_get_issues():
         rows = supabase_req("GET", "/issues", params={
             "select": "*",
             "order":  "created_at.desc",
-        })
-        return jsonify(rows or [])
+        }) or []
+        shift_map = fetch_shift_map()
+        for r in rows:
+            end_at = r.get("resolved_at") if r.get("status") in ("resolved", "closed") else None
+            r["shift_age_days"] = shift_age_days(r.get("created_at"), end_at, shift_map.get(r.get("assigned_to")))
+        return jsonify(rows)
     except Exception as exc:
         current_app.logger.error("admin_get_issues failed: %s", exc)
         return jsonify({"error": "Failed to fetch issues"}), 500

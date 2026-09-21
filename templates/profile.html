@@ -129,6 +129,30 @@
           <input class="form-input" id="fieldPosition" type="text" maxlength="120" oninput="markDirty()">
         </div>
 
+        <div class="profile-section-label">Shift</div>
+        <div class="form-group form-group-full">
+          <label class="form-label">Working Days <span class="form-label-hint">(used to compute accurate ticket aging — business hours only)</span></label>
+          <div class="res-actions-grid" id="shiftDaysGrid">
+            <label class="res-action-item"><input type="checkbox" value="mon" onchange="this.closest('.res-action-item').classList.toggle('checked',this.checked);markDirty()">Mon</label>
+            <label class="res-action-item"><input type="checkbox" value="tue" onchange="this.closest('.res-action-item').classList.toggle('checked',this.checked);markDirty()">Tue</label>
+            <label class="res-action-item"><input type="checkbox" value="wed" onchange="this.closest('.res-action-item').classList.toggle('checked',this.checked);markDirty()">Wed</label>
+            <label class="res-action-item"><input type="checkbox" value="thu" onchange="this.closest('.res-action-item').classList.toggle('checked',this.checked);markDirty()">Thu</label>
+            <label class="res-action-item"><input type="checkbox" value="fri" onchange="this.closest('.res-action-item').classList.toggle('checked',this.checked);markDirty()">Fri</label>
+            <label class="res-action-item"><input type="checkbox" value="sat" onchange="this.closest('.res-action-item').classList.toggle('checked',this.checked);markDirty()">Sat</label>
+            <label class="res-action-item"><input type="checkbox" value="sun" onchange="this.closest('.res-action-item').classList.toggle('checked',this.checked);markDirty()">Sun</label>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Shift Start</label>
+            <input class="form-input" id="fieldShiftStart" type="time" oninput="markDirty()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Shift End</label>
+            <input class="form-input" id="fieldShiftEnd" type="time" oninput="markDirty()">
+          </div>
+        </div>
+
       </div>
 
       <!-- Security -->

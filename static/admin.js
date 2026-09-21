@@ -1343,6 +1343,14 @@ function openEditUserModal(username) {
   document.getElementById('euViberNumber').value  = user.viber_number  || '';
   document.getElementById('euAnydeskId').value    = user.anydesk_id   || '';
   document.getElementById('euNewPassword').value  = '';
+  document.getElementById('euShiftStart').value   = user.shift_start  || '';
+  document.getElementById('euShiftEnd').value     = user.shift_end    || '';
+  const euShiftDays = user.shift_days || [];
+  document.querySelectorAll('#euShiftDaysGrid input[type="checkbox"]').forEach(cb => {
+    const checked = euShiftDays.includes(cb.value);
+    cb.checked = checked;
+    cb.closest('.res-action-item').classList.toggle('checked', checked);
+  });
   _fillCompanySelect('euCompany', user.company || '');
   _fillDeptSelect('euDepartment', user.department || '');
 
@@ -1403,6 +1411,9 @@ async function saveEditUser(e) {
     email:        document.getElementById('euEmail').value.trim(),
     viber_number: document.getElementById('euViberNumber').value.trim()   || null,
     anydesk_id:   document.getElementById('euAnydeskId').value.trim()     || null,
+    shift_days:   Array.from(document.querySelectorAll('#euShiftDaysGrid input[type="checkbox"]:checked')).map(cb => cb.value),
+    shift_start:  document.getElementById('euShiftStart').value           || null,
+    shift_end:    document.getElementById('euShiftEnd').value             || null,
   };
   const newPw = document.getElementById('euNewPassword').value.trim();
   if (newPw) patch.password = newPw;
@@ -2066,6 +2077,11 @@ function _daysSince(dateStr) {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
 }
 
+function _shiftAgeDays(issue) {
+  if (issue && issue.shift_age_days != null) return Math.floor(issue.shift_age_days);
+  return _daysSince(issue?.created_at);
+}
+
 function _renderIssuePriorityPanels(all) {
   const urgent  = (all || _issuesCache)
     .filter(i => i.status === 'open' && ['p1','p2'].includes((i.priority || '').toLowerCase()))
@@ -2076,15 +2092,15 @@ function _renderIssuePriorityPanels(all) {
     });
 
   const stalled = (all || _issuesCache)
-    .filter(i => i.status === 'in_progress' && _daysSince(i.created_at) > 7)
+    .filter(i => i.status === 'in_progress' && _shiftAgeDays(i) > 7)
     .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
   _renderUrgentPanel(urgent);
   _renderStalledPanel(stalled);
 }
 
-function _agePill(dateStr, urgentColor) {
-  const days = _daysSince(dateStr);
+function _agePill(issue, urgentColor) {
+  const days = _shiftAgeDays(issue);
   const cls  = urgentColor ? 'iss-age-pill--urgent' : days > 14 ? 'iss-age-pill--critical' : 'iss-age-pill--warn';
   const label = days === 0 ? 'today' : days === 1 ? '1 day' : `${days}d`;
   return `<span class="iss-age-pill ${cls}">${label}</span>`;
@@ -2128,7 +2144,7 @@ function _renderUrgentPanel(issues) {
           <td>${escHtml(i.employee_name || '—')}<br><small class="text-muted">${escHtml(i.company_name || '')}</small></td>
           <td class="iss-alert-desc">${escHtml(title.slice(0, 80))}${title.length > 80 ? '…' : ''}</td>
           <td>${badge}</td>
-          <td>${_agePill(i.created_at, true)}</td>
+          <td>${_agePill(i, true)}</td>
           <td onclick="event.stopPropagation()"><button class="iss-alert-open-btn" onclick="openIssueModal('${escHtml(i.id)}')">Open</button></td>
         </tr>`;
       }).join('')}</tbody>
@@ -2171,7 +2187,7 @@ function _renderStalledPanel(issues) {
           <td>${escHtml(i.employee_name || '—')}<br><small class="text-muted">${escHtml(i.company_name || '')}</small></td>
           <td class="iss-alert-desc">${escHtml(title.slice(0, 80))}${title.length > 80 ? '…' : ''}</td>
           <td>${i.assigned_to ? `<code class="mono-val" style="font-size:11px;">${escHtml(i.assigned_to)}</code>` : '<span class="text-muted">Unassigned</span>'}</td>
-          <td>${_agePill(i.created_at, false)}</td>
+          <td>${_agePill(i, false)}</td>
           <td onclick="event.stopPropagation()"><button class="iss-alert-open-btn iss-alert-open-btn--stalled" onclick="openIssueModal('${escHtml(i.id)}')">Open</button></td>
         </tr>`;
       }).join('')}</tbody>

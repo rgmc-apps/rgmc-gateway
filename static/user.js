@@ -805,8 +805,62 @@ function openTeamMemberModal(m) {
     </div>`);
   document.getElementById('tpmDetails').innerHTML = rows.join('');
 
+  // Shift (editable by admins/management/department heads)
+  const session = loadSession();
+  const canEditShift = !!(session && (session.isDepartmentHead || session.isAdmin || session.isManagement));
+  const shiftSection = document.getElementById('tpmShiftSection');
+  if (canEditShift) {
+    const days = m.shift_days || [];
+    const dayLabels = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
+    shiftSection.innerHTML = `
+      <div class="profile-section-label" style="margin-top:16px;">Shift</div>
+      <div class="res-actions-grid" id="tpmShiftDaysGrid">
+        ${Object.entries(dayLabels).map(([code, label]) => `
+          <label class="res-action-item${days.includes(code) ? ' checked' : ''}">
+            <input type="checkbox" value="${code}" ${days.includes(code) ? 'checked' : ''}
+              onchange="this.closest('.res-action-item').classList.toggle('checked',this.checked)">${label}
+          </label>`).join('')}
+      </div>
+      <div class="form-row" style="margin-top:10px;">
+        <div class="form-group">
+          <label class="form-label">Shift Start</label>
+          <input class="form-input" type="time" id="tpmShiftStart" value="${escHtml(m.shift_start || '')}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Shift End</label>
+          <input class="form-input" type="time" id="tpmShiftEnd" value="${escHtml(m.shift_end || '')}">
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+        <button type="button" class="btn-modal-submit" onclick="saveTeamMemberShift('${escHtml(m.username)}')">Save Shift</button>
+      </div>`;
+    shiftSection.style.display = '';
+  } else {
+    shiftSection.style.display = 'none';
+    shiftSection.innerHTML = '';
+  }
+
   document.getElementById('teamMemberModal').classList.add('open');
   document.body.style.overflow = 'hidden';
+}
+
+async function saveTeamMemberShift(username) {
+  const shift_days  = Array.from(document.querySelectorAll('#tpmShiftDaysGrid input[type="checkbox"]:checked')).map(cb => cb.value);
+  const shift_start = document.getElementById('tpmShiftStart').value || null;
+  const shift_end   = document.getElementById('tpmShiftEnd').value   || null;
+  try {
+    const res = await fetch(`/api/user/team/${encodeURIComponent(username)}/shift`, {
+      method:  'PATCH',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ shift_days, shift_start, shift_end }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed to save shift');
+    showToast('Shift updated.');
+    const m = (_teamMembers || []).find(x => x.username === username);
+    if (m) { m.shift_days = shift_days; m.shift_start = shift_start; m.shift_end = shift_end; }
+  } catch (err) {
+    showToast(err.message);
+  }
 }
 
 function closeTeamMemberModal() {

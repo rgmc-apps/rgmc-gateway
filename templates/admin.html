@@ -792,6 +792,28 @@
             <input class="form-input" type="text" id="euAnydeskId" maxlength="9" pattern="\d{9}" placeholder="123456789">
           </div>
         </div>
+        <div class="form-group form-group-full">
+          <label class="form-label">Shift <span class="form-label-hint">(used to compute accurate ticket aging — business hours only)</span></label>
+          <div class="res-actions-grid" id="euShiftDaysGrid">
+            <label class="res-action-item"><input type="checkbox" value="mon" onchange="this.closest('.res-action-item').classList.toggle('checked',this.checked)">Mon</label>
+            <label class="res-action-item"><input type="checkbox" value="tue" onchange="this.closest('.res-action-item').classList.toggle('checked',this.checked)">Tue</label>
+            <label class="res-action-item"><input type="checkbox" value="wed" onchange="this.closest('.res-action-item').classList.toggle('checked',this.checked)">Wed</label>
+            <label class="res-action-item"><input type="checkbox" value="thu" onchange="this.closest('.res-action-item').classList.toggle('checked',this.checked)">Thu</label>
+            <label class="res-action-item"><input type="checkbox" value="fri" onchange="this.closest('.res-action-item').classList.toggle('checked',this.checked)">Fri</label>
+            <label class="res-action-item"><input type="checkbox" value="sat" onchange="this.closest('.res-action-item').classList.toggle('checked',this.checked)">Sat</label>
+            <label class="res-action-item"><input type="checkbox" value="sun" onchange="this.closest('.res-action-item').classList.toggle('checked',this.checked)">Sun</label>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="euShiftStart">Shift Start</label>
+            <input class="form-input" type="time" id="euShiftStart">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="euShiftEnd">Shift End</label>
+            <input class="form-input" type="time" id="euShiftEnd">
+          </div>
+        </div>
         <div style="border-top:1px solid var(--border);margin:8px 0 16px;"></div>
         <div class="form-group form-group-full">
           <label class="form-label" for="euNewPassword">New Password <span class="form-label-hint">(leave blank to keep current — user will be notified by email)</span></label>

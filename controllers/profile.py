@@ -5,6 +5,7 @@ from flask import Blueprint, request, jsonify, render_template, current_app, red
 from config import SUPABASE_URL, SUPABASE_SERVICE_KEY, GATEWAY_BASE_URL
 from services.supabase import supabase_req
 from services import github as github_service
+from services.shift import validate_shift_fields
 
 profile_bp = Blueprint("profile", __name__)
 
@@ -22,7 +23,7 @@ def api_profile_get():
     try:
         rows = supabase_req("GET", "/users", params={
             "username": f"eq.{username}",
-            "select":   "username,first_name,middle_initial,last_name,display_name,avatar_url,company,department,position,email,viber_number,anydesk_id,password_hash,is_developer,github_username",
+            "select":   "username,first_name,middle_initial,last_name,display_name,avatar_url,company,department,position,email,viber_number,anydesk_id,password_hash,is_developer,github_username,shift_days,shift_start,shift_end",
         })
     except Exception as exc:
         current_app.logger.error("Profile GET failed: %s", exc)
@@ -46,6 +47,9 @@ def api_profile_get():
         "has_password":    bool(u.get("password_hash")),
         "is_developer":    bool(u.get("is_developer")),
         "github_username": u.get("github_username") or "",
+        "shift_days":      u.get("shift_days") or [],
+        "shift_start":     (u.get("shift_start") or "")[:5] or None,
+        "shift_end":       (u.get("shift_end") or "")[:5] or None,
     })
 
 
@@ -62,6 +66,10 @@ def api_profile_patch():
     for field in ("first_name", "middle_initial", "last_name", "company", "department", "position", "email", "viber_number", "anydesk_id"):
         if field in data:
             patch[field] = str(data[field]).strip()[:120] or None
+    try:
+        patch.update(validate_shift_fields(data))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
     if not patch:
         return jsonify({"success": True})
     try:
