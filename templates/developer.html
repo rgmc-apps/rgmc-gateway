@@ -533,7 +533,16 @@
           <div class="epic-comment-compose-right">
             <textarea id="epicCommentInput" class="form-input form-textarea epic-comment-textarea"
               rows="2" placeholder="Add a comment or update…"
-              onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter')postEpicComment()"></textarea>
+              onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter')postEpicComment()"
+              onpaste="handleCommentPaste(event,'epic')"></textarea>
+            <div class="res-attach-wrap" style="margin-top:8px;">
+              <div class="res-attach-previews" id="epicCommentAttachPreviews"></div>
+              <label class="res-attach-add" id="epicCommentAttachAddBtn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add Photo
+                <input type="file" id="epicCommentAttachInput" accept="image/*" multiple style="display:none;" onchange="commentAttachChange(this,'epic')">
+              </label>
+            </div>
             <div class="epic-comment-compose-foot">
               <span class="epic-comment-hint">Ctrl+Enter to post</span>
               <div id="epicCommentError" class="form-state form-error" style="display:none;">
@@ -769,7 +778,16 @@
               <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
             </div>
             <div class="activity-log-add">
-              <textarea class="form-input form-textarea" id="logMessage" rows="2" placeholder="Add an activity note…"></textarea>
+              <textarea class="form-input form-textarea" id="logMessage" rows="2" placeholder="Add an activity note…"
+                onpaste="handleCommentPaste(event,'log')"></textarea>
+              <div class="res-attach-wrap" style="margin-top:8px;">
+                <div class="res-attach-previews" id="logAttachPreviews"></div>
+                <label class="res-attach-add" id="logAttachAddBtn">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Add Photo
+                  <input type="file" id="logAttachInput" accept="image/*" multiple style="display:none;" onchange="commentAttachChange(this,'log')">
+                </label>
+              </div>
               <div class="log-hours-row">
                 <label class="log-hours-label" for="logHours">
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>

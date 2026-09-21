@@ -501,9 +501,12 @@ def dev_add_log(item_id):
             hours_spent = None
     except (ValueError, TypeError):
         hours_spent = None
+    attachment_urls = [u for u in (data.get("attachment_urls") or []) if u][:5]
     log_row = {"item_id": item_id, "username": username, "message": message}
     if hours_spent is not None:
         log_row["hours_spent"] = hours_spent
+    if attachment_urls:
+        log_row["attachment_urls"] = attachment_urls
     try:
         rows = supabase_req("POST", "/dev_activity_logs", data=log_row)
         return jsonify(rows[0] if rows else {}), 201
@@ -722,26 +725,27 @@ def dev_get_epic_comments(epic_id):
 
             logs = supabase_req("GET", "/dev_activity_logs", params={
                 "item_id": f"in.({ids_csv})",
-                "select":  "id,item_id,username,message,hours_spent,created_at",
+                "select":  "id,item_id,username,message,hours_spent,created_at,attachment_urls",
             }) or []
             for log in logs:
                 item = item_map.get(log.get("item_id"), {})
                 entries.append({
-                    "kind":           "dev_log",
-                    "id":             f"log-{log.get('id')}",
-                    "username":       log.get("username"),
-                    "comment":        log.get("message"),
-                    "created_at":     log.get("created_at"),
-                    "hours_spent":    log.get("hours_spent"),
-                    "dev_item_id":    log.get("item_id"),
-                    "dev_item_code":  item.get("dev_item_code"),
-                    "dev_item_title": item.get("title"),
+                    "kind":            "dev_log",
+                    "id":              f"log-{log.get('id')}",
+                    "username":        log.get("username"),
+                    "comment":         log.get("message"),
+                    "created_at":      log.get("created_at"),
+                    "hours_spent":     log.get("hours_spent"),
+                    "attachment_urls": log.get("attachment_urls"),
+                    "dev_item_id":     log.get("item_id"),
+                    "dev_item_code":   item.get("dev_item_code"),
+                    "dev_item_title":  item.get("title"),
                 })
 
             issues = supabase_req("GET", "/issues", params={
                 "dev_item_id":      f"in.({ids_csv})",
                 "resolution_notes": "not.is.null",
-                "select":           "id,ticket_number,dev_item_id,resolution_notes,resolved_by,resolved_at",
+                "select":           "id,ticket_number,dev_item_id,resolution_notes,resolved_by,resolved_at,resolution_attachment_urls",
             }) or []
             for iss in issues:
                 if not (iss.get("resolution_notes") or "").strip():
@@ -753,6 +757,7 @@ def dev_get_epic_comments(epic_id):
                     "username":            iss.get("resolved_by"),
                     "comment":             iss.get("resolution_notes"),
                     "created_at":          iss.get("resolved_at"),
+                    "attachment_urls":     iss.get("resolution_attachment_urls"),
                     "dev_item_id":         iss.get("dev_item_id"),
                     "dev_item_code":       item.get("dev_item_code"),
                     "dev_item_title":      item.get("title"),
@@ -777,12 +782,16 @@ def dev_add_epic_comment(epic_id):
     if not comment:
         return jsonify({"error": "Comment cannot be empty"}), 400
     username = user or "unknown"
+    attachment_urls = [u for u in (data.get("attachment_urls") or []) if u][:5]
+    row = {
+        "epic_id":  epic_id,
+        "username": username,
+        "comment":  comment,
+    }
+    if attachment_urls:
+        row["attachment_urls"] = attachment_urls
     try:
-        rows = supabase_req("POST", "/epic_comments", data={
-            "epic_id":  epic_id,
-            "username": username,
-            "comment":  comment,
-        })
+        rows = supabase_req("POST", "/epic_comments", data=row)
         return jsonify(rows[0] if rows else {}), 201
     except Exception as exc:
         current_app.logger.error("dev_add_epic_comment failed: %s", exc)

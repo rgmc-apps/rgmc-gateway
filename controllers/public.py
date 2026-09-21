@@ -540,7 +540,7 @@ def get_public_dev_item(item_id):
 def get_public_dev_item_comments(item_id):
     rows = supabase_req("GET", "/dev_activity_logs", params={
         "item_id": f"eq.{item_id}",
-        "select":  "id,username,message,hours_spent,created_at",
+        "select":  "id,username,message,hours_spent,created_at,attachment_urls",
         "order":   "created_at.asc",
     })
     return jsonify(rows or [])

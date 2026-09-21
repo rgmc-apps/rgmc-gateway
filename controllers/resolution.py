@@ -37,7 +37,7 @@ def api_upload_resolution():
     entity_type = request.form.get("entity_type", "").strip()
     entity_id   = request.form.get("entity_id", "").strip()
 
-    if not entity_id or entity_type not in ("issue", "dev_item", "task"):
+    if not entity_id or entity_type not in ("issue", "dev_item", "task", "epic"):
         return jsonify({"error": "Invalid entity_type or missing entity_id"}), 400
 
     f = request.files.get("file")

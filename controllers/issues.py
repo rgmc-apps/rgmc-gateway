@@ -951,14 +951,15 @@ def get_issue_activity(issue_id):
         comments = supabase_req("GET", "/issue_comments", params={
             "issue_id": f"eq.{issue_id}",
             "order":    "created_at.asc",
-            "select":   "id,username,comment,created_at",
+            "select":   "id,username,comment,created_at,attachment_urls",
         })
         for c in (comments or []):
             result.append({
-                "type":       "comment",
-                "username":   c["username"],
-                "text":       c["comment"],
-                "created_at": c["created_at"],
+                "type":            "comment",
+                "username":        c["username"],
+                "text":            c["comment"],
+                "created_at":      c["created_at"],
+                "attachment_urls": c.get("attachment_urls"),
             })
     except Exception:
         pass
@@ -1051,13 +1052,18 @@ def post_issue_comment(issue_id):
     comment = (body.get("comment") or "").strip()
     if not comment:
         return jsonify({"error": "Comment cannot be empty"}), 400
+    attachment_urls = [u for u in (body.get("attachment_urls") or []) if u][:5]
 
+    row = {
+        "issue_id": issue_id,
+        "username": username,
+        "comment":  comment,
+    }
+    if attachment_urls:
+        row["attachment_urls"] = attachment_urls
     try:
-        rows = supabase_req("POST", "/issue_comments", data={
-            "issue_id": issue_id,
-            "username": username,
-            "comment":  comment,
-        }, extra_headers={"Prefer": "return=representation"})
+        rows = supabase_req("POST", "/issue_comments", data=row,
+                             extra_headers={"Prefer": "return=representation"})
         saved = rows[0] if rows else {}
 
         # Notify the reporter by email — best-effort, never blocks the response

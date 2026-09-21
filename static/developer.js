@@ -1761,6 +1761,8 @@ function openDetailModal(idOrNull) {
   const actionsWrap = document.getElementById('detailActionsWrap');
   const shareBtn    = document.getElementById('detailShareBtn');
 
+  _clearCommentAttach('log');
+
   if (item) {
     body.classList.remove('detail-new');
     logPane.style.display = '';
@@ -2211,6 +2213,7 @@ async function refreshLogs() {
           <span class="log-time">${fmtDateTime(entry.created_at)}</span>
         </div>
         <div class="log-message">${linkifyText(entry.message)}</div>
+        ${_renderCommentAttachments(entry.attachment_urls)}
       </div>`;
     }).join('');
     list.scrollTop = list.scrollHeight;
@@ -2379,14 +2382,16 @@ async function addLog() {
   const rawHours = document.getElementById('logHours').value.trim();
   const hours_spent = rawHours !== '' && parseFloat(rawHours) >= 0 ? parseFloat(rawHours) : null;
   try {
+    const attachment_urls = await _uploadCommentFiles('log', _editingId);
     const res = await fetch(`/api/dev/items/${encodeURIComponent(_editingId)}/logs`, {
       method:  'POST',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ message, hours_spent }),
+      body:    JSON.stringify({ message, hours_spent, attachment_urls }),
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Failed');
     document.getElementById('logMessage').value = '';
     document.getElementById('logHours').value   = '';
+    _clearCommentAttach('log');
     await refreshLogs();
   } catch (err) {
     document.getElementById('logAddError').style.display  = '';
@@ -3925,6 +3930,7 @@ function openEpicPage(epicId, { pushState = true } = {}) {
   _epicPageId    = epicId;
   _epicPageItems = [];
   _epicComments  = [];
+  _clearCommentAttach('epic');
   _populateEpicPage(epic);
   document.getElementById('devEpicsView').style.display = 'none';
   document.getElementById('epicPageView').style.display = '';
@@ -4182,6 +4188,83 @@ function _initEpicCommentAvatar() {
   });
 }
 
+/* ── Comment photo attachments (epic comments + dev item activity log) ── */
+const _commentPendingFiles = { epic: [], log: [] };
+const _commentAttachCfg = {
+  epic: { previews: 'epicCommentAttachPreviews', addBtn: 'epicCommentAttachAddBtn', entityType: 'epic' },
+  log:  { previews: 'logAttachPreviews',         addBtn: 'logAttachAddBtn',         entityType: 'dev_item' },
+};
+
+function commentAttachChange(input, kind) {
+  const pending   = _commentPendingFiles[kind];
+  const remaining = 5 - pending.length;
+  pending.push(...Array.from(input.files).slice(0, remaining));
+  input.value = '';
+  _renderCommentAttachPreviews(kind);
+}
+
+function _renderCommentAttachPreviews(kind) {
+  const cfg    = _commentAttachCfg[kind];
+  const wrap   = document.getElementById(cfg.previews);
+  const addBtn = document.getElementById(cfg.addBtn);
+  if (!wrap) return;
+  const pending = _commentPendingFiles[kind];
+  if (addBtn) addBtn.style.display = pending.length >= 5 ? 'none' : '';
+  wrap.innerHTML = pending.map((f, i) =>
+    `<div class="res-attach-thumb">
+      <img src="${URL.createObjectURL(f)}" alt="${escHtml(f.name)}">
+      <button type="button" class="res-attach-remove" onclick="commentRemovePending('${kind}',${i})" title="Remove">&times;</button>
+    </div>`
+  ).join('');
+}
+
+function commentRemovePending(kind, i) {
+  _commentPendingFiles[kind].splice(i, 1);
+  _renderCommentAttachPreviews(kind);
+}
+
+function handleCommentPaste(event, kind) {
+  const images = Array.from(event.clipboardData?.items || [])
+    .filter(i => i.kind === 'file' && i.type.startsWith('image/'))
+    .map(i => i.getAsFile()).filter(Boolean);
+  if (!images.length) return;
+  const pending   = _commentPendingFiles[kind];
+  const remaining = 5 - pending.length;
+  pending.push(...images.slice(0, remaining));
+  _renderCommentAttachPreviews(kind);
+  event.preventDefault();
+}
+
+async function _uploadCommentFiles(kind, entityId) {
+  const cfg     = _commentAttachCfg[kind];
+  const pending = _commentPendingFiles[kind];
+  const urls    = [];
+  for (const file of pending) {
+    const fd = new FormData();
+    fd.append('entity_type', cfg.entityType);
+    fd.append('entity_id',   entityId);
+    fd.append('file',        file);
+    try {
+      const r = await fetch('/api/upload/resolution', { method: 'POST', headers: authHeaders(), body: fd });
+      const d = await r.json();
+      if (d.url) urls.push(d.url);
+    } catch {}
+  }
+  return urls;
+}
+
+function _clearCommentAttach(kind) {
+  _commentPendingFiles[kind] = [];
+  _renderCommentAttachPreviews(kind);
+}
+
+function _renderCommentAttachments(urls) {
+  if (!urls || !urls.length) return '';
+  return `<div class="comment-attach-grid">${urls.map(u =>
+    `<a href="${escHtml(u)}" target="_blank" rel="noopener" class="comment-attach-thumb"><img src="${escHtml(u)}" alt="attachment" loading="lazy"></a>`
+  ).join('')}</div>`;
+}
+
 function _renderEpicComments() {
   const list    = document.getElementById('epicCommentsList');
   const countEl = document.getElementById('epicCommentCount');
@@ -4218,6 +4301,7 @@ function _renderEpicComments() {
             <span class="epic-comment-time">${fmtDateTime(c.created_at)}</span>
           </div>
           <div class="epic-comment-text">${linkifyText(c.comment)}${c.hours_spent ? ` <span class="epic-comment-kind-label">(${c.hours_spent}h)</span>` : ''}</div>
+          ${_renderCommentAttachments(c.attachment_urls)}
         </div>
       </div>`;
     }
@@ -4235,6 +4319,7 @@ function _renderEpicComments() {
             <span class="epic-comment-time">${fmtDateTime(c.created_at)}</span>
           </div>
           <div class="epic-comment-text">${linkifyText(c.comment)}</div>
+          ${_renderCommentAttachments(c.attachment_urls)}
         </div>
       </div>`;
     }
@@ -4251,6 +4336,7 @@ function _renderEpicComments() {
           </button>` : ''}
         </div>
         <div class="epic-comment-text">${linkifyText(c.comment)}</div>
+        ${_renderCommentAttachments(c.attachment_urls)}
       </div>
     </div>`;
   }).join('');
@@ -4272,16 +4358,18 @@ async function postEpicComment() {
   }
 
   try {
+    const attachment_urls = await _uploadCommentFiles('epic', _epicPageId);
     const res = await fetch(`/api/dev/epics/${encodeURIComponent(_epicPageId)}/comments`, {
       method:  'POST',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ comment }),
+      body:    JSON.stringify({ comment, attachment_urls }),
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Failed');
     const saved = await res.json();
     saved.kind = 'comment';
     _epicComments.push(saved);
     if (input) input.value = '';
+    _clearCommentAttach('epic');
     _renderEpicComments();
   } catch (err) {
     if (errEl) { errEl.style.display = ''; errMsg.textContent = err.message; }

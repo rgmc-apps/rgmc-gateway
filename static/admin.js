@@ -2423,6 +2423,7 @@ async function openIssueModal(id) {
   const issue = _issuesCache.find(i => i.id === id);
   if (!issue) return;
   _editingIssueId = id;
+  _clearIssueCommentAttach();
 
   const titleRef = issue.ticket_number
     ? `[${issue.ticket_number}] ${issue.site_name}`
@@ -2869,6 +2870,73 @@ function resetIssueModal() {
   document.getElementById('issueModalError').style.display   = 'none';
 }
 
+/* ── Issue comment photo attachments ── */
+let _issueCommentPendingFiles = [];
+
+function issueCommentAttachChange(input) {
+  const remaining = 5 - _issueCommentPendingFiles.length;
+  _issueCommentPendingFiles.push(...Array.from(input.files).slice(0, remaining));
+  input.value = '';
+  _renderIssueCommentAttachPreviews();
+}
+
+function _renderIssueCommentAttachPreviews() {
+  const wrap   = document.getElementById('issueCommentAttachPreviews');
+  const addBtn = document.getElementById('issueCommentAttachAddBtn');
+  if (!wrap) return;
+  if (addBtn) addBtn.style.display = _issueCommentPendingFiles.length >= 5 ? 'none' : '';
+  wrap.innerHTML = _issueCommentPendingFiles.map((f, i) =>
+    `<div class="res-attach-thumb">
+      <img src="${URL.createObjectURL(f)}" alt="${escHtml(f.name)}">
+      <button type="button" class="res-attach-remove" onclick="issueCommentRemovePending(${i})" title="Remove">&times;</button>
+    </div>`
+  ).join('');
+}
+
+function issueCommentRemovePending(i) {
+  _issueCommentPendingFiles.splice(i, 1);
+  _renderIssueCommentAttachPreviews();
+}
+
+function handleIssueCommentPaste(event) {
+  const images = Array.from(event.clipboardData?.items || [])
+    .filter(i => i.kind === 'file' && i.type.startsWith('image/'))
+    .map(i => i.getAsFile()).filter(Boolean);
+  if (!images.length) return;
+  const remaining = 5 - _issueCommentPendingFiles.length;
+  _issueCommentPendingFiles.push(...images.slice(0, remaining));
+  _renderIssueCommentAttachPreviews();
+  event.preventDefault();
+}
+
+async function _uploadIssueCommentFiles(issueId) {
+  const urls = [];
+  for (const file of _issueCommentPendingFiles) {
+    const fd = new FormData();
+    fd.append('entity_type', 'issue');
+    fd.append('entity_id',   issueId);
+    fd.append('file',        file);
+    try {
+      const r = await fetch('/api/upload/resolution', { method: 'POST', headers: authHeaders(), body: fd });
+      const d = await r.json();
+      if (d.url) urls.push(d.url);
+    } catch {}
+  }
+  return urls;
+}
+
+function _clearIssueCommentAttach() {
+  _issueCommentPendingFiles = [];
+  _renderIssueCommentAttachPreviews();
+}
+
+function _renderCommentAttachments(urls) {
+  if (!urls || !urls.length) return '';
+  return `<div class="comment-attach-grid">${urls.map(u =>
+    `<a href="${escHtml(u)}" target="_blank" rel="noopener" class="comment-attach-thumb"><img src="${escHtml(u)}" alt="attachment" loading="lazy"></a>`
+  ).join('')}</div>`;
+}
+
 /* ── Issue Activity & Comments ── */
 
 function _renderIssueActivityEntries(entries) {
@@ -2888,7 +2956,7 @@ function _renderIssueActivityEntries(entries) {
     let tag = '', body = '';
     if (e.type === 'comment') {
       tag  = '<span class="iss-act-tag iss-act-tag--comment">Comment</span>';
-      body = `<div class="iss-act-text">${linkifyText(e.text || '')}</div>`;
+      body = `<div class="iss-act-text">${linkifyText(e.text || '')}</div>${_renderCommentAttachments(e.attachment_urls)}`;
     } else if (e.type === 'moved') {
       const src = e.source === 'dev' ? 'Dev' : 'Task';
       tag  = `<span class="iss-act-tag iss-act-tag--moved">Moved · ${src}</span>`;
@@ -2931,13 +2999,15 @@ async function postIssueComment() {
   const btn = document.querySelector('#issueModal .iss-comment-submit');
   if (btn) btn.disabled = true;
   try {
+    const attachment_urls = await _uploadIssueCommentFiles(_editingIssueId);
     const res = await fetch(`/api/issues/${encodeURIComponent(_editingIssueId)}/comments`, {
       method:  'POST',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ comment }),
+      body:    JSON.stringify({ comment, attachment_urls }),
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Failed to post comment');
     input.value = '';
+    _clearIssueCommentAttach();
     await loadIssueActivity(_editingIssueId);
   } catch (err) {
     showToast(err.message);
