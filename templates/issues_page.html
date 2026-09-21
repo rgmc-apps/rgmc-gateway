@@ -180,6 +180,81 @@
 
   </main>
 
+  <!-- ── Issue Detail Modal (view + comments, no editing) ── -->
+  <div id="ipIssueModal" class="modal-overlay" onclick="if(event.target===this)ipCloseIssueModal()">
+    <div class="modal modal-lg">
+      <button class="modal-close" onclick="ipCloseIssueModal()" aria-label="Close">&times;</button>
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="ipIssModalTitle">Issue Report</h3>
+          <p class="modal-site-name" id="ipIssModalMeta"></p>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Reporter</label>
+            <p class="modal-detail-val" id="ipIssReporter"></p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Company</label>
+            <p class="modal-detail-val" id="ipIssCompany"></p>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <p class="modal-detail-val" id="ipIssEmail"></p>
+          </div>
+          <div class="form-group" id="ipIssDeptRow" style="display:none;">
+            <label class="form-label">Department</label>
+            <p class="modal-detail-val" id="ipIssDepartment"></p>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Priority</label>
+            <p class="modal-detail-val" id="ipIssPriority"></p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <p class="modal-detail-val" id="ipIssStatus"></p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Assigned To</label>
+            <p class="modal-detail-val" id="ipIssAssignedTo"></p>
+          </div>
+        </div>
+
+        <div class="form-group form-group-full">
+          <label class="form-label">Description</label>
+          <div class="issue-description-box" id="ipIssDescription"></div>
+        </div>
+
+        <div class="form-group form-group-full" id="ipIssResGroup" style="display:none;">
+          <label class="form-label">Resolution Notes <span class="form-label-hint">by <span id="ipIssResolvedBy"></span></span></label>
+          <div class="issue-description-box" id="ipIssResNotes"></div>
+          <div class="res-attach-wrap" id="ipIssResAttach" style="margin-top:8px;"></div>
+        </div>
+
+        <div class="iss-activity-section">
+          <div class="iss-activity-header">
+            <span class="iss-activity-label">Activity &amp; Comments</span>
+          </div>
+          <div class="iss-activity-list" id="ipIssActivityList">
+            <div class="iss-activity-loading"><div class="spinner"></div><span>Loading…</span></div>
+          </div>
+          <div class="iss-comment-form">
+            <textarea class="form-input iss-comment-input" id="ipIssCommentInput" rows="2" placeholder="Add a comment…"></textarea>
+            <div class="iss-comment-actions">
+              <button type="button" class="btn-modal-submit iss-comment-submit" id="ipIssCommentSubmitBtn" onclick="ipPostIssueComment()">Post Comment</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast"></div>
 
   <script src="/static/theme.js"></script>

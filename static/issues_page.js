@@ -326,7 +326,7 @@ function _ipRenderRow(issue) {
     ? `<code class="mono-val" style="font-size:11px;">${escHtml(issue.ticket_number)}</code><br>`
     : '';
   const safeId = escHtml(issue.id);
-  return `<tr class="iss-row-clickable" onclick="location.href='/admin/issues/${safeId}'">
+  return `<tr class="iss-row-clickable" onclick="ipOpenIssueModal('${safeId}')">
     <td>${ticketRef}<span class="user-name">${escHtml(issue.site_name || '')}</span></td>
     <td>${escHtml(issue.employee_name || '')}<br><small class="text-muted">${escHtml(issue.company_name || '')}</small></td>
     <td class="issue-desc-cell">${escHtml(titleText)}</td>
@@ -336,6 +336,144 @@ function _ipRenderRow(issue) {
     <td>${_ipAgePill(issue)}</td>
     <td class="date-cell">${fmtDateTime(issue.created_at)}</td>
   </tr>`;
+}
+
+/* ── Issue detail modal (view + comments, no editing) ── */
+let _ipEditingIssueId = null;
+
+function ipOpenIssueModal(id) {
+  const issue = _ipIssuesCache.find(i => i.id === id);
+  if (!issue) return;
+  _ipEditingIssueId = id;
+
+  const titleRef = issue.ticket_number ? `[${issue.ticket_number}] ${issue.site_name || ''}` : `Issue: ${issue.site_name || ''}`;
+  document.getElementById('ipIssModalTitle').textContent = titleRef;
+  document.getElementById('ipIssModalMeta').textContent  = `Submitted ${fmtDateTime(issue.created_at)}`;
+  document.getElementById('ipIssReporter').textContent   = issue.employee_name || '—';
+  document.getElementById('ipIssCompany').textContent    = issue.company_name || '—';
+  document.getElementById('ipIssEmail').innerHTML        = issue.email
+    ? `<a href="mailto:${escHtml(issue.email)}" class="tbl-link">${escHtml(issue.email)}</a>`
+    : '—';
+
+  const deptRow = document.getElementById('ipIssDeptRow');
+  if (issue.department) {
+    document.getElementById('ipIssDepartment').textContent = issue.department;
+    deptRow.style.display = '';
+  } else {
+    deptRow.style.display = 'none';
+  }
+
+  document.getElementById('ipIssPriority').innerHTML = PRIORITY_BADGE[(issue.priority || '').toLowerCase()] || '<span class="text-muted">—</span>';
+  document.getElementById('ipIssStatus').innerHTML    = `<span class="label-badge ${ISSUE_STATUS_CLASS[issue.status] || 'label-rgmc'}">${ISSUE_STATUS_LABELS[issue.status] || issue.status}</span>`;
+  document.getElementById('ipIssAssignedTo').textContent = issue.assigned_to || '— Unassigned —';
+
+  document.getElementById('ipIssDescription').innerHTML = linkifyHtml(issue.description || '');
+
+  const resGroup   = document.getElementById('ipIssResGroup');
+  const isTerminal = ['resolved', 'closed'].includes(issue.status);
+  const resUrls    = issue.resolution_attachment_urls || [];
+  if (isTerminal && (issue.resolution_notes || resUrls.length)) {
+    resGroup.style.display = '';
+    document.getElementById('ipIssResNotes').innerHTML     = linkifyHtml(issue.resolution_notes || '');
+    document.getElementById('ipIssResolvedBy').textContent = issue.resolved_by || '—';
+    document.getElementById('ipIssResAttach').innerHTML = resUrls.map(u => {
+      const name  = decodeURIComponent(u.split('/').pop().replace(/^\d+_/, ''));
+      const isImg = /\.(jpg|jpeg|png|gif|webp)$/i.test(name);
+      if (isImg) {
+        return `<a href="${escHtml(u)}" target="_blank" rel="noopener" class="res-attach-thumb"><img src="${escHtml(u)}" alt="${escHtml(name)}" loading="lazy"></a>`;
+      }
+      return `<a href="${escHtml(u)}" target="_blank" rel="noopener" class="attach-link">${escHtml(name)}</a>`;
+    }).join('');
+  } else {
+    resGroup.style.display = 'none';
+  }
+
+  document.getElementById('ipIssCommentInput').value = '';
+  document.getElementById('ipIssueModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  ipLoadIssueActivity(id);
+}
+
+function ipCloseIssueModal() {
+  document.getElementById('ipIssueModal').classList.remove('open');
+  document.body.style.overflow = '';
+  _ipEditingIssueId = null;
+}
+
+async function ipLoadIssueActivity(issueId) {
+  const list = document.getElementById('ipIssActivityList');
+  list.innerHTML = '<div class="iss-activity-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  try {
+    const res  = await fetch(`/api/issues/${encodeURIComponent(issueId)}/activity`, { headers: authHeaders() });
+    const data = res.ok ? await res.json() : [];
+    _ipRenderActivity(data);
+  } catch {
+    list.innerHTML = '<div class="iss-activity-empty">Failed to load activity.</div>';
+  }
+}
+
+function _ipRenderCommentAttachments(urls) {
+  if (!urls || !urls.length) return '';
+  return `<div class="comment-attach-grid">${urls.map(u =>
+    `<a href="${escHtml(u)}" target="_blank" rel="noopener" class="comment-attach-thumb"><img src="${escHtml(u)}" alt="attachment" loading="lazy"></a>`
+  ).join('')}</div>`;
+}
+
+function _ipRenderActivity(entries) {
+  const list = document.getElementById('ipIssActivityList');
+  if (!entries || entries.length === 0) {
+    list.innerHTML = '<div class="iss-activity-empty">No activity yet. Be the first to comment.</div>';
+    return;
+  }
+  list.innerHTML = entries.map(e => {
+    const time     = fmtDateTime(e.created_at);
+    const name     = e.display_name || e.username || '?';
+    const user     = escHtml(name);
+    const initial  = escHtml((name.charAt(0) || '?').toUpperCase());
+    const avatar   = e.avatar_url ? `<img src="${escHtml(e.avatar_url)}" alt="${initial}">` : initial;
+    let tag = '', body = '';
+    if (e.type === 'comment') {
+      tag  = '<span class="iss-act-tag iss-act-tag--comment">Comment</span>';
+      body = `<div class="iss-act-text">${linkifyText(e.text || '')}</div>${_ipRenderCommentAttachments(e.attachment_urls)}`;
+    } else if (e.type === 'moved') {
+      const src = e.source === 'dev' ? 'Dev' : 'Task';
+      tag  = `<span class="iss-act-tag iss-act-tag--moved">Moved · ${src}</span>`;
+      body = `<div class="iss-act-text">${escHtml(e.from || 'None')}<span class="iss-act-arrow">→</span>${escHtml(e.to || '')}</div>`;
+    } else {
+      const src = e.source === 'dev' ? 'Dev' : 'Task';
+      tag  = `<span class="iss-act-tag iss-act-tag--note">Note · ${src}</span>`;
+      body = `<div class="iss-act-text">${linkifyText(e.text || '')}</div>`;
+    }
+    return `<div class="iss-act-entry">
+      <div class="iss-act-avatar">${avatar}</div>
+      <div class="iss-act-body">
+        <div class="iss-act-meta">${tag}<span class="iss-act-user">${user}</span><span class="iss-act-time">${time}</span></div>
+        ${body}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function ipPostIssueComment() {
+  const input   = document.getElementById('ipIssCommentInput');
+  const comment = (input?.value || '').trim();
+  if (!comment || !_ipEditingIssueId) return;
+  const btn = document.getElementById('ipIssCommentSubmitBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch(`/api/issues/${encodeURIComponent(_ipEditingIssueId)}/comments`, {
+      method:  'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ comment }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed to post comment');
+    input.value = '';
+    await ipLoadIssueActivity(_ipEditingIssueId);
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 /* ── Init ── */
@@ -418,7 +556,7 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>`;
   }
 
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeProfileMenu(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeProfileMenu(); ipCloseIssueModal(); } });
   document.addEventListener('click', () => closeProfileMenu());
 
   loadIssuesPage().then(() => hidePageLoader());
