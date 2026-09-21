@@ -41,46 +41,141 @@
         <h1 class="admin-page-title">Issues</h1>
         <p class="admin-page-sub" id="ipPageSub">Current issue tickets.</p>
       </div>
-    </div>
-
-    <!-- Filter bar -->
-    <div class="iss-filter-bar">
-      <div class="iss-filter-search-wrap">
-        <svg class="iss-filter-search-icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input class="iss-filter-input iss-filter-search" id="ipFilterSearch" type="text" placeholder="Ticket, title, reporter, company…" oninput="ipApplyFilters()" autocomplete="off">
-        <button class="iss-filter-clear-btn" id="ipFilterSearchClear" onclick="ipClearSearch()" style="display:none;" aria-label="Clear">&times;</button>
-      </div>
-      <select class="iss-filter-input iss-filter-select" id="ipFilterPriority" onchange="ipApplyFilters()">
-        <option value="">All Priorities</option>
-        <option value="p1">P1 — Critical</option>
-        <option value="p2">P2 — High</option>
-        <option value="p3">P3 — Medium</option>
-        <option value="p4">P4 — Low</option>
-      </select>
-      <select class="iss-filter-input iss-filter-select" id="ipFilterCompany" onchange="ipApplyFilters()">
-        <option value="">All Companies</option>
-      </select>
-      <input class="iss-filter-input iss-filter-date" id="ipFilterFrom" type="date" onchange="ipApplyFilters()" title="From date">
-      <span class="iss-date-sep">–</span>
-      <input class="iss-filter-input iss-filter-date" id="ipFilterTo" type="date" onchange="ipApplyFilters()" title="To date">
-      <div class="iss-live-indicator">
-        <button class="iss-live-refresh-btn" id="ipRefreshBtn" onclick="loadIssuesPage()" title="Refresh issues">
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-        </button>
+      <div class="dev-page-actions">
+        <div class="dev-filter-tabs">
+          <button class="dev-filter-tab active" data-tab="list"      onclick="ipSwitchTab('list')">List</button>
+          <button class="dev-filter-tab"        data-tab="analytics" onclick="ipSwitchTab('analytics')">Analytics</button>
+        </div>
       </div>
     </div>
 
-    <!-- Status sub-tabs -->
-    <div class="admin-status-tabs" id="ipStatusTabs">
-      <button class="status-tab"        data-istatus="open"        onclick="ipSwitchStatus('open')">Open</button>
-      <button class="status-tab"        data-istatus="in_progress" onclick="ipSwitchStatus('in_progress')">In Progress</button>
-      <button class="status-tab"        data-istatus="resolved"    onclick="ipSwitchStatus('resolved')">Resolved</button>
-      <button class="status-tab"        data-istatus="closed"      onclick="ipSwitchStatus('closed')">Closed</button>
-      <button class="status-tab active" data-istatus="all"         onclick="ipSwitchStatus('all')">All</button>
+    <!-- ══════════ LIST TAB ══════════ -->
+    <div id="ipListPanel">
+
+      <!-- Filter bar -->
+      <div class="iss-filter-bar">
+        <div class="iss-filter-search-wrap">
+          <svg class="iss-filter-search-icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="iss-filter-input iss-filter-search" id="ipFilterSearch" type="text" placeholder="Ticket, title, reporter, company…" oninput="ipApplyFilters()" autocomplete="off">
+          <button class="iss-filter-clear-btn" id="ipFilterSearchClear" onclick="ipClearSearch()" style="display:none;" aria-label="Clear">&times;</button>
+        </div>
+        <select class="iss-filter-input iss-filter-select" id="ipFilterPriority" onchange="ipApplyFilters()">
+          <option value="">All Priorities</option>
+          <option value="p1">P1 — Critical</option>
+          <option value="p2">P2 — High</option>
+          <option value="p3">P3 — Medium</option>
+          <option value="p4">P4 — Low</option>
+        </select>
+        <select class="iss-filter-input iss-filter-select" id="ipFilterCompany" onchange="ipApplyFilters()">
+          <option value="">All Companies</option>
+        </select>
+        <input class="iss-filter-input iss-filter-date" id="ipFilterFrom" type="date" onchange="ipApplyFilters()" title="From date">
+        <span class="iss-date-sep">–</span>
+        <input class="iss-filter-input iss-filter-date" id="ipFilterTo" type="date" onchange="ipApplyFilters()" title="To date">
+        <div class="iss-live-indicator">
+          <button class="iss-live-refresh-btn" id="ipRefreshBtn" onclick="loadIssuesPage()" title="Refresh issues">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Status sub-tabs -->
+      <div class="admin-status-tabs" id="ipStatusTabs">
+        <button class="status-tab"        data-istatus="open"        onclick="ipSwitchStatus('open')">Open</button>
+        <button class="status-tab"        data-istatus="in_progress" onclick="ipSwitchStatus('in_progress')">In Progress</button>
+        <button class="status-tab"        data-istatus="resolved"    onclick="ipSwitchStatus('resolved')">Resolved</button>
+        <button class="status-tab"        data-istatus="closed"      onclick="ipSwitchStatus('closed')">Closed</button>
+        <button class="status-tab active" data-istatus="all"         onclick="ipSwitchStatus('all')">All</button>
+      </div>
+
+      <div id="ipIssuesBody" class="admin-table-wrap">
+        <div class="admin-loading"><div class="spinner"></div><span>Loading issues…</span></div>
+      </div>
+
     </div>
 
-    <div id="ipIssuesBody" class="admin-table-wrap">
-      <div class="admin-loading"><div class="spinner"></div><span>Loading issues…</span></div>
+    <!-- ══════════ ANALYTICS TAB ══════════ -->
+    <div id="ipAnalyticsPanel" style="display:none;">
+
+      <!-- KPI strip -->
+      <div class="iss-kpi-strip">
+        <div class="iss-kpi-card"><div class="iss-kpi-val" id="ipKpiTotal">—</div><div class="iss-kpi-label">Total</div></div>
+        <div class="iss-kpi-card iss-kpi--open"><div class="iss-kpi-val" id="ipKpiOpen">—</div><div class="iss-kpi-label">Open</div></div>
+        <div class="iss-kpi-card iss-kpi--progress"><div class="iss-kpi-val" id="ipKpiProgress">—</div><div class="iss-kpi-label">In Progress</div></div>
+        <div class="iss-kpi-card iss-kpi--resolved"><div class="iss-kpi-val" id="ipKpiResolved">—</div><div class="iss-kpi-label">Resolved</div></div>
+        <div class="iss-kpi-card iss-kpi--dev"><div class="iss-kpi-val" id="ipKpiDevItem">—</div><div class="iss-kpi-label">Dev Item</div></div>
+        <div class="iss-kpi-card iss-kpi--task"><div class="iss-kpi-val" id="ipKpiTask">—</div><div class="iss-kpi-label">Task</div></div>
+        <div class="iss-kpi-card iss-kpi--confirmed"><div class="iss-kpi-val" id="ipKpiConfirmed">—</div><div class="iss-kpi-label">Confirmed</div></div>
+        <div class="iss-kpi-card iss-kpi--awaiting"><div class="iss-kpi-val" id="ipKpiAwaiting">—</div><div class="iss-kpi-label">Awaiting</div></div>
+      </div>
+
+      <!-- Detail-focused metrics: age & resolution, shift-aware -->
+      <div class="iss-kpi-strip">
+        <div class="iss-kpi-card">
+          <div class="iss-kpi-info-wrap">
+            <span class="iss-kpi-info">i</span>
+            <div class="iss-kpi-tooltip"><div class="iss-kpi-tooltip-name">Avg Open Age</div>Average business-hours age of currently open/in-progress issues, using each assignee's configured shift.</div>
+          </div>
+          <div class="iss-kpi-val" id="ipKpiAvgAge">—</div><div class="iss-kpi-label">Avg Open Age (d)</div>
+        </div>
+        <div class="iss-kpi-card">
+          <div class="iss-kpi-info-wrap">
+            <span class="iss-kpi-info">i</span>
+            <div class="iss-kpi-tooltip"><div class="iss-kpi-tooltip-name">Avg Resolution Time</div>Average business-hours time-to-resolution for resolved/closed issues, using each assignee's configured shift.</div>
+          </div>
+          <div class="iss-kpi-val" id="ipKpiAvgRes">—</div><div class="iss-kpi-label">Avg Resolution (d)</div>
+        </div>
+        <div class="iss-kpi-card iss-kpi--open">
+          <div class="iss-kpi-val" id="ipKpiOldest">—</div><div class="iss-kpi-label">Oldest Open (d)</div>
+        </div>
+        <div class="iss-kpi-card">
+          <div class="iss-kpi-val" id="ipKpiUnassigned">—</div><div class="iss-kpi-label">Unassigned Open</div>
+        </div>
+      </div>
+
+      <!-- Status / category / company -->
+      <div class="iss-analytics-grid">
+        <div class="iss-chart-card">
+          <div class="iss-chart-title">Status Distribution</div>
+          <div class="iss-ring-wrap">
+            <svg id="ipRingChart" viewBox="0 0 140 140" width="140" height="140" class="iss-ring-svg"></svg>
+            <div class="iss-ring-center">
+              <span class="iss-ring-pct" id="ipRingPct">—</span>
+              <span class="iss-ring-sub">resolved</span>
+            </div>
+          </div>
+          <div class="iss-ring-legend" id="ipRingLegend"></div>
+        </div>
+        <div class="iss-chart-card iss-chart-wide">
+          <div class="iss-chart-title">By Category</div>
+          <div id="ipCategoryBars" class="iss-bars-body"></div>
+        </div>
+        <div class="iss-chart-card">
+          <div class="iss-chart-title">Top Companies</div>
+          <div id="ipCompanyBars" class="iss-bars-body"></div>
+        </div>
+      </div>
+
+      <!-- Issue-detail-focused breakdowns -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:12px;">
+        <div class="iss-chart-card">
+          <div class="iss-chart-title">By Priority</div>
+          <div id="ipPriorityBars" class="iss-bars-body"></div>
+        </div>
+        <div class="iss-chart-card">
+          <div class="iss-chart-title">By System / Site</div>
+          <div id="ipSiteBars" class="iss-bars-body"></div>
+        </div>
+        <div class="iss-chart-card">
+          <div class="iss-chart-title">Open Workload by Assignee</div>
+          <div id="ipAssigneeBars" class="iss-bars-body"></div>
+        </div>
+        <div class="iss-chart-card">
+          <div class="iss-chart-title">Resolution Path</div>
+          <div id="ipResPathBars" class="iss-bars-body"></div>
+        </div>
+      </div>
+
     </div>
 
   </main>

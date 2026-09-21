@@ -89,6 +89,7 @@ function _ipAgePill(issue) {
 let _ipIssuesCache = [];
 let _ipStatus       = 'all';
 let _ipPage         = 1;
+let _ipTab          = 'list';
 const _ipPerPage    = 25;
 
 async function loadIssuesPage() {
@@ -100,9 +101,122 @@ async function loadIssuesPage() {
     _ipIssuesCache = await res.json();
     _ipPopulateCompanyFilter();
     ipApplyFilters();
+    _ipRenderAnalytics(_ipIssuesCache);
   } catch (err) {
     wrap.innerHTML = `<div class="admin-error">Failed to load issues: ${escHtml(err.message)}</div>`;
   }
+}
+
+/* ── Tabs ── */
+function ipSwitchTab(tab) {
+  _ipTab = tab;
+  document.querySelectorAll('.dev-filter-tabs .dev-filter-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+  document.getElementById('ipListPanel').style.display      = tab === 'list' ? '' : 'none';
+  document.getElementById('ipAnalyticsPanel').style.display = tab === 'analytics' ? '' : 'none';
+  if (tab === 'analytics') _ipRenderAnalytics(_ipIssuesCache);
+}
+
+/* ── Analytics ── */
+function _ipSetText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+
+function _ipRenderAnalytics(all) {
+  if (!all) return;
+  const open     = all.filter(i => i.status === 'open').length;
+  const progress = all.filter(i => i.status === 'in_progress').length;
+  const terminal = all.filter(i => ['resolved', 'closed'].includes(i.status));
+  const devItem  = all.filter(i => i.dev_item_id).length;
+  const task     = all.filter(i => i.task_id || i.user_task_id).length;
+  const confirmed = terminal.filter(i => i.confirmed_fix).length;
+  const awaiting   = terminal.length - confirmed;
+
+  _ipSetText('ipKpiTotal',     all.length);
+  _ipSetText('ipKpiOpen',      open);
+  _ipSetText('ipKpiProgress',  progress);
+  _ipSetText('ipKpiResolved',  terminal.length);
+  _ipSetText('ipKpiDevItem',   devItem);
+  _ipSetText('ipKpiTask',      task);
+  _ipSetText('ipKpiConfirmed', confirmed);
+  _ipSetText('ipKpiAwaiting',  awaiting);
+
+  const openIssues = all.filter(i => ['open', 'in_progress'].includes(i.status));
+  const ages       = openIssues.map(i => i.shift_age_days).filter(v => v != null);
+  const resDays    = terminal.map(i => i.shift_age_days).filter(v => v != null);
+  const avgAge     = ages.length ? ages.reduce((a, b) => a + b, 0) / ages.length : null;
+  const avgRes     = resDays.length ? resDays.reduce((a, b) => a + b, 0) / resDays.length : null;
+  const oldest     = ages.length ? Math.max(...ages) : null;
+  const unassigned = openIssues.filter(i => !i.assigned_to).length;
+
+  _ipSetText('ipKpiAvgAge',     avgAge  != null ? avgAge.toFixed(1)  : '—');
+  _ipSetText('ipKpiAvgRes',     avgRes  != null ? avgRes.toFixed(1)  : '—');
+  _ipSetText('ipKpiOldest',     oldest  != null ? oldest.toFixed(1)  : '—');
+  _ipSetText('ipKpiUnassigned', unassigned);
+
+  _ipRenderRing(all);
+  _ipRenderBars('ipCategoryBars', all, i => i.request_category || 'Uncategorized');
+  _ipRenderBars('ipCompanyBars',  all, i => i.company_name     || 'Unknown');
+  _ipRenderBars('ipPriorityBars', all, i => i.priority ? i.priority.toUpperCase() : 'None');
+  _ipRenderBars('ipSiteBars',     all, i => i.site_name || 'Unknown');
+  _ipRenderBars('ipAssigneeBars', openIssues, i => i.assigned_to || 'Unassigned');
+  _ipRenderBars('ipResPathBars', terminal, i => {
+    if (i.is_duplicate) return 'Duplicate';
+    if (i.dev_item_id)  return 'Dev Item';
+    if (i.task_id || i.user_task_id) return 'Task';
+    return 'Quick Resolve';
+  });
+}
+
+function _ipRenderRing(all) {
+  const counts = {
+    open:        all.filter(i => i.status === 'open').length,
+    in_progress: all.filter(i => i.status === 'in_progress').length,
+    resolved:    all.filter(i => i.status === 'resolved').length,
+    closed:      all.filter(i => i.status === 'closed').length,
+  };
+  const total    = all.length || 1;
+  const resolved = counts.resolved + counts.closed;
+  const pct      = Math.round((resolved / total) * 100);
+  const pctEl = document.getElementById('ipRingPct');
+  if (pctEl) pctEl.textContent = pct + '%';
+
+  const svg = document.getElementById('ipRingChart');
+  if (!svg) return;
+  const cx = 70, cy = 70, r = 54, stroke = 10;
+  const circ = 2 * Math.PI * r;
+  const colors = { open: '#f87171', in_progress: '#facc15', resolved: '#4ade80', closed: '#94a3b8' };
+  const labels = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed' };
+  let offset = 0;
+  const segs = Object.entries(counts).map(([key, val]) => {
+    const dash = (val / total) * circ;
+    const seg  = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${colors[key]}" stroke-width="${stroke}" stroke-dasharray="${dash} ${circ}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})" opacity="0.88"/>`;
+    offset += dash;
+    return seg;
+  }).join('');
+  svg.innerHTML = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="${stroke}"/>${segs}`;
+
+  const legend = document.getElementById('ipRingLegend');
+  if (legend) legend.innerHTML = Object.entries(counts).map(([key, val]) =>
+    `<div class="iss-legend-item"><span class="iss-legend-dot" style="background:${colors[key]}"></span><span class="iss-legend-label">${labels[key]}</span><span class="iss-legend-val">${val}</span></div>`
+  ).join('');
+}
+
+function _ipRenderBars(containerId, all, keyFn) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const counts = {};
+  all.forEach(i => { const k = keyFn(i); counts[k] = (counts[k] || 0) + 1; });
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  if (!sorted.length) { el.innerHTML = '<div class="iss-bars-empty">No data</div>'; return; }
+  const max = sorted[0][1];
+  el.innerHTML = sorted.map(([label, val]) => {
+    const pct = Math.max(4, Math.round((val / max) * 100));
+    return `<div class="iss-bar-row">
+      <div class="iss-bar-label" title="${escHtml(label)}">${escHtml(label)}</div>
+      <div class="iss-bar-track"><div class="iss-bar-fill" style="width:${pct}%"></div></div>
+      <div class="iss-bar-val">${val}</div>
+    </div>`;
+  }).join('');
 }
 
 function _ipPopulateCompanyFilter() {
