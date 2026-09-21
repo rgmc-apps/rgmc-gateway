@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify, current_app, render_template
 
 from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
 from services.supabase import supabase_req, resolve_action_names
-from services.guards import _require_admin
+from services.guards import _require_admin, _require_dept_head
 from services.shift import shift_age_days, fetch_shift_map
 from services.email import send_report_email, send_issue_resolved_email, send_issue_assigned_email, send_helpdesk_email, send_helpdesk_confirmation_email, send_issue_promoted_to_epic_email, send_issue_promoted_to_dev_email, send_issue_promoted_to_task_email, send_issue_comment_email
 
@@ -470,6 +470,46 @@ def admin_get_issues():
         return jsonify(rows)
     except Exception as exc:
         current_app.logger.error("admin_get_issues failed: %s", exc)
+        return jsonify({"error": "Failed to fetch issues"}), 500
+
+
+@issues_bp.get("/issues")
+def issues_page():
+    return render_template("issues_page.html")
+
+
+@issues_bp.get("/api/issues/scoped")
+def issues_get_scoped():
+    """Current issues list: admins/management see everything, department heads
+    see only issues routed to their own department."""
+    from controllers.user_page import _dept_id_for
+
+    username, user_row, err = _require_dept_head()
+    if err:
+        return jsonify(err[0]), err[1]
+
+    try:
+        if user_row.get("is_admin") or user_row.get("is_management"):
+            rows = supabase_req("GET", "/issues", params={
+                "select": "*",
+                "order":  "created_at.desc",
+            }) or []
+        else:
+            dept_id = _dept_id_for(user_row.get("department"))
+            if not dept_id:
+                return jsonify([])
+            rows = supabase_req("GET", "/issues", params={
+                "request_to_department_id": f"eq.{dept_id}",
+                "select": "*",
+                "order":  "created_at.desc",
+            }) or []
+        shift_map = fetch_shift_map()
+        for r in rows:
+            end_at = r.get("resolved_at") if r.get("status") in ("resolved", "closed") else None
+            r["shift_age_days"] = shift_age_days(r.get("created_at"), end_at, shift_map.get(r.get("assigned_to")))
+        return jsonify(rows)
+    except Exception as exc:
+        current_app.logger.error("issues_get_scoped failed: %s", exc)
         return jsonify({"error": "Failed to fetch issues"}), 500
 
 

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Issues — RGMC Gateway</title>
+  <link rel="icon" type="image/png" href="/static/badge.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('rgmc-theme')||'light');</script>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div id="pageLoader" class="page-loader">
+    <div class="page-loader-pips">
+      <div class="page-loader-pip"></div>
+      <div class="page-loader-pip"></div>
+      <div class="page-loader-pip"></div>
+    </div>
+    <div class="page-loader-label">Loading…</div>
+  </div>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="header-brand">
+        <div class="header-logo-wrap">
+          <img src="/static/logo.png" alt="RGMC Gateway" class="header-logo-img">
+        </div>
+        <div class="header-divider"></div>
+        <div class="header-tagline">RGMC Issues</div>
+      </a>
+      <div id="issuesHeaderUser" class="header-user"></div>
+    </div>
+  </header>
+
+  <main class="admin-main">
+
+    <div class="dev-page-header">
+      <div>
+        <h1 class="admin-page-title">Issues</h1>
+        <p class="admin-page-sub" id="ipPageSub">Current issue tickets.</p>
+      </div>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="iss-filter-bar">
+      <div class="iss-filter-search-wrap">
+        <svg class="iss-filter-search-icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="iss-filter-input iss-filter-search" id="ipFilterSearch" type="text" placeholder="Ticket, title, reporter, company…" oninput="ipApplyFilters()" autocomplete="off">
+        <button class="iss-filter-clear-btn" id="ipFilterSearchClear" onclick="ipClearSearch()" style="display:none;" aria-label="Clear">&times;</button>
+      </div>
+      <select class="iss-filter-input iss-filter-select" id="ipFilterPriority" onchange="ipApplyFilters()">
+        <option value="">All Priorities</option>
+        <option value="p1">P1 — Critical</option>
+        <option value="p2">P2 — High</option>
+        <option value="p3">P3 — Medium</option>
+        <option value="p4">P4 — Low</option>
+      </select>
+      <select class="iss-filter-input iss-filter-select" id="ipFilterCompany" onchange="ipApplyFilters()">
+        <option value="">All Companies</option>
+      </select>
+      <input class="iss-filter-input iss-filter-date" id="ipFilterFrom" type="date" onchange="ipApplyFilters()" title="From date">
+      <span class="iss-date-sep">–</span>
+      <input class="iss-filter-input iss-filter-date" id="ipFilterTo" type="date" onchange="ipApplyFilters()" title="To date">
+      <div class="iss-live-indicator">
+        <button class="iss-live-refresh-btn" id="ipRefreshBtn" onclick="loadIssuesPage()" title="Refresh issues">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Status sub-tabs -->
+    <div class="admin-status-tabs" id="ipStatusTabs">
+      <button class="status-tab"        data-istatus="open"        onclick="ipSwitchStatus('open')">Open</button>
+      <button class="status-tab"        data-istatus="in_progress" onclick="ipSwitchStatus('in_progress')">In Progress</button>
+      <button class="status-tab"        data-istatus="resolved"    onclick="ipSwitchStatus('resolved')">Resolved</button>
+      <button class="status-tab"        data-istatus="closed"      onclick="ipSwitchStatus('closed')">Closed</button>
+      <button class="status-tab active" data-istatus="all"         onclick="ipSwitchStatus('all')">All</button>
+    </div>
+
+    <div id="ipIssuesBody" class="admin-table-wrap">
+      <div class="admin-loading"><div class="spinner"></div><span>Loading issues…</span></div>
+    </div>
+
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="/static/theme.js"></script>
+  <script src="/static/linkify.js"></script>
+  <script src="/static/issues_page.js"></script>
+</body>
+</html>
