@@ -133,6 +133,11 @@ function closeProfileMenu() {
 /* ── Init ── */
 /* ── Rich editor instances ────────────────────────────────── */
 let _resNotesEditor = null;
+let _cePendingIdVal = null;
+function _cePendingId() {
+  if (!_cePendingIdVal) _cePendingIdVal = 'pending-' + Math.random().toString(36).slice(2, 10);
+  return _cePendingIdVal;
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   const session = loadSession();
@@ -141,11 +146,17 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  _resNotesEditor = initRichEditor('issueResolutionNotes');
+  _resNotesEditor = initCommentEditor('issueResolutionNotes', {});
+  initCommentEditor('issueResolutionRemarks', {});
+  initCommentEditor('issueCommentInput', { uploadEntityType: 'issue', getEntityId: () => _editingIssueId });
+  initCommentEditor('rejectRemarks', { uploadEntityType: 'access_request', getEntityId: () => _rejectingId });
+  initCommentEditor('outageNotesText', { uploadEntityType: 'outage', getEntityId: () => _editingOutageId });
+  initCommentEditor('qrResolutionNotes', { uploadEntityType: 'issue', getEntityId: () => _editingIssueId });
+  initCommentEditor('promoteDevDesc', { uploadEntityType: 'dev_item', getEntityId: () => _cePendingId() });
 
   // Common Fixes editors
-  _cfProblemEditor = initRichEditor('cfProblemDescEditor');
-  _cfFixEditor     = initRichEditor('cfFixDescEditor');
+  _cfProblemEditor = initCommentEditor('cfProblemDescEditor', { uploadEntityType: 'common_fix', getEntityId: () => _editingFixId || _cePendingId() });
+  _cfFixEditor     = initCommentEditor('cfFixDescEditor', { uploadEntityType: 'common_fix', getEntityId: () => _editingFixId || _cePendingId() });
 
   // Common Fixes drop zone wiring
   const dz = document.getElementById('cfDropZone');
@@ -2445,7 +2456,6 @@ async function openIssueModal(id) {
   const issue = _issuesCache.find(i => i.id === id);
   if (!issue) return;
   _editingIssueId = id;
-  _clearIssueCommentAttach();
 
   const titleRef = issue.ticket_number
     ? `[${issue.ticket_number}] ${issue.site_name}`
@@ -2464,7 +2474,7 @@ async function openIssueModal(id) {
   } else {
     deptRow.style.display = 'none';
   }
-  document.getElementById('issueDescription').innerHTML = linkifyHtml(issue.description || '');
+  document.getElementById('issueDescription').innerHTML = renderCommentPreview(issue.description || '');
 
   const ecGroup = document.getElementById('issueErrorCodeGroup');
   const ecEl    = document.getElementById('issueErrorCode');
@@ -2772,7 +2782,7 @@ function _renderLinkedItemBody(type, item) {
 
   if (type === 'dev_item') {
     const name = escHtml(item.title || '—');
-    const desc = item.description ? escHtml(item.description) : '';
+    const desc = item.description || '';
     rows.push(
       `<div class="form-group form-group-full"><label class="form-label">Title</label><p class="modal-detail-val">${name}</p></div>`,
       `<div class="form-row">` +
@@ -2791,12 +2801,12 @@ function _renderLinkedItemBody(type, item) {
       `<div class="form-group"><label class="form-label">Created by</label><p class="modal-detail-val">${escHtml(item.created_by)}</p></div>`
     );
     if (desc) rows.push(
-      `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${linkifyHtml(desc.replace(/\n/g,'<br>'))}</p></div>`
+      `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${renderCommentPreview(desc)}</p></div>`
     );
 
   } else if (type === 'task') {
     const name = escHtml(item.task_name || '—');
-    const desc = item.description ? escHtml(item.description) : '';
+    const desc = item.description || '';
     rows.push(
       `<div class="form-group form-group-full"><label class="form-label">Task Name</label><p class="modal-detail-val">${name}</p></div>`,
       `<div class="form-row">` +
@@ -2815,12 +2825,12 @@ function _renderLinkedItemBody(type, item) {
       `<div class="form-group"><label class="form-label">Created by</label><p class="modal-detail-val">${escHtml(item.created_by)}</p></div>`
     );
     if (desc) rows.push(
-      `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${linkifyHtml(desc.replace(/\n/g,'<br>'))}</p></div>`
+      `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${renderCommentPreview(desc)}</p></div>`
     );
 
   } else if (type === 'user_task') {
     const name = escHtml(item.title || '—');
-    const desc = item.description ? escHtml(item.description) : '';
+    const desc = item.description || '';
     rows.push(
       `<div class="form-group form-group-full"><label class="form-label">Title</label><p class="modal-detail-val">${name}</p></div>`,
       `<div class="form-row">` +
@@ -2832,7 +2842,7 @@ function _renderLinkedItemBody(type, item) {
       `<div class="form-group"><label class="form-label">Created by</label><p class="modal-detail-val">${escHtml(item.created_by)}</p></div>`
     );
     if (desc) rows.push(
-      `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${linkifyHtml(desc.replace(/\n/g,'<br>'))}</p></div>`
+      `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${renderCommentPreview(desc)}</p></div>`
     );
 
   } else { // epic
@@ -2840,13 +2850,13 @@ function _renderLinkedItemBody(type, item) {
       ? `<span class="linked-status-badge linked-status-${escHtml((item.epic_status || '').replace('_','-'))}">${escHtml((item.epic_status || '').replace('_',' '))}</span>`
       : '—';
     const name = escHtml(item.epic_name || '—');
-    const desc = item.epic_description ? escHtml(item.epic_description) : '';
+    const desc = item.epic_description || '';
     rows.push(
       `<div class="form-group form-group-full"><label class="form-label">Epic Name</label><p class="modal-detail-val">${name}</p></div>`,
       `<div class="form-group"><label class="form-label">Status</label><p class="modal-detail-val">${epicStatusHtml}</p></div>`,
     );
     if (desc) rows.push(
-      `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${linkifyHtml(desc.replace(/\n/g,'<br>'))}</p></div>`
+      `<div class="form-group form-group-full"><label class="form-label">Description</label><p class="modal-detail-val linked-item-desc">${renderCommentPreview(desc)}</p></div>`
     );
 
     const devItems = item.dev_items || [];
@@ -2892,66 +2902,8 @@ function resetIssueModal() {
   document.getElementById('issueModalError').style.display   = 'none';
 }
 
-/* ── Issue comment photo attachments ── */
-let _issueCommentPendingFiles = [];
-
-function issueCommentAttachChange(input) {
-  const remaining = 5 - _issueCommentPendingFiles.length;
-  _issueCommentPendingFiles.push(...Array.from(input.files).slice(0, remaining));
-  input.value = '';
-  _renderIssueCommentAttachPreviews();
-}
-
-function _renderIssueCommentAttachPreviews() {
-  const wrap   = document.getElementById('issueCommentAttachPreviews');
-  const addBtn = document.getElementById('issueCommentAttachAddBtn');
-  if (!wrap) return;
-  if (addBtn) addBtn.style.display = _issueCommentPendingFiles.length >= 5 ? 'none' : '';
-  wrap.innerHTML = _issueCommentPendingFiles.map((f, i) =>
-    `<div class="res-attach-thumb">
-      <img src="${URL.createObjectURL(f)}" alt="${escHtml(f.name)}">
-      <button type="button" class="res-attach-remove" onclick="issueCommentRemovePending(${i})" title="Remove">&times;</button>
-    </div>`
-  ).join('');
-}
-
-function issueCommentRemovePending(i) {
-  _issueCommentPendingFiles.splice(i, 1);
-  _renderIssueCommentAttachPreviews();
-}
-
-function handleIssueCommentPaste(event) {
-  const images = Array.from(event.clipboardData?.items || [])
-    .filter(i => i.kind === 'file' && i.type.startsWith('image/'))
-    .map(i => i.getAsFile()).filter(Boolean);
-  if (!images.length) return;
-  const remaining = 5 - _issueCommentPendingFiles.length;
-  _issueCommentPendingFiles.push(...images.slice(0, remaining));
-  _renderIssueCommentAttachPreviews();
-  event.preventDefault();
-}
-
-async function _uploadIssueCommentFiles(issueId) {
-  const urls = [];
-  for (const file of _issueCommentPendingFiles) {
-    const fd = new FormData();
-    fd.append('entity_type', 'issue');
-    fd.append('entity_id',   issueId);
-    fd.append('file',        file);
-    try {
-      const r = await fetch('/api/upload/resolution', { method: 'POST', headers: authHeaders(), body: fd });
-      const d = await r.json();
-      if (d.url) urls.push(d.url);
-    } catch {}
-  }
-  return urls;
-}
-
-function _clearIssueCommentAttach() {
-  _issueCommentPendingFiles = [];
-  _renderIssueCommentAttachPreviews();
-}
-
+/* ── Read-only rendering of attachment_urls saved by the old, pre-inline-image
+   comment attach grid (kept so legacy issue comments still display) ── */
 function _renderCommentAttachments(urls) {
   if (!urls || !urls.length) return '';
   return `<div class="comment-attach-grid">${urls.map(u =>
@@ -2978,7 +2930,7 @@ function _renderIssueActivityEntries(entries) {
     let tag = '', body = '';
     if (e.type === 'comment') {
       tag  = '<span class="iss-act-tag iss-act-tag--comment">Comment</span>';
-      body = `<div class="iss-act-text">${linkifyText(e.text || '')}</div>${_renderCommentAttachments(e.attachment_urls)}`;
+      body = `<div class="iss-act-text">${renderCommentPreview(e.text || '')}</div>${_renderCommentAttachments(e.attachment_urls)}`;
     } else if (e.type === 'moved') {
       const src = e.source === 'dev' ? 'Dev' : 'Task';
       tag  = `<span class="iss-act-tag iss-act-tag--moved">Moved · ${src}</span>`;
@@ -2986,7 +2938,7 @@ function _renderIssueActivityEntries(entries) {
     } else {
       const src = e.source === 'dev' ? 'Dev' : 'Task';
       tag  = `<span class="iss-act-tag iss-act-tag--note">Note · ${src}</span>`;
-      body = `<div class="iss-act-text">${linkifyText(e.text || '')}</div>`;
+      body = `<div class="iss-act-text">${renderCommentPreview(e.text || '')}</div>`;
     }
     return `<div class="iss-act-entry">
       <div class="iss-act-avatar">${avatar}</div>
@@ -3021,15 +2973,13 @@ async function postIssueComment() {
   const btn = document.querySelector('#issueModal .iss-comment-submit');
   if (btn) btn.disabled = true;
   try {
-    const attachment_urls = await _uploadIssueCommentFiles(_editingIssueId);
     const res = await fetch(`/api/issues/${encodeURIComponent(_editingIssueId)}/comments`, {
       method:  'POST',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ comment, attachment_urls }),
+      body:    JSON.stringify({ comment }),
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Failed to post comment');
     input.value = '';
-    _clearIssueCommentAttach();
     await loadIssueActivity(_editingIssueId);
   } catch (err) {
     showToast(err.message);
@@ -4155,7 +4105,7 @@ function _renderCiResolution(r) {
     : '';
 
   const noteHtml = r.resolution_notes
-    ? `<div class="ci-res-notes">${linkifyHtml(r.resolution_notes)}</div>`
+    ? `<div class="ci-res-notes">${renderCommentPreview(r.resolution_notes)}</div>`
     : '';
 
   const actionHtml = (r.resolution_action_names || []).length
@@ -6356,9 +6306,9 @@ async function openCfDetail(fixId) {
           </button>
         </div>
         <div class="cf-detail-section-label">Problem Description</div>
-        <div class="cf-detail-content">${fix.problem_desc ? linkifyHtml(fix.problem_desc) : '<em>Not specified.</em>'}</div>
+        <div class="cf-detail-content">${fix.problem_desc ? renderCommentPreview(fix.problem_desc) : '<em>Not specified.</em>'}</div>
         <div class="cf-detail-section-label">Fix Description</div>
-        <div class="cf-detail-content">${fix.fix_description ? linkifyHtml(fix.fix_description) : '<em>Not specified.</em>'}</div>
+        <div class="cf-detail-content">${fix.fix_description ? renderCommentPreview(fix.fix_description) : '<em>Not specified.</em>'}</div>
         ${attachHtml ? `<div class="cf-detail-section-label">Attachments</div><div class="cf-detail-attach-row">${attachHtml}</div>` : ''}
       </div>
       <div class="cf-detail-card">

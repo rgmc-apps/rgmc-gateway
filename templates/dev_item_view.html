@@ -580,6 +580,7 @@
   </div>
 
   <script src="/static/linkify.js"></script>
+  <script src="/static/comment-render.js"></script>
   <script>
     const ITEM_ID = {{ item_id | tojson }};
 
@@ -672,7 +673,7 @@
       }
 
       if (item.description) {
-        document.getElementById('itemDesc').innerHTML        = linkifyHtml(item.description);
+        document.getElementById('itemDesc').innerHTML        = renderCommentPreview(item.description);
         document.getElementById('descSection').style.display = '';
       }
 
@@ -707,7 +708,7 @@
               <span class="comment-time">${fmtDate(c.created_at) || ''}</span>
               ${c.hours_spent ? `<span class="comment-hours">(${escHtml(c.hours_spent)}h logged)</span>` : ''}
             </div>
-            <div class="comment-text">${linkifyText(c.message || '')}</div>
+            <div class="comment-text">${renderCommentPreview(c.message || '')}</div>
             ${(c.attachment_urls && c.attachment_urls.length) ? `<div class="comment-attach-grid">${c.attachment_urls.map(u =>
               `<a href="${escHtml(u)}" target="_blank" rel="noopener" class="comment-attach-thumb"><img src="${escHtml(u)}" alt="attachment" loading="lazy"></a>`
             ).join('')}</div>` : ''}

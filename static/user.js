@@ -6,6 +6,11 @@ function loadSession()  { try { return JSON.parse(localStorage.getItem(SESSION_K
 function clearSession() { localStorage.removeItem(SESSION_KEY); }
 function wsSignOut()    { clearSession(); location.href = '/'; }
 function authHeaders()  { const s = loadSession(); return { 'X-Gateway-Username': s?.username || '' }; }
+let _ceUtPendingIdVal = null;
+function _ceUtPendingId() {
+  if (!_ceUtPendingIdVal) _ceUtPendingIdVal = 'pending-' + Math.random().toString(36).slice(2, 10);
+  return _ceUtPendingIdVal;
+}
 
 /* ── Toast ── */
 function showToast(msg, duration = 3500) {
@@ -486,7 +491,7 @@ async function openIssueDetail(iss) {
   statusEl.textContent = label;
   document.getElementById('iss-modal-priority-badge').innerHTML  = prioBadgeHtml(iss.priority);
   document.getElementById('iss-modal-title').textContent         = title;
-  document.getElementById('iss-modal-desc').innerHTML             = iss.description ? linkifyHtml(iss.description) : '—';
+  document.getElementById('iss-modal-desc').innerHTML             = iss.description ? renderCommentPreview(iss.description) : '—';
   document.getElementById('iss-modal-reporter').textContent      = iss.employee_name || '—';
   document.getElementById('iss-modal-company').textContent       = iss.company_name  || '—';
   document.getElementById('iss-modal-email').textContent         = iss.email         || '—';
@@ -659,7 +664,7 @@ function _renderIssActivityEntries(entries) {
     let tag = '', body = '';
     if (e.type === 'comment') {
       tag  = '<span class="iss-act-tag iss-act-tag--comment">Comment</span>';
-      body = `<div class="iss-act-text">${linkifyText(e.text || '')}</div>`;
+      body = `<div class="iss-act-text">${renderCommentPreview(e.text || '')}</div>`;
     } else if (e.type === 'moved') {
       const src = e.source === 'dev' ? 'Dev' : 'Task';
       tag  = `<span class="iss-act-tag iss-act-tag--moved">Moved · ${src}</span>`;
@@ -667,7 +672,7 @@ function _renderIssActivityEntries(entries) {
     } else {
       const src = e.source === 'dev' ? 'Dev' : 'Task';
       tag  = `<span class="iss-act-tag iss-act-tag--note">Note · ${src}</span>`;
-      body = `<div class="iss-act-text">${linkifyText(e.text || '')}</div>`;
+      body = `<div class="iss-act-text">${renderCommentPreview(e.text || '')}</div>`;
     }
     return `<div class="iss-act-entry">
       <div class="iss-act-avatar">${avatar}</div>
@@ -1199,7 +1204,7 @@ function renderTaskCard(task) {
   return `<div class="ut-card" id="utc-${id}">
     ${task.task_code ? `<div class="ut-card-code">${escHtml(task.task_code)}</div>` : ''}
     <div class="ut-card-title">${escHtml(task.title)}</div>
-    ${task.description ? `<div class="ut-card-desc">${linkifyText(task.description)}</div>` : ''}
+    ${task.description ? `<div class="ut-card-desc">${renderCommentPreview(task.description)}</div>` : ''}
     <div class="ut-card-footer">
       <div class="ut-card-meta">
         ${task.due_date   ? `<span>Due ${fmtDate(task.due_date)}</span>` : ''}
@@ -1764,6 +1769,10 @@ document.addEventListener('DOMContentLoaded', () => {
     location.href = '/';
     return;
   }
+
+  initCommentEditor('issCommentInput', { uploadEntityType: 'issue', getEntityId: () => _currentIssue?.id });
+  initCommentEditor('reopen-reason', { uploadEntityType: 'issue', getEntityId: () => _currentIssue?.id });
+  initCommentEditor('ut-task-desc', { uploadEntityType: 'task', getEntityId: () => _taskEditId || _ceUtPendingId() });
 
   /* Build profile dropdown */
   const container = document.getElementById('wsHeaderUser');

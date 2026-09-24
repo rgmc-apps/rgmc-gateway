@@ -116,6 +116,11 @@ function closeProfileMenu() {
 /* ── Init ── */
 /* ── Rich editor instance ─────────────────────────────────── */
 let _taskDescEditor = null;
+let _cePendingTaskIdVal = null;
+function _cePendingTaskId() {
+  if (!_cePendingTaskIdVal) _cePendingTaskIdVal = 'pending-' + Math.random().toString(36).slice(2, 10);
+  return _cePendingTaskIdVal;
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   const session = loadSession();
@@ -124,7 +129,10 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  _taskDescEditor = initRichEditor('taskDesc');
+  _taskDescEditor = initCommentEditor('taskDesc', { uploadEntityType: 'task', getEntityId: () => _taskEditingId || _cePendingTaskId() });
+  initCommentEditor('taskResNotes', {});
+  initCommentEditor('taskDoneRemarksText', {});
+  initCommentEditor('taskLogMessage', { uploadEntityType: 'task', getEntityId: () => _taskEditingId });
 
   // Build profile dropdown
   const container = document.getElementById('tasksHeaderUser');
@@ -1119,7 +1127,7 @@ async function refreshTaskLogs() {
           ${hrs ? `<span class="log-hours-badge">${escHtml(hrs)}</span>` : ''}
           <span class="log-time">${fmtDateTime(log.created_at)}</span>
         </div>
-        <div class="log-message">${linkifyText(log.message)}</div>
+        <div class="log-message">${renderCommentPreview(log.message)}</div>
       </div>`;
     }).join('');
     list.scrollTop = list.scrollHeight;

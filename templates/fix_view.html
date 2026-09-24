@@ -635,6 +635,7 @@
   </div>
 
   <script src="/static/linkify.js"></script>
+  <script src="/static/comment-render.js"></script>
   <script>
     const FIX_ID = {{ fix_id | tojson }};
 
@@ -694,13 +695,13 @@
 
       // Problem description
       if (fix.problem_desc) {
-        document.getElementById('problemDesc').innerHTML          = linkifyHtml(fix.problem_desc);
+        document.getElementById('problemDesc').innerHTML          = renderCommentPreview(fix.problem_desc);
         document.getElementById('problemSection').style.display   = '';
       }
 
       // Fix description
       if (fix.fix_description) {
-        document.getElementById('fixDesc').innerHTML          = linkifyHtml(fix.fix_description);
+        document.getElementById('fixDesc').innerHTML          = renderCommentPreview(fix.fix_description);
         document.getElementById('fixSection').style.display   = '';
       }
 

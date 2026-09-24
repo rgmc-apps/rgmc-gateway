@@ -704,6 +704,7 @@
   </div>
 
   <script src="/static/linkify.js"></script>
+  <script src="/static/comment-render.js"></script>
   <script>
     const EPIC_ID = {{ epic_id | tojson }};
 
@@ -809,7 +810,7 @@
       }
 
       if (epic.epic_description) {
-        document.getElementById('epicDesc').innerHTML        = linkifyHtml(epic.epic_description);
+        document.getElementById('epicDesc').innerHTML        = renderCommentPreview(epic.epic_description);
         document.getElementById('descSection').style.display = '';
       }
 

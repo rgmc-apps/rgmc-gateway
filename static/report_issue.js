@@ -1,6 +1,17 @@
 'use strict';
 
 let _riDescEditor = null;
+let _ceRiPendingIdVal = null;
+function _ceRiPendingId() {
+  if (!_ceRiPendingIdVal) _ceRiPendingIdVal = 'pending-' + Math.random().toString(36).slice(2, 10);
+  return _ceRiPendingIdVal;
+}
+function authHeaders() {
+  try {
+    const s = JSON.parse(localStorage.getItem('rgmc_gateway_session'));
+    return { 'X-Gateway-Username': s?.username || '' };
+  } catch { return {}; }
+}
 
 function _esc(s) {
   return String(s)
@@ -410,7 +421,7 @@ function _riShowAccountBadge() {
 /* ── Bootstrap ────────────────────────────────────────────── */
 
 document.addEventListener('DOMContentLoaded', async () => {
-  _riDescEditor = initRichEditor('riDescription');
+  _riDescEditor = initCommentEditor('riDescription', { uploadEntityType: 'issue', getEntityId: () => _ceRiPendingId() });
   document.getElementById('riForm').addEventListener('reset', () => _riDescEditor?.setValue(''));
 
   const companiesReady   = _fetchAndPopulateCompanies();

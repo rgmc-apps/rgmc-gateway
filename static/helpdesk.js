@@ -1,6 +1,17 @@
 'use strict';
 
 let _hdDescEditor = null;
+let _ceHdPendingIdVal = null;
+function _ceHdPendingId() {
+  if (!_ceHdPendingIdVal) _ceHdPendingIdVal = 'pending-' + Math.random().toString(36).slice(2, 10);
+  return _ceHdPendingIdVal;
+}
+function authHeaders() {
+  try {
+    const s = JSON.parse(localStorage.getItem('rgmc_gateway_session'));
+    return { 'X-Gateway-Username': s?.username || '' };
+  } catch { return {}; }
+}
 
 function _esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -402,7 +413,7 @@ async function hdSubmit(e) {
 /* ── Bootstrap ────────────────────────────────────────────────────────────── */
 
 document.addEventListener('DOMContentLoaded', async () => {
-  _hdDescEditor = initRichEditor('hdDescription');
+  _hdDescEditor = initCommentEditor('hdDescription', { uploadEntityType: 'issue', getEntityId: () => _ceHdPendingId() });
   document.getElementById('hdForm').addEventListener('reset', () => _hdDescEditor?.setValue(''));
 
   await Promise.all([_loadCompanies(), _loadCategories(), _loadDepartments()]);

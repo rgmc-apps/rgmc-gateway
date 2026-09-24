@@ -1,6 +1,17 @@
 'use strict';
 
 let _ghDescEditor = null;
+let _ceGhPendingIdVal = null;
+function _ceGhPendingId() {
+  if (!_ceGhPendingIdVal) _ceGhPendingIdVal = 'pending-' + Math.random().toString(36).slice(2, 10);
+  return _ceGhPendingIdVal;
+}
+function authHeaders() {
+  try {
+    const s = JSON.parse(localStorage.getItem('rgmc_gateway_session'));
+    return { 'X-Gateway-Username': s?.username || '' };
+  } catch { return {}; }
+}
 
 function _esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -386,7 +397,7 @@ async function ghSubmit(e) {
 /* ── Bootstrap ────────────────────────────────────────────────────────────── */
 
 document.addEventListener('DOMContentLoaded', async () => {
-  _ghDescEditor = initRichEditor('ghDescription');
+  _ghDescEditor = initCommentEditor('ghDescription', { uploadEntityType: 'issue', getEntityId: () => _ceGhPendingId() });
   document.getElementById('ghForm').addEventListener('reset', () => _ghDescEditor?.setValue(''));
 
   document.addEventListener('keydown', e => {

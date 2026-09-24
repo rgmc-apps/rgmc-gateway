@@ -367,14 +367,14 @@ function ipOpenIssueModal(id) {
   document.getElementById('ipIssStatus').innerHTML    = `<span class="label-badge ${ISSUE_STATUS_CLASS[issue.status] || 'label-rgmc'}">${ISSUE_STATUS_LABELS[issue.status] || issue.status}</span>`;
   document.getElementById('ipIssAssignedTo').textContent = issue.assigned_to || '— Unassigned —';
 
-  document.getElementById('ipIssDescription').innerHTML = linkifyHtml(issue.description || '');
+  document.getElementById('ipIssDescription').innerHTML = renderCommentPreview(issue.description || '');
 
   const resGroup   = document.getElementById('ipIssResGroup');
   const isTerminal = ['resolved', 'closed'].includes(issue.status);
   const resUrls    = issue.resolution_attachment_urls || [];
   if (isTerminal && (issue.resolution_notes || resUrls.length)) {
     resGroup.style.display = '';
-    document.getElementById('ipIssResNotes').innerHTML     = linkifyHtml(issue.resolution_notes || '');
+    document.getElementById('ipIssResNotes').innerHTML     = renderCommentPreview(issue.resolution_notes || '');
     document.getElementById('ipIssResolvedBy').textContent = issue.resolved_by || '—';
     document.getElementById('ipIssResAttach').innerHTML = resUrls.map(u => {
       const name  = decodeURIComponent(u.split('/').pop().replace(/^\d+_/, ''));
@@ -434,7 +434,7 @@ function _ipRenderActivity(entries) {
     let tag = '', body = '';
     if (e.type === 'comment') {
       tag  = '<span class="iss-act-tag iss-act-tag--comment">Comment</span>';
-      body = `<div class="iss-act-text">${linkifyText(e.text || '')}</div>${_ipRenderCommentAttachments(e.attachment_urls)}`;
+      body = `<div class="iss-act-text">${renderCommentPreview(e.text || '')}</div>${_ipRenderCommentAttachments(e.attachment_urls)}`;
     } else if (e.type === 'moved') {
       const src = e.source === 'dev' ? 'Dev' : 'Task';
       tag  = `<span class="iss-act-tag iss-act-tag--moved">Moved · ${src}</span>`;
@@ -442,7 +442,7 @@ function _ipRenderActivity(entries) {
     } else {
       const src = e.source === 'dev' ? 'Dev' : 'Task';
       tag  = `<span class="iss-act-tag iss-act-tag--note">Note · ${src}</span>`;
-      body = `<div class="iss-act-text">${linkifyText(e.text || '')}</div>`;
+      body = `<div class="iss-act-text">${renderCommentPreview(e.text || '')}</div>`;
     }
     return `<div class="iss-act-entry">
       <div class="iss-act-avatar">${avatar}</div>
@@ -487,6 +487,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!(session.isAdmin || session.isManagement)) {
     document.getElementById('ipPageSub').textContent = 'Current issue tickets routed to your department.';
   }
+
+  initCommentEditor('ipIssCommentInput', { uploadEntityType: 'issue', getEntityId: () => _ipEditingIssueId });
 
   const container = document.getElementById('issuesHeaderUser');
   if (container) {

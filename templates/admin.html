@@ -1300,16 +1300,7 @@
             <div class="iss-activity-loading"><div class="spinner"></div><span>Loading…</span></div>
           </div>
           <div class="iss-comment-form">
-            <textarea class="form-input iss-comment-input" id="issueCommentInput" rows="2" placeholder="Add a comment…"
-              onpaste="handleIssueCommentPaste(event)"></textarea>
-            <div class="res-attach-wrap" style="margin-top:8px;">
-              <div class="res-attach-previews" id="issueCommentAttachPreviews"></div>
-              <label class="res-attach-add" id="issueCommentAttachAddBtn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Add Photo
-                <input type="file" id="issueCommentAttachInput" accept="image/*" multiple style="display:none;" onchange="issueCommentAttachChange(this)">
-              </label>
-            </div>
+            <textarea class="form-input iss-comment-input" id="issueCommentInput" rows="2" placeholder="Add a comment…"></textarea>
             <div class="iss-comment-actions">
               <button type="button" class="btn-modal-submit iss-comment-submit" onclick="postIssueComment()">Post Comment</button>
             </div>
@@ -2323,7 +2314,8 @@
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
   <script src="/static/theme.js"></script>
   <script src="/static/linkify.js"></script>
-  <script src="/static/rich-editor.js"></script>
+  <script src="/static/comment-render.js"></script>
+  <script src="/static/comment-editor.js"></script>
   {% if open_issue_id %}
   <script>window._OPEN_ISSUE_ID = {{ open_issue_id | tojson }};</script>
   {% endif %}

@@ -31,14 +31,22 @@ def api_get_actions():
 @resolution_bp.post("/api/upload/resolution")
 def api_upload_resolution():
     username = request.headers.get("X-Gateway-Username", "").strip().lower()
-    if not username:
-        return jsonify({"error": "Not authenticated"}), 401
 
     entity_type = request.form.get("entity_type", "").strip()
     entity_id   = request.form.get("entity_id", "").strip()
 
-    if not entity_id or entity_type not in ("issue", "dev_item", "task", "epic"):
+    if not entity_id or entity_type not in (
+        "issue", "dev_item", "task", "epic", "common_fix", "access_request", "outage",
+    ):
         return jsonify({"error": "Invalid entity_type or missing entity_id"}), 400
+
+    # A signed-out reporter can already create an "issue" (see the public
+    # /api/issues and /api/helpdesk routes, which accept photo attachments
+    # with no auth at all) — so image-paste uploads on that same report form
+    # must work without a Gateway session too. Every other entity type is
+    # only ever touched by an authenticated user.
+    if not username and entity_type != "issue":
+        return jsonify({"error": "Not authenticated"}), 401
 
     f = request.files.get("file")
     if not f or not f.filename:

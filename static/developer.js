@@ -548,6 +548,11 @@ function closeProfileMenu() {
 /* ── Init ── */
 /* ── Rich editor instance ─────────────────────────────────── */
 let _itemDescEditor = null;
+let _ceDevPendingIdVal = null;
+function _ceDevPendingId() {
+  if (!_ceDevPendingIdVal) _ceDevPendingIdVal = 'pending-' + Math.random().toString(36).slice(2, 10);
+  return _ceDevPendingIdVal;
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   const session = loadSession();
@@ -556,8 +561,12 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  _itemDescEditor  = initRichEditor('itemDesc');
-  _epicDescEditor  = initRichEditor('epicDesc');
+  _itemDescEditor  = initCommentEditor('itemDesc', { uploadEntityType: 'dev_item', getEntityId: () => _editingId || _ceDevPendingId() });
+  _epicDescEditor  = initCommentEditor('epicDesc', { uploadEntityType: 'epic', getEntityId: () => _epicPageId });
+  initCommentEditor('epicCommentInput', { uploadEntityType: 'epic', getEntityId: () => _epicPageId });
+  initCommentEditor('logMessage', { uploadEntityType: 'dev_item', getEntityId: () => _editingId });
+  initCommentEditor('doneRemarksText', {});
+  initCommentEditor('scopeReason', { uploadEntityType: 'epic', getEntityId: () => _epicPageId });
 
   // Build profile dropdown
   const container = document.getElementById('devHeaderUser');
@@ -1767,8 +1776,6 @@ function openDetailModal(idOrNull) {
   const actionsWrap = document.getElementById('detailActionsWrap');
   const shareBtn    = document.getElementById('detailShareBtn');
 
-  _clearCommentAttach('log');
-
   if (item) {
     body.classList.remove('detail-new');
     logPane.style.display = '';
@@ -2388,16 +2395,14 @@ async function addLog() {
   const rawHours = document.getElementById('logHours').value.trim();
   const hours_spent = rawHours !== '' && parseFloat(rawHours) >= 0 ? parseFloat(rawHours) : null;
   try {
-    const attachment_urls = await _uploadCommentFiles('log', _editingId);
     const res = await fetch(`/api/dev/items/${encodeURIComponent(_editingId)}/logs`, {
       method:  'POST',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ message, hours_spent, attachment_urls }),
+      body:    JSON.stringify({ message, hours_spent }),
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Failed');
     document.getElementById('logMessage').value = '';
     document.getElementById('logHours').value   = '';
-    _clearCommentAttach('log');
     await refreshLogs();
   } catch (err) {
     document.getElementById('logAddError').style.display  = '';
@@ -3936,7 +3941,6 @@ function openEpicPage(epicId, { pushState = true } = {}) {
   _epicPageId    = epicId;
   _epicPageItems = [];
   _epicComments  = [];
-  _clearCommentAttach('epic');
   _populateEpicPage(epic);
   document.getElementById('devEpicsView').style.display = 'none';
   document.getElementById('epicPageView').style.display = '';
@@ -4002,7 +4006,7 @@ function _populateEpicPage(epic) {
 
   const descEl = document.getElementById('epicPageDesc');
   if (descEl) {
-    if (epic.epic_description) { descEl.innerHTML = linkifyHtml(epic.epic_description); descEl.style.display = ''; }
+    if (epic.epic_description) { descEl.innerHTML = renderCommentPreview(epic.epic_description); descEl.style.display = ''; }
     else                        { descEl.style.display = 'none'; }
   }
 
@@ -4194,76 +4198,8 @@ function _initEpicCommentAvatar() {
   });
 }
 
-/* ── Comment photo attachments (epic comments + dev item activity log) ── */
-const _commentPendingFiles = { epic: [], log: [] };
-const _commentAttachCfg = {
-  epic: { previews: 'epicCommentAttachPreviews', addBtn: 'epicCommentAttachAddBtn', entityType: 'epic' },
-  log:  { previews: 'logAttachPreviews',         addBtn: 'logAttachAddBtn',         entityType: 'dev_item' },
-};
-
-function commentAttachChange(input, kind) {
-  const pending   = _commentPendingFiles[kind];
-  const remaining = 5 - pending.length;
-  pending.push(...Array.from(input.files).slice(0, remaining));
-  input.value = '';
-  _renderCommentAttachPreviews(kind);
-}
-
-function _renderCommentAttachPreviews(kind) {
-  const cfg    = _commentAttachCfg[kind];
-  const wrap   = document.getElementById(cfg.previews);
-  const addBtn = document.getElementById(cfg.addBtn);
-  if (!wrap) return;
-  const pending = _commentPendingFiles[kind];
-  if (addBtn) addBtn.style.display = pending.length >= 5 ? 'none' : '';
-  wrap.innerHTML = pending.map((f, i) =>
-    `<div class="res-attach-thumb">
-      <img src="${URL.createObjectURL(f)}" alt="${escHtml(f.name)}">
-      <button type="button" class="res-attach-remove" onclick="commentRemovePending('${kind}',${i})" title="Remove">&times;</button>
-    </div>`
-  ).join('');
-}
-
-function commentRemovePending(kind, i) {
-  _commentPendingFiles[kind].splice(i, 1);
-  _renderCommentAttachPreviews(kind);
-}
-
-function handleCommentPaste(event, kind) {
-  const images = Array.from(event.clipboardData?.items || [])
-    .filter(i => i.kind === 'file' && i.type.startsWith('image/'))
-    .map(i => i.getAsFile()).filter(Boolean);
-  if (!images.length) return;
-  const pending   = _commentPendingFiles[kind];
-  const remaining = 5 - pending.length;
-  pending.push(...images.slice(0, remaining));
-  _renderCommentAttachPreviews(kind);
-  event.preventDefault();
-}
-
-async function _uploadCommentFiles(kind, entityId) {
-  const cfg     = _commentAttachCfg[kind];
-  const pending = _commentPendingFiles[kind];
-  const urls    = [];
-  for (const file of pending) {
-    const fd = new FormData();
-    fd.append('entity_type', cfg.entityType);
-    fd.append('entity_id',   entityId);
-    fd.append('file',        file);
-    try {
-      const r = await fetch('/api/upload/resolution', { method: 'POST', headers: authHeaders(), body: fd });
-      const d = await r.json();
-      if (d.url) urls.push(d.url);
-    } catch {}
-  }
-  return urls;
-}
-
-function _clearCommentAttach(kind) {
-  _commentPendingFiles[kind] = [];
-  _renderCommentAttachPreviews(kind);
-}
-
+/* ── Read-only rendering of attachment_urls saved by the old, pre-inline-image
+   comment attach grid (kept so legacy epic comments/dev logs still display) ── */
 function _renderCommentAttachments(urls) {
   if (!urls || !urls.length) return '';
   return `<div class="comment-attach-grid">${urls.map(u =>
@@ -4306,7 +4242,7 @@ function _renderEpicComments() {
             ${itemLabel ? `<span class="epic-comment-item-tag" title="${escHtml(c.dev_item_title || '')}">${escHtml(itemLabel)}</span>` : ''}
             <span class="epic-comment-time">${fmtDateTime(c.created_at)}</span>
           </div>
-          <div class="epic-comment-text">${linkifyText(c.comment)}${c.hours_spent ? ` <span class="epic-comment-kind-label">(${c.hours_spent}h)</span>` : ''}</div>
+          <div class="epic-comment-text">${renderCommentPreview(c.comment)}${c.hours_spent ? ` <span class="epic-comment-kind-label">(${c.hours_spent}h)</span>` : ''}</div>
           ${_renderCommentAttachments(c.attachment_urls)}
         </div>
       </div>`;
@@ -4324,7 +4260,7 @@ function _renderEpicComments() {
             ${itemLabel ? `<span class="epic-comment-item-tag epic-comment-item-tag--res" title="${escHtml(c.dev_item_title || '')}">${escHtml(itemLabel)}</span>` : ''}
             <span class="epic-comment-time">${fmtDateTime(c.created_at)}</span>
           </div>
-          <div class="epic-comment-text">${linkifyText(c.comment)}</div>
+          <div class="epic-comment-text">${renderCommentPreview(c.comment)}</div>
           ${_renderCommentAttachments(c.attachment_urls)}
         </div>
       </div>`;
@@ -4341,7 +4277,7 @@ function _renderEpicComments() {
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
           </button>` : ''}
         </div>
-        <div class="epic-comment-text">${linkifyText(c.comment)}</div>
+        <div class="epic-comment-text">${renderCommentPreview(c.comment)}</div>
         ${_renderCommentAttachments(c.attachment_urls)}
       </div>
     </div>`;
@@ -4364,18 +4300,16 @@ async function postEpicComment() {
   }
 
   try {
-    const attachment_urls = await _uploadCommentFiles('epic', _epicPageId);
     const res = await fetch(`/api/dev/epics/${encodeURIComponent(_epicPageId)}/comments`, {
       method:  'POST',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ comment, attachment_urls }),
+      body:    JSON.stringify({ comment }),
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Failed');
     const saved = await res.json();
     saved.kind = 'comment';
     _epicComments.push(saved);
     if (input) input.value = '';
-    _clearCommentAttach('epic');
     _renderEpicComments();
   } catch (err) {
     if (errEl) { errEl.style.display = ''; errMsg.textContent = err.message; }
