@@ -152,6 +152,7 @@ function _ipRenderAnalytics(all) {
   _ipSetText('ipKpiAvgRes',     avgRes  != null ? avgRes.toFixed(1)  : '—');
   _ipSetText('ipKpiOldest',     oldest  != null ? oldest.toFixed(1)  : '—');
   _ipSetText('ipKpiUnassigned', unassigned);
+  _ipSetText('ipKpiResolvedTask', terminal.filter(i => i.task_id || i.user_task_id).length);
 
   _ipRenderRing(all);
   _ipRenderBars('ipCategoryBars', all, i => i.request_category || 'Uncategorized');
@@ -165,6 +166,7 @@ function _ipRenderAnalytics(all) {
     if (i.task_id || i.user_task_id) return 'Task';
     return 'Quick Resolve';
   });
+  _ipRenderBars('ipResolverBars', terminal.filter(i => i.resolved_by), i => i.resolved_by);
 }
 
 function _ipRenderRing(all) {

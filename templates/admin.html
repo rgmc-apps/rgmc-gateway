@@ -317,6 +317,17 @@
           <div class="iss-kpi-val" id="issKpiAwaiting">—</div>
           <div class="iss-kpi-label">Awaiting</div>
         </div>
+        <div class="iss-kpi-card iss-kpi--task">
+          <div class="iss-kpi-info-wrap">
+            <span class="iss-kpi-info">i</span>
+            <div class="iss-kpi-tooltip">
+              <div class="iss-kpi-tooltip-name">Resolved via Task</div>
+              Resolved or closed issues that were routed through an Admin Task or User Task to get fixed.
+            </div>
+          </div>
+          <div class="iss-kpi-val" id="issKpiResolvedTask">—</div>
+          <div class="iss-kpi-label">Resolved via Task</div>
+        </div>
       </div>
 
       <!-- ── Alert panels (always from full cache, independent of filters) ── -->
@@ -419,6 +430,12 @@
           <div class="iss-chart-card">
             <div class="iss-chart-title">Top Companies</div>
             <div id="issCompanyBars" class="iss-bars-body"></div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:12px;">
+          <div class="iss-chart-card">
+            <div class="iss-chart-title">Resolved By</div>
+            <div id="issResolverBars" class="iss-bars-body"></div>
           </div>
         </div>
       </div>

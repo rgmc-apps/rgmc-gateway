@@ -1713,6 +1713,7 @@ function _renderIssueKpiCounts(rows) {
   _setText('issKpiEpic',      rows.filter(i => i.epic_id).length);
   _setText('issKpiConfirmed', terminal.filter(i => i.confirmed_fix).length);
   _setText('issKpiAwaiting',  terminal.filter(i => !i.confirmed_fix).length);
+  _setText('issKpiResolvedTask', terminal.filter(i => i.task_id || i.user_task_id).length);
   _setText('issKpiNew',       nc);
   const newCard = document.getElementById('issKpiNewCard');
   if (newCard) newCard.style.display = nc > 0 ? '' : 'none';
@@ -1740,6 +1741,7 @@ function _renderIssueKpis(all, newCount) {
   _setText('issKpiEpic',      epic);
   _setText('issKpiConfirmed', confirmed);
   _setText('issKpiAwaiting',  awaiting);
+  _setText('issKpiResolvedTask', terminal.filter(i => i.task_id || i.user_task_id).length);
 
   // "New" KPI card — only shown when there are new issues
   const nc = newCount ?? (_lastAdminVisit ? all.filter(i => i.created_at && i.created_at > _lastAdminVisit).length : 0);
@@ -1771,6 +1773,8 @@ function _renderIssueAnalytics(all) {
   _renderIssRing(all);
   _renderIssBars('issCategoryBars', all, i => i.request_category || 'Uncategorized');
   _renderIssBars('issCompanyBars',  all, i => i.company_name     || 'Unknown');
+  const resolvedByOthers = all.filter(i => ['resolved', 'closed'].includes(i.status) && i.resolved_by);
+  _renderIssBars('issResolverBars', resolvedByOthers, i => i.resolved_by);
 }
 
 function _renderIssRing(all) {
