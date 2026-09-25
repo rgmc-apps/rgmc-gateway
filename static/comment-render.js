@@ -21,10 +21,17 @@ function _ceCleanNode(node) {
   if (node.nodeType === Node.TEXT_NODE) {
     // Preserve raw newlines as <br> so plain-text content (which has no
     // block-level tags of its own) still wraps the way it was typed.
+    // Tabs (from the "1.\t" auto-formatted numbered entries) collapse to a
+    // single space under normal HTML whitespace rules, so expand them to
+    // non-breaking spaces to keep the tabbed alignment visible.
     const frag  = document.createDocumentFragment();
     const parts = node.textContent.split('\n');
     parts.forEach((part, i) => {
-      if (part) frag.appendChild(document.createTextNode(part));
+      const segs = part.split('\t');
+      segs.forEach((seg, j) => {
+        if (seg) frag.appendChild(document.createTextNode(seg));
+        if (j < segs.length - 1) frag.appendChild(document.createTextNode('    '));
+      });
       if (i < parts.length - 1) frag.appendChild(document.createElement('br'));
     });
     return frag;

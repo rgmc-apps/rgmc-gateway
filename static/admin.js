@@ -37,6 +37,13 @@ function _stripHtml(html) {
   tmp.innerHTML = html;
   return (tmp.textContent || tmp.innerText || '').trim();
 }
+function _descPreview(raw, max = 110) {
+  if (!raw) return '';
+  const tmp = document.createElement('div');
+  tmp.innerHTML = raw;
+  const text = (tmp.innerText || tmp.textContent || '').trim().replace(/\s+/g, ' ');
+  return text.length > max ? text.slice(0, max) + '…' : text;
+}
 function fmtDate(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -2582,7 +2589,7 @@ async function openIssueModal(id) {
     linkDisplay.innerHTML = allLinkedIds.map(lid => {
       const linked   = _issuesCache.find(i => i.id === lid);
       const ticket   = linked?.ticket_number || lid.slice(0, 8);
-      const title    = linked?.title || linked?.description?.slice(0, 80) || '';
+      const title    = linked?.title || _descPreview(linked?.description, 80) || '';
       const isDup    = issue.is_duplicate && lid === issue.linked_issue_id;
       const badge    = isDup ? '<span class="badge-duplicate">Duplicate</span>' : '<span class="badge-linked">Linked</span>';
       return `<div style="margin-bottom:4px;">${badge} <span class="iss-link-ref">#${escHtml(ticket)}</span>${title ? ` — <span class="iss-link-ref-title">${escHtml(title)}</span>` : ''}</div>`;
@@ -2603,7 +2610,7 @@ async function openIssueModal(id) {
       refByGroup.style.display = '';
       refByList.innerHTML = referencers.map(ref => {
         const tk    = ref.ticket_number ? `#${escHtml(ref.ticket_number)}` : escHtml(ref.id.slice(0, 8)) + '…';
-        const ttl   = escHtml(ref.title || (ref.description || '').slice(0, 80));
+        const ttl   = escHtml(ref.title || _descPreview(ref.description, 80));
         const isDup = ref.is_duplicate && ref.linked_issue_id === issue.id;
         const badge = isDup ? '<span class="badge-duplicate">Duplicate</span>' : '<span class="badge-linked">Linked</span>';
         return `<div style="margin-bottom:4px;">${badge} <span class="iss-link-ref">${tk}</span>${ttl ? ` — <span class="iss-link-ref-title">${ttl}</span>` : ''}</div>`;
@@ -3638,7 +3645,7 @@ async function _doIssueLinkSearch(tab, q) {
         statusText = `<span class="iss-link-status">${escHtml(item.status || '')}</span>`;
       }
       const isSelected = id === _linkSelectedId;
-      return `<div class="iss-link-item${isSelected ? ' selected' : ''}" onclick='_selectLinkItem(${JSON.stringify(id)}, ${JSON.stringify(primary + (secondary ? ' — ' + item.title || item.task_name || item.description?.slice(0,60) : ''))})'>
+      return `<div class="iss-link-item${isSelected ? ' selected' : ''}" onclick='_selectLinkItem(${JSON.stringify(id)}, ${JSON.stringify(primary + (secondary ? ' — ' + (item.title || item.task_name || _descPreview(item.description, 60)) : ''))})'>
         <div class="iss-link-item-primary">${primary} ${statusText}</div>
         ${secondary ? `<div class="iss-link-item-secondary">${secondary}</div>` : ''}
       </div>`;
@@ -5932,7 +5939,7 @@ function openIssueShareModal() {
 
   const url    = window.location.origin + '/admin/issues/' + encodeURIComponent(issue.id);
   const ref    = issue.ticket_number || 'Ticket';
-  const title  = issue.title || ((issue.description || '').slice(0, 48) + (issue.description && issue.description.length > 48 ? '…' : ''));
+  const title  = issue.title || _descPreview(issue.description, 48);
   const sub    = ref + (title ? ' — ' + title : '');
   const msgTxt = ref + '\n' + url;
 
@@ -6842,7 +6849,7 @@ async function loadOutages() {
       const statusStyle = OUTAGE_STATUS_STYLES[o.status] || '';
       const statusLabel = OUTAGE_STATUS_LABELS[o.status] || o.status;
       const count       = (o.issue_ids || []).length;
-      const notes       = o.notes ? escHtml(o.notes.slice(0, 60)) + (o.notes.length > 60 ? '…' : '') : '—';
+      const notes       = o.notes ? escHtml(_descPreview(o.notes, 60)) : '—';
       return `<tr>
         <td style="font-weight:600;">${escHtml(o.site_name)}</td>
         <td><code style="font-size:12px;color:var(--error);">${escHtml(o.error_code)}</code></td>

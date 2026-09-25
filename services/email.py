@@ -1,3 +1,4 @@
+import re
 import smtplib
 import logging
 from email.mime.multipart import MIMEMultipart
@@ -9,6 +10,62 @@ from urllib.parse import quote as _url_quote
 from config import EMAIL_CONFIG, APPROVER_EMAIL, GATEWAY_BASE_URL
 
 logger = logging.getLogger(__name__)
+
+_IMG_TAG_RE  = re.compile(r"<img\b[^>]*>", re.IGNORECASE)
+_IMG_ATTR_RE = re.compile(r'(\w+)\s*=\s*"([^"]*)"')
+
+
+def _he(s) -> str:
+    return str(s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _field_preview(raw, max_len: int = 80) -> str:
+    """Plain-text, tag-stripped preview of a stored comment/description
+    field, for title-fallback contexts that can't render an embedded image —
+    strips any <img> (or other) tag entirely instead of truncating mid-tag."""
+    text = _TAG_RE.sub("", str(raw or "")).strip()
+    text = re.sub(r"\s+", " ", text)
+    return text[:max_len] + "…" if len(text) > max_len else text
+
+
+def _render_field_html(raw) -> str:
+    """Escape a stored comment/description field for safe inclusion in an
+    email body, while preserving literal <img> tags the comment editor
+    inserts on paste/attach (see static/comment-editor.js) as real inline
+    images instead of stripping or escaping them down to visible tag text."""
+    raw = str(raw or "")
+    if not raw:
+        return ""
+
+    out = []
+    pos = 0
+    for m in _IMG_TAG_RE.finditer(raw):
+        out.append(_he(raw[pos:m.start()]))
+        attrs = dict(_IMG_ATTR_RE.findall(m.group(0)))
+        src = attrs.get("src", "")
+        if src.startswith("http://") or src.startswith("https://"):
+            try:
+                w = min(int(attrs.get("width", "0")), 2000)
+            except ValueError:
+                w = 0
+            try:
+                h = min(int(attrs.get("height", "0")), 2000)
+            except ValueError:
+                h = 0
+            dims = (f' width="{w}"' if w > 0 else "") + (f' height="{h}"' if h > 0 else "")
+            out.append(
+                f'<img src="{_he(src)}" alt="{_he(attrs.get("alt", "image"))}"{dims} '
+                f'style="max-width:100%;height:auto;border-radius:6px;border:1px solid #e2e8f0;'
+                f'margin:6px 0;display:block;">'
+            )
+        else:
+            out.append(_he(m.group(0)))
+        pos = m.end()
+    out.append(_he(raw[pos:]))
+    return "".join(out).replace("\n", "<br>")
 
 
 def _smtp_send(msg, to_addrs: list) -> bool:
@@ -538,7 +595,7 @@ def send_issue_resolved_email(
     site_name     = issue.get("site_name", "Unknown System")
     employee_name = issue.get("employee_name", "")
     raw_desc      = issue.get("description", "")
-    title         = issue.get("title") or raw_desc[:80] + ("…" if len(raw_desc) > 80 else "")
+    title         = issue.get("title") or _field_preview(raw_desc, 80)
 
     def _he(s): return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
@@ -550,7 +607,7 @@ def send_issue_resolved_email(
         notes_block = f"""
       <div style="margin-bottom:24px;">
         <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Resolution Notes</p>
-        <div style="background:#f0fdf4;border:1px solid rgba(21,128,61,.18);border-left:4px solid #15803d;border-radius:0 6px 6px 0;padding:14px 16px;font-size:14px;line-height:1.6;color:#374151;">{_he(resolution_notes).replace(chr(10), "<br>")}</div>
+        <div style="background:#f0fdf4;border:1px solid rgba(21,128,61,.18);border-left:4px solid #15803d;border-radius:0 6px 6px 0;padding:14px 16px;font-size:14px;line-height:1.6;color:#374151;">{_render_field_html(resolution_notes)}</div>
       </div>"""
 
     resolver_block = ""
@@ -669,7 +726,7 @@ def send_issue_assigned_email(issue: dict, developer: dict, assigned_by_name: st
     first_name    = developer.get("first_name") or developer.get("username", "")
     site_name     = issue.get("site_name", "Unknown System")
     raw_desc      = issue.get("description", "")
-    title         = issue.get("title") or raw_desc[:80] + ("…" if len(raw_desc) > 80 else "")
+    title         = issue.get("title") or _field_preview(raw_desc, 80)
     error_code    = issue.get("error_code") or ""
     description_html = raw_desc.replace("\n", "<br>")
 
@@ -1089,7 +1146,7 @@ def send_helpdesk_confirmation_email(form_data: dict, ticket_number: str | None,
         _opt_row("PRIORITY",     priority_lbl, shade=True)
     )
 
-    desc_html  = _he(form_data.get("description") or "").replace("\n", "<br>")
+    desc_html  = _render_field_html(form_data.get("description") or "")
     title_block = ""
     if form_data.get("title"):
         title_block = f'<p style="margin:0 0 6px;font-size:15px;font-weight:600;color:#1e293b;">{_he(form_data["title"])}</p>'
@@ -1154,7 +1211,7 @@ def send_issue_promoted_to_epic_email(issue: dict, epic: dict, promoted_by_name:
     it_email    = developer_email
     site_name   = issue.get("site_name", "Unknown System")
     raw_desc    = issue.get("description", "")
-    title       = issue.get("title") or raw_desc[:80] + ("…" if len(raw_desc) > 80 else "")
+    title       = issue.get("title") or _field_preview(raw_desc, 80)
     epic_name   = epic.get("epic_name", "")
     epic_id     = epic.get("epic_id", "")
     ticket_number = issue.get("ticket_number") or ""
@@ -1235,7 +1292,7 @@ def send_issue_promoted_to_dev_email(issue: dict, dev_item: dict, assignee_name:
     from_addr     = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
     site_name     = issue.get("site_name", "Unknown System")
     raw_desc      = issue.get("description", "")
-    title         = issue.get("title") or raw_desc[:80] + ("…" if len(raw_desc) > 80 else "")
+    title         = issue.get("title") or _field_preview(raw_desc, 80)
     item_title    = dev_item.get("title", title)
     item_id       = dev_item.get("id", "")
     item_code     = dev_item.get("dev_item_code", "")
@@ -1320,7 +1377,7 @@ def send_issue_promoted_to_task_email(issue: dict, task: dict, assignee_name: st
     from_addr     = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
     site_name     = issue.get("site_name", "Unknown System")
     raw_desc      = issue.get("description", "")
-    title         = issue.get("title") or raw_desc[:80] + ("…" if len(raw_desc) > 80 else "")
+    title         = issue.get("title") or _field_preview(raw_desc, 80)
     task_name     = task.get("task_name", title)
     task_id       = task.get("id", "")
     ticket_number = issue.get("ticket_number") or ""
@@ -1402,12 +1459,12 @@ def send_issue_comment_email(issue: dict, comment: str, commenter_name: str) -> 
     site_name     = issue.get("site_name", "Unknown System")
     employee_name = issue.get("employee_name", "")
     raw_desc      = issue.get("description", "")
-    title         = issue.get("title") or raw_desc[:80] + ("…" if len(raw_desc) > 80 else "")
+    title         = issue.get("title") or _field_preview(raw_desc, 80)
     ticket_number = issue.get("ticket_number") or ""
 
     def _he(s): return str(s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
-    comment_html = _he(comment).replace("\n", "<br>")
+    comment_html = _render_field_html(comment)
 
     ticket_row = f"""
         <tr style="background:#f8fafc;">
@@ -1682,7 +1739,7 @@ def send_resolution_reminder_email(issue: dict, reminder_number: int) -> bool:
     site_name     = issue.get("site_name", "Unknown System")
     employee_name = issue.get("employee_name", "")
     raw_desc      = issue.get("description", "")
-    title         = issue.get("title") or raw_desc[:80] + ("…" if len(raw_desc) > 80 else "")
+    title         = issue.get("title") or _field_preview(raw_desc, 80)
     resolution_notes = (issue.get("resolution_notes") or "").strip()
     resolved_by   = (issue.get("resolved_by") or "").strip()
     ticket_number = issue.get("ticket_number") or ""
@@ -1703,7 +1760,7 @@ def send_resolution_reminder_email(issue: dict, reminder_number: int) -> bool:
         notes_block = f"""
       <div style="margin-bottom:24px;">
         <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Resolution Provided</p>
-        <div style="background:#f0fdf4;border:1px solid rgba(21,128,61,.18);border-left:4px solid #15803d;border-radius:0 6px 6px 0;padding:14px 16px;font-size:14px;line-height:1.6;color:#374151;">{_he(resolution_notes).replace(chr(10), "<br>")}</div>
+        <div style="background:#f0fdf4;border:1px solid rgba(21,128,61,.18);border-left:4px solid #15803d;border-radius:0 6px 6px 0;padding:14px 16px;font-size:14px;line-height:1.6;color:#374151;">{_render_field_html(resolution_notes)}</div>
       </div>"""
 
     resolver_line = f" by <strong>{_he(resolved_by)}</strong>" if resolved_by else ""

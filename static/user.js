@@ -24,6 +24,19 @@ function showToast(msg, duration = 3500) {
 function escHtml(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+function _stripHtml(html) {
+  if (!html) return '';
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return (tmp.textContent || tmp.innerText || '').trim();
+}
+function _descPreview(raw, max = 110) {
+  if (!raw) return '';
+  const tmp = document.createElement('div');
+  tmp.innerHTML = raw;
+  const text = (tmp.innerText || tmp.textContent || '').trim().replace(/\s+/g, ' ');
+  return text.length > max ? text.slice(0, max) + '…' : text;
+}
 function _hexToRgba(hex, alpha) {
   const h = (hex || '').replace('#', '');
   if (h.length !== 6) return `rgba(107,114,128,${alpha})`;
@@ -186,7 +199,7 @@ function renderOpenIssuesTable(openIssues) {
   tbody.innerHTML = openIssues.map(iss => {
     const id      = escHtml(iss.id);
     const ticket  = escHtml(iss.ticket_number || '—');
-    const title   = escHtml(iss.title || iss.description || '(No title)');
+    const title   = escHtml(iss.title || _descPreview(iss.description, 100) || '(No title)');
     const status  = iss.status || 'new';
     const slabel  = STATUS_LABEL[status] || escHtml(status);
     const prioHtml = prioBadgeHtml(iss.priority);
@@ -439,7 +452,7 @@ function renderIssueList(scope, issues, preFiltered) {
 function renderIssueCard(iss) {
   const status     = iss.status || 'new';
   const label      = ISSUE_STATUS_LABELS[status] || status.replace('_', ' ');
-  const title      = iss.title || iss.description || '(No title)';
+  const title      = iss.title || _descPreview(iss.description, 100) || '(No title)';
   const desc       = iss.title && iss.description ? iss.description : '';
   const id         = escHtml(iss.id);
   const isTerminal = ['resolved', 'closed'].includes(status);
@@ -462,7 +475,7 @@ function renderIssueCard(iss) {
       </div>
     </div>
     <div class="issue-card-title">${escHtml(title)}</div>
-    ${desc ? `<div class="issue-card-excerpt">${escHtml(desc.slice(0, 140))}${desc.length > 140 ? '…' : ''}</div>` : ''}
+    ${desc ? `<div class="issue-card-excerpt">${escHtml(_descPreview(desc, 140))}</div>` : ''}
     <div class="issue-card-meta">
       ${iss.employee_name    ? `<span>${escHtml(iss.employee_name)}</span>` : ''}
       ${iss.company_name     ? `<span>· ${escHtml(iss.company_name)}</span>` : ''}
@@ -483,7 +496,7 @@ async function openIssueDetail(iss) {
   _currentIssue = iss;
   const status = iss.status || 'new';
   const label  = ISSUE_STATUS_LABELS[status] || status.replace('_', ' ');
-  const title  = iss.title || iss.description || '(No title)';
+  const title  = iss.title || _descPreview(iss.description, 100) || '(No title)';
 
   document.getElementById('iss-modal-ticket').textContent        = iss.ticket_number || '';
   const statusEl = document.getElementById('iss-modal-status');
@@ -1132,7 +1145,7 @@ function renderTaskList() {
     return `<tr class="dlt-row" onclick="openUtModal('${id}')" style="cursor:pointer;" title="Edit task">
       <td class="dlt-td dlt-th-title">
         <span class="ut-list-title">${title}</span>
-        ${t.description ? `<span class="ut-list-desc">${escHtml(t.description.slice(0, 60))}${t.description.length > 60 ? '…' : ''}</span>` : ''}
+        ${t.description ? `<span class="ut-list-desc">${escHtml(_descPreview(t.description, 60))}</span>` : ''}
       </td>
       <td class="dlt-td">
         <span class="ut-list-status-dot" style="background:${escHtml(dotColor)};width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:middle;"></span>
@@ -1182,7 +1195,7 @@ function renderPastTasks() {
     return `<tr class="dlt-row past-task-row" onclick="openUtModal('${id}')" style="cursor:pointer;" title="View task">
       <td class="dlt-td dlt-th-title">
         <span class="past-task-title">${title}</span>
-        ${t.description ? `<span class="ut-list-desc">${escHtml(t.description.slice(0, 60))}${t.description.length > 60 ? '…' : ''}</span>` : ''}
+        ${t.description ? `<span class="ut-list-desc">${escHtml(_descPreview(t.description, 60))}</span>` : ''}
       </td>
       <td class="dlt-td">${assignee}</td>
       <td class="dlt-td">${due}</td>
@@ -2102,7 +2115,7 @@ function openWsIssShareModal() {
   const iss    = _currentIssue;
   const url    = window.location.origin + '/admin/issues/' + encodeURIComponent(iss.id);
   const ref    = iss.ticket_number || 'Ticket';
-  const title  = iss.title || ((iss.description || '').slice(0, 48) + (iss.description && iss.description.length > 48 ? '…' : ''));
+  const title  = iss.title || _descPreview(iss.description, 48);
   const sub    = ref + (title ? ' — ' + title : '');
   const msgTxt = ref + '\n' + url;
 

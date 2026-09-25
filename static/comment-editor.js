@@ -103,6 +103,7 @@ class CommentEditor {
       ta.addEventListener('dragover', e => e.preventDefault());
       ta.addEventListener('drop', e => this._onDrop(e));
     }
+    ta.addEventListener('keydown', e => this._onKeydown(e));
 
     previewPanel.addEventListener('click', e => {
       const img = e.target.closest('.ce-inline-img');
@@ -147,6 +148,90 @@ class CommentEditor {
     if (!images.length) return;
     event.preventDefault();
     images.forEach(f => this._insertImage(f));
+  }
+
+  /* ── Lightweight list auto-formatting ─────────────────────────
+     Typing "- " at the start of a line turns it into a bullet ("• ").
+     Typing "1. " (any number) turns it into a tab-aligned numbered
+     entry ("1.\t"). Enter continues the current list; an empty list
+     line ends it. Storage stays plain text (bullet char / literal
+     tab), matching how images are stored as literal text too — see
+     the file header comment. */
+  _onKeydown(e) {
+    if (e.key === ' ') this._maybeAutoFormatOnSpace(e);
+    else if (e.key === 'Enter') this._maybeContinueListOnEnter(e);
+  }
+
+  _lineBounds() {
+    const ta = this._ta;
+    const pos = ta.selectionStart;
+    const value = ta.value;
+    const lineStart = value.lastIndexOf('\n', pos - 1) + 1;
+    let lineEnd = value.indexOf('\n', pos);
+    if (lineEnd === -1) lineEnd = value.length;
+    return { lineStart, lineEnd, pos, value };
+  }
+
+  _maybeAutoFormatOnSpace(e) {
+    const ta = this._ta;
+    if (ta.selectionStart !== ta.selectionEnd) return;
+    const { lineStart, pos, value } = this._lineBounds();
+    const before = value.slice(lineStart, pos);
+
+    if (before === '-') {
+      e.preventDefault();
+      ta.value = value.slice(0, lineStart) + '• ' + value.slice(pos);
+      const newPos = lineStart + 2;
+      ta.setSelectionRange(newPos, newPos);
+      return;
+    }
+
+    const m = before.match(/^(\d+)\.$/);
+    if (m) {
+      e.preventDefault();
+      const prefix = m[1] + '.\t';
+      ta.value = value.slice(0, lineStart) + prefix + value.slice(pos);
+      const newPos = lineStart + prefix.length;
+      ta.setSelectionRange(newPos, newPos);
+    }
+  }
+
+  _maybeContinueListOnEnter(e) {
+    const ta = this._ta;
+    if (ta.selectionStart !== ta.selectionEnd) return;
+    const { lineStart, lineEnd, pos, value } = this._lineBounds();
+    if (pos !== lineEnd) return; // only auto-continue when Enter is pressed at end of line
+    const line = value.slice(lineStart, lineEnd);
+
+    const bulletMatch = line.match(/^• (.*)$/);
+    if (bulletMatch) {
+      e.preventDefault();
+      if (bulletMatch[1].trim() === '') {
+        ta.value = value.slice(0, lineStart) + value.slice(lineEnd);
+        ta.setSelectionRange(lineStart, lineStart);
+      } else {
+        const insert = '\n• ';
+        ta.value = value.slice(0, pos) + insert + value.slice(pos);
+        const newPos = pos + insert.length;
+        ta.setSelectionRange(newPos, newPos);
+      }
+      return;
+    }
+
+    const numMatch = line.match(/^(\d+)\.\t(.*)$/);
+    if (numMatch) {
+      e.preventDefault();
+      if (numMatch[2].trim() === '') {
+        ta.value = value.slice(0, lineStart) + value.slice(lineEnd);
+        ta.setSelectionRange(lineStart, lineStart);
+      } else {
+        const next = parseInt(numMatch[1], 10) + 1;
+        const insert = `\n${next}.\t`;
+        ta.value = value.slice(0, pos) + insert + value.slice(pos);
+        const newPos = pos + insert.length;
+        ta.setSelectionRange(newPos, newPos);
+      }
+    }
   }
 
   _showError(msg) {

@@ -2153,7 +2153,7 @@ async function loadLinkedIssues(itemId) {
     }
     list.innerHTML = issues.map(iss => {
       const ticket  = iss.ticket_number ? `#${escHtml(iss.ticket_number)}` : escHtml(iss.id.slice(0, 8)) + '…';
-      const title   = escHtml(iss.title || iss.description?.slice(0, 80) || '');
+      const title   = escHtml(iss.title || _descPreview(iss.description, 80) || '');
       const status  = iss.status || 'open';
       const label   = _ISS_STATUS_LABEL[status] || status;
       const cls     = _ISS_STATUS_CLASS[status] || '';
