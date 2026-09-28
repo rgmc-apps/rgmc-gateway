@@ -266,13 +266,13 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(hidePageLoader, 600);
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape')      { closeLinkedItemModal(); closeLightbox(); closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); closeCfgCompanyModal(); closeCfgCategoryModal(); closeCfgTypeModal(); closeCfgNsiModal(); closeCfgBrandModal(); closeCfgDeptModal(); closeCfgDevItemTypeModal(); closeAddUserModal(); closeAllUserDropdowns(); _closeIssActionsMenu(); closePromoteEpicModal(); }
+    if (e.key === 'Escape')      { closeLinkedItemModal(); closeLightbox(); closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); closeCfgCompanyModal(); closeCfgCategoryModal(); closeCfgTypeModal(); closeCfgNsiModal(); closeCfgBrandModal(); closeCfgDeptModal(); closeCfgDevItemTypeModal(); closeAddUserModal(); closeAllRowActionsMenus(); _closeIssActionsMenu(); closePromoteEpicModal(); }
     if (e.key === 'ArrowLeft')   lightboxNav(-1);
     if (e.key === 'ArrowRight')  lightboxNav(1);
   });
   document.addEventListener('click', e => {
     closeProfileMenu();
-    closeAllUserDropdowns();
+    closeAllRowActionsMenus();
     if (_issActionsOpen && !document.getElementById('issActionsWrap')?.contains(e.target)) _closeIssActionsMenu();
     if (_putDeptOpen && !document.getElementById('putDeptWrap')?.contains(e.target)) _closePutDeptDropdown();
     if (_putUserOpen && !document.getElementById('putUserWrap')?.contains(e.target)) _closePutUserDropdown();
@@ -501,7 +501,7 @@ async function loadUsers() {
             <th>Role</th>
             <th>GitHub</th>
             <th>Joined</th>
-            <th></th>
+            <th style="width:36px;"></th>
           </tr>
         </thead>
         <tbody>
@@ -563,8 +563,8 @@ function renderUserRow(u) {
   const uname = escHtml(u.username);
 
   const dropId = `udrop-${uname}`;
-  return `<tr id="user-row-${uname}">
-    <td style="padding:8px 8px 8px 16px;">${avatarHtml}</td>
+  return `<tr id="user-row-${uname}" oncontextmenu="return openRowContextMenu(event,'${dropId}')">
+    <td style="padding:6px 8px 6px 16px;">${avatarHtml}</td>
     <td><code class="mono-val">${uname}</code></td>
     <td><span class="user-name">${name || '—'}</span></td>
     <td>${escHtml(u.company || '')}</td>
@@ -574,40 +574,40 @@ function renderUserRow(u) {
     <td>${adminBadge} ${devBadge} ${mgmtBadge} ${deptHeadBadge}</td>
     <td>${_renderGithubCell(u)}</td>
     <td class="date-cell">${fmtDate(u.created_at)}</td>
-    <td class="action-cell">
-      <div class="user-action-dropdown">
-        <button class="user-action-trigger" onclick="toggleUserDropdown('${dropId}',event)" title="Actions">···</button>
-        <div class="user-action-menu" id="${dropId}">
-          <div class="user-action-menu-section">
-            <button class="user-action-menu-item" onclick="closeAllUserDropdowns();openEditUserModal('${uname}')">
+    <td class="action-cell action-cell--compact">
+      <div class="row-actions-dropdown">
+        <button class="row-actions-trigger" onclick="toggleRowActionsMenu('${dropId}',event)" title="Actions (or right-click the row)">···</button>
+        <div class="row-actions-menu" id="${dropId}">
+          <div class="row-actions-menu-section">
+            <button class="row-actions-item" onclick="closeAllRowActionsMenus();openEditUserModal('${uname}')">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               Edit User
             </button>
-            <button class="user-action-menu-item" onclick="closeAllUserDropdowns();openEditSystemsModal('${uname}')">
+            <button class="row-actions-item" onclick="closeAllRowActionsMenus();openEditSystemsModal('${uname}')">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
               Manage Systems
             </button>
           </div>
-          <div class="user-action-menu-section">
-            <button class="user-action-menu-item" onclick="closeAllUserDropdowns();toggleAdmin('${uname}',${u.is_admin})">
+          <div class="row-actions-menu-section">
+            <button class="row-actions-item" onclick="closeAllRowActionsMenus();toggleAdmin('${uname}',${u.is_admin})">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
               ${toggleAdminLabel}
             </button>
-            <button class="user-action-menu-item" onclick="closeAllUserDropdowns();toggleDeveloper('${uname}',${u.is_developer})">
+            <button class="row-actions-item" onclick="closeAllRowActionsMenus();toggleDeveloper('${uname}',${u.is_developer})">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
               ${toggleDevLabel}
             </button>
-            <button class="user-action-menu-item" onclick="closeAllUserDropdowns();toggleManagement('${uname}',${u.is_management})">
+            <button class="row-actions-item" onclick="closeAllRowActionsMenus();toggleManagement('${uname}',${u.is_management})">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
               ${toggleMgmtLabel}
             </button>
-            <button class="user-action-menu-item" onclick="closeAllUserDropdowns();toggleDeptHead('${uname}',${u.is_department_head})">
+            <button class="row-actions-item" onclick="closeAllRowActionsMenus();toggleDeptHead('${uname}',${u.is_department_head})">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0 1 12 0v2"/><polyline points="9 11 12 14 15 11"/></svg>
               ${toggleDeptHeadLabel}
             </button>
           </div>
-          <div class="user-action-menu-section">
-            <button class="user-action-menu-item is-danger" onclick="closeAllUserDropdowns();deleteUser('${uname}')">
+          <div class="row-actions-menu-section">
+            <button class="row-actions-item is-danger" onclick="closeAllRowActionsMenus();deleteUser('${uname}')">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
               Delete User
             </button>
@@ -618,16 +618,48 @@ function renderUserRow(u) {
   </tr>`;
 }
 
-function toggleUserDropdown(id, e) {
+/* ── Row action dropdown / right-click context menu ──
+   Shared by the Users and Systems tables: a compact trigger button opens
+   the menu below itself, while right-clicking anywhere on the row opens
+   the same menu at the cursor — no need to scroll to a wide actions column. */
+function _positionRowActionsMenu(menu, x, y, alignRight) {
+  menu.style.left = '0px';
+  menu.style.top  = '0px';
+  menu.classList.add('open');
+  const rect = menu.getBoundingClientRect();
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let left = alignRight ? x - rect.width : x;
+  let top  = y;
+  if (left < 8) left = 8;
+  if (left + rect.width > vw - 8) left = Math.max(8, vw - rect.width - 8);
+  if (top + rect.height > vh - 8) top = Math.max(8, y - rect.height);
+  menu.style.left = left + 'px';
+  menu.style.top  = top + 'px';
+}
+
+function toggleRowActionsMenu(id, e) {
   e.stopPropagation();
   const menu   = document.getElementById(id);
   const isOpen = menu.classList.contains('open');
-  closeAllUserDropdowns();
-  if (!isOpen) menu.classList.add('open');
+  closeAllRowActionsMenus();
+  if (isOpen) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  _positionRowActionsMenu(menu, rect.right, rect.bottom + 4, true);
 }
 
-function closeAllUserDropdowns() {
-  document.querySelectorAll('.user-action-menu.open').forEach(m => m.classList.remove('open'));
+function openRowContextMenu(e, id) {
+  if (e.target.closest('a, button, input, textarea')) return true; // let native menu / controls work
+  e.preventDefault();
+  e.stopPropagation();
+  const menu   = document.getElementById(id);
+  const isOpen = menu.classList.contains('open');
+  closeAllRowActionsMenus();
+  if (!isOpen) _positionRowActionsMenu(menu, e.clientX, e.clientY, false);
+  return false;
+}
+
+function closeAllRowActionsMenus() {
+  document.querySelectorAll('.row-actions-menu.open').forEach(m => m.classList.remove('open'));
 }
 
 async function toggleAdmin(username, currentIsAdmin) {
@@ -954,7 +986,7 @@ function _renderSystemsTable() {
         <tr>
           <th>Name</th><th>Type</th><th>Category</th><th>Visible</th>
           <th>Primary URL</th><th>Label</th><th>Backup URL</th>
-          <th>Git</th><th>Tags</th><th>Status</th><th>Order</th><th></th>
+          <th>Git</th><th>Tags</th><th>Status</th><th>Order</th><th style="width:36px;"></th>
         </tr>
       </thead>
       <tbody>${rows.map(s => renderSystemRow(s)).join('')}</tbody>
@@ -990,7 +1022,8 @@ function renderSystemRow(s) {
   const primaryUrlCell = s.primary_url
     ? `<a href="${escHtml(s.primary_url)}" target="_blank" rel="noopener" class="tbl-link url-cell" title="${escHtml(s.primary_url)}">${escHtml(truncUrl(s.primary_url))}</a>`
     : '<span class="text-muted">—</span>';
-  return `<tr>
+  const dropId = `sdrop-${s.id}`;
+  return `<tr oncontextmenu="return openRowContextMenu(event,'${dropId}')">
     <td><span class="user-name">${escHtml(s.name)}</span></td>
     <td>${typeBadge}</td>
     <td><span class="label-badge ${catClass}">${escHtml(s.category)}</span></td>
@@ -1002,9 +1035,32 @@ function renderSystemRow(s) {
     <td>${s.tags ? s.tags.split(',').map(t => `<span class="sys-tag-chip" style="font-size:11px;">${escHtml(t.trim())}</span>`).join(' ') : '<span class="text-muted">—</span>'}</td>
     <td id="ping-cell-${escHtml(s.id)}">${_pingBadgeHtml(_pingResults[s.id])}</td>
     <td class="date-cell">${s.sort_order}</td>
-    <td class="action-cell">
-      <button class="btn-tbl-secondary" onclick='openSystemModal(${JSON.stringify(s)})'>Edit</button>
-      <button class="btn-tbl-danger" onclick="deleteSystem('${escHtml(s.id)}')">Delete</button>
+    <td class="action-cell action-cell--compact">
+      <div class="row-actions-dropdown">
+        <button class="row-actions-trigger" onclick="toggleRowActionsMenu('${dropId}',event)" title="Actions (or right-click the row)">···</button>
+        <div class="row-actions-menu" id="${dropId}">
+          <div class="row-actions-menu-section">
+            <button class="row-actions-item" onclick='closeAllRowActionsMenus();openSystemModal(${JSON.stringify(s)})'>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Edit
+            </button>
+            <button class="row-actions-item" onclick="closeAllRowActionsMenus();pingSystem('${escHtml(s.id)}')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              Ping Now
+            </button>
+            ${s.git_link ? `<button class="row-actions-item" onclick="closeAllRowActionsMenus();window.open('${escHtml(s.git_link)}','_blank','noopener')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg>
+              Open Git Repo
+            </button>` : ''}
+          </div>
+          <div class="row-actions-menu-section">
+            <button class="row-actions-item is-danger" onclick="closeAllRowActionsMenus();deleteSystem('${escHtml(s.id)}')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
     </td>
   </tr>`;
 }
