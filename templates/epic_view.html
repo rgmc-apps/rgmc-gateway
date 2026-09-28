@@ -369,6 +369,45 @@
       padding: 20px 0;
     }
 
+    /* ── Comments ── */
+    .comment-entry { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border-subtle); }
+    .comment-entry:last-child { border-bottom: none; }
+    .comment-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(196,151,42,0.14);
+      color: var(--gold);
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+      text-transform: uppercase;
+    }
+    .comment-body { flex: 1; min-width: 0; }
+    .comment-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
+    .comment-author { font-size: 12px; font-weight: 700; color: var(--gold); }
+    .comment-kind-label { font-size: 11px; color: var(--text-muted); }
+    .comment-item-tag {
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+      background: var(--dev-ongoing-bg);
+      color: var(--dev-ongoing);
+    }
+    .comment-item-tag--res { background: var(--dev-done-bg); color: var(--dev-done); }
+    .comment-time { font-size: 11px; color: var(--text-muted); }
+    .comment-hours { font-size: 11px; color: var(--text-muted); font-style: italic; }
+    .comment-text { font-size: 13.5px; color: var(--text-secondary); line-height: 1.75; white-space: pre-wrap; word-break: break-word; }
+    .comments-empty { font-size: 13px; color: var(--text-muted); text-align: center; padding: 12px 0; }
+    .comment-attach-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .comment-attach-thumb { display: block; width: 64px; height: 64px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-subtle); flex-shrink: 0; }
+    .comment-attach-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
     /* ── Footer ── */
     .epic-footer {
       padding: 16px 32px;
@@ -624,6 +663,11 @@
         <div id="devItemsList"></div>
       </div>
 
+      <div id="commentsSection" class="epic-section" style="display:none;">
+        <div class="section-label">Activity &amp; Comments</div>
+        <div id="commentsList"></div>
+      </div>
+
       <div class="epic-footer">
         <span class="footer-text">RGMC Group &middot; IT Support Portal &middot; Read-only view</span>
         <a href="/helpdesk" class="footer-link">Submit a helpdesk ticket</a>
@@ -730,6 +774,10 @@
       if (!iso) return null;
       return new Date(iso).toLocaleDateString('en-PH', { year:'numeric', month:'long', day:'numeric' });
     }
+    function fmtDateTime(iso) {
+      if (!iso) return null;
+      return new Date(iso).toLocaleString('en-PH', { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+    }
 
     function toggleTheme() {
       const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
@@ -823,6 +871,79 @@
       document.getElementById('accountCta').style.display = 'flex';
     }
 
+    function renderAttachments(urls) {
+      if (!urls || !urls.length) return '';
+      return `<div class="comment-attach-grid">${urls.map(u =>
+        `<a href="${escHtml(u)}" target="_blank" rel="noopener" class="comment-attach-thumb"><img src="${escHtml(u)}" alt="attachment" loading="lazy"></a>`
+      ).join('')}</div>`;
+    }
+
+    function renderComments(entries) {
+      const list = document.getElementById('commentsList');
+      list.innerHTML = entries.map(c => {
+        const kind      = c.kind || 'comment';
+        const name      = c.username || 'Unknown';
+        const init      = (name.charAt(0) || '?').toUpperCase();
+        const itemLabel = c.dev_item_code || (c.dev_item_title ? c.dev_item_title.slice(0, 24) : null);
+
+        if (kind === 'dev_log') {
+          return `<div class="comment-entry">
+            <div class="comment-avatar">${escHtml(init)}</div>
+            <div class="comment-body">
+              <div class="comment-meta">
+                <span class="comment-author">${escHtml(name)}</span>
+                <span class="comment-kind-label">logged progress on</span>
+                ${itemLabel ? `<span class="comment-item-tag" title="${escHtml(c.dev_item_title || '')}">${escHtml(itemLabel)}</span>` : ''}
+                <span class="comment-time">${fmtDateTime(c.created_at) || ''}</span>
+                ${c.hours_spent ? `<span class="comment-hours">(${escHtml(String(c.hours_spent))}h logged)</span>` : ''}
+              </div>
+              <div class="comment-text">${renderCommentPreview(c.comment || '')}</div>
+              ${renderAttachments(c.attachment_urls)}
+            </div>
+          </div>`;
+        }
+
+        if (kind === 'resolution_note') {
+          return `<div class="comment-entry">
+            <div class="comment-avatar">${escHtml(init)}</div>
+            <div class="comment-body">
+              <div class="comment-meta">
+                <span class="comment-author">${escHtml(name)}</span>
+                <span class="comment-kind-label">resolved${c.issue_ticket_number ? ` #${escHtml(c.issue_ticket_number)}` : ' an issue'} via</span>
+                ${itemLabel ? `<span class="comment-item-tag comment-item-tag--res" title="${escHtml(c.dev_item_title || '')}">${escHtml(itemLabel)}</span>` : ''}
+                <span class="comment-time">${fmtDateTime(c.created_at) || ''}</span>
+              </div>
+              <div class="comment-text">${renderCommentPreview(c.comment || '')}</div>
+              ${renderAttachments(c.attachment_urls)}
+            </div>
+          </div>`;
+        }
+
+        return `<div class="comment-entry">
+          <div class="comment-avatar">${escHtml(init)}</div>
+          <div class="comment-body">
+            <div class="comment-meta">
+              <span class="comment-author">${escHtml(name)}</span>
+              <span class="comment-time">${fmtDateTime(c.created_at) || ''}</span>
+            </div>
+            <div class="comment-text">${renderCommentPreview(c.comment || '')}</div>
+            ${renderAttachments(c.attachment_urls)}
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    async function loadComments() {
+      try {
+        const res = await fetch('/api/public/epics/' + encodeURIComponent(EPIC_ID) + '/comments');
+        if (!res.ok) return;
+        const entries = await res.json();
+        if (!Array.isArray(entries) || !entries.length) return;
+        renderComments(entries);
+        document.getElementById('commentsSection').style.display = '';
+      } catch (_) { /* non-critical */ }
+    }
+
     async function init() {
       try {
         const res = await fetch('/api/public/epics/' + encodeURIComponent(EPIC_ID));
@@ -833,6 +954,7 @@
         if (!res.ok) throw new Error('Server error ' + res.status);
         const epic = await res.json();
         renderEpic(epic);
+        loadComments();
       } catch (err) {
         showError('Unable to Load Epic', 'Please check your connection and try again.');
       }

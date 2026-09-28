@@ -6,6 +6,7 @@ from flask import Blueprint, render_template, jsonify, request, redirect, curren
 from config import HEALTH_CHECKS
 from services.sites import get_sites
 from services.supabase import supabase_req, resolve_action_names
+from services.epics import build_epic_comment_feed
 
 public_bp = Blueprint("public", __name__)
 
@@ -296,6 +297,16 @@ def get_public_epic(epic_id):
         "order":   "created_at.asc",
     }) or []
     return jsonify(epic)
+
+
+@public_bp.get("/api/public/epics/<epic_id>/comments")
+def get_public_epic_comments(epic_id):
+    try:
+        entries = build_epic_comment_feed(epic_id)
+        return jsonify(entries)
+    except Exception as exc:
+        current_app.logger.error("get_public_epic_comments failed: %s", exc)
+        return jsonify({"error": "Failed to fetch comments"}), 500
 
 
 @public_bp.get("/api/public/issues/<issue_id>/comments")

@@ -934,6 +934,7 @@ function _renderSystemsTable() {
         (s.category        || '').toLowerCase().includes(q) ||
         (s.tags            || '').toLowerCase().includes(q) ||
         (s.primary_url     || '').toLowerCase().includes(q) ||
+        (s.git_link        || '').toLowerCase().includes(q) ||
         (s.is_task ? 'task' : 'system').includes(q)
       )
     : _systemsCache;
@@ -953,7 +954,7 @@ function _renderSystemsTable() {
         <tr>
           <th>Name</th><th>Type</th><th>Category</th><th>Visible</th>
           <th>Primary URL</th><th>Label</th><th>Backup URL</th>
-          <th>Tags</th><th>Status</th><th>Order</th><th></th>
+          <th>Git</th><th>Tags</th><th>Status</th><th>Order</th><th></th>
         </tr>
       </thead>
       <tbody>${rows.map(s => renderSystemRow(s)).join('')}</tbody>
@@ -997,6 +998,7 @@ function renderSystemRow(s) {
     <td>${primaryUrlCell}</td>
     <td>${escHtml(s.primary_label || '—')}</td>
     <td>${s.backup_url ? `<a href="${escHtml(s.backup_url)}" target="_blank" rel="noopener" class="tbl-link url-cell" title="${escHtml(s.backup_url)}">${escHtml(truncUrl(s.backup_url))}</a>` : '<span class="text-muted">—</span>'}</td>
+    <td>${s.git_link ? `<a href="${escHtml(s.git_link)}" target="_blank" rel="noopener" class="tbl-link url-cell" title="${escHtml(s.git_link)}"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px;"><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg>${escHtml(truncUrl(s.git_link))}</a>` : '<span class="text-muted">—</span>'}</td>
     <td>${s.tags ? s.tags.split(',').map(t => `<span class="sys-tag-chip" style="font-size:11px;">${escHtml(t.trim())}</span>`).join(' ') : '<span class="text-muted">—</span>'}</td>
     <td id="ping-cell-${escHtml(s.id)}">${_pingBadgeHtml(_pingResults[s.id])}</td>
     <td class="date-cell">${s.sort_order}</td>
@@ -1037,6 +1039,7 @@ function openSystemModal(system) {
   document.getElementById('sysPrimaryLabel').value = system?.primary_label ?? 'Open';
   document.getElementById('sysBackupUrl').value    = system?.backup_url    ?? '';
   document.getElementById('sysBackupLabel').value  = system?.backup_label  ?? '';
+  document.getElementById('sysGitLink').value      = system?.git_link      ?? '';
   document.getElementById('sysSortOrder').value    = system?.sort_order    ?? 0;
   document.getElementById('sysIsVisible').checked  = system ? (system.is_visible !== false) : true;
 
@@ -1183,6 +1186,7 @@ async function saveSystem(e) {
   const primaryLabel= document.getElementById('sysPrimaryLabel').value.trim() || null;
   const backupUrl   = document.getElementById('sysBackupUrl').value.trim() || null;
   const backupLabel = document.getElementById('sysBackupLabel').value.trim() || null;
+  const gitLink     = document.getElementById('sysGitLink').value.trim() || null;
   const sortOrder   = parseInt(document.getElementById('sysSortOrder').value, 10) || 0;
   const isVisible   = document.getElementById('sysIsVisible').checked;
   const tags        = _sysTagsList.join(',');
@@ -1203,7 +1207,7 @@ async function saveSystem(e) {
   document.getElementById('sysFormActions').style.display = 'none';
   document.getElementById('sysFormLoading').style.display = '';
 
-  const payload = { name, category, is_task: isTask, is_windows_based: isWindows, primary_url: primaryUrl, primary_label: primaryLabel, backup_url: backupUrl, backup_label: backupLabel, sort_order: sortOrder, is_visible: isVisible, tags };
+  const payload = { name, category, is_task: isTask, is_windows_based: isWindows, primary_url: primaryUrl, primary_label: primaryLabel, backup_url: backupUrl, backup_label: backupLabel, git_link: gitLink, sort_order: sortOrder, is_visible: isVisible, tags };
 
   try {
     let res, savedId;
