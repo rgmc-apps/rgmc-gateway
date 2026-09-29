@@ -96,6 +96,24 @@ let _selectedIds         = new Set();
 let _lasso               = null;  // active rubber-band drag state
 let _lassoDragged        = false; // suppresses the click after a lasso drag
 
+/* ── Systems tab (admin-style list) ── */
+let _systemsCache        = [];
+let _sysSearchQuery      = '';
+let _editingSystemId     = null;
+let _pingResults         = {};
+let _sysTagsList         = [];
+
+/* ── Team tab: developer performance report ── */
+let _teamSubTab          = 'directory'; // 'directory' | 'report'
+let _devPerfCache        = [];
+let _devPerfSelected     = null;
+const DP_STATUSES        = ['pending', 'ongoing', 'coding', 'testing', 'done'];
+const DP_STAT_LABEL      = { pending: 'Pending', ongoing: 'Ongoing', coding: 'Coding', testing: 'Testing', done: 'Done' };
+const DP_STAT_COLOR      = { pending: '#6b7280', ongoing: '#a855f7', coding: '#3b82f6', testing: '#f59e0b', done: '#22c55e' };
+const DP_STAT_BG         = { pending: '#f3f4f6', ongoing: '#f3e8ff', coding: '#eff6ff', testing: '#fffbeb', done: '#f0fdf4' };
+const DP_ITEM_STATUS_CLS = { pending: 'dp-s-pending', ongoing: 'dp-s-ongoing', coding: 'dp-s-coding', testing: 'dp-s-testing', done: 'dp-s-done' };
+const DP_GH_ICON_SVG     = '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>';
+
 const DONE_WEEKS_KEY = 'dev-done-weeks';
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -510,6 +528,7 @@ function setViewMode(mode) {
   document.getElementById('devAnalyticsView').style.display = mode === 'analytics' ? '' : 'none';
   document.getElementById('devEpicsView').style.display      = mode === 'epics'     ? '' : 'none';
   document.getElementById('devTeamView').style.display       = mode === 'team'      ? '' : 'none';
+  document.getElementById('devSystemsView').style.display    = mode === 'systems'   ? '' : 'none';
   // Hide epic detail page when navigating away
   if (mode !== 'epics') {
     const epv = document.getElementById('epicPageView');
@@ -521,7 +540,8 @@ function setViewMode(mode) {
   if (mode === 'list')      renderListView();
   if (mode === 'analytics') renderAnalytics();
   if (mode === 'epics')     renderEpicsView();
-  if (mode === 'team')      renderTeamView();
+  if (mode === 'team')      { renderTeamView(); if (_teamSubTab === 'report') loadDevPerf(); }
+  if (mode === 'systems')   loadDevSystemsTab();
 
   // Pause canvas animation when kanban is not visible
   Object.values(_ambiences).forEach(a => mode === 'kanban' ? a.resume() : a.pause());
@@ -846,6 +866,20 @@ function viewTeamMemberItems(username) {
     sel.value = username;
   }
   renderListView();
+}
+
+/* ── Team sub-tabs: Directory vs Developer Report ── */
+function setTeamSubTab(tab) {
+  _teamSubTab = tab;
+  document.getElementById('teamSubTabDirectory')?.classList.toggle('active', tab === 'directory');
+  document.getElementById('teamSubTabReport')?.classList.toggle('active', tab === 'report');
+  document.getElementById('devTeamDirectoryPanel').style.display = tab === 'directory' ? '' : 'none';
+  document.getElementById('devTeamReportPanel').style.display    = tab === 'report'    ? '' : 'none';
+  const search = document.getElementById('teamSearch');
+  const count  = document.getElementById('teamCount');
+  if (search) search.style.display = tab === 'directory' ? '' : 'none';
+  if (count)  count.style.display  = tab === 'directory' ? '' : 'none';
+  if (tab === 'report') loadDevPerf();
 }
 
 /* ── Column arcs ── */
@@ -4375,3 +4409,934 @@ document.addEventListener('paste', e => {
     e.preventDefault();
   }
 });
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Systems Tab — admin-style systems/tasks list, editable by developers
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+async function loadDevSystemsTab() {
+  const wrap = document.getElementById('dev-systems-body');
+  wrap.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  try {
+    const res = await fetch('/api/dev/systems', { headers: authHeaders() });
+    if (!res.ok) throw new Error(await res.text());
+    _systemsCache = await res.json();
+    _renderSystemsTable();
+  } catch (err) {
+    wrap.innerHTML = `<div class="admin-error">Failed to load systems: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function _renderSystemsTable() {
+  const wrap = document.getElementById('dev-systems-body');
+  if (!wrap) return;
+
+  const q = _sysSearchQuery.toLowerCase().trim();
+  const rows = q
+    ? _systemsCache.filter(s =>
+        (s.name        || '').toLowerCase().includes(q) ||
+        (s.category    || '').toLowerCase().includes(q) ||
+        (s.tags        || '').toLowerCase().includes(q) ||
+        (s.primary_url || '').toLowerCase().includes(q) ||
+        (s.git_link    || '').toLowerCase().includes(q) ||
+        (s.is_task ? 'task' : 'system').includes(q)
+      )
+    : _systemsCache;
+
+  if (_systemsCache.length === 0) {
+    wrap.innerHTML = '<div class="admin-empty">No systems found. Add one above.</div>';
+    return;
+  }
+  if (rows.length === 0) {
+    wrap.innerHTML = `<div class="admin-empty">No systems match <strong>"${escHtml(_sysSearchQuery)}"</strong>.</div>`;
+    return;
+  }
+
+  wrap.innerHTML = `
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Name</th><th>Type</th><th>Category</th><th>Visible</th>
+          <th>Primary URL</th><th>Label</th><th>Backup URL</th>
+          <th>Git</th><th>Tags</th><th>Status</th><th>Order</th><th style="width:96px;"></th>
+        </tr>
+      </thead>
+      <tbody>${rows.map(s => renderSystemRow(s)).join('')}</tbody>
+    </table>`;
+}
+
+function sysSearch(val) {
+  _sysSearchQuery = val;
+  const clearBtn = document.getElementById('sysSearchClear');
+  if (clearBtn) clearBtn.style.display = val ? '' : 'none';
+  _renderSystemsTable();
+}
+
+function sysClearSearch() {
+  _sysSearchQuery = '';
+  const input = document.getElementById('sysSearchInput');
+  const clearBtn = document.getElementById('sysSearchClear');
+  if (input)    { input.value = ''; input.focus(); }
+  if (clearBtn) clearBtn.style.display = 'none';
+  _renderSystemsTable();
+}
+
+function truncUrl(url) {
+  try {
+    const u = new URL(url);
+    const path = u.pathname.length > 20 ? u.pathname.slice(0, 18) + '…' : u.pathname;
+    return u.hostname + path;
+  } catch {
+    return url.length > 40 ? url.slice(0, 38) + '…' : url;
+  }
+}
+
+function renderSystemRow(s) {
+  const catClass = { RGMC: 'label-rgmc', SBIC: 'label-sbic', 'NAV Sites': 'label-nav' }[s.category] || 'label-rgmc';
+  const visibleBadge = s.is_visible !== false
+    ? '<span class="badge-visible">Visible</span>'
+    : '<span class="badge-hidden">Hidden</span>';
+  const typeBadge = s.is_task
+    ? '<span class="badge-item-task">Task</span>'
+    : s.is_windows_based
+      ? '<span class="badge-item-windows">Windows</span>'
+      : '<span class="badge-item-system">System</span>';
+  const primaryUrlCell = s.primary_url
+    ? `<a href="${escHtml(s.primary_url)}" target="_blank" rel="noopener" class="tbl-link url-cell" title="${escHtml(s.primary_url)}">${escHtml(truncUrl(s.primary_url))}</a>`
+    : '<span class="text-muted">—</span>';
+  return `<tr>
+    <td><span class="user-name">${escHtml(s.name)}</span></td>
+    <td>${typeBadge}</td>
+    <td><span class="label-badge ${catClass}">${escHtml(s.category)}</span></td>
+    <td>${visibleBadge}</td>
+    <td>${primaryUrlCell}</td>
+    <td>${escHtml(s.primary_label || '—')}</td>
+    <td>${s.backup_url ? `<a href="${escHtml(s.backup_url)}" target="_blank" rel="noopener" class="tbl-link url-cell" title="${escHtml(s.backup_url)}">${escHtml(truncUrl(s.backup_url))}</a>` : '<span class="text-muted">—</span>'}</td>
+    <td>${s.git_link ? `<a href="${escHtml(s.git_link)}" target="_blank" rel="noopener" class="tbl-link url-cell" title="${escHtml(s.git_link)}">${escHtml(truncUrl(s.git_link))}</a>` : '<span class="text-muted">—</span>'}</td>
+    <td>${s.tags ? s.tags.split(',').map(t => `<span class="sys-tag-chip" style="font-size:11px;">${escHtml(t.trim())}</span>`).join(' ') : '<span class="text-muted">—</span>'}</td>
+    <td id="ping-cell-${escHtml(s.id)}">${_pingBadgeHtml(_pingResults[s.id])}</td>
+    <td class="date-cell">${s.sort_order}</td>
+    <td class="action-cell action-cell--compact" style="white-space:nowrap;">
+      <button class="btn-admin-secondary" style="padding:4px 8px;" onclick='openSystemModal(${JSON.stringify(s)})' title="Edit">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
+      <button class="btn-admin-secondary" style="padding:4px 8px;" onclick="pingSystem('${escHtml(s.id)}')" title="Ping Now">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      </button>
+    </td>
+  </tr>`;
+}
+
+function openSystemModal(system) {
+  _editingSystemId = system ? system.id : null;
+  const isTask = system ? !!system.is_task : false;
+
+  document.getElementById('systemModalTitle').textContent = system ? `Edit ${isTask ? 'Task' : 'System'}` : 'Add System / Task';
+
+  const idField = document.getElementById('sysId');
+  idField.value    = system?.id ?? '';
+  idField.disabled = !!system;
+
+  document.getElementById('sysTypeSystem').checked = !isTask;
+  document.getElementById('sysTypeTask').checked   = isTask;
+  document.getElementById('sysName').value          = system?.name          ?? '';
+  document.getElementById('sysCategory').value      = system?.category      ?? 'RGMC';
+  document.getElementById('sysPrimaryUrl').value   = system?.primary_url   ?? '';
+  document.getElementById('sysPrimaryLabel').value = system?.primary_label ?? 'Open';
+  document.getElementById('sysBackupUrl').value    = system?.backup_url    ?? '';
+  document.getElementById('sysBackupLabel').value  = system?.backup_label  ?? '';
+  document.getElementById('sysGitLink').value      = system?.git_link      ?? '';
+  document.getElementById('sysSortOrder').value    = system?.sort_order    ?? 0;
+  document.getElementById('sysIsVisible').checked  = system ? (system.is_visible !== false) : true;
+
+  _sysTagsList = (system?.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+  _renderSysTags();
+  document.getElementById('sysTagsField').value = '';
+
+  _applySysTypeUi(isTask);
+  resetSysForm();
+  document.getElementById('systemModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function onSysTypeChange() {
+  const isTask = document.getElementById('sysTypeTask').checked;
+  _applySysTypeUi(isTask);
+}
+
+function _applySysTypeUi(isTask) {
+  document.getElementById('sysUrlSection').style.display = isTask ? 'none' : '';
+  document.getElementById('sysTypeSystemOpt').classList.toggle('active', !isTask);
+  document.getElementById('sysTypeTaskOpt').classList.toggle('active', isTask);
+  if (isTask) {
+    document.getElementById('sysPrimaryUrl').value   = '';
+    document.getElementById('sysPrimaryLabel').value = '';
+    document.getElementById('sysBackupUrl').value    = '';
+    document.getElementById('sysBackupLabel').value  = '';
+  }
+}
+
+function closeSystemModal() {
+  document.getElementById('systemModal').classList.remove('open');
+  document.body.style.overflow = '';
+  _editingSystemId = null;
+}
+
+function overlayCloseSystem(e) {
+  if (e.target === document.getElementById('systemModal')) closeSystemModal();
+}
+
+function _renderSysTags() {
+  document.getElementById('sysTagsChips').innerHTML = _sysTagsList.map((t, i) =>
+    `<span class="sys-tag-chip">${escHtml(t)}<button type="button" class="sys-tag-remove" onclick="removeSysTag(${i})" aria-label="Remove">&times;</button></span>`
+  ).join('');
+}
+
+function _addSysTag(raw) {
+  const tag = raw.trim();
+  if (!tag || _sysTagsList.some(t => t.toLowerCase() === tag.toLowerCase())) return;
+  _sysTagsList.push(tag);
+  _renderSysTags();
+}
+
+function onSysTagKeydown(e) {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    const val = e.target.value.replace(/,/g, '').trim();
+    if (val) { _addSysTag(val); e.target.value = ''; }
+  } else if (e.key === 'Backspace' && !e.target.value && _sysTagsList.length) {
+    _sysTagsList.pop();
+    _renderSysTags();
+  }
+}
+
+function onSysTagBlur() {
+  const input = document.getElementById('sysTagsField');
+  const val = input.value.replace(/,/g, '').trim();
+  if (val) { _addSysTag(val); input.value = ''; }
+}
+
+function removeSysTag(i) {
+  _sysTagsList.splice(i, 1);
+  _renderSysTags();
+}
+
+function resetSysForm() {
+  document.getElementById('sysFormActions').style.display = '';
+  document.getElementById('sysFormLoading').style.display = 'none';
+  document.getElementById('sysFormError').style.display   = 'none';
+  document.getElementById('sysSubmitBtn').disabled = false;
+}
+
+async function saveSystem(e) {
+  e.preventDefault();
+
+  const isTask      = document.getElementById('sysTypeTask').checked;
+  const id          = document.getElementById('sysId').value.trim();
+  const name        = document.getElementById('sysName').value.trim();
+  const category    = document.getElementById('sysCategory').value;
+  const primaryUrl  = document.getElementById('sysPrimaryUrl').value.trim() || null;
+  const primaryLabel= document.getElementById('sysPrimaryLabel').value.trim() || null;
+  const backupUrl   = document.getElementById('sysBackupUrl').value.trim() || null;
+  const backupLabel = document.getElementById('sysBackupLabel').value.trim() || null;
+  const gitLink     = document.getElementById('sysGitLink').value.trim() || null;
+  const sortOrder   = parseInt(document.getElementById('sysSortOrder').value, 10) || 0;
+  const isVisible   = document.getElementById('sysIsVisible').checked;
+  const tags        = _sysTagsList.join(',');
+
+  if (!_editingSystemId && !id) {
+    showSysError('ID is required.');
+    return;
+  }
+  if (!name) {
+    showSysError('Name is required.');
+    return;
+  }
+  if (!isTask && (!primaryUrl || !primaryLabel)) {
+    showSysError('Primary URL and Primary Label are required for systems.');
+    return;
+  }
+
+  document.getElementById('sysFormActions').style.display = 'none';
+  document.getElementById('sysFormLoading').style.display = '';
+
+  const payload = { name, category, is_task: isTask, primary_url: primaryUrl, primary_label: primaryLabel, backup_url: backupUrl, backup_label: backupLabel, git_link: gitLink, sort_order: sortOrder, is_visible: isVisible, tags };
+
+  try {
+    let res;
+    if (_editingSystemId) {
+      res = await fetch(`/api/dev/systems/${encodeURIComponent(_editingSystemId)}`, {
+        method:  'PATCH',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload),
+      });
+    } else {
+      res = await fetch('/api/dev/systems', {
+        method:  'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ id, ...payload }),
+      });
+    }
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Save failed');
+    }
+    const kind = isTask ? 'Task' : 'System';
+    closeSystemModal();
+    showToast(`${kind} ${_editingSystemId ? 'updated' : 'added'} successfully.`);
+    loadDevSystemsTab();
+  } catch (err) {
+    document.getElementById('sysFormLoading').style.display = 'none';
+    document.getElementById('sysFormActions').style.display = '';
+    showSysError(err.message);
+  }
+}
+
+function showSysError(msg) {
+  document.getElementById('sysFormError').style.display = '';
+  document.getElementById('sysErrorMsg').textContent = msg;
+}
+
+/* ── System ping / health check ── */
+
+function _pingBadgeHtml(result) {
+  if (!result) return '<span class="text-muted">—</span>';
+  if (result.status === 'ok')      return `<span class="badge-ping-ok"><span class="ping-dot ping-dot-ok"></span>${result.http_status} · ${result.latency_ms}ms</span>`;
+  if (result.status === 'timeout') return `<span class="badge-ping-timeout"><span class="ping-dot ping-dot-timeout"></span>Timeout</span>`;
+  if (result.status === 'no_url')  return `<span class="text-muted">No URL</span>`;
+  return `<span class="badge-ping-error"><span class="ping-dot ping-dot-error"></span>${result.http_status ? result.http_status + ' · ' : ''}Down</span>`;
+}
+
+async function pingSystem(id) {
+  const cell = document.getElementById(`ping-cell-${id}`);
+  if (cell) cell.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div>';
+  try {
+    const res  = await fetch(`/api/dev/systems/${encodeURIComponent(id)}/ping`, { headers: authHeaders() });
+    const data = await res.json();
+    _pingResults[id] = data;
+    if (cell) cell.innerHTML = _pingBadgeHtml(data);
+  } catch {
+    _pingResults[id] = { status: 'down' };
+    if (cell) cell.innerHTML = _pingBadgeHtml(_pingResults[id]);
+  }
+}
+
+async function pingAllSystems() {
+  const btn = document.getElementById('checkAllBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+  await Promise.allSettled(_systemsCache.filter(s => !s.is_task).map(s => pingSystem(s.id)));
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Check All`;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Team Tab — Developer Performance Report (admin-style)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+async function loadDevPerf() {
+  const body = document.getElementById('devperf-body');
+  if (!body) return;
+
+  const skelCell = () => `<td class="dp-stat-td"><span class="dp-skel dp-skel-stat"></span></td>`;
+  const skelRow  = (delay) => `
+    <tr class="dp-row" style="pointer-events:none;opacity:${0.4 + delay * 0.15};">
+      <td class="dp-avatar-td">
+        <div class="dp-avatar"><span class="dp-skel dp-skel-avatar" style="animation-delay:${delay * 0.12}s"></span></div>
+        <div class="dp-dev-info">
+          <span class="dp-skel dp-skel-name" style="animation-delay:${delay * 0.12}s"></span>
+          <span class="dp-skel dp-skel-org"  style="animation-delay:${delay * 0.12 + 0.06}s"></span>
+        </div>
+      </td>
+      ${Array(6).fill(0).map(() => skelCell()).join('')}
+    </tr>`;
+
+  body.innerHTML = `
+    <table class="dp-table">
+      <thead>
+        <tr>
+          <th>Developer</th>
+          <th class="dp-th-stat">Pending</th>
+          <th class="dp-th-stat">Ongoing</th>
+          <th class="dp-th-stat">Coding</th>
+          <th class="dp-th-stat">Testing</th>
+          <th class="dp-th-stat">Done</th>
+          <th class="dp-th-stat dp-total-th">Total</th>
+        </tr>
+      </thead>
+      <tbody>${[0,1,2,3,4].map(skelRow).join('')}</tbody>
+    </table>`;
+
+  try {
+    const res  = await fetch('/api/dev/dev-performance', { headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed');
+    _devPerfCache = data;
+    _renderDevPerfTable(data);
+  } catch (err) {
+    body.innerHTML = `<p class="error-text">Error: ${escHtml(err.message)}</p>`;
+  }
+}
+
+function _renderDevPerfTable(devs) {
+  const body = document.getElementById('devperf-body');
+  if (!devs.length) {
+    body.innerHTML = '<p class="empty-text">No developer data found.</p>';
+    return;
+  }
+  const rows = devs.map(d => _renderDevPerfRow(d)).join('');
+  body.innerHTML = `
+    <table class="dp-table">
+      <thead>
+        <tr>
+          <th>Developer</th>
+          <th class="dp-th-stat">Pending</th>
+          <th class="dp-th-stat">Ongoing</th>
+          <th class="dp-th-stat">Coding</th>
+          <th class="dp-th-stat">Testing</th>
+          <th class="dp-th-stat">Done</th>
+          <th class="dp-th-stat dp-total-th">Total</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function _renderDevPerfRow(dev) {
+  const fullName = [dev.first_name, dev.last_name].filter(Boolean).join(' ') || dev.username;
+  const displayName = dev.display_name || fullName;
+  const av = dev.avatar_url;
+  const initial = (dev.first_name || dev.username || '?')[0].toUpperCase();
+
+  const avatarHtml = av
+    ? `<img class="dp-avatar-img" src="${escHtml(av)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+    + `<span class="dp-avatar-initials" style="display:none">${escHtml(initial)}</span>`
+    : `<span class="dp-avatar-initials">${escHtml(initial)}</span>`;
+
+  const badges = [
+    dev.is_admin     ? '<span class="dp-badge dp-badge-admin">Admin</span>'  : '',
+    dev.is_developer ? '<span class="dp-badge dp-badge-dev">Developer</span>' : '',
+  ].join('');
+
+  const orgParts = [dev.company, dev.department, dev.position].filter(Boolean);
+  const orgHtml  = orgParts.length ? `<span class="dp-org">${escHtml(orgParts.join(' · '))}</span>` : '';
+
+  const statCells = DP_STATUSES.map(s => {
+    const n = dev.counts[s] || 0;
+    return `<td class="dp-stat-td"><span class="dp-stat-pill ${n ? '' : 'dp-stat-zero'}" style="color:${DP_STAT_COLOR[s]};background:${DP_STAT_BG[s]}">${n}</span></td>`;
+  }).join('');
+
+  return `<tr class="dp-row" onclick="openDevPerfModal('${escHtml(dev.username)}')" title="View details">
+    <td class="dp-avatar-td">
+      <div class="dp-avatar">${avatarHtml}</div>
+      <div class="dp-dev-info">
+        <span class="dp-dev-name">${escHtml(displayName)}</span>
+        <span class="dp-badge-row">${badges}</span>
+        ${orgHtml}
+      </div>
+    </td>
+    ${statCells}
+    <td class="dp-stat-td"><span class="dp-total">${dev.counts.total}</span></td>
+  </tr>`;
+}
+
+function setDpPdfPreset(preset) {
+  const today   = new Date();
+  const fmt     = d => d.toISOString().slice(0, 10);
+  const fromEl  = document.getElementById('dpPdfFrom');
+  const toEl    = document.getElementById('dpPdfTo');
+
+  if (preset === '30d') {
+    const from = new Date(today); from.setDate(from.getDate() - 30);
+    if (fromEl) fromEl.value = fmt(from);
+    if (toEl)   toEl.value   = fmt(today);
+  } else if (preset === '90d') {
+    const from = new Date(today); from.setDate(from.getDate() - 90);
+    if (fromEl) fromEl.value = fmt(from);
+    if (toEl)   toEl.value   = fmt(today);
+  } else if (preset === 'year') {
+    if (fromEl) fromEl.value = `${today.getFullYear()}-01-01`;
+    if (toEl)   toEl.value   = fmt(today);
+  }
+  // 'custom' keeps whatever the inputs currently hold
+
+  document.querySelectorAll('.dp-pdf-preset').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.preset === preset)
+  );
+}
+
+function openDevPerfModal(username) {
+  const dev = _devPerfCache.find(d => d.username === username);
+  if (!dev) return;
+  _devPerfSelected = dev;
+
+  const fullName    = [dev.first_name, dev.last_name].filter(Boolean).join(' ') || dev.username;
+  const displayName = dev.display_name || fullName;
+  const av          = dev.avatar_url;
+  const initial     = (dev.first_name || dev.username || '?')[0].toUpperCase();
+
+  document.getElementById('devPerfModalContent').innerHTML =
+    _buildDevPerfModalHtml(dev, av, initial, displayName);
+
+  if (dev.github_username) _loadDevPerfGithub(dev.github_username);
+
+  setDpPdfPreset('year');
+
+  const overlay = document.getElementById('devPerfModal');
+  overlay.style.display = 'flex';
+  requestAnimationFrame(() => overlay.classList.add('modal-open'));
+}
+
+function closeDevPerfModal() {
+  const overlay = document.getElementById('devPerfModal');
+  overlay.classList.remove('modal-open');
+  setTimeout(() => { overlay.style.display = 'none'; }, 220);
+}
+
+function overlayCloseDevPerf(e) {
+  if (e.target === document.getElementById('devPerfModal')) closeDevPerfModal();
+}
+
+async function _loadDevPerfGithub(login) {
+  const section = document.getElementById('dpGithubSection');
+  if (!section) return;
+  try {
+    const res  = await fetch(`/api/dev/github-profile/${encodeURIComponent(login)}`, { headers: authHeaders() });
+    const data = await res.json();
+    // Guard against the modal having been reopened for a different developer while this was in flight
+    const current = document.getElementById('dpGithubSection');
+    if (!current || current.dataset.login !== login) return;
+    if (!res.ok) throw new Error(data.error || 'Failed to load GitHub profile');
+
+    // Cache the fetched profile onto the selected developer so the plain-text
+    // activity report (downloadDevPerfPdf) can include the same metrics.
+    if (_devPerfSelected && _devPerfSelected.github_username === login) {
+      _devPerfSelected.github_profile = data;
+    }
+
+    const isDark     = (typeof _getTheme === 'function') && _getTheme() === 'dark';
+    const statsTheme = isDark ? 'dark' : 'default';
+    const chartColor = isDark ? 'C4972A' : 'b8862a';
+
+    const stats = [
+      { n: data.public_repos, lbl: 'Repos' },
+      { n: data.followers,    lbl: 'Followers' },
+      { n: data.following,    lbl: 'Following' },
+    ].map(s => `<div class="dp-gh-stat"><span class="dp-gh-stat-n">${s.n ?? '—'}</span><span class="dp-gh-stat-lbl">${s.lbl}</span></div>`).join('');
+
+    current.innerHTML = `
+      <div class="dp-section-title">GitHub</div>
+      <div class="dp-gh-card">
+        <img class="dp-gh-avatar" src="${escHtml(data.avatar_url || '')}" alt="${escHtml(data.login)}">
+        <div class="dp-gh-info">
+          <a class="dp-gh-name" href="${escHtml(data.html_url)}" target="_blank" rel="noopener">${DP_GH_ICON_SVG} ${escHtml(data.name || data.login)}</a>
+          <span class="dp-gh-handle">@${escHtml(data.login)}</span>
+          ${data.bio ? `<p class="dp-gh-bio">${escHtml(data.bio)}</p>` : ''}
+          ${data.company || data.location ? `<span class="dp-gh-meta">${[data.company, data.location].filter(Boolean).map(escHtml).join(' · ')}</span>` : ''}
+        </div>
+        <div class="dp-gh-stats">${stats}</div>
+      </div>
+      <img class="dp-gh-widget" src="https://github-readme-stats.vercel.app/api?username=${encodeURIComponent(data.login)}&show_icons=true&hide_title=true&theme=${statsTheme}" alt="${escHtml(data.login)} GitHub stats" loading="lazy" onerror="this.style.display='none'">
+      <div class="dp-gh-contrib-label">Contribution Activity</div>
+      <img class="dp-gh-widget" src="https://github-readme-streak-stats.herokuapp.com/?user=${encodeURIComponent(data.login)}&theme=${statsTheme}&hide_border=true" alt="${escHtml(data.login)} contribution streak stats" loading="lazy" onerror="this.style.display='none'">
+      <div class="dp-gh-heatmap-wrap">
+        <img class="dp-gh-heatmap" src="https://ghchart.rshah.org/${chartColor}/${encodeURIComponent(data.login)}" alt="${escHtml(data.login)} contribution heatmap" loading="lazy" onerror="this.closest('.dp-gh-heatmap-wrap').style.display='none'">
+      </div>`;
+  } catch (err) {
+    const current = document.getElementById('dpGithubSection');
+    if (!current || current.dataset.login !== login) return;
+    current.innerHTML = `<div class="dp-section-title">GitHub</div><span class="dp-no-data">Could not load GitHub profile for @${escHtml(login)}.</span>`;
+  }
+}
+
+function _buildDevPerfModalHtml(dev, av, initial, displayName) {
+  const avatarHtml = av
+    ? `<img class="dp-modal-avatar-img" src="${escHtml(av)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+    + `<span class="dp-modal-avatar-initials" style="display:none">${escHtml(initial)}</span>`
+    : `<span class="dp-modal-avatar-initials">${escHtml(initial)}</span>`;
+
+  const badges = [
+    dev.is_admin     ? '<span class="dp-badge dp-badge-admin">Admin</span>'  : '',
+    dev.is_developer ? '<span class="dp-badge dp-badge-dev">Developer</span>' : '',
+  ].join('');
+
+  const infoFields = [
+    { label: 'Email',      value: dev.email      },
+    { label: 'Company',    value: dev.company     },
+    { label: 'Department', value: dev.department  },
+    { label: 'Position',   value: dev.position    },
+  ].filter(f => f.value).map(f =>
+    `<div class="dp-info-field"><span class="dp-info-label">${escHtml(f.label)}</span><span>${escHtml(f.value)}</span></div>`
+  ).join('');
+
+  const metricsHtml = DP_STATUSES.map(s => {
+    const n = dev.counts[s] || 0;
+    return `<div class="dp-metric-card" style="border-color:${DP_STAT_COLOR[s]}20">
+      <span class="dp-metric-n" style="color:${DP_STAT_COLOR[s]}">${n}</span>
+      <span class="dp-metric-lbl">${DP_STAT_LABEL[s]}</span>
+    </div>`;
+  }).join('');
+
+  const systemsHtml = dev.systems.length
+    ? dev.systems.map(s => `<span class="dp-sys-tag">${escHtml(s)}</span>`).join('')
+    : '<span class="dp-no-data">None recorded</span>';
+
+  const itemsHtml = dev.items.length ? `
+    <div class="dp-items-wrap">
+      <table class="dp-items-table">
+        <thead><tr>
+          <th>#</th><th>Title</th><th>Type</th><th>System</th>
+          <th>Status</th><th>Started</th><th>Est. End</th><th>Actual End</th>
+        </tr></thead>
+        <tbody>${dev.items.map((it, i) => {
+          const cls = DP_ITEM_STATUS_CLS[it.status] || '';
+          const fmtDateP = d => d ? d.slice(0, 10) : '—';
+          const typeLabel = it.dev_item_type || '—';
+          return `<tr>
+            <td class="dp-item-num">${i + 1}</td>
+            <td class="dp-item-title">${escHtml(it.title || '—')}</td>
+            <td>${escHtml(typeLabel)}</td>
+            <td>${escHtml(it.system_name || '—')}</td>
+            <td><span class="dp-item-status ${cls}">${escHtml(it.status || '—')}</span></td>
+            <td>${fmtDateP(it.start_date)}</td>
+            <td>${fmtDateP(it.estimated_end_date)}</td>
+            <td>${fmtDateP(it.actual_end_date)}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>` : '<span class="dp-no-data">No items assigned.</span>';
+
+  const githubSectionHtml = dev.github_username
+    ? `<div class="dp-section" id="dpGithubSection" data-login="${escHtml(dev.github_username)}">
+        <div class="dp-section-title">GitHub</div>
+        <div class="dp-gh-loading"><div class="spinner"></div><span>Loading GitHub profile…</span></div>
+      </div>`
+    : `<div class="dp-section">
+        <div class="dp-section-title">GitHub</div>
+        <span class="dp-no-data">Not linked. The developer can connect their GitHub account from their profile page.</span>
+      </div>`;
+
+  return `
+    <div class="dp-profile-section">
+        <div class="dp-modal-avatar">${avatarHtml}</div>
+        <div class="dp-profile-info">
+          <div class="dp-modal-name">${escHtml(displayName)}</div>
+          <div class="dp-badge-row">${badges}</div>
+          <div class="dp-info-grid">${infoFields}</div>
+        </div>
+      </div>
+
+      ${githubSectionHtml}
+
+      <div class="dp-metrics-strip">
+        <div class="dp-metrics-label">Performance Metrics</div>
+        <div class="dp-metrics-grid">${metricsHtml}
+          <div class="dp-metric-card dp-metric-total">
+            <span class="dp-metric-n">${dev.counts.total}</span>
+            <span class="dp-metric-lbl">Total</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="dp-section">
+        <div class="dp-section-title">Systems Handled <span class="dp-section-count">${dev.systems.length}</span></div>
+        <div class="dp-systems">${systemsHtml}</div>
+      </div>
+
+      <div class="dp-section">
+        <div class="dp-section-title">Dev Items <span class="dp-section-count">${dev.items.length}</span></div>
+        ${itemsHtml}
+      </div>
+
+      <div class="dp-section">
+        <div class="dp-section-title">Tasks <span class="dp-section-count">${(dev.tasks || []).length}</span></div>
+        ${(dev.tasks || []).length ? `
+        <div class="dp-items-wrap">
+          <table class="dp-items-table">
+            <thead><tr>
+              <th>#</th><th>Task Name</th><th>Type</th>
+              <th>Status</th><th>Started</th><th>Est. End</th><th>Actual End</th>
+            </tr></thead>
+            <tbody>${(dev.tasks || []).map((t, i) => {
+              const fmtDateP = d => d ? String(d).slice(0, 10) : '—';
+              const TASK_CLS = { completed: 'dp-status-done', 'in-progress': 'dp-status-ongoing', pending: 'dp-status-pending', cancelled: 'dp-status-cancelled' };
+              return `<tr>
+                <td class="dp-item-num">${i + 1}</td>
+                <td class="dp-item-title">${escHtml(t.task_name || '—')}</td>
+                <td>${escHtml(t.task_type || '—')}</td>
+                <td><span class="dp-item-status ${TASK_CLS[t.status] || ''}">${escHtml(t.status || '—')}</span></td>
+                <td>${fmtDateP(t.start_date)}</td>
+                <td>${fmtDateP(t.estimated_end_date)}</td>
+                <td>${fmtDateP(t.actual_end_date)}</td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table>
+        </div>` : '<span class="dp-no-data">No tasks assigned.</span>'}
+      </div>
+
+      <div class="dp-section dp-section-last">
+        <div class="dp-section-title">Issues <span class="dp-section-count">${(dev.issues || []).length}</span></div>
+        ${(dev.issues || []).length ? `
+        <div class="dp-items-wrap">
+          <table class="dp-items-table">
+            <thead><tr>
+              <th>#</th><th>Ticket #</th><th>Title</th><th>System</th>
+              <th>Category</th><th>Priority</th><th>Status</th>
+            </tr></thead>
+            <tbody>${(dev.issues || []).map((iss, i) => {
+              const PRIO_CLS = { p1: 'dp-prio-high', p2: 'dp-prio-high', p3: 'dp-prio-medium', p4: 'dp-prio-low', high: 'dp-prio-high', medium: 'dp-prio-medium', low: 'dp-prio-low' };
+              const STAT_CLS = { resolved: 'dp-status-done', open: 'dp-status-pending', 'in-progress': 'dp-status-ongoing', closed: 'dp-status-cancelled' };
+              return `<tr>
+                <td class="dp-item-num">${i + 1}</td>
+                <td style="white-space:nowrap">${escHtml(iss.ticket_number || '—')}</td>
+                <td class="dp-item-title">${escHtml(iss.title || '—')}</td>
+                <td>${escHtml(iss.site_name || '—')}</td>
+                <td>${escHtml(iss.request_category || '—')}</td>
+                <td><span class="dp-item-status ${PRIO_CLS[(iss.priority || '').toLowerCase()] || ''}">${escHtml(iss.priority || '—')}</span></td>
+                <td><span class="dp-item-status ${STAT_CLS[(iss.status || '').toLowerCase()] || ''}">${escHtml(iss.status || '—')}</span></td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table>
+        </div>` : '<span class="dp-no-data">No issues assigned.</span>'}
+      </div>`;
+}
+
+function downloadDevPerfPdf() {
+  if (!_devPerfSelected) return;
+
+  const dateFrom        = document.getElementById('dpPdfFrom')?.value    || '';
+  const dateTo          = document.getElementById('dpPdfTo')?.value      || '';
+  const includeHeader   = document.getElementById('dpPdfHeader')?.checked   !== false;
+  const includeBranding = document.getElementById('dpPdfBranding')?.checked !== false;
+
+  const filterByDate = (arr, field) => {
+    if (!dateFrom && !dateTo) return arr || [];
+    return (arr || []).filter(item => {
+      const d = (item[field] || '').slice(0, 10);
+      if (!d) return true;
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo   && d > dateTo  ) return false;
+      return true;
+    });
+  };
+
+  const filtered = {
+    ..._devPerfSelected,
+    items:  filterByDate(_devPerfSelected.items,  'start_date'),
+    tasks:  filterByDate(_devPerfSelected.tasks,  'start_date'),
+    issues: filterByDate(_devPerfSelected.issues, 'created_at'),
+  };
+
+  const printArea = document.getElementById('devPerfPrintArea');
+  printArea.innerHTML = _buildDevPerfPrintHtml(filtered, { includeHeader, includeBranding, dateFrom, dateTo });
+  window.print();
+  setTimeout(() => { printArea.innerHTML = ''; }, 1000);
+}
+
+function _buildDevPerfPrintHtml(dev, opts = {}) {
+  const { includeHeader = true, includeBranding = true, dateFrom = '', dateTo = '' } = opts;
+  const fullName    = [dev.first_name, dev.last_name].filter(Boolean).join(' ') || dev.username;
+  const displayName = dev.display_name || fullName;
+  const today       = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const dateRangeLabel = (dateFrom || dateTo)
+    ? ` · ${dateFrom || '…'} to ${dateTo || '…'}`
+    : '';
+
+  const infoRows = [
+    ['Email',      dev.email],
+    ['Company',    dev.company],
+    ['Department', dev.department],
+    ['Position',   dev.position],
+  ].filter(([, v]) => v).map(([l, v]) =>
+    `<tr><td style="padding:4px 12px 4px 0;color:#64748b;font-weight:600;white-space:nowrap">${escHtml(l)}</td><td style="padding:4px 0">${escHtml(v)}</td></tr>`
+  ).join('');
+
+  const metricCells = [...DP_STATUSES.map(s => {
+    const n = dev.counts[s] || 0;
+    return `<td style="text-align:center;padding:8px 12px;border:1px solid #e2e8f0">
+      <div style="font-size:22px;font-weight:700;color:${DP_STAT_COLOR[s]}">${n}</div>
+      <div style="font-size:11px;color:#64748b;margin-top:2px">${DP_STAT_LABEL[s]}</div>
+    </td>`;
+  }), `<td style="text-align:center;padding:8px 12px;border:1px solid #e2e8f0;background:#f8fafc">
+    <div style="font-size:22px;font-weight:700;color:#1e293b">${dev.counts.total}</div>
+    <div style="font-size:11px;color:#64748b;margin-top:2px">Total</div>
+  </td>`].join('');
+
+  const systemsHtml = dev.systems.length
+    ? dev.systems.map(s => `<span style="display:inline-block;background:#eff6ff;color:#2563eb;border-radius:4px;padding:2px 8px;margin:2px;font-size:12px">${escHtml(s)}</span>`).join('')
+    : '<span style="color:#94a3b8">None recorded</span>';
+
+  const fmtDateP = d => d ? String(d).slice(0, 10) : '—';
+
+  const _pBadge = (color, bg, text) =>
+    `<span style="background:${bg};color:${color};padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap">${escHtml(text)}</span>`;
+
+  const itemRows = dev.items.map((it, i) => {
+    const clr = DP_STAT_COLOR[it.status] || '#6b7280';
+    return `<tr style="border-bottom:1px solid #f1f5f9">
+      <td style="padding:5px 8px;color:#94a3b8;font-size:12px">${i + 1}</td>
+      <td style="padding:5px 8px;font-weight:500">${escHtml(it.title || '—')}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${escHtml(it.dev_item_type || '—')}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${escHtml(it.system_name || '—')}</td>
+      <td style="padding:5px 8px">${_pBadge(clr, DP_STAT_BG[it.status] || '#f3f4f6', it.status || '—')}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${fmtDateP(it.start_date)}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${fmtDateP(it.estimated_end_date)}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${fmtDateP(it.actual_end_date)}</td>
+    </tr>`;
+  }).join('');
+
+  const TASK_STATUS_COLOR = { completed: '#16a34a', 'in-progress': '#2563eb', pending: '#d97706', cancelled: '#dc2626' };
+  const TASK_STATUS_BG    = { completed: '#f0fdf4', 'in-progress': '#eff6ff', pending: '#fffbeb', cancelled: '#fef2f2' };
+
+  const taskRows = (dev.tasks || []).map((t, i) => {
+    const clr = TASK_STATUS_COLOR[t.status] || '#6b7280';
+    const bg  = TASK_STATUS_BG[t.status]    || '#f3f4f6';
+    return `<tr style="border-bottom:1px solid #f1f5f9">
+      <td style="padding:5px 8px;color:#94a3b8;font-size:12px">${i + 1}</td>
+      <td style="padding:5px 8px;font-weight:500">${escHtml(t.task_name || '—')}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${escHtml(t.task_type || '—')}</td>
+      <td style="padding:5px 8px">${_pBadge(clr, bg, t.status || '—')}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${fmtDateP(t.start_date)}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${fmtDateP(t.estimated_end_date)}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${fmtDateP(t.actual_end_date)}</td>
+    </tr>`;
+  }).join('');
+
+  const PRIORITY_COLOR = { high: '#dc2626', medium: '#d97706', low: '#2563eb' };
+  const PRIORITY_BG    = { high: '#fef2f2', medium: '#fffbeb', low: '#eff6ff' };
+  const ISSUE_STATUS_COLOR = { resolved: '#16a34a', open: '#d97706', closed: '#6b7280', 'in-progress': '#2563eb' };
+  const ISSUE_STATUS_BG    = { resolved: '#f0fdf4', open: '#fffbeb', closed: '#f3f4f6', 'in-progress': '#eff6ff' };
+
+  const issueRows = (dev.issues || []).map((iss, i) => {
+    const pKey  = (iss.priority || '').toLowerCase();
+    const sKey  = (iss.status   || '').toLowerCase();
+    const pClr  = PRIORITY_COLOR[pKey]    || '#6b7280';
+    const pBg   = PRIORITY_BG[pKey]       || '#f3f4f6';
+    const sClr  = ISSUE_STATUS_COLOR[sKey] || '#6b7280';
+    const sBg   = ISSUE_STATUS_BG[sKey]    || '#f3f4f6';
+    return `<tr style="border-bottom:1px solid #f1f5f9">
+      <td style="padding:5px 8px;color:#94a3b8;font-size:12px">${i + 1}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px;white-space:nowrap">${escHtml(iss.ticket_number || '—')}</td>
+      <td style="padding:5px 8px;font-weight:500">${escHtml(iss.title || '—')}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${escHtml(iss.site_name || '—')}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${escHtml(iss.request_category || '—')}</td>
+      <td style="padding:5px 8px">${_pBadge(pClr, pBg, iss.priority || '—')}</td>
+      <td style="padding:5px 8px">${_pBadge(sClr, sBg, iss.status   || '—')}</td>
+      <td style="padding:5px 8px;color:#64748b;font-size:12px">${fmtDateP(iss.created_at)}</td>
+    </tr>`;
+  }).join('');
+
+  const badges = [
+    dev.is_admin     ? '<span style="background:#fef2f2;color:#dc2626;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;margin-right:4px">Admin</span>'  : '',
+    dev.is_developer ? '<span style="background:#eff6ff;color:#2563eb;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">Developer</span>' : '',
+  ].join('');
+
+  // GitHub metrics — plain text only (no widget images) so the report prints cleanly.
+  let githubHtml = '';
+  if (dev.github_username) {
+    const gp = dev.github_profile || {};
+    const ghRows = [
+      ['GitHub Handle', `@${dev.github_username}`],
+      ['Name',          gp.name],
+      ['Bio',           gp.bio],
+      ['Company',       gp.company],
+      ['Location',      gp.location],
+      ['Public Repos',  gp.public_repos != null ? String(gp.public_repos) : null],
+      ['Followers',     gp.followers    != null ? String(gp.followers)    : null],
+      ['Following',     gp.following    != null ? String(gp.following)    : null],
+      ['Profile URL',   gp.html_url || `https://github.com/${dev.github_username}`],
+    ].filter(([, v]) => v).map(([l, v]) =>
+      `<tr><td style="padding:4px 12px 4px 0;color:#64748b;font-weight:600;white-space:nowrap;vertical-align:top">${escHtml(l)}</td><td style="padding:4px 0">${escHtml(v)}</td></tr>`
+    ).join('');
+    githubHtml = `<div style="margin-bottom:24px">
+      <div style="font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">GitHub</div>
+      <table>${ghRows}</table>
+    </div>`;
+  }
+
+  return `<div style="font-family:Arial,sans-serif;max-width:900px;margin:0 auto;padding:32px 24px;color:#1e293b">
+    ${includeHeader ? `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #e2e8f0">
+      <div>
+        <div style="font-size:22px;font-weight:700;margin-bottom:4px">${escHtml(displayName)}</div>
+        <div style="margin-bottom:6px">${badges}</div>
+        ${infoRows ? `<table style="margin-top:8px">${infoRows}</table>` : ''}
+      </div>
+      ${includeBranding ? `<div style="text-align:right;color:#94a3b8;font-size:12px">
+        <div style="font-size:16px;font-weight:700;color:#1e293b;margin-bottom:4px">Performance Report</div>
+        <div>Generated: ${today}${escHtml(dateRangeLabel)}</div>
+        <div>RGMC Gateway</div>
+      </div>` : `<div style="text-align:right;color:#94a3b8;font-size:12px">
+        <div style="font-size:14px;font-weight:600;color:#1e293b">Performance Report</div>
+        ${dateRangeLabel ? `<div>${escHtml(dateRangeLabel.replace(' · ', ''))}</div>` : ''}
+      </div>`}
+    </div>
+
+    <div style="margin-bottom:24px">
+      <div style="font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px">Performance Metrics</div>
+      <table style="border-collapse:collapse;width:auto"><tr>${metricCells}</tr></table>
+    </div>
+
+    <div style="margin-bottom:24px">
+      <div style="font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Systems Handled (${dev.systems.length})</div>
+      <div>${systemsHtml}</div>
+    </div>` : `
+    <div style="margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #e2e8f0;display:flex;justify-content:space-between;align-items:baseline">
+      <div style="font-size:18px;font-weight:700">${escHtml(displayName)}</div>
+      <div style="font-size:12px;color:#94a3b8">${dateRangeLabel ? escHtml(dateRangeLabel.replace(' · ', '')) : 'Performance Report'}</div>
+    </div>`}
+
+    ${githubHtml}
+
+    <div style="margin-bottom:24px">
+      <div style="font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Dev Items (${dev.items.length})</div>
+      ${dev.items.length ? `<table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="border-bottom:2px solid #e2e8f0">
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">#</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Title</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Type</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">System</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Status</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Started</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Est. End</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Actual End</th>
+        </tr></thead>
+        <tbody>${itemRows}</tbody>
+      </table>` : '<span style="color:#94a3b8">No items assigned.</span>'}
+    </div>
+
+    <div style="margin-bottom:24px">
+      <div style="font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Tasks (${(dev.tasks || []).length})</div>
+      ${(dev.tasks || []).length ? `<table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="border-bottom:2px solid #e2e8f0">
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">#</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Task Name</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Type</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Status</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Started</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Est. End</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Actual End</th>
+        </tr></thead>
+        <tbody>${taskRows}</tbody>
+      </table>` : '<span style="color:#94a3b8">No tasks assigned.</span>'}
+    </div>
+
+    <div>
+      <div style="font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Issues (${(dev.issues || []).length})</div>
+      ${(dev.issues || []).length ? `<table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="border-bottom:2px solid #e2e8f0">
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">#</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Ticket #</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Title</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">System</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Category</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Priority</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Status</th>
+          <th style="padding:6px 8px;text-align:left;color:#64748b;font-weight:600">Created</th>
+        </tr></thead>
+        <tbody>${issueRows}</tbody>
+      </table>` : '<span style="color:#94a3b8">No issues assigned.</span>'}
+    </div>
+  </div>`;
+}

@@ -1,6 +1,5 @@
 import os
 import re
-import time
 import uuid
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -12,8 +11,9 @@ from werkzeug.security import generate_password_hash
 from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
 from services.supabase import supabase_req
 from services.guards import _require_admin
-from services.sites import _invalidate_sites_cache
+from services.sites import _invalidate_sites_cache, ping_system_by_id, SystemNotFoundError
 from services.shift import validate_shift_fields
+from services.dev_performance import build_dev_performance_report
 from services.email import send_admin_granted_email, send_access_granted_email, send_access_rejected_email, send_password_changed_email, send_user_created_email, send_developer_promoted_email
 from services import github as github_service
 from models.access import _approve_record, _reject_record
@@ -250,134 +250,11 @@ def admin_dev_performance():
     _, err = _require_admin()
     if err:
         return jsonify(err[0]), err[1]
-
     try:
-        users = supabase_req("GET", "/users", params={
-            "is_developer": "eq.true",
-            "select":       "username,first_name,last_name,display_name,avatar_url,company,department,position,email,is_admin,is_developer,github_username",
-        })
+        result = build_dev_performance_report()
     except Exception as exc:
-        current_app.logger.error("admin_dev_performance users: %s", exc)
-        return jsonify({"error": "Failed to fetch developers"}), 500
-
-    try:
-        items = supabase_req("GET", "/dev_items", params={
-            "select": "id,title,status,system_id,dev_item_type,start_date,estimated_end_date,actual_end_date,created_by,created_at",
-            "order":  "created_at.desc",
-        })
-    except Exception as exc:
-        current_app.logger.error("admin_dev_performance items: %s", exc)
-        return jsonify({"error": "Failed to fetch dev items"}), 500
-
-    try:
-        systems = supabase_req("GET", "/systems", params={"select": "id,name"})
-        sys_map = {s["id"]: s["name"] for s in (systems or [])}
-    except Exception:
-        sys_map = {}
-
-    try:
-        tasks = supabase_req("GET", "/tasks", params={
-            "select": "id,task_name,task_type,status,start_date,estimated_end_date,actual_end_date,created_by,created_at",
-            "order":  "created_at.desc",
-        })
-    except Exception as exc:
-        current_app.logger.error("admin_dev_performance tasks: %s", exc)
-        tasks = []
-
-    try:
-        issues = supabase_req("GET", "/issues", params={
-            "select": "id,title,ticket_number,status,site_name,assigned_to,request_category,priority,created_at",
-            "order":  "created_at.desc",
-        })
-    except Exception as exc:
-        current_app.logger.error("admin_dev_performance issues: %s", exc)
-        issues = []
-
-    items_by_dev = {}
-    for item in (items or []):
-        key = item.get("created_by") or ""
-        items_by_dev.setdefault(key, []).append(item)
-
-    tasks_by_dev = {}
-    for task in (tasks or []):
-        key = task.get("created_by") or ""
-        tasks_by_dev.setdefault(key, []).append(task)
-
-    issues_by_dev = {}
-    for issue in (issues or []):
-        key = issue.get("assigned_to") or ""
-        issues_by_dev.setdefault(key, []).append(issue)
-
-    STATUSES = ("pending", "ongoing", "coding", "testing", "done")
-    result = []
-    for user in (users or []):
-        uname      = user["username"]
-        user_items = items_by_dev.get(uname, [])
-        counts     = {s: 0 for s in STATUSES}
-        for item in user_items:
-            s = item.get("status") or ""
-            if s in counts:
-                counts[s] += 1
-        counts["total"] = sum(counts[s] for s in STATUSES)
-
-        sys_ids   = {item["system_id"] for item in user_items if item.get("system_id")}
-        sys_names = sorted(sys_map.get(sid, sid) for sid in sys_ids)
-
-        enriched = [{
-            "id":                 i["id"],
-            "title":              i.get("title") or "",
-            "status":             i.get("status") or "",
-            "dev_item_type":      i.get("dev_item_type") or "",
-            "system_name":        sys_map.get(i["system_id"], "") if i.get("system_id") else "",
-            "start_date":         i.get("start_date") or "",
-            "estimated_end_date": i.get("estimated_end_date") or "",
-            "actual_end_date":    i.get("actual_end_date") or "",
-            "created_at":         i.get("created_at") or "",
-        } for i in user_items]
-
-        enriched_tasks = [{
-            "id":                 t["id"],
-            "task_name":          t.get("task_name") or "",
-            "task_type":          t.get("task_type") or "",
-            "status":             t.get("status") or "",
-            "start_date":         t.get("start_date") or "",
-            "estimated_end_date": t.get("estimated_end_date") or "",
-            "actual_end_date":    t.get("actual_end_date") or "",
-            "created_at":         t.get("created_at") or "",
-        } for t in tasks_by_dev.get(uname, [])]
-
-        enriched_issues = [{
-            "id":               iss["id"],
-            "title":            iss.get("title") or "",
-            "ticket_number":    iss.get("ticket_number") or "",
-            "status":           iss.get("status") or "",
-            "site_name":        iss.get("site_name") or "",
-            "request_category": iss.get("request_category") or "",
-            "priority":         iss.get("priority") or "",
-            "created_at":       iss.get("created_at") or "",
-        } for iss in issues_by_dev.get(uname, [])]
-
-        result.append({
-            "username":     uname,
-            "first_name":   user.get("first_name") or "",
-            "last_name":    user.get("last_name") or "",
-            "display_name": user.get("display_name") or "",
-            "avatar_url":   user.get("avatar_url") or "",
-            "email":        user.get("email") or "",
-            "company":      user.get("company") or "",
-            "department":   user.get("department") or "",
-            "position":     user.get("position") or "",
-            "is_admin":     bool(user.get("is_admin")),
-            "is_developer": bool(user.get("is_developer")),
-            "github_username": user.get("github_username") or "",
-            "counts":       counts,
-            "systems":      sys_names,
-            "items":        enriched,
-            "tasks":        enriched_tasks,
-            "issues":       enriched_issues,
-        })
-
-    result.sort(key=lambda u: (-u["counts"]["total"], (u["first_name"] + u["last_name"]).lower()))
+        current_app.logger.error("admin_dev_performance failed: %s", exc)
+        return jsonify({"error": "Failed to fetch developer performance data"}), 500
     return jsonify(result)
 
 
@@ -463,39 +340,12 @@ def ping_system(system_id):
         return jsonify(err[0]), err[1]
 
     try:
-        rows = supabase_req("GET", "/systems", params={"id": f"eq.{system_id}", "select": "id,name,primary_url,backup_url"})
+        result = ping_system_by_id(system_id)
+    except SystemNotFoundError:
+        return jsonify({"error": "System not found"}), 404
     except Exception:
         return jsonify({"error": "Failed to fetch system"}), 500
-
-    if not rows:
-        return jsonify({"error": "System not found"}), 404
-
-    system = rows[0]
-    url = system.get("primary_url") or system.get("backup_url")
-    if not url:
-        return jsonify({"id": system_id, "name": system.get("name"), "status": "no_url", "error": "No URL configured"}), 200
-
-    t0 = time.monotonic()
-    try:
-        resp = http_requests.head(url, timeout=8, allow_redirects=True)
-        if resp.status_code == 405:
-            resp = http_requests.get(url, timeout=8, allow_redirects=True, stream=True)
-        latency_ms = round((time.monotonic() - t0) * 1000)
-        status = "ok" if resp.status_code < 500 else "error"
-        return jsonify({
-            "id":          system_id,
-            "name":        system.get("name"),
-            "url":         url,
-            "status":      status,
-            "http_status": resp.status_code,
-            "latency_ms":  latency_ms,
-        })
-    except http_requests.Timeout:
-        latency_ms = round((time.monotonic() - t0) * 1000)
-        return jsonify({"id": system_id, "name": system.get("name"), "url": url, "status": "timeout", "latency_ms": latency_ms})
-    except Exception as exc:
-        latency_ms = round((time.monotonic() - t0) * 1000)
-        return jsonify({"id": system_id, "name": system.get("name"), "url": url, "status": "down", "latency_ms": latency_ms, "error": str(exc)})
+    return jsonify(result)
 
 
 _WIN_BUCKET      = "system-files"

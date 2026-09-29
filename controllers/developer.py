@@ -3,9 +3,11 @@ from flask import Blueprint, request, jsonify, render_template, current_app
 
 from services.supabase import supabase_req, resolve_action_names
 from services.guards import _require_developer
-from services.sites import _invalidate_sites_cache
+from services.sites import _invalidate_sites_cache, ping_system_by_id, SystemNotFoundError
 from services.email import send_issue_resolved_email
 from services.epics import build_epic_comment_feed
+from services.dev_performance import build_dev_performance_report
+from services import github as github_service
 
 developer_bp = Blueprint("developer", __name__)
 
@@ -540,7 +542,7 @@ def dev_get_systems():
         return jsonify(err[0]), err[1]
     try:
         rows = supabase_req("GET", "/systems", params={
-            "select": "id,name,category,primary_url,primary_label,backup_url,backup_label,sort_order,is_visible,is_wip",
+            "select": "*",
             "order":  "sort_order.asc,name.asc",
         })
         return jsonify(rows)
@@ -554,9 +556,11 @@ def dev_create_system():
     _, err = _require_developer()
     if err:
         return jsonify(err[0]), err[1]
-    data     = request.get_json(silent=True) or {}
-    is_wip   = bool(data.get("is_wip", False))
-    required = ["id", "name", "category"] + ([] if is_wip else ["primary_url", "primary_label"])
+    data       = request.get_json(silent=True) or {}
+    is_wip     = bool(data.get("is_wip", False))
+    is_task    = bool(data.get("is_task", False))
+    is_windows = bool(data.get("is_windows_based", False))
+    required = ["id", "name", "category"] if (is_wip or is_task or is_windows) else ["id", "name", "category", "primary_url", "primary_label"]
     missing  = [f for f in required if not str(data.get(f, "")).strip()]
     if missing:
         return jsonify({"error": f"Missing: {', '.join(missing)}"}), 400
@@ -576,6 +580,40 @@ def dev_create_system():
         return jsonify({"error": str(exc)}), 500
 
 
+@developer_bp.patch("/api/dev/systems/<string:system_id>")
+def dev_update_system(system_id):
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    data    = request.get_json(silent=True) or {}
+    allowed = {"name", "category", "primary_url", "primary_label", "backup_url", "backup_label",
+               "sort_order", "is_visible", "is_task", "tags", "git_link"}
+    patch   = {k: v for k, v in data.items() if k in allowed}
+    if not patch:
+        return jsonify({"error": "No valid fields"}), 400
+    try:
+        supabase_req("PATCH", "/systems", data=patch, params={"id": f"eq.{system_id}"})
+        _invalidate_sites_cache()
+        return jsonify({"success": True})
+    except Exception as exc:
+        current_app.logger.error("dev_update_system failed: %s", exc)
+        return jsonify({"error": str(exc)}), 500
+
+
+@developer_bp.get("/api/dev/systems/<string:system_id>/ping")
+def dev_ping_system(system_id):
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        result = ping_system_by_id(system_id)
+    except SystemNotFoundError:
+        return jsonify({"error": "System not found"}), 404
+    except Exception:
+        return jsonify({"error": "Failed to fetch system"}), 500
+    return jsonify(result)
+
+
 @developer_bp.get("/api/dev/members")
 def dev_get_members():
     _, err = _require_developer()
@@ -591,6 +629,30 @@ def dev_get_members():
         current_app.logger.error("dev_get_members failed: %s", exc)
         return jsonify({"error": "Failed to fetch members"}), 500
     return jsonify(rows or [])
+
+
+@developer_bp.get("/api/dev/dev-performance")
+def dev_dev_performance():
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        result = build_dev_performance_report()
+    except Exception as exc:
+        current_app.logger.error("dev_dev_performance failed: %s", exc)
+        return jsonify({"error": "Failed to fetch developer performance data"}), 500
+    return jsonify(result)
+
+
+@developer_bp.get("/api/dev/github-profile/<login>")
+def dev_github_profile(login):
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    profile = github_service.fetch_public_profile(login)
+    if profile is None:
+        return jsonify({"error": "GitHub user not found"}), 404
+    return jsonify(profile)
 
 
 # ── Epics ──────────────────────────────────────────────────────────────────────
