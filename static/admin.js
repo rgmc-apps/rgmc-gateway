@@ -1486,12 +1486,12 @@ async function saveEditUser(e) {
 
   const patch = {
     first_name:      document.getElementById('euFirstName').value.trim(),
-    middle_initial:  document.getElementById('euMiddleInitial').value.trim() || null,
+    middle_initial:  document.getElementById('euMiddleInitial').value.trim(),
     last_name:       document.getElementById('euLastName').value.trim(),
     display_name: document.getElementById('euDisplayName').value.trim()   || null,
-    company:      document.getElementById('euCompany').value              || null,
-    department:   document.getElementById('euDepartment').value.trim()    || null,
-    position:     document.getElementById('euPosition').value.trim()      || null,
+    company:      document.getElementById('euCompany').value              || '',
+    department:   document.getElementById('euDepartment').value.trim()    || '',
+    position:     document.getElementById('euPosition').value.trim()      || '',
     email:        document.getElementById('euEmail').value.trim(),
     viber_number: document.getElementById('euViberNumber').value.trim()   || null,
     anydesk_id:   document.getElementById('euAnydeskId').value.trim()     || null,
