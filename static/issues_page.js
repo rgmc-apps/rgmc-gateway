@@ -369,7 +369,7 @@ function _ipRenderRow(issue) {
     <td>${confirmedCell}</td>
     <td class="iss-connected-cell" onclick="event.stopPropagation()">${connectedHtml}</td>
     <td>${issue.assigned_to ? `<code class="mono-val">${escHtml(issue.assigned_to)}</code>` : '<span class="text-muted">—</span>'}</td>
-    <td class="date-cell">${fmtDateTime(issue.created_at)}${_ipAgePill(issue)}</td>
+    <td class="date-cell">${fmtDateTime(issue.created_at)}<br>${_ipAgePill(issue)}</td>
   </tr>`;
 }
 
