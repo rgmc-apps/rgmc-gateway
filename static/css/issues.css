@@ -29,6 +29,38 @@
   color: var(--text-secondary);
 }
 
+/* ── Issues page list — compact, denser rows than the default .admin-table,
+   same column set as Admin → Issues so both views read as one system ── */
+#ipIssuesBody .admin-table th {
+  padding: 8px 10px;
+  font-size: 10px;
+}
+#ipIssuesBody .admin-table td {
+  padding: 6px 10px;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+#ipIssuesBody .admin-table td small { font-size: 11px; }
+#ipIssuesBody .admin-table td:nth-child(1),
+#ipIssuesBody .admin-table td:nth-child(2) { max-width: 170px; }
+#ipIssuesBody .admin-table td:nth-child(1) .user-name,
+#ipIssuesBody .admin-table td:nth-child(2) small {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#ipIssuesBody .issue-desc-cell { max-width: 200px; font-size: 12.5px; }
+#ipIssuesBody .iss-connected-cell { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
+#ipIssuesBody .date-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  font-size: 11px;
+}
+#ipIssuesBody .iss-age-pill { padding: 1px 7px; font-size: 10px; }
+
 .issue-description-box {
   background: var(--bg-card);
   border: 1px solid var(--border);

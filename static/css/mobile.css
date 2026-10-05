@@ -618,13 +618,19 @@
   .admin-table th        { padding: 9px 12px; }
   .admin-table td        { padding: 10px 12px; }
 
-  /* Issue tracker (8 cols): hide Description(3), Confirmed(6), Connected(7) */
+  /* Issue tracker (9 cols): hide Description(3), Confirmed(6), Connected(7) */
   #issues-body .admin-table th:nth-child(3),
   #issues-body .admin-table td:nth-child(3),
   #issues-body .admin-table th:nth-child(6),
   #issues-body .admin-table td:nth-child(6),
   #issues-body .admin-table th:nth-child(7),
-  #issues-body .admin-table td:nth-child(7) { display: none; }
+  #issues-body .admin-table td:nth-child(7),
+  #ipIssuesBody .admin-table th:nth-child(3),
+  #ipIssuesBody .admin-table td:nth-child(3),
+  #ipIssuesBody .admin-table th:nth-child(6),
+  #ipIssuesBody .admin-table td:nth-child(6),
+  #ipIssuesBody .admin-table th:nth-child(7),
+  #ipIssuesBody .admin-table td:nth-child(7) { display: none; }
 
   /* Users table (10 cols): hide Company(4), Department(5), Systems(7), Joined(9) */
   #users-body .admin-table th:nth-child(4),
@@ -669,7 +675,9 @@
 
   /* Issue tracker: also drop Assigned To(8) */
   #issues-body .admin-table th:nth-child(8),
-  #issues-body .admin-table td:nth-child(8) { display: none; }
+  #issues-body .admin-table td:nth-child(8),
+  #ipIssuesBody .admin-table th:nth-child(8),
+  #ipIssuesBody .admin-table td:nth-child(8) { display: none; }
 }
 
 /* ══════════════════════════════════════════════════════════════

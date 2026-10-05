@@ -91,6 +91,7 @@ let _ipStatus       = 'all';
 let _ipPage         = 1;
 let _ipTab          = 'list';
 const _ipPerPage    = 25;
+let _ipLinkedTargetIds = new Set();
 
 async function loadIssuesPage() {
   const wrap = document.getElementById('ipIssuesBody');
@@ -284,6 +285,14 @@ function _ipRenderTable(rows) {
     return;
   }
 
+  // Pre-compute all issue IDs referenced by another issue's linked_issue_ids
+  // (same "Connected" logic as Admin → Issues) so the badge can show reverse links too.
+  _ipLinkedTargetIds = new Set();
+  for (const i of _ipIssuesCache) {
+    for (const id of (i.linked_issue_ids || [])) _ipLinkedTargetIds.add(id);
+    if (i.linked_issue_id) _ipLinkedTargetIds.add(i.linked_issue_id);
+  }
+
   wrap.innerHTML = `
     <table class="admin-table">
       <thead>
@@ -293,8 +302,9 @@ function _ipRenderTable(rows) {
           <th>Description</th>
           <th>Priority</th>
           <th>Status</th>
+          <th>Confirmed</th>
+          <th>Connected</th>
           <th>Assigned To</th>
-          <th>Age</th>
           <th>Reported</th>
         </tr>
       </thead>
@@ -330,6 +340,25 @@ function _ipRenderRow(issue) {
   const ticketRef    = issue.ticket_number
     ? `<code class="mono-val" style="font-size:11px;">${escHtml(issue.ticket_number)}</code>${importedBadge}<br>`
     : importedBadge ? `${importedBadge}<br>` : '';
+
+  const isTerminalStatus = ['resolved', 'closed'].includes((issue.status || '').toLowerCase());
+  const confirmedCell = isTerminalStatus
+    ? (issue.confirmed_fix
+        ? `<span class="iss-confirmed-badge" title="Reporter confirmed fix${issue.confirmed_fix_at ? ' on ' + fmtDate(issue.confirmed_fix_at) : ''}"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Yes</span>`
+        : `<span class="iss-unconfirmed-note">Pending</span>`)
+    : '<span class="text-muted">—</span>';
+
+  const devBadge      = issue.dev_item_id  ? '<span class="badge-dev"   title="Linked to dev item">Dev Item</span>' : '';
+  const taskBadge     = issue.task_id      ? '<span class="badge-task"  title="Linked to task">Task</span>'         : '';
+  const userTaskBadge = issue.user_task_id ? '<span class="badge-user-task" title="Linked to user task">User Task</span>' : '';
+  const epicBadge     = issue.epic_id      ? '<span class="badge-epic"  title="Promoted to epic">Epic</span>'       : '';
+  const hasOutgoing   = (issue.linked_issue_ids || []).length > 0 || !!issue.linked_issue_id;
+  const hasIncoming   = _ipLinkedTargetIds.has(issue.id);
+  const linkedBadge   = issue.is_duplicate
+    ? '<span class="badge-duplicate">Duplicate</span>'
+    : (hasOutgoing || hasIncoming) ? '<span class="badge-linked">Linked</span>' : '';
+  const connectedHtml = [devBadge, taskBadge, userTaskBadge, epicBadge, linkedBadge].filter(Boolean).join(' ') || '<span class="text-muted">—</span>';
+
   const safeId = escHtml(issue.id);
   return `<tr class="iss-row-clickable" onclick="ipOpenIssueModal('${safeId}')">
     <td>${ticketRef}<span class="user-name">${escHtml(issue.site_name || '')}</span></td>
@@ -337,9 +366,10 @@ function _ipRenderRow(issue) {
     <td class="issue-desc-cell">${escHtml(titleText)}</td>
     <td>${prioBadge}</td>
     <td>${statusBadge}</td>
+    <td>${confirmedCell}</td>
+    <td class="iss-connected-cell" onclick="event.stopPropagation()">${connectedHtml}</td>
     <td>${issue.assigned_to ? `<code class="mono-val">${escHtml(issue.assigned_to)}</code>` : '<span class="text-muted">—</span>'}</td>
-    <td>${_ipAgePill(issue)}</td>
-    <td class="date-cell">${fmtDateTime(issue.created_at)}</td>
+    <td class="date-cell">${fmtDateTime(issue.created_at)}${_ipAgePill(issue)}</td>
   </tr>`;
 }
 
