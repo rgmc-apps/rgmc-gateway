@@ -89,3 +89,86 @@
   color: var(--success);
   border: 1px solid rgba(82,168,112,0.25);
 }
+
+/* ── "Imported from legacy system" flag — list rows + detail modal ── */
+.badge-imported {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: rgba(168,144,96,0.14);
+  border: 1px solid rgba(168,144,96,0.32);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.badge-imported svg { flex-shrink: 0; }
+.iss-connected-cell .badge-imported { font-size: 11px; padding: 2px 7px; text-transform: none; }
+
+.iss-legacy-section {
+  background: var(--bg-card-inner);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.iss-legacy-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.iss-legacy-head svg { color: var(--gold); flex-shrink: 0; }
+.iss-legacy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px 16px;
+}
+.iss-legacy-field-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+.iss-legacy-field-val {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.iss-legacy-raw-toggle {
+  margin-top: 12px;
+}
+.iss-legacy-raw-toggle summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.iss-legacy-raw-toggle summary:hover { color: var(--gold); }
+.iss-legacy-raw-table {
+  margin-top: 10px;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.iss-legacy-raw-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: top;
+}
+.iss-legacy-raw-table td:first-child {
+  color: var(--text-muted);
+  font-weight: 600;
+  width: 38%;
+  white-space: nowrap;
+}
+.iss-legacy-raw-table td:last-child { color: var(--text-primary); word-break: break-word; }

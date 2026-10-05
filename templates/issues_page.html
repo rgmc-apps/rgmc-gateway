@@ -373,6 +373,38 @@
           <div id="ipIssReferencedByList" class="iss-link-display"></div>
         </div>
 
+        <!-- Legacy ticket details (tickets imported from a prior system) -->
+        <div class="form-group form-group-full" id="ipIssLegacyGroup" style="display:none;">
+          <div class="iss-legacy-section">
+            <div class="iss-legacy-head">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="12 7 12 12 15 15"/><path d="M3.05 11a9 9 0 1 1 .5 4"/><polyline points="3 4 3 11 10 11"/></svg>
+              Legacy Ticket Details
+            </div>
+            <div class="iss-legacy-grid">
+              <div id="ipIssLegacyTicketField" style="display:none;">
+                <div class="iss-legacy-field-label">Original Ticket #</div>
+                <div class="iss-legacy-field-val" id="ipIssLegacyTicketId"></div>
+              </div>
+              <div id="ipIssLegacyAssigneeField" style="display:none;">
+                <div class="iss-legacy-field-label">Original Assignee</div>
+                <div class="iss-legacy-field-val" id="ipIssLegacyAssignee"></div>
+              </div>
+              <div>
+                <div class="iss-legacy-field-label">Source</div>
+                <div class="iss-legacy-field-val" id="ipIssLegacySource"></div>
+              </div>
+              <div>
+                <div class="iss-legacy-field-label">Imported On</div>
+                <div class="iss-legacy-field-val" id="ipIssLegacyImportedAt"></div>
+              </div>
+            </div>
+            <details class="iss-legacy-raw-toggle" id="ipIssLegacyRawToggle" style="display:none;">
+              <summary>View original export data</summary>
+              <table class="iss-legacy-raw-table"><tbody id="ipIssLegacyRawBody"></tbody></table>
+            </details>
+          </div>
+        </div>
+
         <div class="iss-activity-section">
           <div class="iss-activity-header">
             <span class="iss-activity-label">Activity &amp; Comments</span>

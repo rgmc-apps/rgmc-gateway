@@ -1313,6 +1313,38 @@
           </div>
         </div>
 
+        <!-- Legacy ticket details (tickets imported from a prior system) -->
+        <div class="form-group form-group-full" id="issueLegacyGroup" style="display:none;">
+          <div class="iss-legacy-section">
+            <div class="iss-legacy-head">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="12 7 12 12 15 15"/><path d="M3.05 11a9 9 0 1 1 .5 4"/><polyline points="3 4 3 11 10 11"/></svg>
+              Legacy Ticket Details
+            </div>
+            <div class="iss-legacy-grid">
+              <div id="issueLegacyTicketField" style="display:none;">
+                <div class="iss-legacy-field-label">Original Ticket #</div>
+                <div class="iss-legacy-field-val" id="issueLegacyTicketId"></div>
+              </div>
+              <div id="issueLegacyAssigneeField" style="display:none;">
+                <div class="iss-legacy-field-label">Original Assignee</div>
+                <div class="iss-legacy-field-val" id="issueLegacyAssignee"></div>
+              </div>
+              <div>
+                <div class="iss-legacy-field-label">Source</div>
+                <div class="iss-legacy-field-val" id="issueLegacySource"></div>
+              </div>
+              <div>
+                <div class="iss-legacy-field-label">Imported On</div>
+                <div class="iss-legacy-field-val" id="issueLegacyImportedAt"></div>
+              </div>
+            </div>
+            <details class="iss-legacy-raw-toggle" id="issueLegacyRawToggle" style="display:none;">
+              <summary>View original export data</summary>
+              <table class="iss-legacy-raw-table"><tbody id="issueLegacyRawBody"></tbody></table>
+            </details>
+          </div>
+        </div>
+
         <!-- Activity & Comments -->
         <div class="iss-activity-section">
           <div class="iss-activity-header">

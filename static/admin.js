@@ -2637,9 +2637,12 @@ function renderIssueRow(issue) {
   const _rawDesc      = _stripHtml(issue.description || '');
   const titleText     = issue.title ? issue.title : (_rawDesc.length > 60 ? _rawDesc.slice(0, 58) + '…' : _rawDesc);
   const newBadge      = isNew ? '<span class="badge-iss-new"><span class="badge-iss-new-dot"></span>New</span>' : '';
+  const importedBadge = issue.imported_from
+    ? `<span class="badge-imported" title="Imported from ${escHtml(issue.imported_from)}${issue.legacy_ticket_id ? ' — legacy #' + escHtml(issue.legacy_ticket_id) : ''}">Imported</span>`
+    : '';
   const ticketRef     = issue.ticket_number
-    ? `<code class="mono-val" style="font-size:11px;">${escHtml(issue.ticket_number)}</code>${newBadge}<br>`
-    : newBadge ? `${newBadge}<br>` : '';
+    ? `<code class="mono-val" style="font-size:11px;">${escHtml(issue.ticket_number)}</code>${newBadge}${importedBadge}<br>`
+    : (newBadge || importedBadge) ? `${newBadge}${importedBadge}<br>` : '';
   const devBadge      = issue.dev_item_id  ? '<span class="badge-dev"   title="Linked to dev item">Dev Item</span>' : '';
   const taskBadge     = issue.task_id      ? '<span class="badge-task"  title="Linked to task">Task</span>'         : '';
   const userTaskBadge = issue.user_task_id ? '<span class="badge-user-task" title="Linked to user task">User Task</span>' : '';
@@ -2682,6 +2685,52 @@ async function _ensureDevelopers() {
       _developersCache = all.filter(u => u.is_developer);
     }
   } catch { /* non-fatal */ }
+}
+
+/* Populates the "Legacy Ticket Details" block shown for issues brought in
+   via the bulk importer (issue.imported_from). `ids` maps logical slots to
+   this page's actual element ids, so admin.html and issues_page.html can
+   share the exact same rendering logic despite their "ip"-prefixed ids. */
+function _renderIssueLegacySection(issue, ids) {
+  const group = document.getElementById(ids.group);
+  if (!group) return;
+  if (!issue.imported_from) {
+    group.style.display = 'none';
+    return;
+  }
+  group.style.display = '';
+
+  const ticketField = document.getElementById(ids.ticketField);
+  if (issue.legacy_ticket_id) {
+    ticketField.style.display = '';
+    document.getElementById(ids.ticketId).textContent = issue.legacy_ticket_id;
+  } else {
+    ticketField.style.display = 'none';
+  }
+
+  const assigneeField = document.getElementById(ids.assigneeField);
+  if (issue.legacy_assignee_name) {
+    assigneeField.style.display = '';
+    document.getElementById(ids.assignee).textContent = issue.legacy_assignee_name;
+  } else {
+    assigneeField.style.display = 'none';
+  }
+
+  document.getElementById(ids.source).textContent     = issue.imported_from;
+  document.getElementById(ids.importedAt).textContent = issue.imported_at ? fmtDateTime(issue.imported_at) : '—';
+
+  const rawToggle = document.getElementById(ids.rawToggle);
+  const rawEntries = issue.legacy_raw_data && typeof issue.legacy_raw_data === 'object'
+    ? Object.entries(issue.legacy_raw_data).filter(([, v]) => v !== null && v !== '')
+    : [];
+  if (rawEntries.length) {
+    rawToggle.style.display = '';
+    document.getElementById(ids.rawBody).innerHTML = rawEntries
+      .map(([k, v]) => `<tr><td>${escHtml(k)}</td><td>${escHtml(String(v))}</td></tr>`)
+      .join('');
+  } else {
+    rawToggle.style.display = 'none';
+  }
 }
 
 async function openIssueModal(id) {
@@ -2844,6 +2893,13 @@ async function openIssueModal(id) {
       refByGroup.style.display = 'none';
     }
   }
+
+  _renderIssueLegacySection(issue, {
+    group: 'issueLegacyGroup', ticketField: 'issueLegacyTicketField', ticketId: 'issueLegacyTicketId',
+    assigneeField: 'issueLegacyAssigneeField', assignee: 'issueLegacyAssignee',
+    source: 'issueLegacySource', importedAt: 'issueLegacyImportedAt',
+    rawToggle: 'issueLegacyRawToggle', rawBody: 'issueLegacyRawBody',
+  });
 
   // Resolution remarks — visible only when the issue has no linked board item
   const isLinked = !!(issue.dev_item_id || issue.task_id || issue.user_task_id);

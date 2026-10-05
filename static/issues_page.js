@@ -324,9 +324,12 @@ function _ipRenderRow(issue) {
   const prioBadge    = PRIORITY_BADGE[(issue.priority || '').toLowerCase()] || '<span class="text-muted">—</span>';
   const rawDesc      = _stripHtml(issue.description || '');
   const titleText    = issue.title ? issue.title : (rawDesc.length > 60 ? rawDesc.slice(0, 58) + '…' : rawDesc);
-  const ticketRef    = issue.ticket_number
-    ? `<code class="mono-val" style="font-size:11px;">${escHtml(issue.ticket_number)}</code><br>`
+  const importedBadge = issue.imported_from
+    ? `<span class="badge-imported" title="Imported from ${escHtml(issue.imported_from)}${issue.legacy_ticket_id ? ' — legacy #' + escHtml(issue.legacy_ticket_id) : ''}">Imported</span>`
     : '';
+  const ticketRef    = issue.ticket_number
+    ? `<code class="mono-val" style="font-size:11px;">${escHtml(issue.ticket_number)}</code>${importedBadge}<br>`
+    : importedBadge ? `${importedBadge}<br>` : '';
   const safeId = escHtml(issue.id);
   return `<tr class="iss-row-clickable" onclick="ipOpenIssueModal('${safeId}')">
     <td>${ticketRef}<span class="user-name">${escHtml(issue.site_name || '')}</span></td>
@@ -349,6 +352,51 @@ function _ipDescPreview(raw, max = 110) {
   if (!raw) return '';
   const text = _stripHtml(raw).replace(/\s+/g, ' ');
   return text.length > max ? text.slice(0, max) + '…' : text;
+}
+
+/* Populates the "Legacy Ticket Details" block shown for issues brought in
+   via the bulk importer (issue.imported_from). `ids` maps logical slots to
+   this page's actual element ids. */
+function _renderIssueLegacySection(issue, ids) {
+  const group = document.getElementById(ids.group);
+  if (!group) return;
+  if (!issue.imported_from) {
+    group.style.display = 'none';
+    return;
+  }
+  group.style.display = '';
+
+  const ticketField = document.getElementById(ids.ticketField);
+  if (issue.legacy_ticket_id) {
+    ticketField.style.display = '';
+    document.getElementById(ids.ticketId).textContent = issue.legacy_ticket_id;
+  } else {
+    ticketField.style.display = 'none';
+  }
+
+  const assigneeField = document.getElementById(ids.assigneeField);
+  if (issue.legacy_assignee_name) {
+    assigneeField.style.display = '';
+    document.getElementById(ids.assignee).textContent = issue.legacy_assignee_name;
+  } else {
+    assigneeField.style.display = 'none';
+  }
+
+  document.getElementById(ids.source).textContent     = issue.imported_from;
+  document.getElementById(ids.importedAt).textContent = issue.imported_at ? fmtDateTime(issue.imported_at) : '—';
+
+  const rawToggle = document.getElementById(ids.rawToggle);
+  const rawEntries = issue.legacy_raw_data && typeof issue.legacy_raw_data === 'object'
+    ? Object.entries(issue.legacy_raw_data).filter(([, v]) => v !== null && v !== '')
+    : [];
+  if (rawEntries.length) {
+    rawToggle.style.display = '';
+    document.getElementById(ids.rawBody).innerHTML = rawEntries
+      .map(([k, v]) => `<tr><td>${escHtml(k)}</td><td>${escHtml(String(v))}</td></tr>`)
+      .join('');
+  } else {
+    rawToggle.style.display = 'none';
+  }
 }
 
 async function ipOpenIssueModal(id) {
@@ -582,6 +630,13 @@ async function ipOpenIssueModal(id) {
   } else {
     refByGroup.style.display = 'none';
   }
+
+  _renderIssueLegacySection(issue, {
+    group: 'ipIssLegacyGroup', ticketField: 'ipIssLegacyTicketField', ticketId: 'ipIssLegacyTicketId',
+    assigneeField: 'ipIssLegacyAssigneeField', assignee: 'ipIssLegacyAssignee',
+    source: 'ipIssLegacySource', importedAt: 'ipIssLegacyImportedAt',
+    rawToggle: 'ipIssLegacyRawToggle', rawBody: 'ipIssLegacyRawBody',
+  });
 
   document.getElementById('ipIssCommentInput').value = '';
   document.getElementById('ipIssueModal').classList.add('open');
