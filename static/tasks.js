@@ -1115,7 +1115,7 @@ async function refreshTaskLogs() {
           <span class="log-movement-badge log-movement-to">${toLbl}</span>
         </div>
         <div class="log-meta log-meta-movement">
-          <span class="log-author">${escHtml(log.username)}</span>
+          <span class="log-author">${userRef(log.username, log.username)}</span>
           <span class="log-time">${fmtDateTime(log.created_at)}</span>
         </div>
       </div>`;
@@ -1123,7 +1123,7 @@ async function refreshTaskLogs() {
       return `
       <div class="activity-log-entry">
         <div class="log-meta">
-          <span class="log-author">${escHtml(log.username)}</span>
+          <span class="log-author">${userRef(log.username, log.username)}</span>
           ${hrs ? `<span class="log-hours-badge">${escHtml(hrs)}</span>` : ''}
           <span class="log-time">${fmtDateTime(log.created_at)}</span>
         </div>

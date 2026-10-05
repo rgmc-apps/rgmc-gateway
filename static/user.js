@@ -669,7 +669,6 @@ function _renderIssActivityEntries(entries) {
   list.innerHTML = entries.map(e => {
     const time = fmtDateTime(e.created_at);
     const name = e.display_name || e.username || '?';
-    const user = escHtml(name);
     const initial = escHtml((name.charAt(0) || '?').toUpperCase());
     const avatar  = e.avatar_url
       ? `<img src="${escHtml(e.avatar_url)}" alt="${initial}">`
@@ -690,7 +689,7 @@ function _renderIssActivityEntries(entries) {
     return `<div class="iss-act-entry">
       <div class="iss-act-avatar">${avatar}</div>
       <div class="iss-act-body">
-        <div class="iss-act-meta">${tag}<span class="iss-act-user">${user}</span><span class="iss-act-time">${time}</span></div>
+        <div class="iss-act-meta">${tag}<span class="iss-act-user">${userRef(e.username, name)}</span><span class="iss-act-time">${time}</span></div>
         ${body}
       </div>
     </div>`;
@@ -1573,7 +1572,6 @@ function _renderUtActivityEntries(entries) {
   }
   list.innerHTML = entries.map(e => {
     const time  = fmtDateTime(e.created_at);
-    const user  = escHtml(e.username || '?');
     const msg   = escHtml(e.message  || '');
     const type  = _inferUtActType(e.message);
     const icon  = _UT_ACT_ICONS[type] || _UT_ACT_ICONS.edit;
@@ -1582,7 +1580,7 @@ function _renderUtActivityEntries(entries) {
     return `<div class="iss-act-entry">
       <div class="iss-act-meta">
         <span class="iss-act-tag ${tagCls}" style="display:inline-flex;align-items:center;gap:4px;">${icon}${tagLabel}</span>
-        <span class="iss-act-user">${user}</span>
+        <span class="iss-act-user">${userRef(e.username, e.username)}</span>
         <span class="iss-act-time">${time}</span>
       </div>
       <div class="iss-act-text">${msg}</div>

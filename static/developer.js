@@ -4271,7 +4271,7 @@ function _renderEpicComments() {
         </div>
         <div class="epic-comment-body">
           <div class="epic-comment-meta">
-            <span class="epic-comment-author">${escHtml(name)}</span>
+            <span class="epic-comment-author">${userRef(c.username, name)}</span>
             <span class="epic-comment-kind-label">logged progress on</span>
             ${itemLabel ? `<span class="epic-comment-item-tag" title="${escHtml(c.dev_item_title || '')}">${escHtml(itemLabel)}</span>` : ''}
             <span class="epic-comment-time">${fmtDateTime(c.created_at)}</span>
@@ -4289,7 +4289,7 @@ function _renderEpicComments() {
         </div>
         <div class="epic-comment-body">
           <div class="epic-comment-meta">
-            <span class="epic-comment-author">${escHtml(name)}</span>
+            <span class="epic-comment-author">${userRef(c.username, name)}</span>
             <span class="epic-comment-kind-label">resolved${c.issue_ticket_number ? ` #${escHtml(c.issue_ticket_number)}` : ' an issue'} via</span>
             ${itemLabel ? `<span class="epic-comment-item-tag epic-comment-item-tag--res" title="${escHtml(c.dev_item_title || '')}">${escHtml(itemLabel)}</span>` : ''}
             <span class="epic-comment-time">${fmtDateTime(c.created_at)}</span>

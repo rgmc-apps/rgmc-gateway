@@ -406,9 +406,9 @@
     <!-- ── Team View ── -->
     <div id="devTeamView" class="dev-view-panel" style="display:none;">
       <div class="dboard-team-toolbar">
-        <div class="epic-layout-toggle" title="Switch view">
-          <button class="epic-layout-btn active" id="teamSubTabDirectory" onclick="setTeamSubTab('directory')">Directory</button>
-          <button class="epic-layout-btn" id="teamSubTabReport" onclick="setTeamSubTab('report')">Developer Report</button>
+        <div class="dev-filter-tabs" title="Switch view">
+          <button class="dev-filter-tab active" id="teamSubTabDirectory" onclick="setTeamSubTab('directory')">Directory</button>
+          <button class="dev-filter-tab" id="teamSubTabReport" onclick="setTeamSubTab('report')">Developer Report</button>
         </div>
         <input id="teamSearch" class="dev-list-search" type="search" placeholder="Search name, username, GitHub…" oninput="renderTeamView()">
         <span class="dev-list-count-badge" id="teamCount"></span>
@@ -1378,6 +1378,7 @@
   <script src="/static/linkify.js"></script>
   <script src="/static/comment-render.js"></script>
   <script src="/static/comment-editor.js"></script>
+  <script src="/static/user-hovercard.js"></script>
   <script src="/static/developer.js"></script>
   <script src="/static/outage-notifier.js"></script>
 </body>

@@ -1520,7 +1520,6 @@ function _ipRenderActivity(entries) {
   list.innerHTML = entries.map(e => {
     const time     = fmtDateTime(e.created_at);
     const name     = e.display_name || e.username || '?';
-    const user     = escHtml(name);
     const initial  = escHtml((name.charAt(0) || '?').toUpperCase());
     const avatar   = e.avatar_url ? `<img src="${escHtml(e.avatar_url)}" alt="${initial}">` : initial;
     let tag = '', body = '';
@@ -1539,7 +1538,7 @@ function _ipRenderActivity(entries) {
     return `<div class="iss-act-entry">
       <div class="iss-act-avatar">${avatar}</div>
       <div class="iss-act-body">
-        <div class="iss-act-meta">${tag}<span class="iss-act-user">${user}</span><span class="iss-act-time">${time}</span></div>
+        <div class="iss-act-meta">${tag}<span class="iss-act-user">${userRef(e.username, name)}</span><span class="iss-act-time">${time}</span></div>
         ${body}
       </div>
     </div>`;
@@ -1568,6 +1567,167 @@ async function ipPostIssueComment() {
   }
 }
 
+/* ── Issue Import (legacy helpdesk export, admins only) ── */
+let _ipIssueImportFile  = null;
+let _ipIssueImportReady = false;
+
+function ipOpenIssueImportModal() {
+  _ipIssueImportFile  = null;
+  _ipIssueImportReady = false;
+  document.getElementById('ipIssueImportFile').value = '';
+  document.getElementById('ipIssueImportSummary').style.display = 'none';
+  document.getElementById('ipIssueImportSummary').innerHTML      = '';
+  document.getElementById('ipIssueImportLoading').style.display  = 'none';
+  document.getElementById('ipIssueImportError').style.display    = 'none';
+  const btn = document.getElementById('ipIssueImportConfirmBtn');
+  btn.disabled = true;
+  document.getElementById('ipIssueImportConfirmLabel').textContent = 'Select a file to begin';
+  document.getElementById('ipIssueImportModal').classList.add('open');
+}
+
+function ipCloseIssueImportModal() {
+  document.getElementById('ipIssueImportModal')?.classList.remove('open');
+}
+
+function ipIssueImportFileChange(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  _ipIssueImportFile  = file;
+  _ipIssueImportReady = false;
+  _ipRunIssueImportPreview();
+}
+
+async function _ipRunIssueImportPreview() {
+  if (!_ipIssueImportFile) return;
+  const btn = document.getElementById('ipIssueImportConfirmBtn');
+  btn.disabled = true;
+  document.getElementById('ipIssueImportConfirmLabel').textContent = 'Select a file to begin';
+  document.getElementById('ipIssueImportSummary').style.display = 'none';
+  document.getElementById('ipIssueImportError').style.display   = 'none';
+  document.getElementById('ipIssueImportLoadingText').textContent = 'Analyzing file…';
+  document.getElementById('ipIssueImportLoading').style.display   = '';
+
+  try {
+    const fd = new FormData();
+    fd.append('file', _ipIssueImportFile);
+    fd.append('dry_run', 'true');
+    const res = await fetch('/api/admin/issues/import', { method: 'POST', headers: authHeaders(), body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Could not read this file.');
+    document.getElementById('ipIssueImportLoading').style.display = 'none';
+    _ipRenderIssueImportSummary(data, false);
+    _ipIssueImportReady = data.ready > 0;
+    btn.disabled = !_ipIssueImportReady;
+    document.getElementById('ipIssueImportConfirmLabel').textContent =
+      _ipIssueImportReady ? `Import ${data.ready} Ticket${data.ready === 1 ? '' : 's'}` : 'Nothing to import';
+  } catch (err) {
+    document.getElementById('ipIssueImportLoading').style.display = 'none';
+    document.getElementById('ipIssueImportError').style.display   = '';
+    document.getElementById('ipIssueImportErrorMsg').textContent  = err.message;
+  }
+}
+
+async function ipConfirmIssueImport() {
+  if (!_ipIssueImportFile || !_ipIssueImportReady) return;
+  const btn = document.getElementById('ipIssueImportConfirmBtn');
+  btn.disabled = true;
+  document.getElementById('ipIssueImportError').style.display   = 'none';
+  document.getElementById('ipIssueImportLoadingText').textContent = 'Importing tickets…';
+  document.getElementById('ipIssueImportLoading').style.display   = '';
+
+  try {
+    const fd = new FormData();
+    fd.append('file', _ipIssueImportFile);
+    fd.append('dry_run', 'false');
+    const res = await fetch('/api/admin/issues/import', { method: 'POST', headers: authHeaders(), body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Import failed.');
+    document.getElementById('ipIssueImportLoading').style.display = 'none';
+    _ipRenderIssueImportSummary(data, true);
+    document.getElementById('ipIssueImportConfirmLabel').textContent = 'Done';
+    showToast(`Imported ${data.imported} ticket${data.imported === 1 ? '' : 's'}.`);
+    loadIssuesPage();
+    if (data.error) {
+      document.getElementById('ipIssueImportError').style.display  = '';
+      document.getElementById('ipIssueImportErrorMsg').textContent = data.error;
+    }
+  } catch (err) {
+    btn.disabled = false;
+    document.getElementById('ipIssueImportLoading').style.display = 'none';
+    document.getElementById('ipIssueImportError').style.display   = '';
+    document.getElementById('ipIssueImportErrorMsg').textContent  = err.message;
+  }
+}
+
+function _ipRenderIssueImportSummary(data, committed) {
+  const wrap = document.getElementById('ipIssueImportSummary');
+  wrap.style.display = '';
+
+  const stats = `
+    <div class="iss-import-stats">
+      <div class="iss-import-stat iss-import-stat--ready">
+        <div class="iss-import-stat-val">${committed ? data.imported : data.ready}</div>
+        <div class="iss-import-stat-label">${committed ? 'Imported' : 'Ready'}</div>
+      </div>
+      <div class="iss-import-stat iss-import-stat--dup">
+        <div class="iss-import-stat-val">${data.duplicate}</div>
+        <div class="iss-import-stat-label">Already Imported</div>
+      </div>
+      <div class="iss-import-stat iss-import-stat--skipped">
+        <div class="iss-import-stat-val">${data.skipped}</div>
+        <div class="iss-import-stat-label">Skipped</div>
+      </div>
+      <div class="iss-import-stat iss-import-stat--warn">
+        <div class="iss-import-stat-val">${data.status_warning_count}</div>
+        <div class="iss-import-stat-label">Status Defaulted</div>
+      </div>
+    </div>`;
+
+  const notes = [];
+  if (data.skipped_reasons?.length) {
+    notes.push(`
+      <details class="iss-import-note-group">
+        <summary>Skipped rows (missing required fields)${data.skipped > data.skipped_reasons.length ? ` — showing first ${data.skipped_reasons.length}` : ''}</summary>
+        <ul class="iss-import-note-list">${data.skipped_reasons.map(r => `<li>${escHtml(r)}</li>`).join('')}</ul>
+      </details>`);
+  }
+  if (data.status_warnings?.length) {
+    notes.push(`
+      <details class="iss-import-note-group">
+        <summary>Rows with an unrecognized status${data.status_warning_count > data.status_warnings.length ? ` — showing first ${data.status_warnings.length}` : ''}</summary>
+        <ul class="iss-import-note-list">${data.status_warnings.map(r => `<li>${escHtml(r)}</li>`).join('')}</ul>
+      </details>`);
+  }
+
+  let preview = '';
+  if (!committed && data.preview?.length) {
+    preview = `
+      <div class="iss-import-preview-wrap">
+        <div class="iss-import-preview-title">Preview (first ${data.preview.length} of ${data.ready} ready to import)</div>
+        <table class="admin-table">
+          <thead><tr><th>Legacy #</th><th>Title</th><th>Reporter</th><th>Company</th><th>Status</th><th>Priority</th></tr></thead>
+          <tbody>${data.preview.map(r => `<tr>
+            <td><code class="mono-val">${escHtml(r.legacy_ticket_id || '—')}</code></td>
+            <td class="issue-desc-cell">${escHtml(r.title || '')}</td>
+            <td>${escHtml(r.employee_name || '')}</td>
+            <td>${escHtml(r.company_name || '')}</td>
+            <td>${escHtml((r.status || '').replace('_',' '))}</td>
+            <td>${escHtml(r.priority || '—')}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>`;
+  }
+
+  const successBanner = committed
+    ? `<div class="iss-import-success">
+         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+         Imported ${data.imported} ticket${data.imported === 1 ? '' : 's'} from the legacy export.
+       </div>`
+    : '';
+
+  wrap.innerHTML = successBanner + stats + (notes.length ? `<div class="iss-import-notes">${notes.join('')}</div>` : '') + preview;
+}
+
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', () => {
   const session = loadSession();
@@ -1581,6 +1741,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   _ipCanManage = !!(session.isAdmin || session.isDepartmentHead);
+  if (session.isAdmin) document.getElementById('ipUploadIssuesBtn').style.display = '';
 
   initCommentEditor('ipIssCommentInput', { uploadEntityType: 'issue', getEntityId: () => _ipEditingIssueId });
   initCommentEditor('ipIssResolutionNotes', {});
@@ -1664,6 +1825,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ipClosePromoteUserTaskModal();
       document.getElementById('ipPromoteModal')?.classList.remove('open');
       ipCloseQuickResolveModal();
+      ipCloseIssueImportModal();
       _ipCloseIssActionsMenu();
       ipCloseIssueModal();
     }

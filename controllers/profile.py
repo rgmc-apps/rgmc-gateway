@@ -53,6 +53,39 @@ def api_profile_get():
     })
 
 
+@profile_bp.get("/api/users/<username>/card")
+def api_user_card(username):
+    """Minimal public-facing profile card for the hover/click user reference
+    used wherever a commenter's name is shown. Any signed-in user may look up
+    any other user — this only ever returns name/contact fields, nothing
+    sensitive (no flags, no password state)."""
+    requester = request.headers.get("X-Gateway-Username", "").strip().lower()
+    if not requester:
+        return jsonify({"error": "Not authenticated"}), 401
+    target = username.strip().lower()
+    try:
+        rows = supabase_req("GET", "/users", params={
+            "username": f"eq.{target}",
+            "select":   "username,first_name,last_name,display_name,avatar_url,email,viber_number,position,department,company",
+        })
+    except Exception as exc:
+        current_app.logger.error("api_user_card failed for '%s': %s", target, exc)
+        return jsonify({"error": "Failed to fetch user"}), 500
+    if not rows:
+        return jsonify({"error": "User not found"}), 404
+    u = rows[0]
+    return jsonify({
+        "username":        u["username"],
+        "display_name":    u.get("display_name") or f"{u.get('first_name','')} {u.get('last_name','')}".strip() or u["username"],
+        "avatar_url":      u.get("avatar_url") or "",
+        "email":           u.get("email") or "",
+        "contact_number":  u.get("viber_number") or "",
+        "position":        u.get("position") or "",
+        "department":      u.get("department") or "",
+        "company":         u.get("company") or "",
+    })
+
+
 @profile_bp.patch("/api/profile")
 def api_profile_patch():
     username = request.headers.get("X-Gateway-Username", "").strip().lower()

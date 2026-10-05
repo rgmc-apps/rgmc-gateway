@@ -72,6 +72,10 @@
         <input class="iss-filter-input iss-filter-date" id="ipFilterFrom" type="date" onchange="ipApplyFilters()" title="From date">
         <span class="iss-date-sep">–</span>
         <input class="iss-filter-input iss-filter-date" id="ipFilterTo" type="date" onchange="ipApplyFilters()" title="To date">
+        <button class="iss-export-pdf-btn" id="ipUploadIssuesBtn" onclick="ipOpenIssueImportModal()" title="Import tickets from the legacy helpdesk export" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Upload Issues
+        </button>
         <div class="iss-live-indicator">
           <button class="iss-live-refresh-btn" id="ipRefreshBtn" onclick="loadIssuesPage()" title="Refresh issues">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
@@ -195,12 +199,12 @@
        also get the editable fields + Actions menu, mirroring the admin panel) ── -->
   <div id="ipIssueModal" class="modal-overlay" onclick="if(event.target===this)ipCloseIssueModal()">
     <div class="modal modal-lg">
-      <button class="modal-close" onclick="ipCloseIssueModal()" aria-label="Close">&times;</button>
       <div class="modal-header">
         <div>
           <h3 class="modal-title" id="ipIssModalTitle">Issue Report</h3>
           <p class="modal-site-name" id="ipIssModalMeta"></p>
         </div>
+        <button class="modal-close" onclick="ipCloseIssueModal()" aria-label="Close">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-row">
@@ -244,6 +248,9 @@
               <option value="closed">Closed</option>
             </select>
           </div>
+        </div>
+
+        <div class="form-row">
           <div class="form-group">
             <label class="form-label">Assigned To</label>
             <p class="modal-detail-val" id="ipIssAssignedTo"></p>
@@ -653,12 +660,48 @@
     </div>
   </div>
 
+  <!-- ── Issue Import Modal (legacy helpdesk export, admins only) ── -->
+  <div id="ipIssueImportModal" class="modal-overlay">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Upload Issues</h3>
+          <p class="modal-site-name">Import tickets from the legacy helpdesk export (.xlsx or .csv)</p>
+        </div>
+        <button class="modal-close" onclick="ipCloseIssueImportModal()" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group form-group-full">
+          <label class="form-label" for="ipIssueImportFile">Export File</label>
+          <input class="form-input" type="file" id="ipIssueImportFile" accept=".xlsx,.csv" onchange="ipIssueImportFileChange(this)">
+          <p class="form-label-hint iss-import-hint">
+            Only .xlsx and .csv are supported. Original ticket numbers are kept for reference (new system ticket numbers are assigned); attachment files aren't in the export, so only their filenames are preserved for reference.
+          </p>
+        </div>
+        <div id="ipIssueImportSummary" class="iss-import-summary" style="display:none;"></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-modal-cancel" onclick="ipCloseIssueImportModal()">Cancel</button>
+        <button type="button" class="btn-modal-submit" id="ipIssueImportConfirmBtn" onclick="ipConfirmIssueImport()" disabled>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span id="ipIssueImportConfirmLabel">Select a file to begin</span>
+        </button>
+      </div>
+      <div id="ipIssueImportLoading" class="form-state" style="display:none;"><div class="spinner"></div><span id="ipIssueImportLoadingText">Analyzing file…</span></div>
+      <div id="ipIssueImportError" class="form-state form-error" style="display:none;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="ipIssueImportErrorMsg"></span>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast"></div>
 
   <script src="/static/theme.js"></script>
   <script src="/static/linkify.js"></script>
   <script src="/static/comment-render.js"></script>
   <script src="/static/comment-editor.js"></script>
+  <script src="/static/user-hovercard.js"></script>
   <script src="/static/issues_page.js"></script>
 </body>
 </html>

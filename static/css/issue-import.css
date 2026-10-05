@@ -1,0 +1,91 @@
+/* ══════════════════════════════════════════════════════════════
+   Issue import (legacy helpdesk export) modal
+   ══════════════════════════════════════════════════════════════ */
+
+.iss-import-hint {
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+.iss-import-summary {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.iss-import-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+}
+.iss-import-stat {
+  background: var(--bg-card-inner);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  text-align: center;
+}
+.iss-import-stat-val {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+.iss-import-stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.iss-import-stat--ready .iss-import-stat-val   { color: var(--success); }
+.iss-import-stat--dup .iss-import-stat-val     { color: var(--text-secondary); }
+.iss-import-stat--skipped .iss-import-stat-val { color: var(--error); }
+.iss-import-stat--warn .iss-import-stat-val    { color: var(--warning); }
+
+.iss-import-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.iss-import-note-group summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 2px 0;
+}
+.iss-import-note-group summary:hover { color: var(--text-primary); }
+.iss-import-note-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.iss-import-preview-wrap { overflow-x: auto; }
+.iss-import-preview-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.iss-import-success {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 500;
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid rgba(82,168,112,0.25);
+}
