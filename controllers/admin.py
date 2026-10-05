@@ -10,7 +10,7 @@ from werkzeug.security import generate_password_hash
 
 from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
 from services.supabase import supabase_req
-from services.guards import _require_admin
+from services.guards import _require_admin, _require_dept_head
 from services.sites import _invalidate_sites_cache, ping_system_by_id, SystemNotFoundError
 from services.shift import validate_shift_fields
 from services.dev_performance import build_dev_performance_report
@@ -45,7 +45,7 @@ def admin_get_requests():
 
 @admin_bp.get("/api/admin/users")
 def admin_get_users():
-    _, err = _require_admin()
+    _, _, err = _require_dept_head()
     if err:
         return jsonify(err[0]), err[1]
     try:
@@ -271,7 +271,7 @@ def admin_github_profile(login):
 
 @admin_bp.get("/api/admin/systems")
 def admin_get_systems():
-    _, err = _require_admin()
+    _, _, err = _require_dept_head()
     if err:
         return jsonify(err[0]), err[1]
     try:
@@ -1056,7 +1056,7 @@ def admin_common_issues():
 
 @admin_bp.get("/api/admin/linked/dev-item/<item_id>")
 def admin_get_linked_dev_item(item_id):
-    _, err = _require_admin()
+    _, _, err = _require_dept_head()
     if err: return jsonify(err[0]), err[1]
     try:
         rows = supabase_req("GET", "/dev_items", params={"id": f"eq.{item_id}", "select": "*"})
@@ -1068,7 +1068,7 @@ def admin_get_linked_dev_item(item_id):
 
 @admin_bp.get("/api/admin/linked/task/<task_id>")
 def admin_get_linked_task(task_id):
-    _, err = _require_admin()
+    _, _, err = _require_dept_head()
     if err: return jsonify(err[0]), err[1]
     try:
         rows = supabase_req("GET", "/tasks", params={"id": f"eq.{task_id}", "select": "*"})
@@ -1080,7 +1080,7 @@ def admin_get_linked_task(task_id):
 
 @admin_bp.get("/api/admin/linked/user-task/<task_id>")
 def admin_get_linked_user_task(task_id):
-    _, err = _require_admin()
+    _, _, err = _require_dept_head()
     if err: return jsonify(err[0]), err[1]
     try:
         rows = supabase_req("GET", "/user_tasks", params={"id": f"eq.{task_id}", "select": "*"})
@@ -1092,7 +1092,7 @@ def admin_get_linked_user_task(task_id):
 
 @admin_bp.get("/api/admin/linked/epic/<epic_id>")
 def admin_get_linked_epic(epic_id):
-    _, err = _require_admin()
+    _, _, err = _require_dept_head()
     if err: return jsonify(err[0]), err[1]
     try:
         rows = supabase_req("GET", "/epics", params={"epic_id": f"eq.{epic_id}", "select": "*"})

@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify, current_app, render_template
 
 from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
 from services.supabase import supabase_req, resolve_action_names
-from services.guards import _require_admin, _require_dept_head
+from services.guards import _require_admin, _require_dept_head, _require_issue_access
 from services.shift import shift_age_days, fetch_shift_map
 from services.email import send_report_email, send_issue_resolved_email, send_issue_assigned_email, send_helpdesk_email, send_helpdesk_confirmation_email, send_issue_promoted_to_epic_email, send_issue_promoted_to_dev_email, send_issue_promoted_to_task_email, send_issue_comment_email
 
@@ -515,7 +515,7 @@ def issues_get_scoped():
 
 @issues_bp.route("/api/admin/issues/<issue_id>", methods=["PATCH"])
 def admin_patch_issue(issue_id):
-    admin_username, err = _require_admin()
+    admin_username, issue, err = _require_issue_access(issue_id)
     if err:
         return jsonify(err[0]), err[1]
     body    = request.get_json(silent=True) or {}
@@ -524,18 +524,9 @@ def admin_patch_issue(issue_id):
     if not patch:
         return jsonify({"error": "Nothing to update"}), 400
 
-    # Fetch current issue to detect status transition and get reporter email
-    old_status      = None
-    old_assigned_to = None
-    issue           = None
-    try:
-        rows = supabase_req("GET", "/issues", params={"id": f"eq.{issue_id}", "select": "*"})
-        if rows:
-            issue           = rows[0]
-            old_status      = issue.get("status")
-            old_assigned_to = issue.get("assigned_to")
-    except Exception as exc:
-        current_app.logger.warning("admin_patch_issue: could not fetch current issue: %s", exc)
+    # Current issue already fetched by the guard — used to detect status transitions
+    old_status      = issue.get("status")
+    old_assigned_to = issue.get("assigned_to")
 
     new_status = patch.get("status")
     notify_resolved = (
@@ -646,18 +637,10 @@ def admin_patch_issue(issue_id):
 
 @issues_bp.post("/api/admin/issues/<issue_id>/promote")
 def admin_promote_issue(issue_id):
-    admin_username, err = _require_admin()
+    admin_username, issue, err = _require_issue_access(issue_id)
     if err:
         return jsonify(err[0]), err[1]
-    try:
-        rows = supabase_req("GET", "/issues", params={"id": f"eq.{issue_id}", "select": "*"})
-    except Exception as exc:
-        current_app.logger.error("promote fetch issue failed: %s", exc)
-        return jsonify({"error": "Failed to fetch issue"}), 500
-    if not rows:
-        return jsonify({"error": "Issue not found"}), 404
 
-    issue = rows[0]
     if issue.get("dev_item_id"):
         return jsonify({"error": "Already promoted to a dev item"}), 409
 
@@ -770,18 +753,10 @@ def admin_promote_issue(issue_id):
 
 @issues_bp.post("/api/admin/issues/<issue_id>/promote-task")
 def admin_promote_issue_to_task(issue_id):
-    admin_username, err = _require_admin()
+    admin_username, issue, err = _require_issue_access(issue_id)
     if err:
         return jsonify(err[0]), err[1]
-    try:
-        rows = supabase_req("GET", "/issues", params={"id": f"eq.{issue_id}", "select": "*"})
-    except Exception as exc:
-        current_app.logger.error("promote-task fetch issue failed: %s", exc)
-        return jsonify({"error": "Failed to fetch issue"}), 500
-    if not rows:
-        return jsonify({"error": "Issue not found"}), 404
 
-    issue = rows[0]
     if issue.get("task_id"):
         return jsonify({"error": "Already promoted to a task"}), 409
 
@@ -873,18 +848,10 @@ def admin_promote_issue_to_task(issue_id):
 
 @issues_bp.post("/api/admin/issues/<issue_id>/promote-epic")
 def admin_promote_issue_to_epic(issue_id):
-    admin_username, err = _require_admin()
+    admin_username, issue, err = _require_issue_access(issue_id)
     if err:
         return jsonify(err[0]), err[1]
-    try:
-        rows = supabase_req("GET", "/issues", params={"id": f"eq.{issue_id}", "select": "*"})
-    except Exception as exc:
-        current_app.logger.error("promote-epic fetch issue failed: %s", exc)
-        return jsonify({"error": "Failed to fetch issue"}), 500
-    if not rows:
-        return jsonify({"error": "Issue not found"}), 404
 
-    issue = rows[0]
     if issue.get("epic_id"):
         return jsonify({"error": "Already promoted to an epic"}), 409
 
@@ -1130,7 +1097,7 @@ def post_issue_comment(issue_id):
 
 @issues_bp.get("/api/admin/issues/search")
 def admin_search_issues():
-    _, err = _require_admin()
+    _, _, err = _require_dept_head()
     if err:
         return jsonify(err[0]), err[1]
     q = request.args.get("q", "").strip()
@@ -1158,7 +1125,7 @@ def admin_search_issues():
 
 @issues_bp.post("/api/admin/issues/<issue_id>/link")
 def admin_link_issue(issue_id):
-    admin_username, err = _require_admin()
+    admin_username, issue, err = _require_issue_access(issue_id)
     if err:
         return jsonify(err[0]), err[1]
 
@@ -1169,16 +1136,6 @@ def admin_link_issue(issue_id):
 
     if not link_type or not target_id:
         return jsonify({"error": "link_type and target_id are required"}), 400
-
-    # Fetch current issue
-    try:
-        rows = supabase_req("GET", "/issues", params={"id": f"eq.{issue_id}", "select": "*"})
-    except Exception as exc:
-        current_app.logger.error("admin_link_issue: fetch issue failed: %s", exc)
-        return jsonify({"error": "Failed to fetch issue"}), 500
-    if not rows:
-        return jsonify({"error": "Issue not found"}), 404
-    issue = rows[0]
 
     patch = {}
 
@@ -1270,18 +1227,10 @@ def admin_link_issue(issue_id):
 
 @issues_bp.post("/api/admin/issues/<issue_id>/promote-user-task")
 def admin_promote_issue_to_user_task(issue_id):
-    admin_username, err = _require_admin()
+    admin_username, issue, err = _require_issue_access(issue_id)
     if err:
         return jsonify(err[0]), err[1]
-    try:
-        rows = supabase_req("GET", "/issues", params={"id": f"eq.{issue_id}", "select": "*"})
-    except Exception as exc:
-        current_app.logger.error("promote-user-task fetch issue failed: %s", exc)
-        return jsonify({"error": "Failed to fetch issue"}), 500
-    if not rows:
-        return jsonify({"error": "Issue not found"}), 404
 
-    issue = rows[0]
     if issue.get("user_task_id"):
         return jsonify({"error": "Already promoted to a user task"}), 409
 

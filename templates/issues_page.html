@@ -191,7 +191,8 @@
 
   </main>
 
-  <!-- ── Issue Detail Modal (view + comments, no editing) ── -->
+  <!-- ── Issue Detail Modal (view-only for most staff; admins & department heads
+       also get the editable fields + Actions menu, mirroring the admin panel) ── -->
   <div id="ipIssueModal" class="modal-overlay" onclick="if(event.target===this)ipCloseIssueModal()">
     <div class="modal modal-lg">
       <button class="modal-close" onclick="ipCloseIssueModal()" aria-label="Close">&times;</button>
@@ -222,6 +223,12 @@
             <p class="modal-detail-val" id="ipIssDepartment"></p>
           </div>
         </div>
+
+        <div class="form-group form-group-full" id="ipIssTitleGroup" style="display:none;">
+          <label class="form-label" for="ipIssTitleInput">Issue Title</label>
+          <input class="form-input" type="text" id="ipIssTitleInput" placeholder="Brief summary of the issue">
+        </div>
+
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Priority</label>
@@ -230,10 +237,25 @@
           <div class="form-group">
             <label class="form-label">Status</label>
             <p class="modal-detail-val" id="ipIssStatus"></p>
+            <select class="form-input" id="ipIssStatusSelect" style="display:none;">
+              <option value="open">Open</option>
+              <option value="in_progress">In Progress</option>
+              <option value="resolved">Resolved</option>
+              <option value="closed">Closed</option>
+            </select>
           </div>
           <div class="form-group">
             <label class="form-label">Assigned To</label>
             <p class="modal-detail-val" id="ipIssAssignedTo"></p>
+            <select class="form-input" id="ipIssAssignedToSelect" style="display:none;" onchange="ipOnIssueAssigneeChange()">
+              <option value="">— Unassigned —</option>
+            </select>
+          </div>
+          <div class="form-group" id="ipIssReqDeptGroup" style="display:none;">
+            <label class="form-label" for="ipIssReqDept">Assigned Department</label>
+            <select class="form-input" id="ipIssReqDept">
+              <option value="">— Unassigned —</option>
+            </select>
           </div>
         </div>
 
@@ -242,10 +264,106 @@
           <div class="issue-description-box" id="ipIssDescription"></div>
         </div>
 
+        <div class="form-group form-group-full" id="ipIssAttachmentsGroup" style="display:none;">
+          <label class="form-label">Attachments</label>
+          <div class="issue-attachments-list" id="ipIssAttachmentsList"></div>
+        </div>
+
+        <!-- Editable resolution fields (admins / department heads, terminal status) -->
+        <div class="form-group form-group-full" id="ipIssResolutionEditGroup" style="display:none;">
+          <label class="form-label" for="ipIssResolutionNotes">Resolution Notes
+            <span class="form-label-hint">(sent to reporter by email)</span>
+          </label>
+          <textarea class="form-input form-textarea" id="ipIssResolutionNotes" rows="3"
+            placeholder="Describe what was fixed, the root cause, or why the issue was closed…"></textarea>
+        </div>
+        <div class="form-group" id="ipIssResolvedByGroup" style="display:none;">
+          <label class="form-label" for="ipIssResolvedByInput">Resolved By</label>
+          <input class="form-input" type="text" id="ipIssResolvedByInput" placeholder="Developer name">
+        </div>
+
+        <div class="form-group" id="ipIssConfirmedFixGroup" style="display:none;">
+          <label class="form-label">Reporter Confirmation</label>
+          <div id="ipIssConfirmedFixDisplay"></div>
+        </div>
+
+        <!-- Actions taken checklist -->
+        <div class="form-group form-group-full" id="ipIssActionsGroup" style="display:none;">
+          <label class="form-label">Actions Taken
+            <span class="form-label-hint">(select all that apply)</span>
+          </label>
+          <div class="res-actions-grid" id="ipIssActionsGrid">
+            <span class="res-actions-loading">Loading…</span>
+          </div>
+        </div>
+
+        <!-- Resolution image attachments (editable) -->
+        <div class="form-group form-group-full" id="ipIssResAttachGroup" style="display:none;">
+          <label class="form-label">Resolution Attachments
+            <span class="form-label-hint">(screenshots or photos — max 5)</span>
+          </label>
+          <div class="res-attach-wrap">
+            <div class="res-attach-previews" id="ipIssResAttachPreviews"></div>
+            <label class="res-attach-add" id="ipIssResAttachAddBtn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Image
+              <input type="file" id="ipIssResAttachInput" accept="image/*" multiple style="display:none;" onchange="ipResAttachChange(this)">
+            </label>
+          </div>
+        </div>
+
+        <!-- Resolution remarks (unlinked issues only) -->
+        <div class="form-group form-group-full" id="ipIssRemarksGroup" style="display:none;">
+          <label class="form-label" for="ipIssResolutionRemarks">Resolution Remarks
+            <span class="form-label-hint">(internal — how was this resolved directly?)</span>
+          </label>
+          <textarea class="form-input form-textarea" id="ipIssResolutionRemarks" rows="3"
+            placeholder="Describe what steps were taken to resolve this issue…"></textarea>
+        </div>
+
+        <!-- Read-only resolution display (view-only users) -->
         <div class="form-group form-group-full" id="ipIssResGroup" style="display:none;">
           <label class="form-label">Resolution Notes <span class="form-label-hint">by <span id="ipIssResolvedBy"></span></span></label>
           <div class="issue-description-box" id="ipIssResNotes"></div>
           <div class="res-attach-wrap" id="ipIssResAttach" style="margin-top:8px;"></div>
+        </div>
+
+        <!-- Linked items -->
+        <div class="form-group form-group-full" id="ipIssDevItemGroup" style="display:none;">
+          <label class="form-label">Dev Board Item</label>
+          <button type="button" class="linked-item-btn" id="ipIssDevItemBtn" onclick="">
+            <span class="badge-dev">Dev Item</span>
+            <span id="ipIssDevItemId" class="linked-item-ref"></span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="linked-item-arrow"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+        <div class="form-group form-group-full" id="ipIssTaskGroup" style="display:none;">
+          <label class="form-label">Task Board Item</label>
+          <button type="button" class="linked-item-btn" id="ipIssTaskBtn" onclick="">
+            <span class="badge-task">Task</span>
+            <span id="ipIssTaskId" class="linked-item-ref"></span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="linked-item-arrow"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+        <div class="form-group form-group-full" id="ipIssUserTaskGroup" style="display:none;">
+          <label class="form-label">User Task</label>
+          <button type="button" class="linked-item-btn" id="ipIssUserTaskBtn" onclick="">
+            <span class="badge-user-task">User Task</span>
+            <span id="ipIssUserTaskId" class="linked-item-ref"></span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="linked-item-arrow"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+        <div class="form-group form-group-full" id="ipIssEpicGroup" style="display:none;">
+          <label class="form-label">Developer Board Epic</label>
+          <p class="modal-detail-val"><span class="badge-epic">Epic</span> <span id="ipIssEpicName" class="linked-item-ref">—</span></p>
+        </div>
+        <div class="form-group form-group-full" id="ipIssLinkGroup" style="display:none;">
+          <label class="form-label" id="ipIssLinkLabel">Related Issue</label>
+          <div id="ipIssLinkDisplay" class="iss-link-display"></div>
+        </div>
+        <div class="form-group form-group-full" id="ipIssReferencedByGroup" style="display:none;">
+          <label class="form-label">Referenced By</label>
+          <div id="ipIssReferencedByList" class="iss-link-display"></div>
         </div>
 
         <div class="iss-activity-section">
@@ -262,6 +380,275 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Actions footer — admins & department heads only -->
+      <div id="ipIssueModalActions" class="modal-actions" style="display:none;">
+        <button type="button" class="btn-modal-cancel" onclick="ipCloseIssueModal()">Cancel</button>
+
+        <div class="iss-actions-wrap" id="ipIssActionsWrap">
+          <button type="button" class="btn-iss-actions" id="ipIssActionsBtn" onclick="ipToggleIssActionsMenu(event)">
+            Actions
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="iss-actions-menu" id="ipIssActionsMenu">
+            <button class="iss-actions-item iss-actions-item--resolve" id="ipIssQuickResolveItem" onclick="ipQuickResolveIssue()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              Resolve Issue
+            </button>
+            <div class="iss-actions-divider"></div>
+            <button class="iss-actions-item" id="ipIssPromoteDevBtn" onclick="ipOpenPromoteModal('dev')">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              Promote to Dev Item
+            </button>
+            <button class="iss-actions-item" id="ipIssPromoteTaskBtn" onclick="ipOpenPromoteModal('task')">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+              Promote to Admin Task
+            </button>
+            <button class="iss-actions-item" id="ipIssPromoteUserTaskBtn" onclick="ipPromoteIssueToUserTask()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              Promote to User Task
+            </button>
+            <button class="iss-actions-item" id="ipIssPromoteEpicBtn" onclick="ipPromoteIssueToEpic()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+              Promote to Epic
+            </button>
+            <div class="iss-actions-divider"></div>
+            <button class="iss-actions-item" id="ipIssLinkBtn" onclick="ipOpenIssueLinkModal()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              Link / Mark Duplicate
+            </button>
+            <div class="iss-actions-promoted-note" id="ipIssPromotedNote" style="display:none;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Already promoted
+            </div>
+          </div>
+        </div>
+
+        <button type="button" class="btn-modal-submit" onclick="ipSaveIssuePatch()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Save
+        </button>
+      </div>
+      <div id="ipIssueModalLoading" class="form-state" style="display:none;"><div class="spinner"></div><span>Saving…</span></div>
+      <div id="ipIssueModalError" class="form-state form-error" style="display:none;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="ipIssueModalErrorMsg"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Promote to Dev Item / Admin Task Modal ── -->
+  <div id="ipPromoteModal" class="modal-overlay">
+    <div class="modal" style="max-width:540px;">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="ipPromoteModalTitle">Promote Issue</h3>
+          <p class="modal-site-name" id="ipPromoteModalSub"></p>
+        </div>
+        <button class="modal-close" onclick="document.getElementById('ipPromoteModal').classList.remove('open')" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-form promote-modal-form">
+        <div id="ipPromoteDevFields" style="display:none;">
+          <div class="form-group form-group-full">
+            <label class="form-label" for="ipPromoteDevTitle">Dev Item Title</label>
+            <input class="form-input" type="text" id="ipPromoteDevTitle" placeholder="e.g. Fix login timeout on HRIS">
+          </div>
+          <div class="form-group form-group-full">
+            <label class="form-label" for="ipPromoteDevDesc">Short Description <span class="form-label-hint">(optional)</span></label>
+            <textarea class="form-input" id="ipPromoteDevDesc" rows="3" placeholder="Brief summary of the issue and what needs to be done…"></textarea>
+          </div>
+          <div class="form-group form-group-full">
+            <label class="form-label">Systems Involved <span class="form-label-hint">(optional)</span></label>
+            <input class="form-input promote-systems-search" type="text" id="ipPromoteSystemSearch" placeholder="Search systems…" autocomplete="off" oninput="ipFilterPromoteSystems()">
+            <div class="promote-systems-list" id="ipPromoteSystemsList">
+              <div class="promote-systems-msg">Loading systems…</div>
+            </div>
+          </div>
+          <div class="promote-modal-divider"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="ipPromoteAssigneeSelect">Assign To <span class="form-label-hint">(optional)</span></label>
+          <select class="form-input" id="ipPromoteAssigneeSelect">
+            <option value="">— Unassigned —</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-actions" style="padding:16px 28px 20px;">
+        <button type="button" class="btn-modal-cancel" onclick="document.getElementById('ipPromoteModal').classList.remove('open')">Cancel</button>
+        <button type="button" class="btn-modal-submit" id="ipPromoteSubmitBtn" onclick="ipSubmitPromote()">Promote</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Promote to User Task Modal ── -->
+  <div id="ipPromoteUserTaskModal" class="modal-overlay">
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Promote to User Task</h3>
+          <p class="modal-site-name">A user task will be created and linked to this issue.</p>
+        </div>
+        <button class="modal-close" onclick="ipClosePromoteUserTaskModal()" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-form promote-modal-form" style="gap:16px;">
+        <div class="form-group form-group-full">
+          <label class="form-label" for="ipPutDeptSelect">Department <span class="form-label-hint">(optional)</span></label>
+          <select class="form-input" id="ipPutDeptSelect">
+            <option value="">— Any Department —</option>
+          </select>
+        </div>
+        <div class="form-group form-group-full">
+          <label class="form-label" for="ipPutUserSelect">Assign To <span class="form-label-hint">(optional)</span></label>
+          <select class="form-input" id="ipPutUserSelect">
+            <option value="">— Unassigned —</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-actions" style="padding:16px 28px 20px;">
+        <button type="button" class="btn-modal-cancel" onclick="ipClosePromoteUserTaskModal()">Cancel</button>
+        <button type="button" class="btn-modal-submit" id="ipPutSubmitBtn" onclick="ipSubmitPromoteUserTask()">Promote</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Promote to Epic Modal ── -->
+  <div id="ipPromoteEpicModal" class="modal-overlay">
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Promote to Epic</h3>
+          <p class="modal-site-name">A Developer Board epic will be created and linked to this issue.</p>
+        </div>
+        <button class="modal-close" onclick="ipClosePromoteEpicModal()" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-form promote-modal-form" style="gap:16px;">
+        <div class="form-group form-group-full">
+          <label class="form-label" for="ipPromoteEpicName">Epic Name</label>
+          <input class="form-input" type="text" id="ipPromoteEpicName" placeholder="Enter a name for the epic…">
+        </div>
+        <div id="ipPromoteEpicError" class="admin-error" style="display:none;margin:0;"></div>
+      </div>
+      <div class="modal-actions" style="padding:16px 28px 20px;">
+        <button type="button" class="btn-modal-cancel" onclick="ipClosePromoteEpicModal()">Cancel</button>
+        <button type="button" class="btn-modal-submit" id="ipPromoteEpicSubmitBtn" onclick="ipSubmitPromoteEpic()">Promote</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Issue Link / Duplicate Modal ── -->
+  <div id="ipIssueLinkModal" class="modal-overlay" style="z-index:1100;">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Link Issue</h3>
+          <p class="modal-site-name">Connect this issue to a related item or mark it as a duplicate</p>
+        </div>
+        <button class="modal-close" onclick="ipCloseIssueLinkModal()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="iss-link-tabs" id="ipIssueLinkTabs">
+        <button class="iss-link-tab active" data-ltab="issue"    onclick="ipSetIssueLinkTab('issue')">Another Issue</button>
+        <button class="iss-link-tab"        data-ltab="task"     id="ipIssueLinkTaskTabBtn"    onclick="ipSetIssueLinkTab('task')"    style="display:none;">Admin Task</button>
+        <button class="iss-link-tab"        data-ltab="dev_item" id="ipIssueLinkDevTabBtn"     onclick="ipSetIssueLinkTab('dev_item')" style="display:none;">Dev Item</button>
+      </div>
+
+      <div id="ipIssueLinkTabIssue" class="iss-link-tab-panel">
+        <label class="iss-link-dup-label">
+          <input type="checkbox" id="ipIssueLinkIsDuplicate" onchange="ipIssueLinkDupChange()">
+          <span class="iss-link-dup-text">
+            <strong>Mark as Duplicate</strong> — auto-resolves this issue with a note referencing the original
+          </span>
+        </label>
+        <input class="form-input iss-link-search" id="ipIssueLinkIssueSearch"
+          type="search" placeholder="Search by ticket #, title, reporter, or system…"
+          oninput="ipIssueLinkSearch('issue', this.value)" autocomplete="off">
+        <div class="iss-link-results" id="ipIssueLinkIssueResults">
+          <div class="iss-link-hint">Type to search issues…</div>
+        </div>
+      </div>
+
+      <div id="ipIssueLinkTabTask" class="iss-link-tab-panel" style="display:none;">
+        <input class="form-input iss-link-search" id="ipIssueLinkTaskSearch"
+          type="search" placeholder="Search tasks by name…"
+          oninput="ipIssueLinkSearch('task', this.value)" autocomplete="off">
+        <div class="iss-link-results" id="ipIssueLinkTaskResults">
+          <div class="iss-link-hint">Type to search tasks…</div>
+        </div>
+      </div>
+
+      <div id="ipIssueLinkTabDev" class="iss-link-tab-panel" style="display:none;">
+        <label class="iss-link-dup-label">
+          <input type="checkbox" id="ipIssueLinkDevIsDuplicate" onchange="ipIssueLinkDupChange()">
+          <span class="iss-link-dup-text">
+            <strong>Mark as Duplicate</strong> — issue status will follow the dev item; reporter notified when resolved
+          </span>
+        </label>
+        <input class="form-input iss-link-search" id="ipIssueLinkDevSearch"
+          type="search" placeholder="Search dev items by title…"
+          oninput="ipIssueLinkSearch('dev_item', this.value)" autocomplete="off">
+        <div class="iss-link-results" id="ipIssueLinkDevResults">
+          <div class="iss-link-hint">Type to search dev items…</div>
+        </div>
+      </div>
+
+      <div id="ipIssueLinkSelected" class="iss-link-selected" style="display:none;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span id="ipIssueLinkSelectedLabel"></span>
+        <button class="iss-link-deselect" onclick="ipIssueLinkDeselect()" aria-label="Clear selection">&times;</button>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-modal-cancel" onclick="ipCloseIssueLinkModal()">Cancel</button>
+        <button type="button" class="btn-modal-submit" id="ipIssueLinkConfirmBtn" onclick="ipConfirmIssueLink()" disabled>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          <span id="ipIssueLinkConfirmLabel">Link</span>
+        </button>
+      </div>
+      <div id="ipIssueLinkLoading" class="form-state" style="display:none;"><div class="spinner"></div><span>Linking…</span></div>
+      <div id="ipIssueLinkError" class="form-state form-error" style="display:none;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="ipIssueLinkErrorMsg"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Quick Resolve Modal ── -->
+  <div id="ipQuickResolveOverlay" class="modal-overlay">
+    <div class="modal modal-lg" style="max-width:480px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Resolve Issue</h3>
+        <button class="modal-close" onclick="ipCloseQuickResolveModal()">&times;</button>
+      </div>
+      <div style="padding:20px 24px;">
+        <div class="form-group">
+          <label class="form-label">Resolved By</label>
+          <input type="text" class="form-input" id="ipQrResolvedBy" placeholder="Name of resolver" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Resolution Notes</label>
+          <textarea class="form-input" id="ipQrResolutionNotes" rows="5" placeholder="Describe how the issue was resolved…" style="resize:vertical;"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal-cancel" onclick="ipCloseQuickResolveModal()">Cancel</button>
+        <button class="btn-modal-submit" onclick="ipSubmitQuickResolve()">Resolve</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Linked Item Preview Modal (dev item / task / user task / issue) ── -->
+  <div id="ipLinkedItemModal" class="modal-overlay" style="z-index:1200;" onclick="ipOverlayCloseLinkedItem(event)">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="ipLinkedItemModalTitle">Linked Item</h3>
+          <p class="modal-site-name" id="ipLinkedItemModalMeta"></p>
+        </div>
+        <button class="modal-close" onclick="ipCloseLinkedItemModal()" aria-label="Close">&times;</button>
+      </div>
+      <div id="ipLinkedItemModalBody" class="modal-form">
+        <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
       </div>
     </div>
   </div>
