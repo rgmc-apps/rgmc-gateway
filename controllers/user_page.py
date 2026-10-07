@@ -310,12 +310,14 @@ def user_update_task(task_id):
     if not patch:
         return jsonify({"error": "Nothing to update"}), 400
 
-    old_status = None
-    if "status" in patch:
+    old_status      = None
+    old_assigned_to = None
+    if "status" in patch or "assigned_to" in patch:
         try:
-            existing = supabase_req("GET", "/user_tasks", params={"id": f"eq.{task_id}", "select": "status"})
+            existing = supabase_req("GET", "/user_tasks", params={"id": f"eq.{task_id}", "select": "status,assigned_to"})
             if existing:
-                old_status = existing[0].get("status")
+                old_status      = existing[0].get("status")
+                old_assigned_to = existing[0].get("assigned_to")
         except Exception:
             pass
 
@@ -327,6 +329,24 @@ def user_update_task(task_id):
     except Exception as exc:
         current_app.logger.error("user_update_task: %s", exc)
         return jsonify({"error": "Failed to update task"}), 500
+
+    new_assigned_to_val = patch.get("assigned_to")
+    if "assigned_to" in patch and new_assigned_to_val and new_assigned_to_val != old_assigned_to:
+        try:
+            from services.mentions import workspace_url
+            from services.it_bot import notify_assignment
+            task_title = (updated_task or {}).get("title") or task_id
+            notify_assignment(
+                assigned_username=new_assigned_to_val,
+                assigned_by=username,
+                entity_type="task",
+                entity_id=task_id,
+                entity_label=task_title,
+                title=task_title,
+                url=workspace_url(),
+            )
+        except Exception as exc:
+            current_app.logger.warning("user_update_task: notify_assignment failed: %s", exc)
 
     new_status = patch.get("status")
     if new_status and old_status != new_status:
@@ -453,7 +473,7 @@ def user_update_team_issue(issue_id):
     try:
         iss_rows = supabase_req("GET", "/issues", params={
             "id":     f"eq.{issue_id}",
-            "select": "id,request_to_department_id,assigned_to,user_task_id",
+            "select": "id,request_to_department_id,assigned_to,user_task_id,ticket_number,title,description",
         })
         if not iss_rows:
             return jsonify({"error": "Issue not found"}), 404
@@ -484,6 +504,24 @@ def user_update_team_issue(issue_id):
                          params={"id": f"eq.{issue['user_task_id']}"})
         except Exception as exc:
             current_app.logger.warning("user_update_team_issue: user_task sync failed: %s", exc)
+
+    new_assigned_to = patch.get("assigned_to")
+    if "assigned_to" in patch and new_assigned_to and new_assigned_to != issue.get("assigned_to"):
+        try:
+            from services.mentions import issue_url
+            from services.it_bot import notify_assignment
+            label = issue.get("ticket_number") or issue_id
+            notify_assignment(
+                assigned_username=new_assigned_to,
+                assigned_by=username,
+                entity_type="issue",
+                entity_id=issue_id,
+                entity_label=label,
+                title=issue.get("title") or (issue.get("description") or "")[:80],
+                url=issue_url(issue_id),
+            )
+        except Exception as exc:
+            current_app.logger.warning("user_update_team_issue: notify_assignment failed: %s", exc)
 
     return jsonify({"success": True})
 

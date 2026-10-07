@@ -57,6 +57,28 @@ def search_users():
         return jsonify({"error": str(exc)}), 500
 
 
+@public_bp.get("/api/users/mention-search")
+def mention_search_users():
+    requester = request.headers.get("X-Gateway-Username", "").strip().lower()
+    if not requester:
+        return jsonify({"error": "Authentication required"}), 401
+
+    q = request.args.get("q", "").strip()
+    safe = q.replace("*", "").replace("(", "").replace(")", "").replace(",", "")
+    params = {
+        "select": "username,display_name,first_name,last_name,avatar_url,department",
+        "order":  "display_name.asc,first_name.asc",
+        "limit":  "8",
+    }
+    if safe:
+        params["or"] = f"(username.ilike.*{safe}*,first_name.ilike.*{safe}*,last_name.ilike.*{safe}*,display_name.ilike.*{safe}*)"
+    try:
+        rows = supabase_req("GET", "/users", params=params)
+        return jsonify(rows or [])
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
 @public_bp.get("/api/helpdesk/categories")
 def get_helpdesk_categories():
     rows = supabase_req("GET", "/request_category", params={

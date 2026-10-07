@@ -610,6 +610,31 @@ def admin_patch_issue(issue_id):
         except Exception as exc:
             current_app.logger.error("send_issue_assigned_email failed: %s", exc)
 
+        try:
+            from services.mentions import issue_url
+            from services.it_bot import notify_assignment
+            admin_rows = supabase_req("GET", "/users", params={
+                "username": f"eq.{admin_username}",
+                "select":   "first_name,last_name",
+            })
+            assigner_display = (
+                f"{admin_rows[0].get('first_name','')} {admin_rows[0].get('last_name','')}".strip()
+                or admin_username
+            ) if admin_rows else admin_username
+            label = issue.get("ticket_number") or issue_id
+            notify_assignment(
+                assigned_username=new_assigned_to,
+                assigned_by=admin_username,
+                entity_type="issue",
+                entity_id=issue_id,
+                entity_label=label,
+                title=issue.get("title") or issue.get("description", "")[:80],
+                url=issue_url(issue_id),
+                assigned_by_display_name=assigner_display,
+            )
+        except Exception as exc:
+            current_app.logger.warning("notify_assignment (issue) failed: %s", exc)
+
     # Cascade assigned_to change to the linked user_task
     if "assigned_to" in patch and issue and issue.get("user_task_id"):
         try:
@@ -1088,6 +1113,14 @@ def post_issue_comment(issue_id):
                 send_issue_comment_email(issue_rows[0], comment, username)
         except Exception as email_exc:
             current_app.logger.warning("Comment email notification failed: %s", email_exc)
+
+        # Notify @mentioned users via Teams DM — best-effort, never blocks the response
+        try:
+            from services.mentions import notify_comment_mentions, issue_url
+            label = (issue_rows[0].get("ticket_number") if issue_rows else None) or issue_id
+            notify_comment_mentions(comment, username, "issue", issue_id, label, issue_url(issue_id))
+        except Exception as mention_exc:
+            current_app.logger.warning("Comment mention notification failed: %s", mention_exc)
 
         return jsonify({"success": True, "comment": saved})
     except Exception as exc:

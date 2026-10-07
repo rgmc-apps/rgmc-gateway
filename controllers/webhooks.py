@@ -2,7 +2,7 @@ import re
 import hmac
 from flask import Blueprint, request, jsonify, current_app
 
-from config import WEBHOOK_SECRET
+from config import WEBHOOK_SECRET, IT_BOT_API_KEY
 from services.supabase import supabase_req
 
 webhooks_bp = Blueprint("webhooks", __name__)
@@ -68,3 +68,77 @@ def github_push():
             results.append({"code": code, "status": "error", "detail": str(exc)})
 
     return jsonify({"results": results}), 200
+
+
+def _find_system_by_tag(tag: str) -> dict | None:
+    """Case-insensitive match against a system's comma-separated tags column."""
+    needle = tag.strip().lower()
+    if not needle:
+        return None
+    try:
+        rows = supabase_req("GET", "/systems", params={"select": "id,name,tags"}) or []
+    except Exception as exc:
+        current_app.logger.error("_find_system_by_tag: systems lookup failed: %s", exc)
+        return None
+    for row in rows:
+        tags = [t.strip().lower() for t in (row.get("tags") or "").split(",") if t.strip()]
+        if needle in tags:
+            return row
+    return None
+
+
+@webhooks_bp.post("/api/webhooks/bot-feature-request")
+def bot_feature_request():
+    """Creates an issue (ticket_type-less feature request) from the IT Teams
+    bot's `feature <system tag> <request> | <description>` command."""
+    secret = request.headers.get("X-API-Key", "")
+    if not IT_BOT_API_KEY or not hmac.compare_digest(secret, IT_BOT_API_KEY):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data          = request.get_json(silent=True) or {}
+    system_tag    = (data.get("system_tag") or "").strip()
+    title         = (data.get("title") or "").strip()
+    description   = (data.get("description") or "").strip()
+    reporter_name = (data.get("reporter_name") or "").strip() or "MS Teams User"
+
+    if not system_tag or not description:
+        return jsonify({"error": "system_tag and description are required"}), 400
+
+    system = _find_system_by_tag(system_tag)
+    if not system:
+        return jsonify({"error": f"No system found with tag '{system_tag}'"}), 404
+
+    full_description = f"{description}\n\n— Submitted via Microsoft Teams chat (RGMC IT Bot)."
+
+    issue_row = {
+        "site_name":        system["name"],
+        "employee_name":    reporter_name,
+        "company_name":     "RGMC Group (via Teams)",
+        "viber_number":     "N/A",
+        "email":            "it-bot@rgmcgroup.com",
+        "department":       "",
+        "title":            title or description[:80],
+        "description":      full_description,
+        "request_category": "Feature Request",
+    }
+
+    try:
+        rows = supabase_req("POST", "/issues", data=issue_row,
+                             extra_headers={"Prefer": "return=representation"})
+        created_issue = rows[0] if rows else None
+    except Exception as exc:
+        current_app.logger.error("bot_feature_request: issue insert failed: %s", exc)
+        return jsonify({"error": "Failed to create issue"}), 500
+
+    if created_issue:
+        try:
+            from services.it_bot import notify_ticket_created
+            notify_ticket_created(created_issue)
+        except Exception as exc:
+            current_app.logger.warning("bot_feature_request: notify_ticket_created failed: %s", exc)
+
+    return jsonify({
+        "success":       True,
+        "ticket_number": (created_issue or {}).get("ticket_number"),
+        "issue_id":      (created_issue or {}).get("id"),
+    }), 201

@@ -134,6 +134,74 @@ def notify_issue_promoted_to_epic(ticket: dict, epic: dict) -> None:
         logger.warning("IT bot notify_issue_promoted_to_epic failed: %s", exc)
 
 
+def notify_mention(
+    mentioned_username: str,
+    by_username: str,
+    entity_type: str,
+    entity_id: str,
+    entity_label: str,
+    comment_excerpt: str,
+    url: str | None = None,
+    by_display_name: str | None = None,
+) -> None:
+    """POST mention.created event to the IT bot. Fire-and-forget — never raises."""
+    if not _ready() or not mentioned_username or mentioned_username == by_username:
+        return
+    try:
+        requests.post(
+            f"{IT_BOT_URL.rstrip('/')}/api/notify/mention",
+            headers=_headers(),
+            json={
+                "event":               "mention.created",
+                "mentioned_username":  mentioned_username,
+                "by_username":         by_username,
+                "by_display_name":     by_display_name,
+                "entity_type":         entity_type,
+                "entity_id":           entity_id,
+                "entity_label":        entity_label,
+                "comment_excerpt":     comment_excerpt,
+                "url":                 url,
+            },
+            timeout=5,
+        )
+    except Exception as exc:
+        logger.warning("IT bot notify_mention failed: %s", exc)
+
+
+def notify_assignment(
+    assigned_username: str,
+    assigned_by: str,
+    entity_type: str,
+    entity_id: str,
+    entity_label: str,
+    title: str,
+    url: str | None = None,
+    assigned_by_display_name: str | None = None,
+) -> None:
+    """POST assignment.created event to the IT bot. Fire-and-forget — never raises."""
+    if not _ready() or not assigned_username or assigned_username == assigned_by:
+        return
+    try:
+        requests.post(
+            f"{IT_BOT_URL.rstrip('/')}/api/notify/assignment",
+            headers=_headers(),
+            json={
+                "event":                     "assignment.created",
+                "assigned_username":         assigned_username,
+                "assigned_by":               assigned_by,
+                "assigned_by_display_name":  assigned_by_display_name,
+                "entity_type":               entity_type,
+                "entity_id":                 entity_id,
+                "entity_label":              entity_label,
+                "title":                     title,
+                "url":                       url,
+            },
+            timeout=5,
+        )
+    except Exception as exc:
+        logger.warning("IT bot notify_assignment failed: %s", exc)
+
+
 def notify_outage_detected(outage: dict, issue_count: int = 2) -> None:
     """POST outage.detected event to the IT bot. Fire-and-forget — never raises."""
     if not _ready():

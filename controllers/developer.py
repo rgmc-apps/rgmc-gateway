@@ -90,6 +90,21 @@ def dev_create_item():
                 })
             except Exception as exc:
                 current_app.logger.warning("dev_create_item: movement log failed: %s", exc)
+        if created.get("id") and assigned_to != username:
+            try:
+                from services.mentions import developer_board_url
+                from services.it_bot import notify_assignment
+                notify_assignment(
+                    assigned_username=assigned_to,
+                    assigned_by=username,
+                    entity_type="dev_item",
+                    entity_id=created["id"],
+                    entity_label=created.get("dev_item_code") or title,
+                    title=title,
+                    url=developer_board_url(),
+                )
+            except Exception as exc:
+                current_app.logger.warning("dev_create_item: notify_assignment failed: %s", exc)
         return jsonify(created), 201
     except Exception as exc:
         current_app.logger.error("dev_create_item failed: %s", exc)
@@ -114,16 +129,29 @@ def dev_update_item(item_id):
     if not patch:
         return jsonify({"error": "No valid fields to update"}), 400
 
-    old_status = None
-    if "status" in patch:
+    old_status      = None
+    old_assigned_to = None
+    existing        = None
+    if "status" in patch or "assigned_to" in patch:
         try:
-            existing = supabase_req("GET", "/dev_items", params={"id": f"eq.{item_id}", "select": "status"})
+            existing = supabase_req("GET", "/dev_items", params={
+                "id":     f"eq.{item_id}",
+                "select": "status,assigned_to,dev_item_code,title",
+            })
             if existing:
-                old_status = existing[0].get("status")
+                old_status      = existing[0].get("status")
+                old_assigned_to = existing[0].get("assigned_to")
         except Exception:
-            pass
+            existing = None
 
     becoming_done = patch.get("status") == "done" and old_status != "done"
+
+    new_assigned_to = patch.get("assigned_to")
+    notify_assigned = (
+        "assigned_to" in patch
+        and new_assigned_to
+        and new_assigned_to != old_assigned_to
+    )
 
     patch["updated_at"] = datetime.now(timezone.utc).isoformat()
     try:
@@ -131,6 +159,24 @@ def dev_update_item(item_id):
     except Exception as exc:
         current_app.logger.error("dev_update_item failed: %s", exc)
         return jsonify({"error": "Failed to update item"}), 500
+
+    if notify_assigned:
+        try:
+            from services.mentions import developer_board_url
+            from services.it_bot import notify_assignment
+            item_label = (existing[0].get("dev_item_code") if existing else None) or item_id
+            item_title = patch.get("title") or (existing[0].get("title") if existing else None) or item_label
+            notify_assignment(
+                assigned_username=new_assigned_to,
+                assigned_by=dev_username,
+                entity_type="dev_item",
+                entity_id=item_id,
+                entity_label=item_label,
+                title=item_title,
+                url=developer_board_url(),
+            )
+        except Exception as exc:
+            current_app.logger.warning("dev_update_item: notify_assignment failed: %s", exc)
 
     # Log status movement
     new_status = patch.get("status")
@@ -794,7 +840,20 @@ def dev_add_epic_comment(epic_id):
         row["attachment_urls"] = attachment_urls
     try:
         rows = supabase_req("POST", "/epic_comments", data=row)
-        return jsonify(rows[0] if rows else {}), 201
+        saved = rows[0] if rows else {}
+
+        try:
+            from services.mentions import notify_comment_mentions, developer_board_url
+            epic_rows = supabase_req("GET", "/epics", params={
+                "epic_id": f"eq.{epic_id}",
+                "select":  "epic_name",
+            })
+            label = (epic_rows[0].get("epic_name") if epic_rows else None) or epic_id
+            notify_comment_mentions(comment, username, "epic", epic_id, label, developer_board_url())
+        except Exception as mention_exc:
+            current_app.logger.warning("Epic comment mention notification failed: %s", mention_exc)
+
+        return jsonify(saved), 201
     except Exception as exc:
         current_app.logger.error("dev_add_epic_comment failed: %s", exc)
         return jsonify({"error": "Failed to post comment"}), 500
