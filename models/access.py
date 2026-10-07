@@ -2,7 +2,7 @@ import re
 import logging
 from datetime import datetime, timezone
 
-from services.supabase import supabase_req
+from services.supabase import supabase_req, email_taken
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +50,14 @@ def _full_name(record: dict) -> str:
 def _approve_record(record: dict):
     """Core approval logic. Mutates record['username'] in place. Returns (username, error_msg)."""
     is_additional = bool(record.get("username"))
+
+    # A brand-new account must not reuse an email already tied to another user —
+    # check this before mutating anything so a doomed approval never gets marked
+    # "approved" with no actual user created.
+    if not is_additional:
+        email = (record.get("email") or "").strip()
+        if email and email_taken(email):
+            return None, f"Email '{email}' is already registered to another user."
 
     if is_additional:
         username = record["username"]

@@ -600,11 +600,11 @@
         <div id="gateLogin" style="display:none;">
           <div class="gate-pw-notice">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            Password security is now enabled. No password yet? Sign in with your username and we'll walk you through setup.
+            Password security is now enabled. No password yet? Sign in with your username or email and we'll walk you through setup.
           </div>
           <div class="form-group" style="margin-bottom:12px;">
-            <label class="form-label" for="gateUsername">Username <span class="required">*</span></label>
-            <input class="form-input" type="text" id="gateUsername" placeholder="e.g. jdelacruz" autocomplete="username" spellcheck="false" onkeydown="if(event.key==='Enter')signIn()">
+            <label class="form-label" for="gateUsername">Username or Email <span class="required">*</span></label>
+            <input class="form-input" type="text" id="gateUsername" placeholder="e.g. jdelacruz or jdelacruz@rgmcgroup.com" autocomplete="username" spellcheck="false" onkeydown="if(event.key==='Enter')signIn()">
           </div>
           <div class="form-group" style="margin-bottom:6px;">
             <label class="form-label" for="gatePassword">Password</label>
@@ -690,7 +690,15 @@
           </div>
           <div class="form-group">
             <label class="form-label" for="arEmail">Email Address <span class="required">*</span></label>
-            <input class="form-input" type="email" id="arEmail" name="email" placeholder="you@rgmcgroup.com" required>
+            <input class="form-input" type="email" id="arEmail" name="email" placeholder="you@rgmcgroup.com" required
+                   oninput="arEmailInputChanged(this.value)" onblur="arCheckEmailExists(this.value)">
+            <div id="arEmailExistsNotice" class="ar-email-exists-notice" style="display:none;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              <span>An account with this email already exists.</span>
+              <a href="javascript:void(0)" onclick="arSignInInstead()">Sign in instead</a>
+              <span class="ar-email-notice-sep">·</span>
+              <a href="javascript:void(0)" onclick="arGoForgotPassword()">Forgot password?</a>
+            </div>
           </div>
         </div>
 

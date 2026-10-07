@@ -1104,7 +1104,7 @@ async function signIn() {
   const username = (document.getElementById('gateUsername')?.value || '').trim();
   const password = (document.getElementById('gatePassword')?.value || '').trim();
   if (!username) {
-    document.getElementById('gateError').textContent = 'Please enter your username.';
+    document.getElementById('gateError').textContent = 'Please enter your username or email.';
     show('gateError');
     return;
   }
@@ -1210,8 +1210,45 @@ function resetAccessFormState() {
   hide('arFormSuccess');
   hide('arFormError');
   hide('arSystemsError');
+  hide('arEmailExistsNotice');
   const btn = document.getElementById('arSubmitBtn');
   if (btn) btn.disabled = false;
+}
+
+/* ── Access Request — "already registered" email prompt ── */
+
+let _arEmailCheckTimer = null;
+
+function arEmailInputChanged(value) {
+  clearTimeout(_arEmailCheckTimer);
+  _arEmailCheckTimer = setTimeout(() => arCheckEmailExists(value), 450);
+}
+
+async function arCheckEmailExists(value) {
+  const notice = document.getElementById('arEmailExistsNotice');
+  if (!notice) return;
+  const email = (value || '').trim();
+  if (!email || !email.includes('@')) { notice.style.display = 'none'; return; }
+  try {
+    const res  = await fetch(`/api/auth/check-email?email=${encodeURIComponent(email)}`);
+    const data = await res.json();
+    notice.style.display = data.exists ? '' : 'none';
+  } catch { /* non-fatal — leave notice as-is on network errors */ }
+}
+
+function arSignInInstead() {
+  const email = (document.getElementById('arEmail')?.value || '').trim();
+  closeAccessRequest();
+  showGateLogin();
+  const userInput = document.getElementById('gateUsername');
+  if (userInput) userInput.value = email;
+  const pwInput = document.getElementById('gatePassword');
+  if (pwInput) { pwInput.value = ''; pwInput.focus(); }
+}
+
+function arGoForgotPassword() {
+  const email = (document.getElementById('arEmail')?.value || '').trim();
+  location.href = '/forgot-password' + (email ? `?email=${encodeURIComponent(email)}` : '');
 }
 
 async function submitAccessRequest(e) {

@@ -571,6 +571,7 @@
         <button class="status-tab"        data-ctab="actions"            onclick="switchConfigTab('actions')">Actions</button>
         <button class="status-tab"        data-ctab="dev-item-types"     onclick="switchConfigTab('dev-item-types')">Dev Item Types</button>
         <button class="status-tab"        data-ctab="task-statuses"      onclick="switchConfigTab('task-statuses')">Task Statuses</button>
+        <button class="status-tab"        data-ctab="automation"         onclick="switchConfigTab('automation')">Automation</button>
       </div>
 
       <!-- Companies -->
@@ -693,6 +694,26 @@
         </div>
         <div id="config-dev-item-types-body" class="admin-table-wrap">
           <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
+        </div>
+      </div>
+
+      <!-- Automation -->
+      <div id="config-panel-automation" class="config-sub-panel" style="display:none;">
+        <div class="admin-table-wrap" style="padding:20px;">
+          <h3 style="margin:0 0 6px;">Issue Auto-Confirmation</h3>
+          <p class="form-label-hint" style="display:block;max-width:560px;margin:0 0 16px;">
+            A resolved or closed issue is automatically confirmed once this many days pass with no new activity
+            (a comment, or a linked dev item / task / epic being moved) — but only while it isn't linked to any
+            dev item, task, or epic that is still active (not yet marked done).
+          </p>
+          <div class="form-row" style="align-items:flex-end;">
+            <div class="form-group" style="max-width:220px;">
+              <label class="form-label" for="cfgAutoConfirmDays">Max days of inactivity</label>
+              <input class="form-input" type="number" id="cfgAutoConfirmDays" min="1" step="1">
+            </div>
+            <button class="btn-admin-add" onclick="saveCfgAutomation()">Save</button>
+          </div>
+          <p id="cfgAutomationStatus" style="margin:12px 0 0;font-size:13px;"></p>
         </div>
       </div>
     </div>

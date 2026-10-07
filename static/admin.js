@@ -5056,6 +5056,47 @@ function _loadCurrentConfigSub() {
   if (_currentConfigTab === 'actions')            loadCfgActions();
   if (_currentConfigTab === 'dev-item-types')     loadCfgDevItemTypes();
   if (_currentConfigTab === 'task-statuses')      loadCfgTaskStatuses();
+  if (_currentConfigTab === 'automation')         loadCfgAutomation();
+}
+
+/* ── Automation ── */
+
+async function loadCfgAutomation() {
+  const statusEl = document.getElementById('cfgAutomationStatus');
+  statusEl.textContent = '';
+  try {
+    const res = await fetch('/api/admin/config/automation', { headers: authHeaders() });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    document.getElementById('cfgAutoConfirmDays').value = data.auto_confirm_days;
+  } catch (err) {
+    statusEl.textContent = `Failed to load: ${err.message}`;
+    statusEl.style.color = 'var(--error)';
+  }
+}
+
+async function saveCfgAutomation() {
+  const statusEl = document.getElementById('cfgAutomationStatus');
+  const days = parseInt(document.getElementById('cfgAutoConfirmDays').value, 10);
+  if (!Number.isFinite(days) || days < 1) {
+    statusEl.textContent = 'Enter a whole number of at least 1.';
+    statusEl.style.color = 'var(--error)';
+    return;
+  }
+  statusEl.textContent = 'Saving…';
+  statusEl.style.color = '';
+  try {
+    const res = await fetch('/api/admin/config/automation', {
+      method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auto_confirm_days: days }),
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || await res.text());
+    statusEl.textContent = 'Saved.';
+    statusEl.style.color = 'var(--success)';
+  } catch (err) {
+    statusEl.textContent = `Failed to save: ${err.message}`;
+    statusEl.style.color = 'var(--error)';
+  }
 }
 
 /* shared modal helpers */

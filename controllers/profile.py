@@ -3,7 +3,7 @@ import requests
 from flask import Blueprint, request, jsonify, render_template, current_app, redirect
 
 from config import SUPABASE_URL, SUPABASE_SERVICE_KEY, GATEWAY_BASE_URL
-from services.supabase import supabase_req
+from services.supabase import supabase_req, email_taken
 from services import github as github_service
 from services.shift import validate_shift_fields
 
@@ -99,6 +99,8 @@ def api_profile_patch():
     for field in ("first_name", "middle_initial", "last_name", "company", "department", "position", "email", "viber_number", "anydesk_id"):
         if field in data:
             patch[field] = str(data[field]).strip()[:120] or None
+    if patch.get("email") and email_taken(patch["email"], exclude_username=username):
+        return jsonify({"error": f"Email '{patch['email']}' is already registered to another user"}), 409
     try:
         patch.update(validate_shift_fields(data))
     except ValueError as exc:

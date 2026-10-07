@@ -9,7 +9,7 @@ from flask import Blueprint, request, jsonify, render_template, current_app
 from werkzeug.security import generate_password_hash
 
 from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
-from services.supabase import supabase_req
+from services.supabase import supabase_req, email_taken, get_app_setting, set_app_setting
 from services.guards import _require_admin, _require_dept_head
 from services.sites import _invalidate_sites_cache, ping_system_by_id, SystemNotFoundError
 from services.shift import validate_shift_fields
@@ -116,6 +116,10 @@ def admin_create_user():
     except Exception:
         return jsonify({"error": "Failed to check username availability"}), 500
 
+    email = str(data.get("email", "")).strip()
+    if email and email_taken(email):
+        return jsonify({"error": f"Email '{email}' is already registered to another user"}), 409
+
     payload = {"username": username, "systems": data.get("systems", []),
                 "is_admin":            bool(data.get("is_admin",            False)),
                 "is_developer":        bool(data.get("is_developer",        False)),
@@ -205,6 +209,11 @@ def admin_update_user(uname):
                "company", "department", "position", "email", "viber_number", "anydesk_id",
                "github_username"}
     patch = {k: v for k, v in data.items() if k in allowed}
+
+    if "email" in patch:
+        new_email = str(patch["email"] or "").strip()
+        if new_email and email_taken(new_email, exclude_username=uname):
+            return jsonify({"error": f"Email '{new_email}' is already registered to another user"}), 409
 
     try:
         patch.update(validate_shift_fields(data))
@@ -1171,6 +1180,41 @@ def config_update_action(action_id):
     try:
         supabase_req("PATCH", "/actions", data=patch, params={"action_id": f"eq.{action_id}"})
         return jsonify({"success": True})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+# ── Config: Automation ────────────────────────────────────────────────────────
+
+_AUTO_CONFIRM_DAYS_DEFAULT = "30"
+
+
+@admin_bp.get("/api/admin/config/automation")
+def config_get_automation():
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    raw = get_app_setting("auto_confirm_days", _AUTO_CONFIRM_DAYS_DEFAULT)
+    try:
+        days = int(raw)
+    except (TypeError, ValueError):
+        days = int(_AUTO_CONFIRM_DAYS_DEFAULT)
+    return jsonify({"auto_confirm_days": days})
+
+
+@admin_bp.post("/api/admin/config/automation")
+def config_update_automation():
+    admin_username, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    data = request.get_json(silent=True) or {}
+    try:
+        days = int(data.get("auto_confirm_days"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "auto_confirm_days must be a whole number"}), 400
+    if days < 1:
+        return jsonify({"error": "auto_confirm_days must be at least 1"}), 400
+    try:
+        set_app_setting("auto_confirm_days", str(days), updated_by=admin_username)
+        return jsonify({"success": True, "auto_confirm_days": days})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 

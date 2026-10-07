@@ -6,7 +6,7 @@ from markupsafe import Markup, escape as html_escape
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from config import SUPABASE_URL, SUPABASE_SERVICE_KEY, GATEWAY_BASE_URL
-from services.supabase import supabase_req
+from services.supabase import supabase_req, email_taken
 from services.email import (
     send_approval_request_email,
     send_access_granted_email,
@@ -18,15 +18,25 @@ from models.access import _approve_record, _reject_record, _full_name
 auth_bp = Blueprint("auth", __name__)
 
 
-def _get_user(username: str):
-    """Return the users-table row for *username*, or None."""
+def _get_user(identifier: str):
+    """Return the users-table row matched by *identifier* — either a
+    username (exact) or an email address (case-insensitive) — or None."""
+    ident = (identifier or "").strip()
+    if not ident:
+        return None
+    # Strip chars that have special meaning in a PostgREST filter expression
+    # so a crafted login identifier can't inject extra filter clauses.
+    safe = ident.replace("*", "").replace("(", "").replace(")", "").replace(",", "")
+    if not safe:
+        return None
     rows = supabase_req("GET", "/users", params={
-        "username": f"eq.{username}",
-        "select":   (
+        "or":      f"(username.eq.{safe},email.ilike.{safe})",
+        "select":  (
             "username,first_name,last_name,display_name,avatar_url,"
             "company,department,email,systems,is_admin,is_developer,"
             "is_management,is_department_head,password_hash"
         ),
+        "limit":   "1",
     })
     return rows[0] if rows else None
 
@@ -40,7 +50,7 @@ def verify_username():
     password = request.form.get("password", "").strip()
 
     if not username:
-        return jsonify({"success": False, "error": "Please enter your username."}), 400
+        return jsonify({"success": False, "error": "Please enter your username or email."}), 400
 
     # 1. Check users table first — preferred path, has is_admin flag
     try:
@@ -118,7 +128,7 @@ def verify_username():
     if not rows:
         return jsonify({
             "success": False,
-            "error": "Username not found or access not yet approved. Please request access.",
+            "error": "Account not found or access not yet approved. Please request access.",
         }), 404
 
     record = rows[0]
@@ -171,7 +181,7 @@ def setup_password():
     pw_hash = generate_password_hash(password)
     try:
         supabase_req("PATCH", "/users", data={"password_hash": pw_hash},
-                     params={"username": f"eq.{username}"})
+                     params={"username": f"eq.{u['username']}"})
     except Exception as exc:
         return jsonify({"success": False, "error": "Failed to save password. Please try again."}), 500
 
@@ -203,7 +213,7 @@ def forgot_password():
         supabase_req("PATCH", "/users", data={
             "password_reset_token":   token,
             "password_reset_expires": expires,
-        }, params={"username": f"eq.{username}"})
+        }, params={"username": f"eq.{u['username']}"})
     except Exception:
         return jsonify({"success": True})
 
@@ -321,6 +331,21 @@ def forgot_password_page():
 @auth_bp.get("/reset-password")
 def reset_password_page():
     return render_template("reset_password.html")
+
+
+@auth_bp.get("/api/auth/check-email")
+def check_email():
+    """Lets the Request Access form show a "sign in instead" prompt when the
+    entered email already belongs to an existing user. Only ever reveals a
+    boolean — never the matching username."""
+    email = request.args.get("email", "").strip()
+    if not email or "@" not in email:
+        return jsonify({"exists": False})
+    try:
+        exists = email_taken(email)
+    except Exception:
+        exists = False
+    return jsonify({"exists": exists})
 
 
 # ── Existing access-request routes (unchanged) ─────────────────────────────
@@ -468,7 +493,7 @@ def access_approve(token):
     username, err  = _approve_record(record)
     if err:
         return render_template("access_result.html", success=False, title="Error",
-                               message=Markup("Failed to approve the request. Please try again.")), 500
+                               message=Markup(html_escape(err))), 500
 
     send_access_granted_email(record, is_additional=is_additional)
 
