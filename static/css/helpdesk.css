@@ -881,3 +881,37 @@
 }
 [data-theme="light"] .gh-it-go-btn { color: #0F0C07; }
 [data-theme="light"] .gh-it-stay-btn { border-color: rgba(0,0,0,0.12); }
+
+/* ── Sub-category: free-text input + suggestions (Software/Application) ── */
+.hd-subcat-wrap { position: relative; }
+
+.hd-subcat-suggest {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.hd-subcat-suggest-item {
+  padding: 9px 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.hd-subcat-suggest-item:last-child { border-bottom: none; }
+.hd-subcat-suggest-item:hover { background: var(--bg-hover); }
+
+[data-theme="light"] .hd-subcat-suggest {
+  background: #fff;
+  border-color: #d1d5db;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+}
+[data-theme="light"] .hd-subcat-suggest-item:hover { background: #f3f4f6; }

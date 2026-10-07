@@ -185,11 +185,17 @@
               </select>
             </div>
             <!-- Request Sub-category -->
-            <div class="form-group">
+            <div class="form-group hd-subcat-wrap">
               <label class="form-label" for="hdSubcategory">Sub-category</label>
               <select class="form-input" id="hdSubcategory" name="request_subcategory" disabled>
                 <option value="">— Select category first —</option>
               </select>
+              <input class="form-input" type="text" id="hdSubcategoryInput" style="display:none;" disabled
+                autocomplete="off" placeholder="Type an application/system name…"
+                oninput="hdSubcategoryInputChanged(this.value)"
+                onfocus="hdSubcategoryInputChanged(this.value)"
+                onblur="setTimeout(hdHideSubcategorySuggest, 150)">
+              <div id="hdSubcategorySuggest" class="hd-subcat-suggest" style="display:none;"></div>
             </div>
           </div>
 

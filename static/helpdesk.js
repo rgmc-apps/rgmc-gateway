@@ -235,11 +235,17 @@ async function _loadCategories() {
 
 /* ── Subcategories + Request Types (driven by category) ──────────────────── */
 
+const HD_SOFTWARE_CATEGORY = 'Software/Application';
+let _hdSoftwareSuggestions = [];
+
 async function hdOnCategoryChange() {
   const category  = document.getElementById('hdCategory').value;
   const subSel    = document.getElementById('hdSubcategory');
+  const subInput  = document.getElementById('hdSubcategoryInput');
   const typeSel   = document.getElementById('hdRequestType');
 
+  hdHideSubcategorySuggest();
+  subInput.value = '';
   subSel.innerHTML = '<option value="">Loading…</option>';
   subSel.disabled  = true;
   typeSel.innerHTML = '<option value="">Loading…</option>';
@@ -248,6 +254,7 @@ async function hdOnCategoryChange() {
   if (!category) {
     subSel.innerHTML  = '<option value="">— Select category first —</option>';
     typeSel.innerHTML = '<option value="">— Select category first —</option>';
+    _hdSetSubcategoryMode(false);
     return;
   }
 
@@ -257,14 +264,24 @@ async function hdOnCategoryChange() {
     fetch(`/api/helpdesk/request-types?category=${encodeURIComponent(category)}`).then(r => r.json()).catch(() => []),
   ]);
 
-  subSel.innerHTML = '<option value="">— Select sub-category —</option>';
-  subItems.forEach(item => {
-    const opt = document.createElement('option');
-    opt.value = item.value;
-    opt.textContent = item.label;
-    subSel.appendChild(opt);
-  });
-  subSel.disabled = subItems.length === 0;
+  const isSoftware = category === HD_SOFTWARE_CATEGORY;
+  _hdSetSubcategoryMode(isSoftware);
+
+  if (isSoftware) {
+    // Suggestions only — the textbox still accepts any typed value, including
+    // an app/system name that isn't in the systems table yet.
+    _hdSoftwareSuggestions = subItems.map(item => item.label).filter(Boolean);
+    subInput.disabled = false;
+  } else {
+    subSel.innerHTML = '<option value="">— Select sub-category —</option>';
+    subItems.forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item.value;
+      opt.textContent = item.label;
+      subSel.appendChild(opt);
+    });
+    subSel.disabled = subItems.length === 0;
+  }
 
   typeSel.innerHTML = '<option value="">— Select request type —</option>';
   typeItems.forEach(item => {
@@ -274,6 +291,68 @@ async function hdOnCategoryChange() {
     typeSel.appendChild(opt);
   });
   typeSel.disabled = typeItems.length === 0;
+}
+
+function _hdSetSubcategoryMode(isSoftware) {
+  const subSel   = document.getElementById('hdSubcategory');
+  const subInput = document.getElementById('hdSubcategoryInput');
+  subSel.style.display   = isSoftware ? 'none' : '';
+  subInput.style.display = isSoftware ? '' : 'none';
+  if (isSoftware) {
+    subSel.disabled = true;
+  } else {
+    subInput.disabled = true;
+    subInput.value    = '';
+    hdHideSubcategorySuggest();
+  }
+}
+
+/* Reads whichever sub-category control is currently active (select or
+   free-text input) — used both for form submission and URL pre-fill. */
+function hdGetSubcategoryValue() {
+  const subInput = document.getElementById('hdSubcategoryInput');
+  if (subInput && subInput.style.display !== 'none') return subInput.value.trim();
+  return document.getElementById('hdSubcategory').value;
+}
+
+function hdSetSubcategoryValue(value) {
+  const subInput = document.getElementById('hdSubcategoryInput');
+  if (subInput && subInput.style.display !== 'none') {
+    subInput.value = value;
+    return;
+  }
+  const subSel = document.getElementById('hdSubcategory');
+  if (subSel.querySelector(`option[value="${CSS.escape(value)}"]`)) subSel.value = value;
+}
+
+function hdSubcategoryInputChanged(value) {
+  const query   = (value || '').trim().toLowerCase();
+  const matches = (query
+    ? _hdSoftwareSuggestions.filter(name => name.toLowerCase().includes(query))
+    : _hdSoftwareSuggestions
+  ).slice(0, 8);
+  hdRenderSubcategorySuggestions(matches);
+}
+
+function hdRenderSubcategorySuggestions(matches) {
+  const box = document.getElementById('hdSubcategorySuggest');
+  if (!box) return;
+  if (!matches.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.innerHTML = matches.map(name =>
+    `<div class="hd-subcat-suggest-item" onmousedown="event.preventDefault();hdSelectSubcategorySuggestion(this.dataset.val)" data-val="${escHtml(name)}">${escHtml(name)}</div>`
+  ).join('');
+  box.style.display = '';
+}
+
+function hdSelectSubcategorySuggestion(name) {
+  const input = document.getElementById('hdSubcategoryInput');
+  input.value = name;
+  hdHideSubcategorySuggest();
+}
+
+function hdHideSubcategorySuggest() {
+  const box = document.getElementById('hdSubcategorySuggest');
+  if (box) { box.style.display = 'none'; box.innerHTML = ''; }
 }
 
 /* ── Pre-fill from URL params ─────────────────────────────────────────────── */
@@ -294,14 +373,13 @@ async function _applyUrlParams() {
   // Coming from a system card: pre-fill Software/Application + system
   if (system) {
     const catSel = document.getElementById('hdCategory');
-    catSel.value = 'Software/Application';
+    catSel.value = HD_SOFTWARE_CATEGORY;
     await hdOnCategoryChange();
 
-    // Pre-select the system in the subcategory dropdown
-    const subSel = document.getElementById('hdSubcategory');
-    if (subSel.querySelector(`option[value="${CSS.escape(system)}"]`)) {
-      subSel.value = system;
-    }
+    // Pre-fill the system name in the subcategory textbox (suggestions
+    // list doubles as a lookup since `system` may be an id or a name)
+    const bySuggestion = _hdSoftwareSuggestions.find(name => name === system);
+    hdSetSubcategoryValue(bySuggestion || system);
 
     // Default to Incident/Problem for system redirects
     if (!ticketType) {
@@ -324,10 +402,7 @@ async function _applyUrlParams() {
   }
 
   if (subcategory) {
-    const subSel = document.getElementById('hdSubcategory');
-    if (subSel.querySelector(`option[value="${CSS.escape(subcategory)}"]`)) {
-      subSel.value = subcategory;
-    }
+    hdSetSubcategoryValue(subcategory);
   }
 
   if (reqType) {
@@ -378,6 +453,7 @@ async function hdSubmit(e) {
 
   const resolvedDept = await deptOtherResolve('hdDepartment', 'hdDepartment-other-input');
   fd.set('department', resolvedDept);
+  fd.set('request_subcategory', hdGetSubcategoryValue());
 
   try {
     const res  = await fetch('/api/helpdesk', { method: 'POST', body: fd });
@@ -393,6 +469,8 @@ async function hdSubmit(e) {
       document.querySelectorAll('.hd-ticket-option').forEach(el => el.classList.remove('selected'));
       document.getElementById('hdSubcategory').innerHTML = '<option value="">— Select category first —</option>';
       document.getElementById('hdSubcategory').disabled  = true;
+      _hdSetSubcategoryMode(false);
+      _hdSoftwareSuggestions = [];
       document.getElementById('hdRequestType').innerHTML = '<option value="">— Select category first —</option>';
       document.getElementById('hdRequestType').disabled  = true;
       hdComputePriority();
