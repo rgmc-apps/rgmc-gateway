@@ -73,6 +73,30 @@ const PRIORITY_BADGE = {
   low:      '<span class="iss-prio-badge iss-prio--low">Low</span>',
 };
 
+/* Ticket type — free-text column; "incident_problem" is what the plain
+   report-issue form is defaulted to server-side (no type picker there). */
+const TICKET_TYPE_LABELS = {
+  service_request:  'Service Request',
+  incident_problem: 'Incident / Problem',
+  change_request:   'Change Request',
+  request:          'Request',
+  incident_report:  'Incident Report',
+};
+const TICKET_TYPE_CLASS = {
+  service_request:  'iss-type--service',
+  incident_problem: 'iss-type--incident',
+  change_request:   'iss-type--change',
+  request:          'iss-type--request',
+  incident_report:  'iss-type--incident',
+};
+function _ipTypeBadge(issue) {
+  const type = (issue.ticket_type || '').trim();
+  if (!type) return '<span class="iss-type-badge iss-type--general">General Report</span>';
+  const label = TICKET_TYPE_LABELS[type] || type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const cls   = TICKET_TYPE_CLASS[type] || 'iss-type--general';
+  return `<span class="iss-type-badge ${cls}">${escHtml(label)}</span>`;
+}
+
 function _ipAgeDays(issue) {
   if (issue && issue.shift_age_days != null) return Math.floor(issue.shift_age_days);
   if (!issue || !issue.created_at) return 0;
@@ -361,7 +385,7 @@ function _ipRenderRow(issue) {
 
   const safeId = escHtml(issue.id);
   return `<tr class="iss-row-clickable" onclick="ipOpenIssueModal('${safeId}')">
-    <td>${ticketRef}<span class="user-name">${escHtml(issue.site_name || '')}</span></td>
+    <td>${ticketRef}<span class="user-name">${escHtml(issue.site_name || '')}</span><br>${_ipTypeBadge(issue)}</td>
     <td>${escHtml(issue.employee_name || '')}<br><small class="text-muted">${escHtml(issue.company_name || '')}</small></td>
     <td class="issue-desc-cell">${escHtml(titleText)}</td>
     <td>${prioBadge}</td>
@@ -456,6 +480,7 @@ async function ipOpenIssueModal(id) {
   }
 
   document.getElementById('ipIssPriority').innerHTML = PRIORITY_BADGE[(issue.priority || '').toLowerCase()] || '<span class="text-muted">—</span>';
+  document.getElementById('ipIssType').innerHTML     = _ipTypeBadge(issue);
   document.getElementById('ipIssDescription').innerHTML = renderCommentPreview(issue.description || '');
 
   const isTerminal = ['resolved', 'closed'].includes(issue.status);

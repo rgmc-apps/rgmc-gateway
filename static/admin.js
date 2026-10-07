@@ -1410,6 +1410,18 @@ function _fillDeptSelect(selId, selectedVal, byId = false) {
   });
 }
 
+// Auto-check (and un-check) the create-user system-access boxes to match the
+// selected department's configured "systems_needed" — same convention as the
+// public access-request form's arDeptChanged(), but replaces the whole
+// checkbox state each time so switching departments doesn't leave stale checks.
+function auDeptChanged(deptName) {
+  const dept   = _adminDepartments.find(d => d.department_name === deptName);
+  const needed = new Set((dept?.systems_needed || []).map(n => n.toLowerCase()));
+  document.querySelectorAll('#auSystemsGrid input[name="sys"]').forEach(cb => {
+    cb.checked = needed.has((cb.value || '').toLowerCase());
+  });
+}
+
 /* ── Edit User modal ── */
 
 function openEditUserModal(username) {
@@ -2630,6 +2642,30 @@ const PRIORITY_BADGE = {
   low:      '<span class="iss-prio-badge iss-prio--low">Low</span>',
 };
 
+/* Ticket type — free-text column; "incident_problem" is what the plain
+   report-issue form is defaulted to server-side (no type picker there). */
+const TICKET_TYPE_LABELS = {
+  service_request:  'Service Request',
+  incident_problem: 'Incident / Problem',
+  change_request:   'Change Request',
+  request:          'Request',
+  incident_report:  'Incident Report',
+};
+const TICKET_TYPE_CLASS = {
+  service_request:  'iss-type--service',
+  incident_problem: 'iss-type--incident',
+  change_request:   'iss-type--change',
+  request:          'iss-type--request',
+  incident_report:  'iss-type--incident',
+};
+function _typeBadge(issue) {
+  const type = (issue.ticket_type || '').trim();
+  if (!type) return '<span class="iss-type-badge iss-type--general">General Report</span>';
+  const label = TICKET_TYPE_LABELS[type] || type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const cls   = TICKET_TYPE_CLASS[type] || 'iss-type--general';
+  return `<span class="iss-type-badge ${cls}">${escHtml(label)}</span>`;
+}
+
 function renderIssueRow(issue) {
   const isNew         = _lastAdminVisit && issue.created_at && issue.created_at > _lastAdminVisit;
   const statusBadge   = `<span class="label-badge ${ISSUE_STATUS_CLASS[issue.status] || 'label-rgmc'}">${ISSUE_STATUS_LABELS[issue.status] || issue.status}</span>`;
@@ -2664,7 +2700,7 @@ function renderIssueRow(issue) {
   const safeId   = escHtml(issue.id);
   const rowClass = isNew ? 'iss-row-clickable iss-row-new' : 'iss-row-clickable';
   return `<tr class="${rowClass}" onclick="openIssueModal('${safeId}')">
-    <td>${ticketRef}<span class="user-name">${escHtml(issue.site_name || '')}</span></td>
+    <td>${ticketRef}<span class="user-name">${escHtml(issue.site_name || '')}</span><br>${_typeBadge(issue)}</td>
     <td>${escHtml(issue.employee_name || '')}<br><small class="text-muted">${escHtml(issue.company_name || '')}</small></td>
     <td class="issue-desc-cell">${escHtml(titleText)}</td>
     <td>${prioBadge}</td>
@@ -2756,6 +2792,7 @@ async function openIssueModal(id) {
     deptRow.style.display = 'none';
   }
   document.getElementById('issueDescription').innerHTML = renderCommentPreview(issue.description || '');
+  document.getElementById('issueType').innerHTML = _typeBadge(issue);
 
   const ecGroup = document.getElementById('issueErrorCodeGroup');
   const ecEl    = document.getElementById('issueErrorCode');

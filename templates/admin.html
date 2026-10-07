@@ -1141,6 +1141,12 @@
           <input class="form-input" type="text" id="issueTitleInput" placeholder="Brief summary of the issue">
         </div>
 
+        <!-- Ticket type -->
+        <div class="form-group form-group-full">
+          <label class="form-label">Type</label>
+          <p class="modal-detail-val" id="issueType"></p>
+        </div>
+
         <!-- Error code (shown only when present) -->
         <div class="form-group form-group-full" id="issueErrorCodeGroup" style="display:none;">
           <label class="form-label">Actual Error Code</label>
@@ -1919,7 +1925,7 @@
           </div>
           <div class="form-group">
             <label class="form-label" for="auDepartment">Department</label>
-            <select class="form-input" id="auDepartment">
+            <select class="form-input" id="auDepartment" onchange="auDeptChanged(this.value)">
               <option value="">— Select department —</option>
             </select>
           </div>

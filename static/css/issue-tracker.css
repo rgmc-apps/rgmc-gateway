@@ -374,6 +374,33 @@
 
 
 /* ══════════════════════════════════════════════════════════════
+   ISSUE TRACKER — TICKET TYPE BADGES
+   ══════════════════════════════════════════════════════════════ */
+
+.iss-type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.iss-type--incident { background: rgba(220,38,38,0.12);  border: 1px solid rgba(220,38,38,0.3);   color: #f87171; }
+.iss-type--service  { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.3);  color: #60a5fa; }
+.iss-type--change   { background: rgba(168,85,247,0.12); border: 1px solid rgba(168,85,247,0.3);  color: #c084fc; }
+.iss-type--request  { background: rgba(20,184,166,0.12); border: 1px solid rgba(20,184,166,0.3);  color: #2dd4bf; }
+.iss-type--general  { background: rgba(148,163,184,0.12); border: 1px solid rgba(148,163,184,0.3); color: #94a3b8; }
+
+[data-theme="light"] .iss-type--incident { background: #fef2f2; border-color: rgba(220,38,38,0.3);  color: #dc2626; }
+[data-theme="light"] .iss-type--service  { background: #eff6ff; border-color: rgba(59,130,246,0.3); color: #2563eb; }
+[data-theme="light"] .iss-type--change   { background: #faf5ff; border-color: rgba(168,85,247,0.3); color: #9333ea; }
+[data-theme="light"] .iss-type--request  { background: #f0fdfa; border-color: rgba(20,184,166,0.3); color: #0d9488; }
+[data-theme="light"] .iss-type--general  { background: #f8fafc; border-color: rgba(148,163,184,0.3); color: #64748b; }
+
+
+/* ══════════════════════════════════════════════════════════════
    ISSUE TRACKER — PAGINATION
    ══════════════════════════════════════════════════════════════ */
 

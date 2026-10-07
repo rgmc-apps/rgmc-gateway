@@ -258,6 +258,9 @@ def _submit_issue():
                 "email":         form_data["email"],
                 "department":    form_data["department"] or "",
                 "description":   form_data["description"],
+                # The general report-issue form has no type picker — these are
+                # always general problem reports, so default to "Incident / Problem".
+                "ticket_type":   "incident_problem",
             }
             if form_data["title"]:
                 issue_row["title"] = form_data["title"]
