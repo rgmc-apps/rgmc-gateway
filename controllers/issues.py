@@ -185,6 +185,21 @@ def _strip_html(text):
     return re.sub(r'\s+', ' ', clean).strip()
 
 
+def _issue_email_action_token(issue_id: str) -> str | None:
+    """(Re)issue the token that lets the current assignee resolve/comment on
+    this issue straight from the assignment email, with no gateway login.
+    Called every time an issue is (re)assigned, so a stale link from a prior
+    assignment stops matching once a new token overwrites it."""
+    import uuid
+    token = uuid.uuid4().hex
+    try:
+        supabase_req("PATCH", "/issues", data={"email_action_token": token}, params={"id": f"eq.{issue_id}"})
+    except Exception as exc:
+        current_app.logger.warning("_issue_email_action_token failed for %s: %s", issue_id, exc)
+        return None
+    return token
+
+
 def _upload_issue_attachment(issue_id: str, index: int, filename: str, data: bytes, content_type: str) -> str | None:
     safe_name = re.sub(r"[^a-zA-Z0-9.\-_]", "_", filename)
     path      = f"{issue_id}/{index}_{safe_name}"
@@ -609,7 +624,8 @@ def admin_patch_issue(issue_id):
                 or admin_username
             ) if admin_user else admin_username
             if dev_user:
-                send_issue_assigned_email(issue, dev_user, assigned_by)
+                action_token = _issue_email_action_token(issue_id)
+                send_issue_assigned_email(issue, dev_user, assigned_by, action_token=action_token)
         except Exception as exc:
             current_app.logger.error("send_issue_assigned_email failed: %s", exc)
 
@@ -764,7 +780,8 @@ def admin_promote_issue(issue_id):
         # Assignment email to the assigned developer
         if assignee and assignee_info:
             try:
-                send_issue_assigned_email(issue, assignee_info, promoted_by)
+                action_token = _issue_email_action_token(issue_id)
+                send_issue_assigned_email(issue, assignee_info, promoted_by, action_token=action_token)
             except Exception as exc:
                 current_app.logger.warning("promote dev assigned email failed: %s", exc)
 
@@ -859,7 +876,8 @@ def admin_promote_issue_to_task(issue_id):
         # Assignment email to the assigned developer
         if assignee and assignee_info:
             try:
-                send_issue_assigned_email(issue, assignee_info, promoted_by)
+                action_token = _issue_email_action_token(issue_id)
+                send_issue_assigned_email(issue, assignee_info, promoted_by, action_token=action_token)
             except Exception as exc:
                 current_app.logger.warning("promote-task assigned email failed: %s", exc)
 

@@ -1720,7 +1720,8 @@
           issue.resolved_by ? `Resolved by ${issue.resolved_by}` : 'Resolved',
           fmtDate(issue.resolved_at),
         ].filter(Boolean).join(' on ');
-        document.getElementById('resolutionMeta').textContent = resMeta;
+        document.getElementById('resolutionMeta').textContent = resMeta +
+          (issue.resolved_via_email ? ' ✉ Resolved via email response' : '');
         if (issue.resolution_notes) {
           document.getElementById('resolutionNotes').innerHTML = renderCommentPreview(issue.resolution_notes);
         } else {

@@ -584,6 +584,7 @@ def send_issue_resolved_email(
     action_names: list | None = None,
     attachment_urls: list | None = None,
     dev_items: list | None = None,
+    via_email: bool = False,
 ) -> bool:
     user_email = issue.get("email", "")
     if not user_email:
@@ -617,6 +618,13 @@ def send_issue_resolved_email(
         <span style="font-weight:700;color:#64748b;text-transform:uppercase;font-size:11px;letter-spacing:.06em;">Resolved by</span><br>
         <span style="font-size:15px;font-weight:600;color:#1e293b;">{_he(resolver_name)}</span>
       </p>"""
+
+    via_email_block = ""
+    if via_email:
+        via_email_block = """
+      <div style="margin-bottom:20px;padding:10px 14px;background:#eff6ff;border:1px solid rgba(37,99,235,.25);border-radius:6px;">
+        <p style="margin:0;font-size:12px;font-weight:700;color:#1d4ed8;">&#9993;&nbsp; Resolved via email response</p>
+      </div>"""
 
     actions_block = ""
     if action_names:
@@ -690,6 +698,7 @@ def send_issue_resolved_email(
         <p style="margin:0;font-size:13px;color:#64748b;line-height:1.6;">{desc_preview}</p>
       </div>
 
+      {via_email_block}
       {notes_block}
       {resolver_block}
       {dev_items_block}
@@ -715,7 +724,7 @@ def send_issue_resolved_email(
     return _smtp_send(msg, [user_email])
 
 
-def send_issue_assigned_email(issue: dict, developer: dict, assigned_by_name: str) -> bool:
+def send_issue_assigned_email(issue: dict, developer: dict, assigned_by_name: str, action_token: str | None = None) -> bool:
     dev_email = developer.get("email", "")
     if not dev_email:
         logger.warning("Developer has no email — skipping assignment notification")
@@ -797,6 +806,7 @@ def send_issue_assigned_email(issue: dict, developer: dict, assigned_by_name: st
         <a href="mailto:{_he(it_email)}" style="color:#C4972A;text-decoration:none;font-weight:600;">{_he(it_email)}</a>.
       </p>
       {_ticket_btn_html(issue.get("id"))}
+      {_email_resolve_action_html(action_token)}
     </div>
     <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
   </div>
@@ -968,6 +978,22 @@ def _ticket_btn_html(issue_id: str | None) -> str:
             f'<a href="{url}" style="display:inline-block;padding:12px 28px;background:#C4972A;'
             f'color:#0d0a06;text-decoration:none;border-radius:7px;font-size:14px;font-weight:700;'
             f'letter-spacing:.02em;">View Ticket &rarr;</a></div>')
+
+
+def _email_resolve_action_html(action_token: str | None) -> str:
+    if not action_token:
+        return ""
+    base       = (GATEWAY_BASE_URL or "").rstrip("/")
+    action_url = f"{base}/issues/act/{action_token}"
+    return f"""
+      <div style="margin-top:20px;padding:18px 22px;background:#fffbeb;border:1px solid rgba(196,151,42,.3);border-radius:8px;">
+        <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.05em;">Resolve without logging in</p>
+        <p style="margin:0 0 14px;font-size:13px;color:#374151;line-height:1.6;">
+          You can mark this ticket as resolved or leave a comment directly from this email &mdash; no gateway login required.
+          Resolving this way will be recorded as <strong>&ldquo;Resolved via email response.&rdquo;</strong>
+        </p>
+        <a href="{action_url}" style="display:inline-block;padding:12px 28px;background:#15803d;color:#fff;text-decoration:none;border-radius:7px;font-size:14px;font-weight:700;letter-spacing:.02em;">Resolve / Comment &rarr;</a>
+      </div>"""
 
 
 def _confirm_fix_btn_html(issue_id: str | None) -> str:
@@ -1448,7 +1474,7 @@ def send_issue_promoted_to_task_email(issue: dict, task: dict, assignee_name: st
     return _smtp_send(msg, [developer_email])
 
 
-def send_issue_comment_email(issue: dict, comment: str, commenter_name: str) -> bool:
+def send_issue_comment_email(issue: dict, comment: str, commenter_name: str, via_email: bool = False) -> bool:
     user_email = issue.get("email", "")
     if not user_email:
         logger.warning("Issue has no reporter email — skipping comment notification")
@@ -1485,6 +1511,7 @@ def send_issue_comment_email(issue: dict, comment: str, commenter_name: str) -> 
       <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#374151;">
         <strong>{_he(commenter_name)}</strong> from the IT team has added a comment to your issue report.
       </p>
+      {'''<div style="margin-bottom:20px;padding:10px 14px;background:#eff6ff;border:1px solid rgba(37,99,235,.25);border-radius:6px;"><p style="margin:0;font-size:12px;font-weight:700;color:#1d4ed8;">&#9993;&nbsp; Sent via email response</p></div>''' if via_email else ''}
 
       <table style="width:100%;border-collapse:collapse;margin-bottom:24px;border-radius:8px;overflow:hidden;">
         {ticket_row}
@@ -1810,6 +1837,101 @@ def send_resolution_reminder_email(issue: dict, reminder_number: int) -> bool:
     suffix_word = {1: "1st", 2: "2nd", 3: "3rd"}.get(reminder_number, f"{reminder_number}th")
     msg            = MIMEMultipart("alternative")
     msg["Subject"] = f"Reminder ({suffix_word}): Please Confirm Your Issue Is Resolved — {site_name}"
+    msg["From"]    = from_addr
+    msg["To"]      = user_email
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [user_email])
+
+
+def send_confirm_deadline_reminder_email(issue: dict, deadline, auto_confirm_days: int) -> bool:
+    """One-time notice sent ~48 hours before a resolved, unconfirmed issue is
+    due to be auto-confirmed, giving the reporter a final respectful chance
+    to flag it if the fix didn't actually work."""
+    user_email = issue.get("email", "")
+    if not user_email:
+        return False
+
+    from_addr     = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    it_email      = EMAIL_CONFIG["developer_email"] or from_addr
+    site_name     = issue.get("site_name", "Unknown System")
+    employee_name = issue.get("employee_name", "")
+    raw_desc      = issue.get("description", "")
+    title         = issue.get("title") or _field_preview(raw_desc, 80)
+    resolution_notes = (issue.get("resolution_notes") or "").strip()
+    resolved_by   = (issue.get("resolved_by") or "").strip()
+    ticket_number = issue.get("ticket_number") or ""
+    deadline_date = deadline.strftime("%B %d, %Y")
+
+    def _he(s): return str(s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    ticket_row = f"""
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;width:140px;border-bottom:1px solid #e2e8f0;">TICKET</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:monospace;font-weight:700;">{_he(ticket_number)}</td>
+        </tr>""" if ticket_number else ""
+
+    notes_block = ""
+    if resolution_notes:
+        notes_block = f"""
+      <div style="margin-bottom:24px;">
+        <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Resolution Provided</p>
+        <div style="background:#f0fdf4;border:1px solid rgba(21,128,61,.18);border-left:4px solid #15803d;border-radius:0 6px 6px 0;padding:14px 16px;font-size:14px;line-height:1.6;color:#374151;">{_render_field_html(resolution_notes)}</div>
+      </div>"""
+
+    resolver_line = f" by <strong>{_he(resolved_by)}</strong>" if resolved_by else ""
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#78350f 0%,#451a03 100%);padding:28px 32px;border-bottom:3px solid #f59e0b;">
+      <h2 style="margin:0;font-size:22px;color:#fde68a;">Action Needed: Confirmation Requested</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">{_he(site_name)} &mdash; Final Reminder</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 16px;font-size:15px;">Dear <strong>{_he(employee_name)}</strong>,</p>
+      <p style="margin:0 0 20px;font-size:15px;line-height:1.7;color:#374151;">
+        We hope this message finds you well. We are writing regarding your issue with <strong>{_he(site_name)}</strong>,
+        which was marked as resolved{resolver_line}. As we have not yet received your confirmation, and as per our
+        standard policy of automatically confirming resolved tickets after {auto_confirm_days} days of inactivity,
+        this ticket is scheduled to be automatically marked as confirmed resolved on
+        <strong>{_he(deadline_date)}</strong> if we do not hear from you before then.
+      </p>
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#374151;">
+        If everything is working well on your end, there is nothing further you need to do — your ticket will close
+        automatically on the date above. However, if you are still experiencing this issue, we kindly ask that you
+        let us know beforehand so our team can continue assisting you.
+      </p>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;border-radius:8px;overflow:hidden;">
+        {ticket_row}
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;width:140px;border-bottom:1px solid #e2e8f0;">SYSTEM</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:600;">{_he(site_name)}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">ISSUE</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:600;">{_he(title)}</td>
+        </tr>
+      </table>
+
+      {notes_block}
+
+      {_confirm_fix_btn_html(issue.get("id"))}
+
+      <p style="margin:20px 0 0;font-size:13px;color:#64748b;line-height:1.7;">
+        Should you have any questions or concerns, please don't hesitate to reach out to IT at
+        <a href="mailto:{_he(it_email)}" style="color:#C4972A;text-decoration:none;font-weight:600;">{_he(it_email)}</a>.
+        Thank you for your patience, and we appreciate the opportunity to be of service.
+      </p>
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    msg            = MIMEMultipart("alternative")
+    msg["Subject"] = f"Action Needed: Your Ticket Will Be Auto-Confirmed on {deadline_date} — {site_name}"
     msg["From"]    = from_addr
     msg["To"]      = user_email
     msg.attach(MIMEText(html, "html"))

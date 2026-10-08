@@ -572,7 +572,8 @@ async function ipOpenIssueModal(id) {
     if (isTerminal && (issue.resolution_notes || resUrls.length)) {
       resGroup.style.display = '';
       document.getElementById('ipIssResNotes').innerHTML     = renderCommentPreview(issue.resolution_notes || '');
-      document.getElementById('ipIssResolvedBy').textContent = issue.resolved_by || '—';
+      document.getElementById('ipIssResolvedBy').textContent = (issue.resolved_by || '—') +
+        (issue.resolved_via_email ? ' (via email response)' : '');
       document.getElementById('ipIssResAttach').innerHTML = resUrls.map(u => {
         const name  = decodeURIComponent(u.split('/').pop().replace(/^\d+_/, ''));
         const isImg = /\.(jpg|jpeg|png|gif|webp)$/i.test(name);

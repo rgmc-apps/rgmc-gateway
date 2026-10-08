@@ -7,6 +7,7 @@ from config import HEALTH_CHECKS
 from services.sites import get_sites
 from services.supabase import supabase_req, resolve_action_names
 from services.epics import build_epic_comment_feed
+from services.email import send_issue_resolved_email, send_issue_comment_email
 
 public_bp = Blueprint("public", __name__)
 
@@ -256,7 +257,7 @@ def get_public_issue(issue_id):
             "from_helpdesk,error_code,assigned_to,resolved_by,"
             "created_at,resolved_at,resolution_notes,attachment_urls,"
             "dev_item_id,task_id,user_task_id,epic_id,"
-            "confirmed_fix,confirmed_fix_at"
+            "confirmed_fix,confirmed_fix_at,resolved_via_email"
         ),
     })
     if not rows:
@@ -403,6 +404,184 @@ def public_still_having_issues(issue_id):
     }, params={"id": f"eq.{issue_id}"})
 
     return jsonify({"success": True})
+
+
+@public_bp.get("/issues/act/<token>")
+def issue_email_action_page(token):
+    return render_template("issue_email_action.html", token=token)
+
+
+def _resolve_assignee_display(username: str) -> str:
+    if not username:
+        return ""
+    try:
+        rows = supabase_req("GET", "/users", params={
+            "username": f"eq.{username}",
+            "select":   "username,first_name,last_name,display_name",
+        })
+    except Exception as exc:
+        current_app.logger.warning("_resolve_assignee_display failed for '%s': %s", username, exc)
+        return username
+    if not rows:
+        return username
+    u = rows[0]
+    return (u.get("display_name") or f"{u.get('first_name','')} {u.get('last_name','')}".strip() or u["username"])
+
+
+@public_bp.get("/api/public/issues/act/<token>")
+def get_issue_email_action(token):
+    rows = supabase_req("GET", "/issues", params={
+        "email_action_token": f"eq.{token}",
+        "select": (
+            "id,ticket_number,title,description,status,priority,"
+            "site_name,employee_name,company_name,department,"
+            "assigned_to,resolved_by,resolved_at,resolution_notes,"
+            "resolution_action_ids,resolved_via_email,created_at"
+        ),
+    })
+    if not rows:
+        return jsonify({"error": "This link is invalid or has expired."}), 404
+
+    issue = rows[0]
+    issue["assignee_display_name"] = _resolve_assignee_display(issue.get("assigned_to") or "")
+    issue["action_names"]          = resolve_action_names(issue.get("resolution_action_ids") or [])
+    return jsonify(issue)
+
+
+@public_bp.get("/api/public/issues/act/<token>/actions")
+def get_issue_email_action_options(token):
+    rows = supabase_req("GET", "/issues", params={"email_action_token": f"eq.{token}", "select": "id"})
+    if not rows:
+        return jsonify({"error": "This link is invalid or has expired."}), 404
+    actions = supabase_req("GET", "/actions", params={
+        "is_active": "eq.true",
+        "order":     "action_id.asc",
+        "select":    "action_id,action_name,action_code,action_desc",
+    })
+    return jsonify(actions or [])
+
+
+@public_bp.post("/api/public/issues/act/<token>/resolve")
+def post_issue_email_resolve(token):
+    from controllers.issues import _strip_html, _cascade_linked_resolution
+
+    body             = request.get_json(silent=True) or {}
+    resolution_notes = (body.get("resolution_notes") or "").strip()
+    action_ids       = [a for a in (body.get("resolution_action_ids") or []) if a]
+    if not resolution_notes:
+        return jsonify({"error": "Please describe how the issue was resolved."}), 400
+
+    rows = supabase_req("GET", "/issues", params={"email_action_token": f"eq.{token}", "select": "*"})
+    if not rows:
+        return jsonify({"error": "This link is invalid or has expired."}), 404
+    issue    = rows[0]
+    issue_id = issue["id"]
+
+    if issue.get("status") in ("resolved", "closed"):
+        return jsonify({"error": "This ticket has already been resolved."}), 409
+
+    assignee          = issue.get("assigned_to") or ""
+    resolver_display  = _resolve_assignee_display(assignee) or "the assignee"
+
+    patch = {
+        "status":                "resolved",
+        "resolution_notes":      resolution_notes,
+        "resolved_by":           resolver_display,
+        "resolved_at":           datetime.now(timezone.utc).isoformat(),
+        "resolution_action_ids": action_ids,
+        "resolved_via_email":    True,
+    }
+
+    try:
+        supabase_req("PATCH", "/issues", data=patch, params={"id": f"eq.{issue_id}"})
+    except Exception as exc:
+        current_app.logger.error("post_issue_email_resolve failed: %s", exc)
+        return jsonify({"error": "Failed to update the ticket"}), 500
+
+    try:
+        from services.it_bot import notify_ticket_updated, build_changes
+        changes = build_changes(issue, patch)
+        if changes:
+            notify_ticket_updated({**issue, **patch}, changes)
+    except Exception as exc:
+        current_app.logger.warning("post_issue_email_resolve: bot notify failed: %s", exc)
+
+    action_names = resolve_action_names(action_ids)
+    try:
+        send_issue_resolved_email(
+            issue, resolution_notes, resolver_display, "resolved",
+            action_names=action_names, via_email=True,
+        )
+    except Exception as exc:
+        current_app.logger.error("post_issue_email_resolve: resolved email failed: %s", exc)
+
+    has_linked = any([issue.get("dev_item_id"), issue.get("task_id"), issue.get("user_task_id")])
+    if not has_linked:
+        plain_notes   = _strip_html(resolution_notes)
+        comment_parts = [f"Resolved by {resolver_display} via email response."]
+        if plain_notes:
+            comment_parts.append(f"\nResolution Notes:\n{plain_notes}")
+        try:
+            supabase_req("POST", "/issue_comments", data={
+                "issue_id": issue_id,
+                "username": assignee or resolver_display,
+                "comment":  "\n".join(comment_parts),
+            }, extra_headers={"Prefer": "return=representation"})
+        except Exception as exc:
+            current_app.logger.warning("post_issue_email_resolve: auto-comment failed: %s", exc)
+
+    try:
+        _cascade_linked_resolution(
+            issue_id=issue_id, issue=issue, patch=patch,
+            admin_username=assignee or resolver_display, new_status="resolved",
+        )
+    except Exception as exc:
+        current_app.logger.warning("post_issue_email_resolve: cascade failed: %s", exc)
+
+    return jsonify({"success": True})
+
+
+@public_bp.post("/api/public/issues/act/<token>/comment")
+def post_issue_email_comment(token):
+    body    = request.get_json(silent=True) or {}
+    comment = (body.get("comment") or "").strip()
+    if not comment:
+        return jsonify({"error": "Comment cannot be empty"}), 400
+
+    rows = supabase_req("GET", "/issues", params={
+        "email_action_token": f"eq.{token}",
+        "select":             "id,assigned_to,email,employee_name,site_name,ticket_number,title,description",
+    })
+    if not rows:
+        return jsonify({"error": "This link is invalid or has expired."}), 404
+    issue    = rows[0]
+    assignee = issue.get("assigned_to") or ""
+    resolver_display = _resolve_assignee_display(assignee) or "the assignee"
+
+    try:
+        saved_rows = supabase_req("POST", "/issue_comments", data={
+            "issue_id": issue["id"],
+            "username": assignee or resolver_display,
+            "comment":  comment,
+        }, extra_headers={"Prefer": "return=representation"})
+        saved = saved_rows[0] if saved_rows else {}
+    except Exception as exc:
+        current_app.logger.error("post_issue_email_comment failed: %s", exc)
+        return jsonify({"error": "Failed to save comment"}), 500
+
+    try:
+        from services.mentions import notify_comment_mentions, issue_url
+        label = issue.get("ticket_number") or issue["id"]
+        notify_comment_mentions(comment, assignee or resolver_display, "issue", issue["id"], label, issue_url(issue["id"]))
+    except Exception as exc:
+        current_app.logger.warning("post_issue_email_comment: mention notify failed: %s", exc)
+
+    try:
+        send_issue_comment_email(issue, comment, resolver_display, via_email=True)
+    except Exception as exc:
+        current_app.logger.warning("post_issue_email_comment: notify failed: %s", exc)
+
+    return jsonify({"success": True, "comment": saved})
 
 
 @public_bp.get("/fixes/<fix_id>")

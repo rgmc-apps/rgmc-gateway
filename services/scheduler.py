@@ -1,8 +1,13 @@
 """Background scheduler — runs periodic maintenance jobs.
 
 Uses APScheduler with a BackgroundScheduler so it works inside any WSGI server.
-The resolution-reminder job runs once daily and sends weekly follow-up emails to
-reporters whose issues are resolved but not yet confirmed.
+- resolution_reminders: daily, sends weekly follow-up emails to reporters whose
+  issues are resolved but not yet confirmed.
+- confirm_deadline_reminders: daily, sends a one-time respectful notice to the
+  reporter ~48 hours before their issue is due to be auto-confirmed.
+- auto_confirm_issues: daily, auto-confirms issues that have gone quiet long
+  enough (see `_compute_confirmation_deadlines` for the shared deadline logic
+  all three of the above jobs rely on).
 """
 
 import logging
@@ -11,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 logger = logging.getLogger(__name__)
 
 _REMINDER_INTERVAL = timedelta(days=7)
+_CONFIRM_DEADLINE_REMINDER_WINDOW = timedelta(hours=48)
 
 
 def _run_resolution_reminders(app):
@@ -126,6 +132,210 @@ def _in_filter(ids):
     return ",".join(uniq)
 
 
+def _fetch_confirmation_candidates():
+    """Fetch resolved/closed, unconfirmed issues plus every field either the
+    auto-confirm job or the 48h pre-deadline reminder job needs. Returns
+    (days, candidates) — `days` is the configured auto_confirm_days setting —
+    or (None, None) if the fetch itself failed."""
+    from services.supabase import supabase_req, get_app_setting
+
+    try:
+        days_raw = get_app_setting("auto_confirm_days", "30")
+        days = int(days_raw)
+    except (TypeError, ValueError):
+        days = 30
+    if days < 1:
+        days = 30
+
+    try:
+        issues = supabase_req("GET", "/issues", params={
+            "status": "in.(resolved,closed)",
+            "select": (
+                "id,status,confirmed_fix,dev_item_id,task_id,user_task_id,epic_id,resolved_at,"
+                "email,employee_name,site_name,title,description,resolution_notes,resolved_by,"
+                "ticket_number,confirm_deadline_reminder_sent_at"
+            ),
+        })
+    except Exception as exc:
+        logger.error("confirmation_candidates: failed to fetch issues: %s", exc)
+        return None, None
+
+    candidates = [
+        i for i in (issues or [])
+        if not i.get("confirmed_fix") and i.get("resolved_at")
+    ]
+    return days, candidates
+
+
+def _compute_last_activity(candidates):
+    """For each candidate issue, resolve whether it's blocked by a still-active
+    linked dev item / task / user task / epic, and if not, its last-activity
+    datetime (comment, or a status move on that linked item, falling back to
+    resolved_at). Returns {issue_id: datetime} — blocked issues and issues with
+    no resolvable activity are simply omitted."""
+    from services.supabase import supabase_req
+
+    if not candidates:
+        return {}
+
+    dev_item_ids  = [i["dev_item_id"]  for i in candidates if i.get("dev_item_id")]
+    task_ids      = [i["task_id"]      for i in candidates if i.get("task_id")]
+    user_task_ids = [i["user_task_id"] for i in candidates if i.get("user_task_id")]
+    epic_ids      = [i["epic_id"]      for i in candidates if i.get("epic_id")]
+
+    def _safe_get(path, params):
+        try:
+            return supabase_req("GET", path, params=params) or []
+        except Exception as exc:
+            logger.warning("confirmation_candidates: fetch %s failed: %s", path, exc)
+            return []
+
+    # ── Batch-fetch linked entities (status + their own updated_at) ──
+    dev_items_by_id = {}
+    if dev_item_ids:
+        rows = _safe_get("/dev_items", {
+            "id": f"in.({_in_filter(dev_item_ids)})", "select": "id,status,updated_at",
+        })
+        dev_items_by_id = {r["id"]: r for r in rows}
+
+    tasks_by_id = {}
+    if task_ids:
+        rows = _safe_get("/tasks", {
+            "id": f"in.({_in_filter(task_ids)})", "select": "id,status,updated_at",
+        })
+        tasks_by_id = {r["id"]: r for r in rows}
+
+    user_tasks_by_id = {}
+    if user_task_ids:
+        rows = _safe_get("/user_tasks", {
+            "id": f"in.({_in_filter(user_task_ids)})", "select": "id,status,department_name,updated_at",
+        })
+        user_tasks_by_id = {r["id"]: r for r in rows}
+
+    epics_by_id = {}
+    if epic_ids:
+        rows = _safe_get("/epics", {
+            "epic_id": f"in.({_in_filter(epic_ids)})", "select": "epic_id,epic_status,date_modified",
+        })
+        epics_by_id = {r["epic_id"]: r for r in rows}
+
+    # task_statuses is a small reference table — fetch it whole once.
+    status_rows = _safe_get("/task_statuses", {"select": "scope,department_name,slug,is_terminal"})
+    admin_terminal = {}
+    dept_terminal  = {}
+    for r in status_rows:
+        if r.get("scope") == "admin":
+            admin_terminal[r.get("slug")] = bool(r.get("is_terminal"))
+        elif r.get("scope") == "department":
+            dept_terminal[(r.get("department_name"), r.get("slug"))] = bool(r.get("is_terminal"))
+
+    # ── Batch-fetch activity logs/comments, grouped by their FK ──
+    issue_ids = [i["id"] for i in candidates]
+    comment_max = _latest_by_key(
+        _safe_get("/issue_comments", {"issue_id": f"in.({_in_filter(issue_ids)})", "select": "issue_id,created_at"}),
+        "issue_id", "created_at",
+    )
+    dev_log_max = _latest_by_key(
+        _safe_get("/dev_item_logs", {"item_id": f"in.({_in_filter(dev_item_ids)})", "select": "item_id,created_at"}) if dev_item_ids else [],
+        "item_id", "created_at",
+    )
+    dev_activity_max = _latest_by_key(
+        _safe_get("/dev_activity_logs", {"item_id": f"in.({_in_filter(dev_item_ids)})", "select": "item_id,created_at"}) if dev_item_ids else [],
+        "item_id", "created_at",
+    )
+    admin_task_ids_for_log = task_ids + user_task_ids  # task_activity_logs is shared across both kinds
+    task_activity_max = _latest_by_key(
+        _safe_get("/task_activity_logs", {"task_id": f"in.({_in_filter(admin_task_ids_for_log)})", "select": "task_id,created_at"}) if admin_task_ids_for_log else [],
+        "task_id", "created_at",
+    )
+    task_item_log_max = _latest_by_key(
+        _safe_get("/task_item_logs", {"task_id": f"in.({_in_filter(user_task_ids)})", "select": "task_id,created_at"}) if user_task_ids else [],
+        "task_id", "created_at",
+    )
+    epic_comment_max = _latest_by_key(
+        _safe_get("/epic_comments", {"epic_id": f"in.({_in_filter(epic_ids)})", "select": "epic_id,created_at"}) if epic_ids else [],
+        "epic_id", "created_at",
+    )
+
+    result = {}
+
+    for issue in candidates:
+        issue_id      = issue["id"]
+        dev_item_id   = issue.get("dev_item_id")
+        task_id       = issue.get("task_id")
+        user_task_id  = issue.get("user_task_id")
+        epic_id       = issue.get("epic_id")
+
+        # Skip if linked to anything still active. A link whose target row is
+        # missing (deleted) is treated as not-blocking; a link whose status
+        # metadata can't be resolved is treated conservatively as blocking.
+        blocked = False
+        if dev_item_id:
+            row = dev_items_by_id.get(dev_item_id)
+            if row and row.get("status") != "done":
+                blocked = True
+        if not blocked and task_id:
+            row = tasks_by_id.get(task_id)
+            if row:
+                is_terminal = admin_terminal.get(row.get("status"))
+                if not is_terminal:
+                    blocked = True
+        if not blocked and user_task_id:
+            row = user_tasks_by_id.get(user_task_id)
+            if row:
+                is_terminal = dept_terminal.get((row.get("department_name"), row.get("status")))
+                if not is_terminal:
+                    blocked = True
+        if not blocked and epic_id:
+            row = epics_by_id.get(epic_id)
+            if row and row.get("epic_status") not in ("done", "cancelled"):
+                blocked = True
+        if blocked:
+            continue
+
+        last_activity = _max_ts(
+            issue.get("resolved_at"),
+            comment_max.get(issue_id).isoformat() if comment_max.get(issue_id) else None,
+        )
+        if dev_item_id:
+            dev_row = dev_items_by_id.get(dev_item_id)
+            last_activity = _max_ts(
+                last_activity.isoformat() if last_activity else None,
+                (dev_row or {}).get("updated_at"),
+                dev_log_max.get(dev_item_id).isoformat() if dev_log_max.get(dev_item_id) else None,
+                dev_activity_max.get(dev_item_id).isoformat() if dev_activity_max.get(dev_item_id) else None,
+            )
+        if task_id:
+            task_row = tasks_by_id.get(task_id)
+            last_activity = _max_ts(
+                last_activity.isoformat() if last_activity else None,
+                (task_row or {}).get("updated_at"),
+                task_activity_max.get(task_id).isoformat() if task_activity_max.get(task_id) else None,
+            )
+        if user_task_id:
+            ut_row = user_tasks_by_id.get(user_task_id)
+            last_activity = _max_ts(
+                last_activity.isoformat() if last_activity else None,
+                (ut_row or {}).get("updated_at"),
+                task_activity_max.get(user_task_id).isoformat() if task_activity_max.get(user_task_id) else None,
+                task_item_log_max.get(user_task_id).isoformat() if task_item_log_max.get(user_task_id) else None,
+            )
+        if epic_id:
+            epic_row = epics_by_id.get(epic_id)
+            last_activity = _max_ts(
+                last_activity.isoformat() if last_activity else None,
+                (epic_row or {}).get("date_modified"),
+                epic_comment_max.get(epic_id).isoformat() if epic_comment_max.get(epic_id) else None,
+            )
+
+        if last_activity is None:
+            continue
+
+        result[issue_id] = last_activity
+
+    return result
+
+
 def _run_auto_confirm_issues(app):
     """Auto-confirm resolved/closed issues that have gone quiet.
 
@@ -136,186 +346,20 @@ def _run_auto_confirm_issues(app):
     user task, or epic that is still active (not yet in a terminal/done state).
     An issue with no activity at all falls back to its resolved_at date.
     """
-    from services.supabase import supabase_req, get_app_setting
+    from services.supabase import supabase_req
 
     with app.app_context():
-        try:
-            days_raw = get_app_setting("auto_confirm_days", "30")
-            days = int(days_raw)
-        except (TypeError, ValueError):
-            days = 30
-        if days < 1:
-            days = 30
-        threshold = timedelta(days=days)
-
-        try:
-            issues = supabase_req("GET", "/issues", params={
-                "status": "in.(resolved,closed)",
-                "select": "id,status,confirmed_fix,dev_item_id,task_id,user_task_id,epic_id,resolved_at",
-            })
-        except Exception as exc:
-            logger.error("auto_confirm_issues: failed to fetch issues: %s", exc)
+        days, candidates = _fetch_confirmation_candidates()
+        if days is None or not candidates:
             return
 
-        candidates = [
-            i for i in (issues or [])
-            if not i.get("confirmed_fix") and i.get("resolved_at")
-        ]
-        if not candidates:
-            return
+        threshold  = timedelta(days=days)
+        last_by_id = _compute_last_activity(candidates)
+        now        = datetime.now(timezone.utc)
+        confirmed  = 0
 
-        dev_item_ids  = [i["dev_item_id"]  for i in candidates if i.get("dev_item_id")]
-        task_ids      = [i["task_id"]      for i in candidates if i.get("task_id")]
-        user_task_ids = [i["user_task_id"] for i in candidates if i.get("user_task_id")]
-        epic_ids      = [i["epic_id"]      for i in candidates if i.get("epic_id")]
-
-        def _safe_get(path, params):
-            try:
-                return supabase_req("GET", path, params=params) or []
-            except Exception as exc:
-                logger.warning("auto_confirm_issues: fetch %s failed: %s", path, exc)
-                return []
-
-        # ── Batch-fetch linked entities (status + their own updated_at) ──
-        dev_items_by_id = {}
-        if dev_item_ids:
-            rows = _safe_get("/dev_items", {
-                "id": f"in.({_in_filter(dev_item_ids)})", "select": "id,status,updated_at",
-            })
-            dev_items_by_id = {r["id"]: r for r in rows}
-
-        tasks_by_id = {}
-        if task_ids:
-            rows = _safe_get("/tasks", {
-                "id": f"in.({_in_filter(task_ids)})", "select": "id,status,updated_at",
-            })
-            tasks_by_id = {r["id"]: r for r in rows}
-
-        user_tasks_by_id = {}
-        if user_task_ids:
-            rows = _safe_get("/user_tasks", {
-                "id": f"in.({_in_filter(user_task_ids)})", "select": "id,status,department_name,updated_at",
-            })
-            user_tasks_by_id = {r["id"]: r for r in rows}
-
-        epics_by_id = {}
-        if epic_ids:
-            rows = _safe_get("/epics", {
-                "epic_id": f"in.({_in_filter(epic_ids)})", "select": "epic_id,epic_status,date_modified",
-            })
-            epics_by_id = {r["epic_id"]: r for r in rows}
-
-        # task_statuses is a small reference table — fetch it whole once.
-        status_rows = _safe_get("/task_statuses", {"select": "scope,department_name,slug,is_terminal"})
-        admin_terminal = {}
-        dept_terminal  = {}
-        for r in status_rows:
-            if r.get("scope") == "admin":
-                admin_terminal[r.get("slug")] = bool(r.get("is_terminal"))
-            elif r.get("scope") == "department":
-                dept_terminal[(r.get("department_name"), r.get("slug"))] = bool(r.get("is_terminal"))
-
-        # ── Batch-fetch activity logs/comments, grouped by their FK ──
-        issue_ids = [i["id"] for i in candidates]
-        comment_max = _latest_by_key(
-            _safe_get("/issue_comments", {"issue_id": f"in.({_in_filter(issue_ids)})", "select": "issue_id,created_at"}),
-            "issue_id", "created_at",
-        )
-        dev_log_max = _latest_by_key(
-            _safe_get("/dev_item_logs", {"item_id": f"in.({_in_filter(dev_item_ids)})", "select": "item_id,created_at"}) if dev_item_ids else [],
-            "item_id", "created_at",
-        )
-        dev_activity_max = _latest_by_key(
-            _safe_get("/dev_activity_logs", {"item_id": f"in.({_in_filter(dev_item_ids)})", "select": "item_id,created_at"}) if dev_item_ids else [],
-            "item_id", "created_at",
-        )
-        admin_task_ids_for_log = task_ids + user_task_ids  # task_activity_logs is shared across both kinds
-        task_activity_max = _latest_by_key(
-            _safe_get("/task_activity_logs", {"task_id": f"in.({_in_filter(admin_task_ids_for_log)})", "select": "task_id,created_at"}) if admin_task_ids_for_log else [],
-            "task_id", "created_at",
-        )
-        task_item_log_max = _latest_by_key(
-            _safe_get("/task_item_logs", {"task_id": f"in.({_in_filter(user_task_ids)})", "select": "task_id,created_at"}) if user_task_ids else [],
-            "task_id", "created_at",
-        )
-        epic_comment_max = _latest_by_key(
-            _safe_get("/epic_comments", {"epic_id": f"in.({_in_filter(epic_ids)})", "select": "epic_id,created_at"}) if epic_ids else [],
-            "epic_id", "created_at",
-        )
-
-        now = datetime.now(timezone.utc)
-        confirmed = 0
-
-        for issue in candidates:
-            issue_id      = issue["id"]
-            dev_item_id   = issue.get("dev_item_id")
-            task_id       = issue.get("task_id")
-            user_task_id  = issue.get("user_task_id")
-            epic_id       = issue.get("epic_id")
-
-            # Skip if linked to anything still active. A link whose target row is
-            # missing (deleted) is treated as not-blocking; a link whose status
-            # metadata can't be resolved is treated conservatively as blocking.
-            blocked = False
-            if dev_item_id:
-                row = dev_items_by_id.get(dev_item_id)
-                if row and row.get("status") != "done":
-                    blocked = True
-            if not blocked and task_id:
-                row = tasks_by_id.get(task_id)
-                if row:
-                    is_terminal = admin_terminal.get(row.get("status"))
-                    if not is_terminal:
-                        blocked = True
-            if not blocked and user_task_id:
-                row = user_tasks_by_id.get(user_task_id)
-                if row:
-                    is_terminal = dept_terminal.get((row.get("department_name"), row.get("status")))
-                    if not is_terminal:
-                        blocked = True
-            if not blocked and epic_id:
-                row = epics_by_id.get(epic_id)
-                if row and row.get("epic_status") not in ("done", "cancelled"):
-                    blocked = True
-            if blocked:
-                continue
-
-            last_activity = _max_ts(
-                issue.get("resolved_at"),
-                comment_max.get(issue_id).isoformat() if comment_max.get(issue_id) else None,
-            )
-            if dev_item_id:
-                dev_row = dev_items_by_id.get(dev_item_id)
-                last_activity = _max_ts(
-                    last_activity.isoformat() if last_activity else None,
-                    (dev_row or {}).get("updated_at"),
-                    dev_log_max.get(dev_item_id).isoformat() if dev_log_max.get(dev_item_id) else None,
-                    dev_activity_max.get(dev_item_id).isoformat() if dev_activity_max.get(dev_item_id) else None,
-                )
-            if task_id:
-                task_row = tasks_by_id.get(task_id)
-                last_activity = _max_ts(
-                    last_activity.isoformat() if last_activity else None,
-                    (task_row or {}).get("updated_at"),
-                    task_activity_max.get(task_id).isoformat() if task_activity_max.get(task_id) else None,
-                )
-            if user_task_id:
-                ut_row = user_tasks_by_id.get(user_task_id)
-                last_activity = _max_ts(
-                    last_activity.isoformat() if last_activity else None,
-                    (ut_row or {}).get("updated_at"),
-                    task_activity_max.get(user_task_id).isoformat() if task_activity_max.get(user_task_id) else None,
-                    task_item_log_max.get(user_task_id).isoformat() if task_item_log_max.get(user_task_id) else None,
-                )
-            if epic_id:
-                epic_row = epics_by_id.get(epic_id)
-                last_activity = _max_ts(
-                    last_activity.isoformat() if last_activity else None,
-                    (epic_row or {}).get("date_modified"),
-                    epic_comment_max.get(epic_id).isoformat() if epic_comment_max.get(epic_id) else None,
-                )
-
-            if last_activity is None or now - last_activity < threshold:
+        for issue_id, last_activity in last_by_id.items():
+            if now - last_activity < threshold:
                 continue
 
             try:
@@ -336,6 +380,73 @@ def _run_auto_confirm_issues(app):
             logger.info("auto_confirm_issues: auto-confirmed %d issue(s)", confirmed)
 
 
+def _run_confirm_deadline_reminders(app):
+    """Send a one-time, respectful notice to the reporter roughly 48 hours
+    before their resolved issue is due to be auto-confirmed, so they have a
+    final chance to speak up if the fix didn't actually work.
+
+    Reuses the exact same deadline computation as _run_auto_confirm_issues —
+    the deadline is last_activity + auto_confirm_days, not just resolved_at,
+    and an issue linked to a still-active dev item/task/user task/epic never
+    gets a reminder either (it isn't on a confirmation track yet).
+    """
+    from services.supabase import supabase_req
+    from services.email import send_confirm_deadline_reminder_email
+
+    with app.app_context():
+        days, candidates = _fetch_confirmation_candidates()
+        if days is None or not candidates:
+            return
+
+        threshold  = timedelta(days=days)
+        last_by_id = _compute_last_activity(candidates)
+        by_id      = {i["id"]: i for i in candidates}
+        now        = datetime.now(timezone.utc)
+        sent       = 0
+
+        for issue_id, last_activity in last_by_id.items():
+            issue = by_id[issue_id]
+            if not issue.get("email"):
+                continue
+
+            deadline  = last_activity + threshold
+            time_left = deadline - now
+            if time_left <= timedelta(0) or time_left > _CONFIRM_DEADLINE_REMINDER_WINDOW:
+                continue
+
+            # Already reminded for this resolution cycle? (resolved_at advances
+            # each time an issue is reopened and resolved again, so a reminder
+            # sent before the current resolved_at is from a prior cycle.)
+            already_sent = issue.get("confirm_deadline_reminder_sent_at")
+            resolved_at  = issue.get("resolved_at")
+            if already_sent and resolved_at:
+                try:
+                    sent_dt     = datetime.fromisoformat(already_sent.replace("Z", "+00:00"))
+                    resolved_dt = datetime.fromisoformat(resolved_at.replace("Z", "+00:00"))
+                    if sent_dt >= resolved_dt:
+                        continue
+                except Exception:
+                    pass
+
+            try:
+                ok = send_confirm_deadline_reminder_email(issue, deadline, days)
+            except Exception as exc:
+                logger.warning("confirm_deadline_reminders: email failed for %s: %s", issue_id, exc)
+                continue
+
+            if ok:
+                try:
+                    supabase_req("PATCH", "/issues", data={
+                        "confirm_deadline_reminder_sent_at": now.isoformat(),
+                    }, params={"id": f"eq.{issue_id}"})
+                    sent += 1
+                except Exception as exc:
+                    logger.warning("confirm_deadline_reminders: DB update failed for %s: %s", issue_id, exc)
+
+        if sent:
+            logger.info("confirm_deadline_reminders: sent %d reminder(s)", sent)
+
+
 def start_scheduler(app):
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
@@ -344,6 +455,19 @@ def start_scheduler(app):
         return
 
     scheduler = BackgroundScheduler(timezone="UTC")
+    # Run daily at 07:45 UTC — before the other two, since it's the least
+    # time-sensitive of the three (a 48h window has plenty of slack either way).
+    scheduler.add_job(
+        func=_run_confirm_deadline_reminders,
+        args=[app],
+        trigger="cron",
+        hour=7,
+        minute=45,
+        id="confirm_deadline_reminders",
+        replace_existing=True,
+        coalesce=True,
+        max_instances=1,
+    )
     # Run daily at 08:00 UTC
     scheduler.add_job(
         func=_run_resolution_reminders,
@@ -370,5 +494,8 @@ def start_scheduler(app):
         max_instances=1,
     )
     scheduler.start()
-    logger.info("Scheduler started — resolution reminders will run daily at 08:00 UTC, auto-confirm at 08:15 UTC")
+    logger.info(
+        "Scheduler started — confirm-deadline reminders at 07:45 UTC, "
+        "resolution reminders at 08:00 UTC, auto-confirm at 08:15 UTC"
+    )
     return scheduler
