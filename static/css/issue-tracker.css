@@ -876,6 +876,30 @@
 .iss-share-modal-body {
   padding: 18px 22px 22px;
 }
+.sys-share-url-toggle {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.sys-share-url-opt {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--bg-section);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.sys-share-url-opt:hover { color: var(--text-secondary); }
+.sys-share-url-opt.active {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(196,151,42,0.1);
+}
 .iss-share-link-row {
   display: flex;
   gap: 7px;

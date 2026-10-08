@@ -4025,6 +4025,96 @@ function shareItemDetail() {
   });
 }
 
+/* ── System Share / QR Modal ── */
+let _sysShareSystem  = null;
+let _sysShareUrlKind = 'primary';
+
+function openSysShareModal(system) {
+  _sysShareSystem  = system;
+  _sysShareUrlKind = system.primary_url ? 'primary' : 'backup';
+
+  const hasBoth = !!(system.primary_url && system.backup_url);
+  document.getElementById('sysShareUrlToggle').style.display  = hasBoth ? '' : 'none';
+  document.getElementById('sysShareOptPrimary').style.display = system.primary_url ? '' : 'none';
+  document.getElementById('sysShareOptBackup').style.display  = system.backup_url  ? '' : 'none';
+  document.getElementById('sysShareModalSub').textContent     = system.name || 'System';
+
+  document.getElementById('sysShareModal').classList.add('active');
+  document.body.style.overflow = 'hidden';
+  _renderSysShare();
+}
+
+function setSysShareUrl(kind) {
+  _sysShareUrlKind = kind;
+  _renderSysShare();
+}
+
+function _renderSysShare() {
+  const system = _sysShareSystem;
+  if (!system) return;
+
+  document.getElementById('sysShareOptPrimary').classList.toggle('active', _sysShareUrlKind === 'primary');
+  document.getElementById('sysShareOptBackup').classList.toggle('active', _sysShareUrlKind === 'backup');
+
+  const url    = (_sysShareUrlKind === 'backup' ? system.backup_url : system.primary_url) || '';
+  const name   = system.name || 'System';
+  const msgTxt = name + '\n' + url;
+
+  document.getElementById('sysShareLinkInput').value     = url;
+  document.getElementById('sysShareCopied').classList.remove('visible');
+  document.getElementById('sysShareCopyBtn').textContent = 'Copy';
+
+  document.getElementById('sysShareWa').href        = 'https://api.whatsapp.com/send?text='     + encodeURIComponent(msgTxt);
+  document.getElementById('sysShareViber').href     = 'viber://forward?text='                   + encodeURIComponent(msgTxt);
+  document.getElementById('sysShareTg').href        = 'https://t.me/share/url?url='             + encodeURIComponent(url) + '&text=' + encodeURIComponent(name);
+  document.getElementById('sysShareEmail').href     = 'mailto:?subject='                        + encodeURIComponent(name) + '&body=' + encodeURIComponent('System link:\n' + url);
+  document.getElementById('sysShareTeams').href     = 'https://teams.microsoft.com/share?href=' + encodeURIComponent(url) + '&msgText=' + encodeURIComponent(name);
+  document.getElementById('sysShareMessenger').href = 'fb-messenger://share?link='              + encodeURIComponent(url);
+
+  const qrEl = document.getElementById('sysShareQr');
+  if (qrEl) {
+    qrEl.innerHTML = '';
+    if (url) {
+      try {
+        const qr = qrcode(0, 'M');
+        qr.addData(url);
+        qr.make();
+        qrEl.innerHTML = qr.createSvgTag(4, 4);
+      } catch (_e) { /* ignore — QR stays blank */ }
+    }
+  }
+
+  if (url) {
+    navigator.clipboard.writeText(url).then(() => {
+      document.getElementById('sysShareCopied').classList.add('visible');
+    }).catch(() => {});
+  }
+}
+
+function closeSysShareModal() {
+  document.getElementById('sysShareModal').classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+function copySysShareLink() {
+  const url = document.getElementById('sysShareLinkInput').value;
+  if (!url) return;
+  navigator.clipboard.writeText(url).then(() => {
+    document.getElementById('sysShareCopied').classList.add('visible');
+    const btn = document.getElementById('sysShareCopyBtn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+  }).catch(() => {
+    const input = document.getElementById('sysShareLinkInput');
+    input.select();
+    document.execCommand('copy');
+  });
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeSysShareModal();
+});
+
 function _populateEpicPage(epic) {
   const cls = EPIC_STATUS_CLS[epic.epic_status] || 'es-planning';
   const lbl = EPIC_STATUS_LABEL[epic.epic_status] || epic.epic_status;
@@ -4529,6 +4619,9 @@ function renderSystemRow(s) {
       <button class="btn-admin-secondary" style="padding:4px 8px;" onclick="pingSystem('${escHtml(s.id)}')" title="Ping Now">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
       </button>
+      ${(s.primary_url || s.backup_url) ? `<button class="btn-admin-secondary" style="padding:4px 8px;" onclick='openSysShareModal(${JSON.stringify(s)})' title="Share / QR Code">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      </button>` : ''}
     </td>
   </tr>`;
 }

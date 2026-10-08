@@ -740,21 +740,15 @@ def admin_promote_issue(issue_id):
     dev_item_id = new_item[0]["id"] if new_item else None
     new_dev_item = new_item[0] if new_item else {}
     if dev_item_id:
-        issue_patch = {"dev_item_id": dev_item_id}
-        if assignee:
-            issue_patch["status"]      = "in_progress"
-            issue_patch["assigned_to"] = assignee  # always update assigned_to
-        try:
-            supabase_req("PATCH", "/issues", data=issue_patch, params={"id": f"eq.{issue_id}"})
-        except Exception as exc:
-            current_app.logger.error("promote link issue failed: %s", exc)
+        from controllers.user_page import _dept_id_for
 
-        # Fetch admin + assignee display names
+        # Fetch admin + assignee details (department included so the issue's
+        # routing can be kept in sync with whoever it's now assigned to)
         try:
             usernames = list(filter(None, [admin_username, assignee]))
             user_rows = supabase_req("GET", "/users", params={
                 "username": f"in.({','.join(usernames)})",
-                "select":   "username,first_name,last_name,display_name,email",
+                "select":   "username,first_name,last_name,display_name,email,department",
             }) if usernames else []
             admin_info    = next((u for u in (user_rows or []) if u["username"] == admin_username), {})
             assignee_info = next((u for u in (user_rows or []) if u["username"] == assignee), {}) if assignee else {}
@@ -770,6 +764,18 @@ def admin_promote_issue(issue_id):
         except Exception as exc:
             current_app.logger.warning("promote: user lookup failed: %s", exc)
             promoted_by, assignee_name, assignee_info = admin_username, assignee or "", {}
+
+        issue_patch = {"dev_item_id": dev_item_id}
+        if assignee:
+            issue_patch["status"]      = "in_progress"
+            issue_patch["assigned_to"] = assignee  # always update assigned_to
+            dept_id = _dept_id_for(assignee_info.get("department"))
+            if dept_id:
+                issue_patch["request_to_department_id"] = dept_id
+        try:
+            supabase_req("PATCH", "/issues", data=issue_patch, params={"id": f"eq.{issue_id}"})
+        except Exception as exc:
+            current_app.logger.error("promote link issue failed: %s", exc)
 
         # Email to IT team
         try:
@@ -836,21 +842,15 @@ def admin_promote_issue_to_task(issue_id):
     task_id  = new_task[0]["id"] if new_task else None
     new_task_obj = new_task[0] if new_task else {}
     if task_id:
-        issue_patch = {"task_id": task_id}
-        if assignee:
-            issue_patch["status"]      = "in_progress"
-            issue_patch["assigned_to"] = assignee  # always update assigned_to
-        try:
-            supabase_req("PATCH", "/issues", data=issue_patch, params={"id": f"eq.{issue_id}"})
-        except Exception as exc:
-            current_app.logger.error("promote-task link issue failed: %s", exc)
+        from controllers.user_page import _dept_id_for
 
-        # Fetch admin + assignee display names
+        # Fetch admin + assignee details (department included so the issue's
+        # routing can be kept in sync with whoever it's now assigned to)
         try:
             usernames = list(filter(None, [admin_username, assignee]))
             user_rows = supabase_req("GET", "/users", params={
                 "username": f"in.({','.join(usernames)})",
-                "select":   "username,first_name,last_name,display_name,email",
+                "select":   "username,first_name,last_name,display_name,email,department",
             }) if usernames else []
             admin_info    = next((u for u in (user_rows or []) if u["username"] == admin_username), {})
             assignee_info = next((u for u in (user_rows or []) if u["username"] == assignee), {}) if assignee else {}
@@ -866,6 +866,18 @@ def admin_promote_issue_to_task(issue_id):
         except Exception as exc:
             current_app.logger.warning("promote-task: user lookup failed: %s", exc)
             promoted_by, assignee_name, assignee_info = admin_username, assignee or "", {}
+
+        issue_patch = {"task_id": task_id}
+        if assignee:
+            issue_patch["status"]      = "in_progress"
+            issue_patch["assigned_to"] = assignee  # always update assigned_to
+            dept_id = _dept_id_for(assignee_info.get("department"))
+            if dept_id:
+                issue_patch["request_to_department_id"] = dept_id
+        try:
+            supabase_req("PATCH", "/issues", data=issue_patch, params={"id": f"eq.{issue_id}"})
+        except Exception as exc:
+            current_app.logger.error("promote-task link issue failed: %s", exc)
 
         # Email to IT team
         try:
@@ -927,24 +939,43 @@ def admin_promote_issue_to_epic(issue_id):
 
     epic_id = new_epic[0]["epic_id"] if new_epic else None
     if epic_id:
-        try:
-            supabase_req("PATCH", "/issues", data={"epic_id": epic_id, "status": "in_progress"},
-                         params={"id": f"eq.{issue_id}"})
-        except Exception as exc:
-            current_app.logger.error("promote-epic link issue failed: %s", exc)
+        from controllers.user_page import _dept_id_for
 
-        # Fetch admin display name (used by comments and email)
+        # Epics have no assignee of their own, so the issue stays with
+        # whoever it's already assigned to, or defaults to the promoting
+        # admin if it was still unassigned.
+        sync_username = issue.get("assigned_to") or admin_username
+
+        # Fetch admin + sync-target details (department included so the
+        # issue's routing can be kept in sync with whoever owns it now)
         try:
-            admin_rows = supabase_req("GET", "/users",
-                                      params={"username": f"eq.{admin_username}", "select": "first_name,last_name,display_name"})
-            admin_info = admin_rows[0] if admin_rows else {}
+            usernames  = list(filter(None, [admin_username, sync_username]))
+            user_rows  = supabase_req("GET", "/users", params={
+                "username": f"in.({','.join(usernames)})",
+                "select":   "username,first_name,last_name,display_name,department",
+            }) if usernames else []
+            admin_info = next((u for u in (user_rows or []) if u["username"] == admin_username), {})
+            sync_info  = next((u for u in (user_rows or []) if u["username"] == sync_username), {})
             promoted_by = (
                 admin_info.get("display_name") or
                 f"{admin_info.get('first_name','')} {admin_info.get('last_name','')}".strip() or
                 admin_username
             )
-        except Exception:
-            promoted_by = admin_username
+        except Exception as exc:
+            current_app.logger.warning("promote-epic: user lookup failed: %s", exc)
+            promoted_by, sync_info = admin_username, {}
+
+        issue_patch = {"epic_id": epic_id, "status": "in_progress"}
+        if not issue.get("assigned_to"):
+            issue_patch["assigned_to"] = sync_username
+        dept_id = _dept_id_for(sync_info.get("department"))
+        if dept_id:
+            issue_patch["request_to_department_id"] = dept_id
+
+        try:
+            supabase_req("PATCH", "/issues", data=issue_patch, params={"id": f"eq.{issue_id}"})
+        except Exception as exc:
+            current_app.logger.error("promote-epic link issue failed: %s", exc)
 
         # Activity comment on the issue (fire-and-forget)
         try:
@@ -981,8 +1012,7 @@ def admin_promote_issue_to_epic(issue_id):
         # Bot notification (fire-and-forget)
         try:
             from services.it_bot import notify_issue_promoted_to_epic
-            updated_issue = dict(issue)
-            updated_issue["epic_id"] = epic_id
+            updated_issue = {**issue, **issue_patch}
             notify_issue_promoted_to_epic(updated_issue, new_epic[0])
         except Exception as exc:
             current_app.logger.warning("promote-epic bot notify failed: %s", exc)
