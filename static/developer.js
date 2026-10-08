@@ -1358,7 +1358,7 @@ function renderBoard() {
   const counts      = {};
   const colItemsMap = {};
   const me      = loadSession()?.username || '';
-  const visible = (_filter === 'mine' ? _items.filter(i => i.assigned_to === me || i.created_by === me) : _items).filter(i => !i.is_parked);
+  const visible = (_filter === 'mine' ? _items.filter(i => i.assigned_to === me) : _items).filter(i => !i.is_parked);
 
   STATUSES.forEach(status => {
     const col  = document.getElementById(`cards-${status}`);
@@ -2468,7 +2468,7 @@ function sortListBy(col) {
 
 function _getListItems() {
   const me = loadSession()?.username || '';
-  let items = _filter === 'mine' ? _items.filter(i => i.assigned_to === me || i.created_by === me) : _items.slice();
+  let items = _filter === 'mine' ? _items.filter(i => i.assigned_to === me) : _items.slice();
 
   const search  = (document.getElementById('listSearch')?.value       || '').toLowerCase().trim();
   const statusF = document.getElementById('listStatusFilter')?.value  || '';
@@ -2593,7 +2593,7 @@ function renderListView() {
   const typeF     = document.getElementById('listTypeFilter')?.value  || '';
   const devF      = document.getElementById('listDevFilter')?.value   || '';
   const sysF      = document.getElementById('listSysFilter')?.value   || '';
-  let parked = (_filter === 'mine' ? _items.filter(i => i.assigned_to === me || i.created_by === me) : _items.slice())
+  let parked = (_filter === 'mine' ? _items.filter(i => i.assigned_to === me) : _items.slice())
     .filter(i => i.is_parked);
   if (searchVal) parked = parked.filter(i =>
     (i.title || '').toLowerCase().includes(searchVal) ||
@@ -2731,7 +2731,7 @@ function renderListView() {
 function renderAnalytics() {
   if (_viewMode !== 'analytics') return;
   const me    = loadSession()?.username || '';
-  const items = _filter === 'mine' ? _items.filter(i => i.assigned_to === me || i.created_by === me) : _items;
+  const items = _filter === 'mine' ? _items.filter(i => i.assigned_to === me) : _items;
   _renderAnaKpis(items);
   _renderAnaTypeChart(items);
   _renderAnaAgingChart(items);

@@ -2247,6 +2247,7 @@ function issExportPDF() {
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;max-width:260px">${escHtml(r.title||'—')}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap">${escHtml(r.company_name||'—')}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap">${escHtml(r.employee_name||'—')}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap">${escHtml(r.assigned_to||'—')}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center">
         <span style="display:inline-block;padding:2px 8px;border-radius:9px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;background:${priorityColor((r.priority||'').toUpperCase())}20;color:${priorityColor((r.priority||'').toUpperCase())}">${escHtml(r.priority||'—')}</span>
       </td>
@@ -2310,6 +2311,7 @@ function issExportPDF() {
       <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Title</th>
       <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Company</th>
       <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Reporter</th>
+      <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Assigned To</th>
       <th style="padding:9px 10px;text-align:center;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Priority</th>
       <th style="padding:9px 10px;text-align:center;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Status</th>
       <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Submitted</th>

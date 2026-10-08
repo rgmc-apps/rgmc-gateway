@@ -1,11 +1,13 @@
+import os
 import re
 import smtplib
 import logging
+import requests
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
-from urllib.parse import quote as _url_quote
+from urllib.parse import quote as _url_quote, urlparse, unquote
 
 from config import EMAIL_CONFIG, APPROVER_EMAIL, GATEWAY_BASE_URL
 
@@ -82,6 +84,35 @@ def _smtp_send(msg, to_addrs: list) -> bool:
     except Exception as exc:
         logger.error("SMTP send error: %s", exc)
         return False
+
+
+def _attach_remote_files(msg, urls: list | None, max_count: int = 5, max_bytes: int = 10 * 1024 * 1024) -> int:
+    """Downloads each already-uploaded attachment URL (Supabase Storage) and
+    attaches it to the email as a real file — not just a linked thumbnail.
+    Best-effort: a failed or oversized download is skipped rather than
+    blocking the send. Returns how many files were actually attached."""
+    attached = 0
+    for url in (urls or [])[:max_count]:
+        if not url:
+            continue
+        try:
+            resp = requests.get(url, timeout=15)
+            resp.raise_for_status()
+            data = resp.content
+            if len(data) > max_bytes:
+                logger.warning("Skipping oversized attachment (%d bytes): %s", len(data), url)
+                continue
+            filename = unquote(os.path.basename(urlparse(url).path)) or "attachment"
+            filename = re.sub(r"^\d+_", "", filename)
+            part = MIMEBase("application", "octet-stream")
+            part.set_payload(data)
+            encoders.encode_base64(part)
+            part.add_header("Content-Disposition", f'attachment; filename="{filename}"')
+            msg.attach(part)
+            attached += 1
+        except Exception as exc:
+            logger.warning("Failed to attach %s: %s", url, exc)
+    return attached
 
 
 def send_report_email(form_data: dict, screenshots: list, ticket_number: str | None = None, issue_id: str | None = None) -> bool:
@@ -918,6 +949,7 @@ def send_issue_assigned_email(issue: dict, developer: dict, assigned_by_name: st
     title         = issue.get("title") or _field_preview(raw_desc, 80)
     error_code    = issue.get("error_code") or ""
     description_html = raw_desc.replace("\n", "<br>")
+    attachment_urls = [u for u in (issue.get("attachment_urls") or []) if u]
 
     def _he(s): return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
@@ -979,6 +1011,7 @@ def send_issue_assigned_email(issue: dict, developer: dict, assigned_by_name: st
         <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Issue</p>
         <p style="margin:0 0 10px;font-size:16px;font-weight:600;color:#1e293b;">{_he(title)}</p>
         <div style="background:#f8fafc;border-left:4px solid #C4972A;padding:14px 16px;border-radius:0 6px 6px 0;font-size:14px;line-height:1.6;color:#374151;">{description_html}</div>
+        {f'<p style="margin:12px 0 0;font-size:13px;color:#64748b;">&#128206; {len(attachment_urls)} attachment(s) from the original report included.</p>' if attachment_urls else ''}
       </div>
 
       <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">
@@ -999,6 +1032,7 @@ def send_issue_assigned_email(issue: dict, developer: dict, assigned_by_name: st
     msg["To"]      = dev_email
     msg["Reply-To"] = issue.get("email", from_addr)
     msg.attach(MIMEText(html, "html"))
+    _attach_remote_files(msg, attachment_urls)
     return _smtp_send(msg, [dev_email])
 
 
