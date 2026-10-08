@@ -1744,6 +1744,12 @@ function openDetailModal(idOrNull) {
   const item = idOrNull ? _items.find(i => i.id === idOrNull) : null;
   _editingId = item?.id ?? null;
 
+  if (item?.dev_item_code) {
+    navigator.clipboard.writeText(item.dev_item_code).then(() => {
+      showToast(`Copied ${item.dev_item_code} to clipboard.`);
+    }).catch(() => {});
+  }
+
   document.getElementById('detailModalTitle').textContent = item ? 'Edit Item' : 'New Item';
   document.getElementById('detailModalMeta').textContent  = item
     ? `${item.dev_item_code ? item.dev_item_code + ' · ' : ''}Created by ${item.created_by}`

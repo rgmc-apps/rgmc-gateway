@@ -724,6 +724,186 @@ def send_issue_resolved_email(
     return _smtp_send(msg, [user_email])
 
 
+def _reporter_account_row_html(reporter_account: dict | None) -> str:
+    if not reporter_account:
+        return ""
+    def _he(s): return str(s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    acct_name = (
+        reporter_account.get("display_name") or
+        f"{reporter_account.get('first_name','')} {reporter_account.get('last_name','')}".strip() or
+        reporter_account.get("username", "")
+    )
+    tail = ", ".join(x for x in [reporter_account.get("username", ""), reporter_account.get("department", "")] if x)
+    value = f"{_he(acct_name)} ({_he(tail)})" if tail else _he(acct_name)
+    return f"""
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;width:140px;border-bottom:1px solid #e2e8f0;">GATEWAY ACCOUNT</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">{value}</td>
+        </tr>"""
+
+
+def send_issue_confirm_fix_email(issue: dict, reporter_account: dict | None, recipient_email: str) -> bool:
+    """Notifies the assignee (or IT team, if unassigned) that the reporter
+    confirmed the fix worked, via the link in their resolved-issue email."""
+    if not recipient_email:
+        logger.warning("No recipient resolved — skipping confirm-fix notification")
+        return False
+
+    from_addr     = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    it_email      = EMAIL_CONFIG["developer_email"] or from_addr
+    site_name     = issue.get("site_name", "Unknown System")
+    raw_desc      = issue.get("description", "")
+    title         = issue.get("title") or _field_preview(raw_desc, 80)
+    ticket_number = issue.get("ticket_number") or ""
+    employee_name = issue.get("employee_name", "")
+
+    def _he(s): return str(s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    ticket_row = f"""
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;width:140px;border-bottom:1px solid #e2e8f0;">TICKET</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:monospace;font-weight:700;">{_he(ticket_number)}</td>
+        </tr>""" if ticket_number else ""
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid #15803d;">
+      <h2 style="margin:0;font-size:22px;color:#C4972A;">Reporter Confirmed the Fix</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">{_he(site_name)}</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 20px;font-size:15px;line-height:1.7;color:#374151;">
+        <strong>{_he(employee_name)}</strong> confirmed that the resolution worked — the fix held on their end.
+      </p>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;border-radius:8px;overflow:hidden;">
+        {ticket_row}
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;width:140px;border-bottom:1px solid #e2e8f0;">SYSTEM</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:600;">{_he(site_name)}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">REPORTER</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">{_he(employee_name)}</td>
+        </tr>
+        {_reporter_account_row_html(reporter_account)}
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;">ISSUE</td>
+          <td style="padding:10px 14px;font-weight:600;">{_he(title)}</td>
+        </tr>
+      </table>
+
+      <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">
+        No further action is needed — this ticket is now considered fully closed out.
+      </p>
+      {_ticket_btn_html(issue.get("id"))}
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    msg            = MIMEMultipart("alternative")
+    msg["Subject"] = f"[Fix Confirmed] {title} — {site_name}"
+    msg["From"]    = from_addr
+    msg["To"]      = recipient_email
+    msg["Reply-To"] = issue.get("email", from_addr)
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [recipient_email])
+
+
+def send_issue_reopened_email(
+    issue: dict,
+    issue_description: str,
+    confirm_steps: str,
+    reporter_account: dict | None,
+    recipient_email: str,
+) -> bool:
+    """Notifies the assignee (or IT team, if unassigned) that the reporter
+    says the fix didn't hold and the ticket has been reopened."""
+    if not recipient_email:
+        logger.warning("No recipient resolved — skipping reopen notification")
+        return False
+
+    from_addr     = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    it_email      = EMAIL_CONFIG["developer_email"] or from_addr
+    site_name     = issue.get("site_name", "Unknown System")
+    raw_desc      = issue.get("description", "")
+    title         = issue.get("title") or _field_preview(raw_desc, 80)
+    ticket_number = issue.get("ticket_number") or ""
+    employee_name = issue.get("employee_name", "")
+
+    def _he(s): return str(s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    ticket_row = f"""
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;width:140px;border-bottom:1px solid #e2e8f0;">TICKET</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:monospace;font-weight:700;">{_he(ticket_number)}</td>
+        </tr>""" if ticket_number else ""
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid #dc2626;">
+      <h2 style="margin:0;font-size:22px;color:#C4972A;">Ticket Reopened by Reporter</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">{_he(site_name)}</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 20px;font-size:15px;line-height:1.7;color:#374151;">
+        <strong>{_he(employee_name)}</strong> says the fix didn't hold. This ticket has been automatically
+        reopened and set back to <strong style="color:#dc2626;">Open</strong>.
+      </p>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;border-radius:8px;overflow:hidden;">
+        {ticket_row}
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;width:140px;border-bottom:1px solid #e2e8f0;">SYSTEM</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:600;">{_he(site_name)}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0;">REPORTER</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">{_he(employee_name)}</td>
+        </tr>
+        {_reporter_account_row_html(reporter_account)}
+        <tr style="background:#f8fafc;">
+          <td style="padding:10px 14px;font-weight:600;font-size:13px;color:#64748b;">ISSUE</td>
+          <td style="padding:10px 14px;font-weight:600;">{_he(title)}</td>
+        </tr>
+      </table>
+
+      <div style="margin-bottom:20px;">
+        <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">What's still wrong</p>
+        <div style="background:#fef2f2;border:1px solid rgba(220,38,38,.18);border-left:4px solid #dc2626;border-radius:0 6px 6px 0;padding:14px 16px;font-size:14px;line-height:1.6;color:#374151;">{_he(issue_description).replace(chr(10), '<br>')}</div>
+      </div>
+
+      <div style="margin-bottom:20px;">
+        <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Steps the reporter took to confirm</p>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:14px 16px;font-size:14px;line-height:1.6;color:#374151;">{_he(confirm_steps).replace(chr(10), '<br>')}</div>
+      </div>
+
+      <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">
+        Please follow up with the reporter at
+        <a href="mailto:{_he(issue.get('email', it_email))}" style="color:#C4972A;text-decoration:none;font-weight:600;">{_he(issue.get('email', it_email))}</a>.
+      </p>
+      {_ticket_btn_html(issue.get("id"))}
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    msg            = MIMEMultipart("alternative")
+    msg["Subject"] = f"[Ticket Reopened] {title} — {site_name}"
+    msg["From"]    = from_addr
+    msg["To"]      = recipient_email
+    msg["Reply-To"] = issue.get("email", from_addr)
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [recipient_email])
+
+
 def send_issue_assigned_email(issue: dict, developer: dict, assigned_by_name: str, action_token: str | None = None) -> bool:
     dev_email = developer.get("email", "")
     if not dev_email:

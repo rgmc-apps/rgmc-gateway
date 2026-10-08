@@ -500,7 +500,7 @@ description, request_to_department_id?, attachments[] (up to 5 files)
 | Column | Type | Description |
 |---|---|---|
 | `id` | uuid | Primary key |
-| `ticket_number` | text | Human-readable ID (e.g. `TKT-0001`) |
+| `ticket_number` | text | Human-readable ID, `TIM-yymmdd##` (series resets daily, e.g. `TIM-25021900`) |
 | `title` | text | Optional short title |
 | `description` | text | Full description; append blocks added on reopen |
 | `status` | text | `open`, `in_progress`, `resolved`, `closed` |
@@ -613,7 +613,7 @@ All emails are HTML with RGMC dark gradient header and structured data tables. R
 Reporter submits form
       |
       v
-Issue created (status: open, ticket_number: TKT-XXXX)
+Issue created (status: open, ticket_number: TIM-yymmdd##)
       +--- IT bot: ticket.created
       +--- Email to IT team
       +--- Confirmation email to reporter

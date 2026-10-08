@@ -3,11 +3,14 @@ import requests
 from datetime import datetime, timedelta, timezone
 from flask import Blueprint, render_template, jsonify, request, redirect, current_app
 
-from config import HEALTH_CHECKS
+from config import HEALTH_CHECKS, EMAIL_CONFIG
 from services.sites import get_sites
 from services.supabase import supabase_req, resolve_action_names
 from services.epics import build_epic_comment_feed
-from services.email import send_issue_resolved_email, send_issue_comment_email
+from services.email import (
+    send_issue_resolved_email, send_issue_comment_email,
+    send_issue_confirm_fix_email, send_issue_reopened_email,
+)
 
 public_bp = Blueprint("public", __name__)
 
@@ -342,6 +345,50 @@ def get_public_issue_comments(issue_id):
     return jsonify(rows or [])
 
 
+def _user_account_by_email(email: str) -> dict | None:
+    """Look up a gateway account matching the reporter's submitted email,
+    so resolve/reopen notifications can show who they actually are instead
+    of just the free-text name typed into the report form."""
+    if not email:
+        return None
+    try:
+        rows = supabase_req("GET", "/users", params={
+            "email":  f"eq.{email}",
+            "select": "username,display_name,first_name,last_name,department,company",
+        })
+    except Exception as exc:
+        current_app.logger.warning("_user_account_by_email failed for '%s': %s", email, exc)
+        return None
+    return rows[0] if rows else None
+
+
+def _reporter_label(issue: dict, account: dict | None) -> str:
+    name = issue.get("employee_name") or (account or {}).get("display_name") or "The reporter"
+    if account:
+        tail = ", ".join(x for x in [account.get("username", ""), account.get("department", "")] if x)
+        if tail:
+            return f"{name} ({tail})"
+    return name
+
+
+def _issue_notification_recipient(issue: dict) -> str:
+    """Who to email about a reporter-driven action on this issue: the
+    current assignee if we can resolve their address, else the shared IT
+    inbox."""
+    assigned_to = issue.get("assigned_to")
+    if assigned_to:
+        try:
+            rows = supabase_req("GET", "/users", params={
+                "username": f"eq.{assigned_to}",
+                "select":   "email",
+            })
+            if rows and rows[0].get("email"):
+                return rows[0]["email"]
+        except Exception as exc:
+            current_app.logger.warning("_issue_notification_recipient: assignee lookup failed: %s", exc)
+    return EMAIL_CONFIG.get("developer_email", "")
+
+
 @public_bp.get("/api/public/issues/<issue_id>/confirm-fix")
 def public_confirm_fix(issue_id):
     from config import GATEWAY_BASE_URL
@@ -350,7 +397,8 @@ def public_confirm_fix(issue_id):
 
     rows = supabase_req("GET", "/issues", params={
         "id":     f"eq.{issue_id}",
-        "select": "id,status,confirmed_fix",
+        "select": ("id,status,confirmed_fix,email,employee_name,company_name,department,"
+                   "site_name,title,description,ticket_number,assigned_to"),
     })
     if not rows:
         return redirect(back_url)
@@ -366,6 +414,22 @@ def public_confirm_fix(issue_id):
         "confirmed_fix_at": datetime.now(timezone.utc).isoformat(),
     }, params={"id": f"eq.{issue_id}"})
 
+    reporter_account = _user_account_by_email(issue.get("email", ""))
+
+    try:
+        supabase_req("POST", "/issue_comments", data={
+            "issue_id": issue_id,
+            "username": (reporter_account or {}).get("username") or issue.get("employee_name") or "reporter",
+            "comment":  f"{_reporter_label(issue, reporter_account)} confirmed that the fix resolved the issue.",
+        }, extra_headers={"Prefer": "return=representation"})
+    except Exception as exc:
+        current_app.logger.warning("public_confirm_fix: comment log failed: %s", exc)
+
+    try:
+        send_issue_confirm_fix_email(issue, reporter_account, _issue_notification_recipient(issue))
+    except Exception as exc:
+        current_app.logger.warning("public_confirm_fix: notify failed: %s", exc)
+
     return redirect(f"{back_url}?confirmed=1")
 
 
@@ -380,7 +444,8 @@ def public_still_having_issues(issue_id):
 
     rows = supabase_req("GET", "/issues", params={
         "id":     f"eq.{issue_id}",
-        "select": "id,status,description",
+        "select": ("id,status,description,email,employee_name,company_name,department,"
+                   "site_name,title,ticket_number,assigned_to"),
     })
     if not rows:
         return jsonify({"error": "Issue not found"}), 404
@@ -402,6 +467,31 @@ def public_still_having_issues(issue_id):
         "confirmed_fix": False,
         "description":   new_description,
     }, params={"id": f"eq.{issue_id}"})
+
+    reporter_account = _user_account_by_email(issue.get("email", ""))
+
+    try:
+        supabase_req("POST", "/issue_comments", data={
+            "issue_id": issue_id,
+            "username": (reporter_account or {}).get("username") or issue.get("employee_name") or "reporter",
+            "comment":  (
+                f"{_reporter_label(issue, reporter_account)} reported still having issues after resolution "
+                f"— ticket reopened.\nIssue description: {issue_desc}\nSteps taken to confirm: {confirm_steps}"
+            ),
+        }, extra_headers={"Prefer": "return=representation"})
+    except Exception as exc:
+        current_app.logger.warning("public_still_having_issues: comment log failed: %s", exc)
+
+    try:
+        from services.it_bot import notify_ticket_updated
+        notify_ticket_updated({**issue, "status": "open"}, {"status": {"from": issue.get("status"), "to": "open"}})
+    except Exception as exc:
+        current_app.logger.warning("public_still_having_issues: bot notify failed: %s", exc)
+
+    try:
+        send_issue_reopened_email(issue, issue_desc, confirm_steps, reporter_account, _issue_notification_recipient(issue))
+    except Exception as exc:
+        current_app.logger.warning("public_still_having_issues: notify failed: %s", exc)
 
     return jsonify({"success": True})
 
