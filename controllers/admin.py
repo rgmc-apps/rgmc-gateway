@@ -330,7 +330,7 @@ def admin_update_system(system_id):
             return jsonify({"error": str(exc)}), 500
 
     data    = request.get_json(silent=True) or {}
-    allowed = {"name", "category", "primary_url", "primary_label", "backup_url", "backup_label", "sort_order", "is_visible", "is_task", "tags", "is_windows_based", "windows_launcher_url", "windows_manifest_url", "git_link"}
+    allowed = {"name", "category", "primary_url", "primary_label", "backup_url", "backup_label", "sort_order", "is_visible", "is_helpdesk_visible", "is_task", "tags", "is_windows_based", "windows_launcher_url", "windows_manifest_url", "git_link"}
     patch   = {k: v for k, v in data.items() if k in allowed}
     if not patch:
         return jsonify({"error": "No valid fields"}), 400
@@ -1219,10 +1219,52 @@ def config_update_automation():
         return jsonify({"error": str(exc)}), 500
 
 
-# ── Config: Auto-Assign (request category → person) ───────────────────────────
+# ── Config: Auto-Assign (category / request type / sub-category → person) ─────
+#
+# Four tables can each carry an `assigned_to_username` FK: request_category
+# (broadest), request_type and the category's sub-category source — systems
+# for "Software/Application", non_software_items for everything else (both
+# narrower overrides). See services/auto_assign.py for the match-priority
+# chain applied at ticket-creation time.
+
+_AUTO_ASSIGN_SOFTWARE_CATEGORY = "Software/Application"
+
+_AUTO_ASSIGN_TABLE = {
+    "category":          "/request_category",
+    "request_type":      "/request_type",
+    "non_software_item": "/non_software_items",
+    "system":            "/systems",
+}
+_AUTO_ASSIGN_ID_FIELD = {
+    "category":          "category_id",
+    "request_type":      "id",
+    "non_software_item": "id",
+    "system":            "id",
+}
+_AUTO_ASSIGN_SELECT = {
+    "category":          "category_id,category_name,category_group,assigned_to_username",
+    "request_type":      "id,request_type,request_category,assigned_to_username",
+    "non_software_item": "id,subcategory,category,assigned_to_username",
+    "system":            "id,name,assigned_to_username",
+}
+
 
 def _auto_assign_eligible(user_row: dict) -> bool:
     return bool(user_row.get("is_admin") or user_row.get("is_department_head") or user_row.get("is_developer"))
+
+
+def _auto_assign_label(item_type: str, row: dict) -> str:
+    if item_type == "category":
+        return row["category_name"]
+    if item_type == "request_type":
+        return f"{row['request_type']} ({row['request_category']})"
+    if item_type == "non_software_item":
+        return f"{row['subcategory']} ({row['category']})"
+    return row["name"]  # system
+
+
+def _auto_assign_coerce_id(item_type: str, raw_id):
+    return str(raw_id) if item_type == "system" else int(raw_id)
 
 
 @admin_bp.get("/api/admin/config/auto-assign/eligible-users")
@@ -1241,73 +1283,171 @@ def config_auto_assign_eligible_users():
         return jsonify({"error": str(exc)}), 500
 
 
-@admin_bp.get("/api/admin/config/auto-assign")
-def config_list_auto_assign():
+@admin_bp.get("/api/admin/config/auto-assign/tree")
+def config_auto_assign_tree():
+    """The full category tree for the admin checkbox UI: each category node
+    carries its own assignment plus its request types and sub-category items
+    (systems for Software/Application, non_software_items otherwise), each
+    with their own assignment."""
     _, err = _require_admin()
     if err: return jsonify(err[0]), err[1]
     try:
-        cats = supabase_req("GET", "/request_category", params={
-            "select":                "category_id,category_name,category_group,assigned_to_username",
-            "assigned_to_username":  "not.is.null",
-            "order":                 "category_name.asc",
+        categories = supabase_req("GET", "/request_category", params={
+            "select": _AUTO_ASSIGN_SELECT["category"], "order": "category_name.asc",
+        }) or []
+        request_types = supabase_req("GET", "/request_type", params={
+            "select": _AUTO_ASSIGN_SELECT["request_type"], "order": "request_type.asc",
+        }) or []
+        non_software_items = supabase_req("GET", "/non_software_items", params={
+            "select": _AUTO_ASSIGN_SELECT["non_software_item"], "order": "subcategory.asc",
+        }) or []
+        systems = supabase_req("GET", "/systems", params={
+            "select": _AUTO_ASSIGN_SELECT["system"], "order": "name.asc",
         }) or []
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 
-    if not cats:
+    rt_by_cat  = defaultdict(list)
+    for rt in request_types:
+        rt_by_cat[rt["request_category"]].append(rt)
+    nsi_by_cat = defaultdict(list)
+    for nsi in non_software_items:
+        nsi_by_cat[nsi["category"]].append(nsi)
+
+    tree = []
+    for cat in categories:
+        name = cat["category_name"]
+        node = {
+            "category_id":          cat["category_id"],
+            "category_name":        name,
+            "category_group":       cat.get("category_group"),
+            "assigned_to_username": cat.get("assigned_to_username"),
+            "request_types": [
+                {"id": rt["id"], "label": rt["request_type"], "assigned_to_username": rt.get("assigned_to_username")}
+                for rt in rt_by_cat.get(name, [])
+            ],
+        }
+        if name == _AUTO_ASSIGN_SOFTWARE_CATEGORY:
+            node["subcategory_type"] = "system"
+            node["subcategories"] = [
+                {"id": s["id"], "label": s["name"], "assigned_to_username": s.get("assigned_to_username")}
+                for s in systems
+            ]
+        else:
+            node["subcategory_type"] = "non_software_item"
+            node["subcategories"] = [
+                {"id": n["id"], "label": n["subcategory"], "assigned_to_username": n.get("assigned_to_username")}
+                for n in nsi_by_cat.get(name, [])
+            ]
+        tree.append(node)
+    return jsonify(tree)
+
+
+@admin_bp.get("/api/admin/config/auto-assign")
+def config_list_auto_assign():
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+
+    grouped_items: dict[str, list] = defaultdict(list)
+    try:
+        for item_type, table in _AUTO_ASSIGN_TABLE.items():
+            rows = supabase_req("GET", table, params={
+                "select":               _AUTO_ASSIGN_SELECT[item_type],
+                "assigned_to_username": "not.is.null",
+            }) or []
+            for r in rows:
+                uname = r.get("assigned_to_username")
+                if not uname:
+                    continue
+                grouped_items[uname].append({
+                    "item_type": item_type,
+                    "item_id":   r[_AUTO_ASSIGN_ID_FIELD[item_type]],
+                    "label":     _auto_assign_label(item_type, r),
+                })
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+    if not grouped_items:
         return jsonify([])
 
-    usernames = sorted({c["assigned_to_username"] for c in cats if c.get("assigned_to_username")})
     try:
         users = supabase_req("GET", "/users", params={
-            "username": "in.(" + ",".join(usernames) + ")",
+            "username": "in.(" + ",".join(sorted(grouped_items.keys())) + ")",
             "select":   "username,first_name,last_name,display_name,email,viber_number",
         }) or []
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
     user_map = {u["username"]: u for u in users}
 
-    grouped: dict[str, dict] = {}
-    for c in cats:
-        uname = c.get("assigned_to_username")
-        if not uname:
-            continue
-        if uname not in grouped:
-            u = user_map.get(uname, {})
-            grouped[uname] = {
-                "username":     uname,
-                "first_name":   u.get("first_name", ""),
-                "last_name":    u.get("last_name", ""),
-                "display_name": u.get("display_name") or "",
-                "email":        u.get("email", ""),
-                "viber_number": u.get("viber_number", ""),
-                "categories":   [],
-            }
-        grouped[uname]["categories"].append({
-            "category_id":    c["category_id"],
-            "category_name":  c["category_name"],
-            "category_group": c.get("category_group"),
+    result = []
+    for uname, items in grouped_items.items():
+        u = user_map.get(uname, {})
+        result.append({
+            "username":     uname,
+            "first_name":   u.get("first_name", ""),
+            "last_name":    u.get("last_name", ""),
+            "display_name": u.get("display_name") or "",
+            "email":        u.get("email", ""),
+            "viber_number": u.get("viber_number", ""),
+            "items":        items,
         })
-    return jsonify(list(grouped.values()))
+    return jsonify(result)
 
 
-def _validate_auto_assign_categories(category_ids: list[int], allow_usernames: set[str]):
-    """Returns (error_response_or_None). Ensures every category_id exists and
-    is either unassigned or already owned by one of *allow_usernames*."""
-    ids_csv = ",".join(str(i) for i in category_ids)
-    rows = supabase_req("GET", "/request_category", params={
-        "category_id": f"in.({ids_csv})",
-        "select":      "category_id,category_name,assigned_to_username",
-    }) or []
-    found_ids = {r["category_id"] for r in rows}
-    missing = [i for i in category_ids if i not in found_ids]
-    if missing:
-        return {"error": f"Unknown category id(s): {missing}"}, 400
-    taken = [r for r in rows if r.get("assigned_to_username") and r["assigned_to_username"] not in allow_usernames]
-    if taken:
-        names = ", ".join(r["category_name"] for r in taken)
-        return {"error": f"Already assigned to someone else: {names}"}, 409
+def _parse_auto_assign_items(raw_items):
+    """Returns (items_by_type: dict[type, list[id]], error_response_or_None)."""
+    items_by_type: dict[str, list] = defaultdict(list)
+    for entry in (raw_items or []):
+        item_type = (entry or {}).get("type")
+        if item_type not in _AUTO_ASSIGN_TABLE:
+            return None, ({"error": f"Invalid item type: {item_type}"}, 400)
+        try:
+            item_id = _auto_assign_coerce_id(item_type, entry.get("id"))
+        except (TypeError, ValueError):
+            return None, ({"error": f"Invalid id for {item_type}: {entry.get('id')}"}, 400)
+        items_by_type[item_type].append(item_id)
+    return items_by_type, None
+
+
+def _validate_auto_assign_items(items_by_type: dict, allow_usernames: set[str]):
+    """Returns error_response_or_None. Ensures every {type, id} exists and is
+    either unassigned or already owned by one of *allow_usernames*."""
+    for item_type, ids in items_by_type.items():
+        if not ids:
+            continue
+        table    = _AUTO_ASSIGN_TABLE[item_type]
+        id_field = _AUTO_ASSIGN_ID_FIELD[item_type]
+        ids_csv  = ",".join(str(i) for i in ids)
+        rows = supabase_req("GET", table, params={
+            id_field: f"in.({ids_csv})",
+            "select": f"{id_field},assigned_to_username",
+        }) or []
+        found_ids = {r[id_field] for r in rows}
+        missing = [i for i in ids if i not in found_ids]
+        if missing:
+            return {"error": f"Unknown {item_type} id(s): {missing}"}, 400
+        taken = [r for r in rows if r.get("assigned_to_username") and r["assigned_to_username"] not in allow_usernames]
+        if taken:
+            ids_str = ", ".join(str(r[id_field]) for r in taken)
+            return {"error": f"Already assigned to someone else ({item_type}): {ids_str}"}, 409
     return None
+
+
+def _apply_auto_assign_items(items_by_type: dict, username: str) -> None:
+    for item_type, ids in items_by_type.items():
+        if not ids:
+            continue
+        table    = _AUTO_ASSIGN_TABLE[item_type]
+        id_field = _AUTO_ASSIGN_ID_FIELD[item_type]
+        ids_csv  = ",".join(str(i) for i in ids)
+        supabase_req("PATCH", table, data={"assigned_to_username": username},
+                     params={id_field: f"in.({ids_csv})"})
+
+
+def _clear_auto_assign_for_username(username: str) -> None:
+    for table in _AUTO_ASSIGN_TABLE.values():
+        supabase_req("PATCH", table, data={"assigned_to_username": None},
+                     params={"assigned_to_username": f"eq.{username}"})
 
 
 @admin_bp.post("/api/admin/config/auto-assign")
@@ -1316,12 +1456,11 @@ def config_create_auto_assign():
     if err: return jsonify(err[0]), err[1]
     data     = request.get_json(silent=True) or {}
     username = str(data.get("username", "")).strip().lower()
-    try:
-        category_ids = [int(c) for c in (data.get("category_ids") or [])]
-    except (TypeError, ValueError):
-        return jsonify({"error": "category_ids must be integers"}), 400
-    if not username or not category_ids:
-        return jsonify({"error": "username and at least one category are required"}), 400
+    items_by_type, perr = _parse_auto_assign_items(data.get("items"))
+    if perr:
+        return jsonify(perr[0]), perr[1]
+    if not username or not any(items_by_type.values()):
+        return jsonify({"error": "username and at least one item are required"}), 400
 
     try:
         user_rows = supabase_req("GET", "/users", params={
@@ -1336,13 +1475,10 @@ def config_create_auto_assign():
         return jsonify({"error": "Only admins, department heads, or developers can be assigned"}), 400
 
     try:
-        bad = _validate_auto_assign_categories(category_ids, {username})
+        bad = _validate_auto_assign_items(items_by_type, {username})
         if bad:
             return jsonify(bad[0]), bad[1]
-        ids_csv = ",".join(str(i) for i in category_ids)
-        supabase_req("PATCH", "/request_category",
-                     data={"assigned_to_username": username},
-                     params={"category_id": f"in.({ids_csv})"})
+        _apply_auto_assign_items(items_by_type, username)
         return jsonify({"success": True}), 201
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
@@ -1356,21 +1492,18 @@ def config_update_auto_assign(username):
 
     if request.method == "DELETE":
         try:
-            supabase_req("PATCH", "/request_category",
-                         data={"assigned_to_username": None},
-                         params={"assigned_to_username": f"eq.{username}"})
+            _clear_auto_assign_for_username(username)
             return jsonify({"success": True})
         except Exception as exc:
             return jsonify({"error": str(exc)}), 500
 
     data = request.get_json(silent=True) or {}
     new_username = str(data.get("username") or username).strip().lower()
-    try:
-        category_ids = [int(c) for c in (data.get("category_ids") or [])]
-    except (TypeError, ValueError):
-        return jsonify({"error": "category_ids must be integers"}), 400
-    if not category_ids:
-        return jsonify({"error": "At least one category is required"}), 400
+    items_by_type, perr = _parse_auto_assign_items(data.get("items"))
+    if perr:
+        return jsonify(perr[0]), perr[1]
+    if not any(items_by_type.values()):
+        return jsonify({"error": "At least one item is required"}), 400
 
     try:
         user_rows = supabase_req("GET", "/users", params={
@@ -1385,18 +1518,13 @@ def config_update_auto_assign(username):
         return jsonify({"error": "Only admins, department heads, or developers can be assigned"}), 400
 
     try:
-        bad = _validate_auto_assign_categories(category_ids, {username, new_username})
+        bad = _validate_auto_assign_items(items_by_type, {username, new_username})
         if bad:
             return jsonify(bad[0]), bad[1]
-        # Unassign everything currently held by the old username, then (re)assign the desired set —
-        # this also drops any category that was removed from the selection.
-        supabase_req("PATCH", "/request_category",
-                     data={"assigned_to_username": None},
-                     params={"assigned_to_username": f"eq.{username}"})
-        ids_csv = ",".join(str(i) for i in category_ids)
-        supabase_req("PATCH", "/request_category",
-                     data={"assigned_to_username": new_username},
-                     params={"category_id": f"in.({ids_csv})"})
+        # Unassign everything currently held by the old username, then (re)assign the desired
+        # set — this also drops any item that was unchecked from the selection.
+        _clear_auto_assign_for_username(username)
+        _apply_auto_assign_items(items_by_type, new_username)
         return jsonify({"success": True})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
@@ -1433,7 +1561,8 @@ def cf_list():
     if err: return jsonify(err[0]), err[1]
     try:
         rows = supabase_req("GET", "/common_fixes", params={
-            "select": "fix_id,fix_name,system_id,problem_desc,fix_description,fix_attachments,created_at,updated_at",
+            "select": "fix_id,fix_name,system_id,problem_desc,fix_description,fix_attachments,"
+                      "keywords,business_impact,urgency,priority,created_at,updated_at",
             "order":  "created_at.desc",
         })
         # Attach system names
@@ -1452,15 +1581,32 @@ def cf_list():
         return jsonify({"error": str(exc)}), 500
 
 
+def _parse_cf_keywords(raw: str | None) -> list:
+    if not raw:
+        return []
+    try:
+        import json as _json
+        parsed = _json.loads(raw)
+        if isinstance(parsed, list):
+            return [str(k).strip() for k in parsed if str(k).strip()]
+    except Exception:
+        pass
+    return [k.strip() for k in raw.split(",") if k.strip()]
+
+
 @admin_bp.post("/api/admin/common-fixes")
 def cf_create():
     _, err = _require_admin()
     if err: return jsonify(err[0]), err[1]
 
-    fix_name   = request.form.get("fix_name", "").strip()
-    system_id  = request.form.get("system_id", "").strip() or None
-    prob_desc  = request.form.get("problem_desc", "").strip() or None
-    fix_desc   = request.form.get("fix_description", "").strip() or None
+    fix_name        = request.form.get("fix_name", "").strip()
+    system_id       = request.form.get("system_id", "").strip() or None
+    prob_desc       = request.form.get("problem_desc", "").strip() or None
+    fix_desc        = request.form.get("fix_description", "").strip() or None
+    keywords        = _parse_cf_keywords(request.form.get("keywords"))
+    business_impact = request.form.get("business_impact", "").strip() or None
+    urgency         = request.form.get("urgency", "").strip() or None
+    priority        = request.form.get("priority", "").strip() or None
 
     if not fix_name:
         return jsonify({"error": "Fix name is required"}), 400
@@ -1469,6 +1615,8 @@ def cf_create():
         rows = supabase_req("POST", "/common_fixes",
                             data={"fix_name": fix_name, "system_id": system_id,
                                   "problem_desc": prob_desc, "fix_description": fix_desc,
+                                  "keywords": keywords, "business_impact": business_impact,
+                                  "urgency": urgency, "priority": priority,
                                   "fix_attachments": []},
                             extra_headers={"Prefer": "return=representation"})
         fix = rows[0] if rows else {}
@@ -1512,16 +1660,23 @@ def cf_update_delete(fix_id):
     if request.content_type and "application/json" in request.content_type:
         data = request.get_json(silent=True) or {}
         patch = {}
-        for field in ("fix_name", "system_id", "problem_desc", "fix_description"):
+        for field in ("fix_name", "system_id", "problem_desc", "fix_description",
+                      "business_impact", "urgency", "priority"):
             if field in data:
                 patch[field] = data[field] or None if field != "fix_name" else data[field]
+        if "keywords" in data:
+            kw = data["keywords"]
+            patch["keywords"] = [str(k).strip() for k in kw if str(k).strip()] if isinstance(kw, list) else []
     else:
         patch = {}
         if request.form.get("fix_name"):
             patch["fix_name"] = request.form.get("fix_name", "").strip()
-        for field in ("system_id", "problem_desc", "fix_description"):
+        for field in ("system_id", "problem_desc", "fix_description",
+                      "business_impact", "urgency", "priority"):
             if field in request.form:
                 patch[field] = request.form.get(field, "").strip() or None
+        if "keywords" in request.form:
+            patch["keywords"] = _parse_cf_keywords(request.form.get("keywords"))
 
         # Handle new file uploads
         new_files = [f for f in request.files.getlist("attachments") if f and f.filename]

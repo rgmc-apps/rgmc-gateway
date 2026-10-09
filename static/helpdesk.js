@@ -98,6 +98,45 @@ function hdComputePriority() {
   noteEl.style.display = '';
 }
 
+/* ── Known-issue detection ────────────────────────────────────────────────── */
+
+let _hdDetectTimer    = null;
+let _hdLastDetectKey  = null;
+
+function hdScheduleDetect() {
+  clearTimeout(_hdDetectTimer);
+  _hdDetectTimer = setTimeout(_hdRunDetect, 500);
+}
+
+async function _hdRunDetect() {
+  const title       = document.getElementById('hdTitle').value.trim();
+  const description = (_hdDescEditor ? _hdDescEditor.getValue() : document.getElementById('hdDescription').value).trim();
+  const banner      = document.getElementById('hdRecognizedBanner');
+  const key         = `${title}${description}`;
+  if (key === _hdLastDetectKey) return;
+  _hdLastDetectKey = key;
+
+  if (!title && !description) { banner.style.display = 'none'; return; }
+
+  try {
+    const res = await fetch('/api/common-fixes/detect', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, description }),
+    });
+    if (!res.ok) { banner.style.display = 'none'; return; }
+    const data = await res.json();
+    if (data.matched) {
+      document.getElementById('hdRecognizedFixName').textContent = data.fix_name || 'a known issue';
+      banner.style.display = 'flex';
+      if (data.business_impact) document.getElementById('hdBusinessImpact').value = data.business_impact;
+      if (data.urgency)         document.getElementById('hdUrgency').value        = data.urgency;
+      hdComputePriority();
+    } else {
+      banner.style.display = 'none';
+    }
+  } catch { /* detection is a UX nicety — fail silently */ }
+}
+
 /* ── Ticket type radio styling ────────────────────────────────────────────── */
 
 function hdOnTicketType(input) {
@@ -462,7 +501,10 @@ async function hdSubmit(e) {
     document.getElementById('hdLoading').style.display = 'none';
 
     if (data.success) {
-      document.getElementById('hdSuccessMsg').textContent = data.message || 'Your ticket has been submitted.';
+      const baseMsg = data.message || 'Your ticket has been submitted.';
+      document.getElementById('hdSuccessMsg').textContent = data.matched_fix
+        ? `${baseMsg} We recognized this as a known issue (${data.matched_fix.fix_name}), so it's already linked to our fix records.`
+        : baseMsg;
       document.getElementById('hdSuccess').style.display  = 'flex';
       document.getElementById('hdForm').reset();
       // Reset UI state after form reset
@@ -492,7 +534,13 @@ async function hdSubmit(e) {
 
 document.addEventListener('DOMContentLoaded', async () => {
   _hdDescEditor = initCommentEditor('hdDescription', { uploadEntityType: 'issue', getEntityId: () => _ceHdPendingId() });
-  document.getElementById('hdForm').addEventListener('reset', () => _hdDescEditor?.setValue(''));
+  document.getElementById('hdForm').addEventListener('reset', () => {
+    _hdDescEditor?.setValue('');
+    document.getElementById('hdRecognizedBanner').style.display = 'none';
+    _hdLastDetectKey = null;
+  });
+  document.getElementById('hdTitle').addEventListener('input', hdScheduleDetect);
+  document.getElementById('hdDescription').addEventListener('input', hdScheduleDetect);
 
   await Promise.all([_loadCompanies(), _loadCategories(), _loadDepartments()]);
   await _applyUrlParams();

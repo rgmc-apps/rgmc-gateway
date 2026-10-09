@@ -8,6 +8,7 @@ from services.guards import _require_admin, _require_dept_head, _require_issue_a
 from services.shift import shift_age_days, fetch_shift_map
 from services.email import send_report_email, send_issue_resolved_email, send_issue_assigned_email, send_helpdesk_email, send_helpdesk_confirmation_email, send_issue_promoted_to_epic_email, send_issue_promoted_to_dev_email, send_issue_promoted_to_task_email, send_issue_comment_email
 from services.auto_assign import apply_auto_assignment
+from services.common_fix_match import apply_common_fix_match
 
 issues_bp = Blueprint("issues", __name__)
 
@@ -403,6 +404,7 @@ def _submit_helpdesk_issue():
     issue_id = None
     attachment_urls: list[str] = []
     created_issue: dict | None = None
+    matched_fix: dict | None = None
 
     if SUPABASE_URL and SUPABASE_SERVICE_KEY:
         try:
@@ -428,6 +430,14 @@ def _submit_helpdesk_issue():
                 except Exception as exc:
                     current_app.logger.error("Helpdesk attachment URL save failed: %s", exc)
 
+        if issue_id and created_issue:
+            matched_fix = apply_common_fix_match(
+                issue_id, created_issue.get("title") or "", created_issue.get("description") or "")
+            if matched_fix:
+                for field in ("business_impact", "urgency", "priority"):
+                    if field in matched_fix:
+                        created_issue[field] = matched_fix[field]
+
     email_attachments = [{"filename": f["filename"], "data": f["data"]} for f in raw_files]
     try:
         send_helpdesk_email(form_data, ticket_number, attachments=email_attachments, issue_id=issue_id)
@@ -450,7 +460,11 @@ def _submit_helpdesk_issue():
     msg = (f"Your ticket {ticket_number} has been submitted. The IT team will be in touch shortly."
            if ticket_number else
            "Your ticket has been submitted. The IT team will be in touch shortly.")
-    return jsonify({"success": True, "message": msg, "ticket_number": ticket_number})
+    matched_fix_info = (
+        {"fix_name": matched_fix["fix_name"], "match_count": matched_fix["match_count"]}
+        if matched_fix else None
+    )
+    return jsonify({"success": True, "message": msg, "ticket_number": ticket_number, "matched_fix": matched_fix_info})
 
 
 @issues_bp.post("/api/helpdesk")

@@ -7,6 +7,7 @@ from config import HEALTH_CHECKS, EMAIL_CONFIG
 from services.sites import get_sites
 from services.supabase import supabase_req, resolve_action_names
 from services.epics import build_epic_comment_feed
+from services.common_fix_match import find_matching_common_fix
 from services.email import (
     send_issue_resolved_email, send_issue_comment_email,
     send_issue_confirm_fix_email, send_issue_reopened_email,
@@ -100,9 +101,10 @@ def get_helpdesk_subcategories():
         return jsonify([])
     if category == "Software/Application":
         rows = supabase_req("GET", "/systems", params={
-            "is_visible": "eq.true",
-            "order":      "sort_order.asc,name.asc",
-            "select":     "id,name",
+            "is_visible":          "eq.true",
+            "is_helpdesk_visible": "eq.true",
+            "order":               "sort_order.asc,name.asc",
+            "select":              "id,name",
         })
         items = [{"value": r["id"], "label": r["name"]} for r in (rows or [])]
     else:
@@ -128,6 +130,27 @@ def get_helpdesk_request_types():
         "select":           "id,request_type",
     })
     return jsonify(rows or [])
+
+
+@public_bp.post("/api/common-fixes/detect")
+def detect_common_fix():
+    """Live keyword check used by the IT/general helpdesk forms while the
+    reporter is typing — tells them if this looks like a known issue and
+    hands back the impact/urgency/priority that would be applied."""
+    data        = request.get_json(silent=True) or {}
+    title       = str(data.get("title") or "")
+    description = str(data.get("description") or "")
+    fix, count = find_matching_common_fix(title, description)
+    if not fix:
+        return jsonify({"matched": False})
+    return jsonify({
+        "matched":         True,
+        "fix_name":        fix.get("fix_name"),
+        "business_impact": fix.get("business_impact"),
+        "urgency":         fix.get("urgency"),
+        "priority":        fix.get("priority"),
+        "match_count":     count,
+    })
 
 
 @public_bp.get("/api/general-helpdesk/categories")

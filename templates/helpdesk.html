@@ -225,6 +225,12 @@
               placeholder="Describe the issue in detail — when it started, what you were doing, any error messages…"></textarea>
           </div>
 
+          <!-- Recognized known-issue banner -->
+          <div class="hd-recognized-banner" id="hdRecognizedBanner" style="display:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <span>We recognized this as a known issue: <strong id="hdRecognizedFixName"></strong>. We've pre-filled the impact, urgency, and priority for you.</span>
+          </div>
+
           <!-- Attachments -->
           <div class="form-group form-group-full">
             <label class="form-label" for="hdAttachments">Attachments

@@ -4,6 +4,7 @@ from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
 from services.supabase import supabase_req
 from services.email import send_helpdesk_email, send_helpdesk_confirmation_email
 from services.auto_assign import apply_auto_assignment
+from services.common_fix_match import apply_common_fix_match
 from controllers.issues import _upload_issue_attachment
 
 general_helpdesk_bp = Blueprint("general_helpdesk", __name__)
@@ -76,6 +77,7 @@ def api_general_helpdesk():
     issue_id = None
     attachment_urls: list[str] = []
     created_issue: dict | None = None
+    matched_fix: dict | None = None
 
     if SUPABASE_URL and SUPABASE_SERVICE_KEY:
         try:
@@ -101,6 +103,14 @@ def api_general_helpdesk():
                 except Exception as exc:
                     current_app.logger.error("General helpdesk attachment save failed: %s", exc)
 
+        if issue_id and created_issue:
+            matched_fix = apply_common_fix_match(
+                issue_id, created_issue.get("title") or "", created_issue.get("description") or "")
+            if matched_fix:
+                for field in ("business_impact", "urgency", "priority"):
+                    if field in matched_fix:
+                        created_issue[field] = matched_fix[field]
+
         if created_issue:
             if attachment_urls:
                 created_issue["attachment_urls"] = attachment_urls
@@ -120,4 +130,8 @@ def api_general_helpdesk():
     msg = (f"Your request {ticket_number} has been submitted. The team will be in touch shortly."
            if ticket_number else
            "Your request has been submitted. The team will be in touch shortly.")
-    return jsonify({"success": True, "message": msg, "ticket_number": ticket_number})
+    matched_fix_info = (
+        {"fix_name": matched_fix["fix_name"], "match_count": matched_fix["match_count"]}
+        if matched_fix else None
+    )
+    return jsonify({"success": True, "message": msg, "ticket_number": ticket_number, "matched_fix": matched_fix_info})

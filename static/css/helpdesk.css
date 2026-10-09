@@ -131,6 +131,26 @@
 [data-theme="light"] .hd-priority-note--p3 { background: #fefce8; border-color: #fde047; color: #92400e; }
 [data-theme="light"] .hd-priority-note--p4 { background: #f0fdf4; border-color: #86efac; color: #15803d; }
 
+/* Recognized known-issue banner */
+.hd-recognized-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-top: -6px;
+  border-radius: var(--radius-sm);
+  background: rgba(82,168,112,0.08);
+  border: 1px solid rgba(82,168,112,0.3);
+  color: #52a870;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.hd-recognized-banner svg { flex-shrink: 0; margin-top: 2px; }
+.hd-recognized-banner span { color: var(--text-secondary); }
+.hd-recognized-banner strong { color: #52a870; }
+[data-theme="light"] .hd-recognized-banner { background: #f0fdf4; border-color: #86efac; color: #15803d; }
+[data-theme="light"] .hd-recognized-banner strong { color: #15803d; }
+
 /* File attachment previews */
 .hd-file-previews {
   display: flex;

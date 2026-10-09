@@ -1108,6 +1108,13 @@
               <span class="toggle-text">Visible in access request form</span>
             </label>
           </div>
+          <div class="form-group" style="max-width:260px;">
+            <label class="form-label">Helpdesk Visibility</label>
+            <label class="toggle-label">
+              <input type="checkbox" id="sysIsHelpdeskVisible" checked>
+              <span class="toggle-text">Visible on IT Helpdesk form (Software/Application)</span>
+            </label>
+          </div>
         </div>
 
         <div id="sysFormActions" class="modal-actions">
@@ -2473,6 +2480,40 @@
               <option value="">— Select system —</option>
             </select>
           </div>
+        </div>
+        <div class="form-group form-group-full">
+          <label class="form-label">Keywords
+            <span class="form-label-hint">(comma-separated — matched against a new ticket's title/description to auto-detect this fix)</span>
+          </label>
+          <input class="form-input" type="text" id="cfKeywords" placeholder="e.g. cannot login, password expired, access denied">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="cfBusinessImpact">Business Impact <span class="form-label-hint">(optional)</span></label>
+            <select class="form-input" id="cfBusinessImpact" onchange="_cfComputePriority()">
+              <option value="">— Select impact —</option>
+              <option value="high">High — Company Wide</option>
+              <option value="medium">Medium — Department to Team Wide</option>
+              <option value="low">Low — Single Person / User</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cfUrgency">Urgency <span class="form-label-hint">(optional)</span></label>
+            <select class="form-input" id="cfUrgency" onchange="_cfComputePriority()">
+              <option value="">— Select urgency —</option>
+              <option value="high">High — Immediate</option>
+              <option value="medium">Medium — Needs Prompt Action</option>
+              <option value="low">Low — Can Wait</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group form-group-full">
+          <label class="form-label">Priority <span class="form-label-hint">(auto-computed — applied to tickets matched to this fix)</span></label>
+          <div class="hd-priority-display" id="cfPriorityDisplay">
+            <span class="hd-priority-empty" id="cfPriorityEmpty">Select Business Impact and Urgency to compute priority</span>
+            <span class="hd-priority-badge" id="cfPriorityBadge" style="display:none;"></span>
+          </div>
+          <input type="hidden" id="cfPriorityValue">
         </div>
         <div class="form-group form-group-full">
           <label class="form-label">Problem Description</label>

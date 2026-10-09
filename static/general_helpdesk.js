@@ -99,6 +99,45 @@ function ghComputePriority() {
 
 /* ── Ticket type radio styling ────────────────────────────────────────────── */
 
+/* ── Known-issue detection ────────────────────────────────────────────────── */
+
+let _ghDetectTimer   = null;
+let _ghLastDetectKey = null;
+
+function ghScheduleDetect() {
+  clearTimeout(_ghDetectTimer);
+  _ghDetectTimer = setTimeout(_ghRunDetect, 500);
+}
+
+async function _ghRunDetect() {
+  const title       = document.getElementById('ghTitle').value.trim();
+  const description = (_ghDescEditor ? _ghDescEditor.getValue() : document.getElementById('ghDescription').value).trim();
+  const banner      = document.getElementById('ghRecognizedBanner');
+  const key         = `${title}${description}`;
+  if (key === _ghLastDetectKey) return;
+  _ghLastDetectKey = key;
+
+  if (!title && !description) { banner.style.display = 'none'; return; }
+
+  try {
+    const res = await fetch('/api/common-fixes/detect', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, description }),
+    });
+    if (!res.ok) { banner.style.display = 'none'; return; }
+    const data = await res.json();
+    if (data.matched) {
+      document.getElementById('ghRecognizedFixName').textContent = data.fix_name || 'a known issue';
+      banner.style.display = 'flex';
+      if (data.business_impact) document.getElementById('ghBusinessImpact').value = data.business_impact;
+      if (data.urgency)         document.getElementById('ghUrgency').value        = data.urgency;
+      ghComputePriority();
+    } else {
+      banner.style.display = 'none';
+    }
+  } catch { /* detection is a UX nicety — fail silently */ }
+}
+
 function ghOnTicketType(input) {
   document.querySelectorAll('.hd-ticket-option').forEach(el => el.classList.remove('selected'));
   const parent = input.closest('.hd-ticket-option');
@@ -372,7 +411,10 @@ async function ghSubmit(e) {
     document.getElementById('ghLoading').style.display = 'none';
 
     if (data.success) {
-      document.getElementById('ghSuccessMsg').textContent = data.message || 'Your request has been submitted.';
+      const baseMsg = data.message || 'Your request has been submitted.';
+      document.getElementById('ghSuccessMsg').textContent = data.matched_fix
+        ? `${baseMsg} We recognized this as a known issue (${data.matched_fix.fix_name}), so it's already linked to our fix records.`
+        : baseMsg;
       document.getElementById('ghSuccess').style.display  = 'flex';
       document.getElementById('ghForm').reset();
       document.querySelectorAll('.hd-ticket-option').forEach(el => el.classList.remove('selected'));
@@ -398,7 +440,13 @@ async function ghSubmit(e) {
 
 document.addEventListener('DOMContentLoaded', async () => {
   _ghDescEditor = initCommentEditor('ghDescription', { uploadEntityType: 'issue', getEntityId: () => _ceGhPendingId() });
-  document.getElementById('ghForm').addEventListener('reset', () => _ghDescEditor?.setValue(''));
+  document.getElementById('ghForm').addEventListener('reset', () => {
+    _ghDescEditor?.setValue('');
+    document.getElementById('ghRecognizedBanner').style.display = 'none';
+    _ghLastDetectKey = null;
+  });
+  document.getElementById('ghTitle').addEventListener('input', ghScheduleDetect);
+  document.getElementById('ghDescription').addEventListener('input', ghScheduleDetect);
 
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeItHelpdeskPrompt();
