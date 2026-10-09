@@ -116,6 +116,10 @@ let _cfgBrandEditCode   = null;
 let _cfgDeptEditId      = null;
 let _cfgActionsCache    = [];
 let _cfgActionEditId    = null;
+let _cfgAutoAssignCache     = [];
+let _cfgAaEligibleUsers     = [];
+let _cfgAaEditUsername      = null;
+let _cfgAaSelectedUsername  = null;
 
 let _adminDepartments   = [];
 
@@ -266,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(hidePageLoader, 600);
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape')      { closeLinkedItemModal(); closeLightbox(); closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); closeCfgCompanyModal(); closeCfgCategoryModal(); closeCfgTypeModal(); closeCfgNsiModal(); closeCfgBrandModal(); closeCfgDeptModal(); closeCfgDevItemTypeModal(); closeAddUserModal(); closeAllRowActionsMenus(); _closeIssActionsMenu(); closePromoteEpicModal(); closeIssueImportModal(); }
+    if (e.key === 'Escape')      { closeLinkedItemModal(); closeLightbox(); closeSystemModal(); closeRejectModal(); closeEditSystemsModal(); closeEditUserModal(); closeIssueModal(); closeProfileMenu(); closeCfgCompanyModal(); closeCfgCategoryModal(); closeCfgTypeModal(); closeCfgNsiModal(); closeCfgBrandModal(); closeCfgDeptModal(); closeCfgDevItemTypeModal(); closeCfgAutoAssignModal(); closeAddUserModal(); closeAllRowActionsMenus(); _closeIssActionsMenu(); closePromoteEpicModal(); closeIssueImportModal(); }
     if (e.key === 'ArrowLeft')   lightboxNav(-1);
     if (e.key === 'ArrowRight')  lightboxNav(1);
   });
@@ -5062,7 +5066,228 @@ function _loadCurrentConfigSub() {
   if (_currentConfigTab === 'actions')            loadCfgActions();
   if (_currentConfigTab === 'dev-item-types')     loadCfgDevItemTypes();
   if (_currentConfigTab === 'task-statuses')      loadCfgTaskStatuses();
+  if (_currentConfigTab === 'auto-assign')        loadCfgAutoAssign();
   if (_currentConfigTab === 'automation')         loadCfgAutomation();
+}
+
+/* ── Auto-Assign ── */
+
+async function loadCfgAutoAssign() {
+  const wrap = document.getElementById('config-auto-assign-body');
+  wrap.innerHTML = '<div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>';
+  try {
+    const [assignRes, catRes] = await Promise.all([
+      fetch('/api/admin/config/auto-assign', { headers: authHeaders() }),
+      fetch('/api/admin/config/request-categories', { headers: authHeaders() }),
+    ]);
+    if (!assignRes.ok) throw new Error(await assignRes.text());
+    if (!catRes.ok) throw new Error(await catRes.text());
+    _cfgAutoAssignCache = await assignRes.json();
+    _cfgCategoriesCache = await catRes.json();
+    _renderCfgAutoAssign();
+  } catch (err) {
+    wrap.innerHTML = `<div class="admin-error">Failed: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function _cfgAaDeptLabel(group) {
+  if (!group) return '';
+  if (group === 'IT' || group === 'General') return group;
+  const d = _adminDepartments.find(d => d.department_code === group);
+  return d ? d.department_name : group;
+}
+
+function _cfgAaCategoryLabel(cat) {
+  const dept = _cfgAaDeptLabel(cat.category_group);
+  return dept ? `${cat.category_name} (${dept})` : cat.category_name;
+}
+
+function _cfgAaPersonName(p) {
+  return p.display_name || `${p.first_name || ''} ${p.last_name || ''}`.trim() || p.username;
+}
+
+function _renderCfgAutoAssign() {
+  const wrap = document.getElementById('config-auto-assign-body');
+  if (!_cfgAutoAssignCache.length) {
+    wrap.innerHTML = '<div class="admin-empty">No auto-assign mappings. Add one above.</div>';
+    return;
+  }
+  wrap.innerHTML = `
+    <table class="admin-table">
+      <thead><tr><th>Name</th><th>Email</th><th>Mobile</th><th>Categories</th><th></th></tr></thead>
+      <tbody>${_cfgAutoAssignCache.map(p => {
+        const cats = p.categories.map(c =>
+          `<span class="badge-user" style="margin:2px 4px 2px 0;">${escHtml(_cfgAaCategoryLabel(c))}</span>`
+        ).join('');
+        return `
+        <tr>
+          <td>${escHtml(_cfgAaPersonName(p))}</td>
+          <td>${p.email ? `<a href="mailto:${escHtml(p.email)}" class="tbl-link">${escHtml(p.email)}</a>` : '—'}</td>
+          <td>${escHtml(p.viber_number || '—')}</td>
+          <td>${cats || '—'}</td>
+          <td class="action-cell">
+            <button class="btn-tbl-secondary" onclick='openCfgAutoAssignModal(${JSON.stringify(p)})'>Edit</button>
+            <button class="btn-tbl-danger" onclick="deleteCfgAutoAssign('${escHtml(p.username)}')">Delete</button>
+          </td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
+
+function _cfgAaCategoriesGridHtml(selectedIds, ownerUsername) {
+  if (!_cfgCategoriesCache.length) return '<p class="text-muted">No request categories defined yet.</p>';
+  const assignedMap = {};
+  _cfgAutoAssignCache.forEach(p => {
+    if (p.username === ownerUsername) return;
+    p.categories.forEach(c => { assignedMap[c.category_id] = p; });
+  });
+  return `<div class="edit-systems-checks">${_cfgCategoriesCache.map(cat => {
+    const owner    = assignedMap[cat.category_id];
+    const disabled = !!owner && !selectedIds.has(cat.category_id);
+    const label    = escHtml(_cfgAaCategoryLabel(cat));
+    const tip      = disabled ? ` title="Already assigned to ${escHtml(_cfgAaPersonName(owner))}"` : '';
+    return `
+      <label class="edit-systems-item${disabled ? ' cfgaa-item-disabled' : ''}"${tip}>
+        <input type="checkbox" name="cfgAaCat" value="${cat.category_id}" ${selectedIds.has(cat.category_id) ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
+        <span>${label}</span>
+      </label>`;
+  }).join('')}</div>`;
+}
+
+async function openCfgAutoAssignModal(person) {
+  _cfgAaEditUsername     = person ? person.username : null;
+  _cfgAaSelectedUsername = person ? person.username : null;
+  document.getElementById('cfgAutoAssignModalTitle').textContent = _cfgAaEditUsername ? 'Edit Assignment' : 'Add Assignment';
+
+  document.getElementById('cfgAaName').value   = person ? _cfgAaPersonName(person) : '';
+  document.getElementById('cfgAaEmail').value  = person?.email ?? '';
+  document.getElementById('cfgAaMobile').value = person?.viber_number ?? '';
+  document.getElementById('cfgAaNameSuggest').style.display = 'none';
+
+  if (!_cfgAaEligibleUsers.length) {
+    try {
+      const res = await fetch('/api/admin/config/auto-assign/eligible-users', { headers: authHeaders() });
+      if (res.ok) _cfgAaEligibleUsers = await res.json();
+    } catch { /* autocomplete just won't suggest anything yet */ }
+  }
+
+  const selectedIds = new Set((person?.categories || []).map(c => c.category_id));
+  document.getElementById('cfgAaCategoriesGrid').innerHTML = _cfgAaCategoriesGridHtml(selectedIds, _cfgAaEditUsername);
+
+  _resetCfgModal('cfgAutoAssign');
+  document.getElementById('cfgAutoAssignModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCfgAutoAssignModal() {
+  document.getElementById('cfgAutoAssignModal').classList.remove('open');
+  document.body.style.overflow = '';
+  _cfgAaEditUsername = null;
+  _cfgAaSelectedUsername = null;
+}
+
+function overlayCfgAutoAssign(e) {
+  if (e.target === document.getElementById('cfgAutoAssignModal')) closeCfgAutoAssignModal();
+}
+
+function _cfgAaNameInput() {
+  const q   = document.getElementById('cfgAaName').value.trim().toLowerCase();
+  const box = document.getElementById('cfgAaNameSuggest');
+  _cfgAaSelectedUsername = null;
+  if (!q) { box.style.display = 'none'; box.innerHTML = ''; return; }
+
+  const matches = _cfgAaEligibleUsers.filter(u =>
+    _cfgAaPersonName(u).toLowerCase().includes(q) || u.username.toLowerCase().includes(q)
+  ).slice(0, 8);
+
+  if (!matches.length) {
+    box.innerHTML = '<div class="cfgaa-suggest-empty">No matching admin, department head, or developer.</div>';
+    box.style.display = '';
+    return;
+  }
+
+  box.innerHTML = matches.map(u => {
+    const roles = [u.is_admin && 'Admin', u.is_department_head && 'Dept Head', u.is_developer && 'Dev'].filter(Boolean).join(' · ');
+    return `<div class="cfgaa-suggest-item" onclick="_cfgAaPickUser('${escHtml(u.username)}')">
+      <span class="cfgaa-suggest-name">${escHtml(_cfgAaPersonName(u))}</span>
+      <span class="cfgaa-suggest-meta">${escHtml(roles)}</span>
+    </div>`;
+  }).join('');
+  box.style.display = '';
+}
+
+function _cfgAaPickUser(username) {
+  const u = _cfgAaEligibleUsers.find(x => x.username === username);
+  if (!u) return;
+  _cfgAaSelectedUsername = username;
+  document.getElementById('cfgAaName').value   = _cfgAaPersonName(u);
+  document.getElementById('cfgAaEmail').value  = u.email || '';
+  document.getElementById('cfgAaMobile').value = u.viber_number || '';
+  document.getElementById('cfgAaNameSuggest').style.display = 'none';
+
+  const selectedIds = new Set(
+    Array.from(document.querySelectorAll('#cfgAaCategoriesGrid input[name="cfgAaCat"]:checked')).map(cb => parseInt(cb.value, 10))
+  );
+  document.getElementById('cfgAaCategoriesGrid').innerHTML = _cfgAaCategoriesGridHtml(selectedIds, _cfgAaEditUsername);
+}
+
+document.addEventListener('click', e => {
+  const wrap = document.querySelector('.cfgaa-autocomplete-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    const box = document.getElementById('cfgAaNameSuggest');
+    if (box) box.style.display = 'none';
+  }
+});
+
+async function saveCfgAutoAssign(e) {
+  e.preventDefault();
+  if (!_cfgAaSelectedUsername) {
+    _showCfgError('cfgAutoAssign', 'Pick a user from the suggestions list.');
+    return;
+  }
+  const categoryIds = Array.from(document.querySelectorAll('#cfgAaCategoriesGrid input[name="cfgAaCat"]:checked'))
+    .map(cb => parseInt(cb.value, 10));
+  if (!categoryIds.length) {
+    _showCfgError('cfgAutoAssign', 'Select at least one category.');
+    return;
+  }
+  _setCfgLoading('cfgAutoAssign', true);
+  try {
+    let res;
+    if (_cfgAaEditUsername) {
+      res = await fetch(`/api/admin/config/auto-assign/${encodeURIComponent(_cfgAaEditUsername)}`, {
+        method: 'PATCH', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: _cfgAaSelectedUsername, category_ids: categoryIds }),
+      });
+    } else {
+      res = await fetch('/api/admin/config/auto-assign', {
+        method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: _cfgAaSelectedUsername, category_ids: categoryIds }),
+      });
+    }
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    const wasEdit = _cfgAaEditUsername;
+    closeCfgAutoAssignModal();
+    showToast(`Assignment ${wasEdit ? 'updated' : 'added'}.`);
+    loadCfgAutoAssign();
+  } catch (err) {
+    _setCfgLoading('cfgAutoAssign', false);
+    _showCfgError('cfgAutoAssign', err.message);
+  }
+}
+
+async function deleteCfgAutoAssign(username) {
+  if (!await showConfirm({ title: 'Delete Assignment', message: 'Unassign all categories from this person?', detail: 'Those categories will stop auto-assigning until reconfigured.', confirmText: 'Delete', danger: true })) return;
+  try {
+    const res = await fetch(`/api/admin/config/auto-assign/${encodeURIComponent(username)}`, {
+      method: 'DELETE', headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Delete failed');
+    showToast('Assignment deleted.');
+    loadCfgAutoAssign();
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+  }
 }
 
 /* ── Automation ── */

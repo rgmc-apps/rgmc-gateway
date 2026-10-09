@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, jsonify, current_app
 from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
 from services.supabase import supabase_req
 from services.email import send_helpdesk_email, send_helpdesk_confirmation_email
+from services.auto_assign import apply_auto_assignment
 from controllers.issues import _upload_issue_attachment
 
 general_helpdesk_bp = Blueprint("general_helpdesk", __name__)
@@ -74,14 +75,16 @@ def api_general_helpdesk():
     ticket_number = None
     issue_id = None
     attachment_urls: list[str] = []
+    created_issue: dict | None = None
 
     if SUPABASE_URL and SUPABASE_SERVICE_KEY:
         try:
             rows = supabase_req("POST", "/issues", data=issue_row,
                                 extra_headers={"Prefer": "return=representation"})
             if rows:
-                ticket_number = rows[0].get("ticket_number")
-                issue_id      = rows[0].get("id")
+                created_issue = dict(rows[0])
+                ticket_number = created_issue.get("ticket_number")
+                issue_id      = created_issue.get("id")
         except Exception as exc:
             current_app.logger.error("General helpdesk issue save failed: %s", exc)
 
@@ -97,6 +100,11 @@ def api_general_helpdesk():
                                  params={"id": f"eq.{issue_id}"})
                 except Exception as exc:
                     current_app.logger.error("General helpdesk attachment save failed: %s", exc)
+
+        if created_issue:
+            if attachment_urls:
+                created_issue["attachment_urls"] = attachment_urls
+            apply_auto_assignment(created_issue)
 
     email_attachments = [{"filename": f["filename"], "data": f["data"]} for f in raw_files]
     try:

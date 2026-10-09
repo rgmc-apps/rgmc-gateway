@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify, render_template, current_app
 from services.supabase import supabase_req
 from services.guards import _require_dept_head
 from services.shift import validate_shift_fields
+from services.auto_assign import apply_auto_assignment
 
 user_page_bp = Blueprint("user_page", __name__)
 
@@ -622,7 +623,7 @@ def user_reopen_issue(issue_id):
     if not created:
         return jsonify({"error": "Issue creation returned no data"}), 500
 
-    new_issue_data = created[0]
+    new_issue_data = apply_auto_assignment(created[0])
     new_ticket     = new_issue_data.get("ticket_number")
 
     # Log a comment on the original issue so its activity feed shows the reopen

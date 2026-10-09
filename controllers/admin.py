@@ -1219,6 +1219,189 @@ def config_update_automation():
         return jsonify({"error": str(exc)}), 500
 
 
+# ── Config: Auto-Assign (request category → person) ───────────────────────────
+
+def _auto_assign_eligible(user_row: dict) -> bool:
+    return bool(user_row.get("is_admin") or user_row.get("is_department_head") or user_row.get("is_developer"))
+
+
+@admin_bp.get("/api/admin/config/auto-assign/eligible-users")
+def config_auto_assign_eligible_users():
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/users", params={
+            "or":     "(is_admin.eq.true,is_department_head.eq.true,is_developer.eq.true)",
+            "select": "username,first_name,last_name,display_name,email,viber_number,"
+                      "is_admin,is_department_head,is_developer",
+            "order":  "first_name.asc",
+        })
+        return jsonify(rows or [])
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.get("/api/admin/config/auto-assign")
+def config_list_auto_assign():
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    try:
+        cats = supabase_req("GET", "/request_category", params={
+            "select":                "category_id,category_name,category_group,assigned_to_username",
+            "assigned_to_username":  "not.is.null",
+            "order":                 "category_name.asc",
+        }) or []
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+    if not cats:
+        return jsonify([])
+
+    usernames = sorted({c["assigned_to_username"] for c in cats if c.get("assigned_to_username")})
+    try:
+        users = supabase_req("GET", "/users", params={
+            "username": "in.(" + ",".join(usernames) + ")",
+            "select":   "username,first_name,last_name,display_name,email,viber_number",
+        }) or []
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+    user_map = {u["username"]: u for u in users}
+
+    grouped: dict[str, dict] = {}
+    for c in cats:
+        uname = c.get("assigned_to_username")
+        if not uname:
+            continue
+        if uname not in grouped:
+            u = user_map.get(uname, {})
+            grouped[uname] = {
+                "username":     uname,
+                "first_name":   u.get("first_name", ""),
+                "last_name":    u.get("last_name", ""),
+                "display_name": u.get("display_name") or "",
+                "email":        u.get("email", ""),
+                "viber_number": u.get("viber_number", ""),
+                "categories":   [],
+            }
+        grouped[uname]["categories"].append({
+            "category_id":    c["category_id"],
+            "category_name":  c["category_name"],
+            "category_group": c.get("category_group"),
+        })
+    return jsonify(list(grouped.values()))
+
+
+def _validate_auto_assign_categories(category_ids: list[int], allow_usernames: set[str]):
+    """Returns (error_response_or_None). Ensures every category_id exists and
+    is either unassigned or already owned by one of *allow_usernames*."""
+    ids_csv = ",".join(str(i) for i in category_ids)
+    rows = supabase_req("GET", "/request_category", params={
+        "category_id": f"in.({ids_csv})",
+        "select":      "category_id,category_name,assigned_to_username",
+    }) or []
+    found_ids = {r["category_id"] for r in rows}
+    missing = [i for i in category_ids if i not in found_ids]
+    if missing:
+        return {"error": f"Unknown category id(s): {missing}"}, 400
+    taken = [r for r in rows if r.get("assigned_to_username") and r["assigned_to_username"] not in allow_usernames]
+    if taken:
+        names = ", ".join(r["category_name"] for r in taken)
+        return {"error": f"Already assigned to someone else: {names}"}, 409
+    return None
+
+
+@admin_bp.post("/api/admin/config/auto-assign")
+def config_create_auto_assign():
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    data     = request.get_json(silent=True) or {}
+    username = str(data.get("username", "")).strip().lower()
+    try:
+        category_ids = [int(c) for c in (data.get("category_ids") or [])]
+    except (TypeError, ValueError):
+        return jsonify({"error": "category_ids must be integers"}), 400
+    if not username or not category_ids:
+        return jsonify({"error": "username and at least one category are required"}), 400
+
+    try:
+        user_rows = supabase_req("GET", "/users", params={
+            "username": f"eq.{username}",
+            "select":   "username,is_admin,is_department_head,is_developer",
+        })
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+    if not user_rows:
+        return jsonify({"error": "User not found"}), 404
+    if not _auto_assign_eligible(user_rows[0]):
+        return jsonify({"error": "Only admins, department heads, or developers can be assigned"}), 400
+
+    try:
+        bad = _validate_auto_assign_categories(category_ids, {username})
+        if bad:
+            return jsonify(bad[0]), bad[1]
+        ids_csv = ",".join(str(i) for i in category_ids)
+        supabase_req("PATCH", "/request_category",
+                     data={"assigned_to_username": username},
+                     params={"category_id": f"in.({ids_csv})"})
+        return jsonify({"success": True}), 201
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@admin_bp.route("/api/admin/config/auto-assign/<string:username>", methods=["PATCH", "DELETE"])
+def config_update_auto_assign(username):
+    _, err = _require_admin()
+    if err: return jsonify(err[0]), err[1]
+    username = username.strip().lower()
+
+    if request.method == "DELETE":
+        try:
+            supabase_req("PATCH", "/request_category",
+                         data={"assigned_to_username": None},
+                         params={"assigned_to_username": f"eq.{username}"})
+            return jsonify({"success": True})
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
+
+    data = request.get_json(silent=True) or {}
+    new_username = str(data.get("username") or username).strip().lower()
+    try:
+        category_ids = [int(c) for c in (data.get("category_ids") or [])]
+    except (TypeError, ValueError):
+        return jsonify({"error": "category_ids must be integers"}), 400
+    if not category_ids:
+        return jsonify({"error": "At least one category is required"}), 400
+
+    try:
+        user_rows = supabase_req("GET", "/users", params={
+            "username": f"eq.{new_username}",
+            "select":   "username,is_admin,is_department_head,is_developer",
+        })
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+    if not user_rows:
+        return jsonify({"error": "User not found"}), 404
+    if not _auto_assign_eligible(user_rows[0]):
+        return jsonify({"error": "Only admins, department heads, or developers can be assigned"}), 400
+
+    try:
+        bad = _validate_auto_assign_categories(category_ids, {username, new_username})
+        if bad:
+            return jsonify(bad[0]), bad[1]
+        # Unassign everything currently held by the old username, then (re)assign the desired set —
+        # this also drops any category that was removed from the selection.
+        supabase_req("PATCH", "/request_category",
+                     data={"assigned_to_username": None},
+                     params={"assigned_to_username": f"eq.{username}"})
+        ids_csv = ",".join(str(i) for i in category_ids)
+        supabase_req("PATCH", "/request_category",
+                     data={"assigned_to_username": new_username},
+                     params={"category_id": f"in.({ids_csv})"})
+        return jsonify({"success": True})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
 # ── Common Fixes ──────────────────────────────────────────────────────────────
 
 def _upload_cf_attachment(fix_id: str, index: int, filename: str, data: bytes, content_type: str) -> str | None:

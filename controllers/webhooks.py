@@ -4,6 +4,7 @@ from flask import Blueprint, request, jsonify, current_app
 
 from config import WEBHOOK_SECRET, IT_BOT_API_KEY
 from services.supabase import supabase_req
+from services.auto_assign import apply_auto_assignment
 
 webhooks_bp = Blueprint("webhooks", __name__)
 
@@ -95,11 +96,12 @@ def bot_feature_request():
     if not IT_BOT_API_KEY or not hmac.compare_digest(secret, IT_BOT_API_KEY):
         return jsonify({"error": "Unauthorized"}), 401
 
-    data          = request.get_json(silent=True) or {}
-    system_tag    = (data.get("system_tag") or "").strip()
-    title         = (data.get("title") or "").strip()
-    description   = (data.get("description") or "").strip()
-    reporter_name = (data.get("reporter_name") or "").strip() or "MS Teams User"
+    data           = request.get_json(silent=True) or {}
+    system_tag     = (data.get("system_tag") or "").strip()
+    title          = (data.get("title") or "").strip()
+    description    = (data.get("description") or "").strip()
+    reporter_name  = (data.get("reporter_name") or "").strip() or "MS Teams User"
+    reporter_email = (data.get("reporter_email") or "").strip() or "it-bot@rgmcgroup.com"
 
     if not system_tag or not description:
         return jsonify({"error": "system_tag and description are required"}), 400
@@ -115,11 +117,12 @@ def bot_feature_request():
         "employee_name":    reporter_name,
         "company_name":     "RGMC Group (via Teams)",
         "viber_number":     "N/A",
-        "email":            "it-bot@rgmcgroup.com",
+        "email":            reporter_email,
         "department":       "",
         "title":            title or description[:80],
         "description":      full_description,
-        "request_category": "Feature Request",
+        "request_category": "Software/Application",
+        "priority":         "P2",
     }
 
     try:
@@ -131,6 +134,7 @@ def bot_feature_request():
         return jsonify({"error": "Failed to create issue"}), 500
 
     if created_issue:
+        created_issue = apply_auto_assignment(created_issue)
         try:
             from services.it_bot import notify_ticket_created
             notify_ticket_created(created_issue)

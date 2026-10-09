@@ -571,6 +571,7 @@
         <button class="status-tab"        data-ctab="actions"            onclick="switchConfigTab('actions')">Actions</button>
         <button class="status-tab"        data-ctab="dev-item-types"     onclick="switchConfigTab('dev-item-types')">Dev Item Types</button>
         <button class="status-tab"        data-ctab="task-statuses"      onclick="switchConfigTab('task-statuses')">Task Statuses</button>
+        <button class="status-tab"        data-ctab="auto-assign"        onclick="switchConfigTab('auto-assign')">Auto-Assign</button>
         <button class="status-tab"        data-ctab="automation"         onclick="switchConfigTab('automation')">Automation</button>
       </div>
 
@@ -693,6 +694,23 @@
           </button>
         </div>
         <div id="config-dev-item-types-body" class="admin-table-wrap">
+          <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
+        </div>
+      </div>
+
+      <!-- Auto-Assign -->
+      <div id="config-panel-auto-assign" class="config-sub-panel" style="display:none;">
+        <div class="admin-toolbar">
+          <p class="form-label-hint" style="margin:0;max-width:520px;">
+            Assign a request category to a person — new tickets filed under that category are
+            auto-assigned to them and they get the usual assignment email.
+          </p>
+          <button class="btn-admin-add" onclick="openCfgAutoAssignModal(null)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Assignment
+          </button>
+        </div>
+        <div id="config-auto-assign-body" class="admin-table-wrap">
           <div class="admin-loading"><div class="spinner"></div><span>Loading…</span></div>
         </div>
       </div>
@@ -1524,6 +1542,54 @@
         <div id="cfgCategoryFormError" class="form-state form-error" style="display:none;">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           <span id="cfgCategoryErrorMsg"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Config: Auto-Assign Modal ── -->
+  <div id="cfgAutoAssignModal" class="modal-overlay">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div><h3 class="modal-title" id="cfgAutoAssignModalTitle">Add Assignment</h3></div>
+        <button class="modal-close" onclick="closeCfgAutoAssignModal()" aria-label="Close">&times;</button>
+      </div>
+      <form id="cfgAutoAssignForm" class="modal-form" onsubmit="saveCfgAutoAssign(event)">
+        <div class="form-group form-group-full cfgaa-autocomplete-wrap">
+          <label class="form-label" for="cfgAaName">Name <span class="required">*</span></label>
+          <input class="form-input" type="text" id="cfgAaName" autocomplete="off"
+                 placeholder="Start typing an admin, department head, or developer's name…"
+                 oninput="_cfgAaNameInput()" onfocus="_cfgAaNameInput()">
+          <div id="cfgAaNameSuggest" class="cfgaa-suggest" style="display:none;"></div>
+          <p class="form-label-hint" style="margin-top:4px;">Only admins, department heads, and developers can be assigned. Pick a match from the list.</p>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="cfgAaEmail">Email</label>
+            <input class="form-input" type="text" id="cfgAaEmail" readonly placeholder="Autofilled from user record">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cfgAaMobile">Mobile Number</label>
+            <input class="form-input" type="text" id="cfgAaMobile" readonly placeholder="Autofilled from user record">
+          </div>
+        </div>
+        <div class="form-group form-group-full">
+          <label class="form-label">Categories <span class="required">*</span></label>
+          <div id="cfgAaCategoriesGrid" class="admin-table-wrap" style="max-height:280px;overflow-y:auto;padding:10px 14px;">
+            <!-- populated by JS -->
+          </div>
+        </div>
+        <div id="cfgAutoAssignFormActions" class="modal-actions">
+          <button type="button" class="btn-modal-cancel" onclick="closeCfgAutoAssignModal()">Cancel</button>
+          <button type="submit" class="btn-modal-submit">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Save
+          </button>
+        </div>
+        <div id="cfgAutoAssignFormLoading" class="form-state" style="display:none;"><div class="spinner"></div><span>Saving…</span></div>
+        <div id="cfgAutoAssignFormError" class="form-state form-error" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="cfgAutoAssignErrorMsg"></span>
         </div>
       </form>
     </div>

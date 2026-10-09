@@ -544,4 +544,58 @@
   flex-shrink: 0;
   cursor: pointer;
 }
+.edit-systems-item.cfgaa-item-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.edit-systems-item.cfgaa-item-disabled:hover {
+  background: none;
+}
+.edit-systems-item.cfgaa-item-disabled input[type="checkbox"] {
+  cursor: not-allowed;
+}
+
+/* ── Auto-Assign name autocomplete ── */
+.cfgaa-autocomplete-wrap {
+  position: relative;
+}
+.cfgaa-suggest {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  background: var(--bg-modal);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-card-h);
+  max-height: 220px;
+  overflow-y: auto;
+}
+.cfgaa-suggest-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.cfgaa-suggest-item:hover {
+  background: var(--gold-dim);
+}
+.cfgaa-suggest-name {
+  font-weight: 600;
+}
+.cfgaa-suggest-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.cfgaa-suggest-empty {
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
 

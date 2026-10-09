@@ -7,6 +7,7 @@ from services.supabase import supabase_req, resolve_action_names
 from services.guards import _require_admin, _require_dept_head, _require_issue_access
 from services.shift import shift_age_days, fetch_shift_map
 from services.email import send_report_email, send_issue_resolved_email, send_issue_assigned_email, send_helpdesk_email, send_helpdesk_confirmation_email, send_issue_promoted_to_epic_email, send_issue_promoted_to_dev_email, send_issue_promoted_to_task_email, send_issue_comment_email
+from services.auto_assign import apply_auto_assignment
 
 issues_bp = Blueprint("issues", __name__)
 
@@ -322,6 +323,7 @@ def _submit_issue():
         from services.it_bot import notify_ticket_created
         if attachment_urls:
             created_issue["attachment_urls"] = attachment_urls
+        created_issue = apply_auto_assignment(created_issue)
         notify_ticket_created(created_issue)
         _check_outage(created_issue)
 
@@ -441,6 +443,7 @@ def _submit_helpdesk_issue():
         from services.it_bot import notify_ticket_created
         if attachment_urls:
             created_issue["attachment_urls"] = attachment_urls
+        created_issue = apply_auto_assignment(created_issue)
         notify_ticket_created(created_issue)
         _check_outage(created_issue)
 
