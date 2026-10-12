@@ -3735,6 +3735,10 @@ function openEpicModal(epicIdOrNull) {
   document.getElementById('epicStatus').value = epic?.epic_status      ?? 'planning';
   document.getElementById('epicDesc').value   = epic?.epic_description ?? '';
   document.getElementById('epicIsActive').checked = epic?.is_active !== false;
+  document.getElementById('epicReporterName').value  = epic?.reporter_name  ?? '';
+  document.getElementById('epicReporterEmail').value = epic?.reporter_email ?? '';
+  document.getElementById('epicAssigneeName').value  = epic?.assignee_name  ?? '';
+  document.getElementById('epicAssigneeEmail').value = epic?.assignee_email ?? '';
 
   _buildEpicSysChecklist(Array.isArray(epic?.system_ids) ? epic.system_ids : []);
 
@@ -3869,6 +3873,10 @@ async function saveEpic() {
     epic_description: document.getElementById('epicDesc').value.trim() || null,
     system_ids:       _getSelectedEpicSystemIds(),
     is_active:        document.getElementById('epicIsActive').checked,
+    reporter_name:    document.getElementById('epicReporterName').value.trim()  || null,
+    reporter_email:   document.getElementById('epicReporterEmail').value.trim() || null,
+    assignee_name:    document.getElementById('epicAssigneeName').value.trim()  || null,
+    assignee_email:   document.getElementById('epicAssigneeEmail').value.trim() || null,
   };
 
   document.getElementById('epicFormLoading').style.display = '';

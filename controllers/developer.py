@@ -786,6 +786,10 @@ def dev_create_epic():
         "system_ids":       system_ids or None,
         "epic_status":      epic_status,
         "is_active":        bool(data.get("is_active", True)),
+        "reporter_name":    (data.get("reporter_name") or "").strip() or None,
+        "reporter_email":   (data.get("reporter_email") or "").strip() or None,
+        "assignee_name":    (data.get("assignee_name") or "").strip() or None,
+        "assignee_email":   (data.get("assignee_email") or "").strip() or None,
     }
     try:
         rows = supabase_req("POST", "/epics", data=payload)
@@ -801,7 +805,8 @@ def dev_update_epic(epic_id):
     if err:
         return jsonify(err[0]), err[1]
     data    = request.get_json(silent=True) or {}
-    allowed = {"epic_name", "epic_description", "system_ids", "epic_status", "is_active"}
+    allowed = {"epic_name", "epic_description", "system_ids", "epic_status", "is_active",
+               "reporter_name", "reporter_email", "assignee_name", "assignee_email"}
     patch   = {k: v for k, v in data.items() if k in allowed}
     if "system_ids" in patch:
         ids = [s for s in (patch["system_ids"] or []) if s]
