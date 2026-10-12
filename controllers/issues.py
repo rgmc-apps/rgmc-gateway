@@ -941,11 +941,51 @@ def admin_promote_issue_to_epic(issue_id):
         f"Email: {issue['email']}\n\n"
         f"{_plain_desc}"
     )
+
+    from controllers.user_page import _dept_id_for
+
+    # Epics have no assignee of their own, so the issue stays with
+    # whoever it's already assigned to, or defaults to the promoting
+    # admin if it was still unassigned.
+    sync_username = issue.get("assigned_to") or admin_username
+
+    # Fetch admin + sync-target details (department + email included so the
+    # issue's routing and the epic's assignee fields can be kept in sync
+    # with whoever owns it now)
+    try:
+        usernames  = list(filter(None, [admin_username, sync_username]))
+        user_rows  = supabase_req("GET", "/users", params={
+            "username": f"in.({','.join(usernames)})",
+            "select":   "username,first_name,last_name,display_name,department,email",
+        }) if usernames else []
+        admin_info = next((u for u in (user_rows or []) if u["username"] == admin_username), {})
+        sync_info  = next((u for u in (user_rows or []) if u["username"] == sync_username), {})
+        promoted_by = (
+            admin_info.get("display_name") or
+            f"{admin_info.get('first_name','')} {admin_info.get('last_name','')}".strip() or
+            admin_username
+        )
+    except Exception as exc:
+        current_app.logger.warning("promote-epic: user lookup failed: %s", exc)
+        promoted_by, sync_info = admin_username, {}
+
+    assignee_name = (
+        sync_info.get("display_name") or
+        f"{sync_info.get('first_name','')} {sync_info.get('last_name','')}".strip() or
+        sync_username
+    )
+
+    # Reporter comes straight off the issue, not the users table — the
+    # person who filed it may never have had a gateway account.
     epic_data = {
         "epic_name":        epic_name,
         "epic_description": epic_desc,
         "epic_status":      "planning",
         "is_active":        True,
+        "assignee_name":    assignee_name,
+        "assignee_email":   sync_info.get("email") or None,
+        "reporter_name":    issue.get("employee_name") or None,
+        "reporter_email":   issue.get("email") or None,
     }
     try:
         new_epic = supabase_req("POST", "/epics", data=epic_data,
@@ -956,32 +996,6 @@ def admin_promote_issue_to_epic(issue_id):
 
     epic_id = new_epic[0]["epic_id"] if new_epic else None
     if epic_id:
-        from controllers.user_page import _dept_id_for
-
-        # Epics have no assignee of their own, so the issue stays with
-        # whoever it's already assigned to, or defaults to the promoting
-        # admin if it was still unassigned.
-        sync_username = issue.get("assigned_to") or admin_username
-
-        # Fetch admin + sync-target details (department included so the
-        # issue's routing can be kept in sync with whoever owns it now)
-        try:
-            usernames  = list(filter(None, [admin_username, sync_username]))
-            user_rows  = supabase_req("GET", "/users", params={
-                "username": f"in.({','.join(usernames)})",
-                "select":   "username,first_name,last_name,display_name,department",
-            }) if usernames else []
-            admin_info = next((u for u in (user_rows or []) if u["username"] == admin_username), {})
-            sync_info  = next((u for u in (user_rows or []) if u["username"] == sync_username), {})
-            promoted_by = (
-                admin_info.get("display_name") or
-                f"{admin_info.get('first_name','')} {admin_info.get('last_name','')}".strip() or
-                admin_username
-            )
-        except Exception as exc:
-            current_app.logger.warning("promote-epic: user lookup failed: %s", exc)
-            promoted_by, sync_info = admin_username, {}
-
         issue_patch = {"epic_id": epic_id, "status": "in_progress"}
         if not issue.get("assigned_to"):
             issue_patch["assigned_to"] = sync_username

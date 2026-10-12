@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify, render_template, current_app
 from services.supabase import supabase_req, resolve_action_names
 from services.guards import _require_developer
 from services.sites import _invalidate_sites_cache, ping_system_by_id, SystemNotFoundError
-from services.email import send_issue_resolved_email
+from services.email import send_issue_resolved_email, send_epic_item_created_email, send_epic_item_done_email
 from services.epics import build_epic_comment_feed
 from services.dev_performance import build_dev_performance_report
 from services import github as github_service
@@ -18,6 +18,24 @@ _DEV_STATUS_LABEL = {
     "testing": "Testing",
     "done":    "Done",
 }
+
+
+def _display_name_for(username: str) -> str:
+    try:
+        rows = supabase_req("GET", "/users", params={
+            "username": f"eq.{username}",
+            "select":   "first_name,last_name,display_name",
+        })
+        if rows:
+            u = rows[0]
+            return (
+                u.get("display_name") or
+                f"{u.get('first_name') or ''} {u.get('last_name') or ''}".strip() or
+                username
+            )
+    except Exception:
+        pass
+    return username
 
 
 @developer_bp.get("/developer")
@@ -105,6 +123,17 @@ def dev_create_item():
                 )
             except Exception as exc:
                 current_app.logger.warning("dev_create_item: notify_assignment failed: %s", exc)
+        if created.get("id") and created.get("epic_id"):
+            try:
+                epic_rows = supabase_req("GET", "/epics", params={
+                    "epic_id": f"eq.{created['epic_id']}",
+                    "select":  "epic_id,epic_name,reporter_name,reporter_email",
+                })
+                epic_row = epic_rows[0] if epic_rows else None
+                if epic_row and epic_row.get("reporter_email"):
+                    send_epic_item_created_email(epic_row, created, _display_name_for(username))
+            except Exception as exc:
+                current_app.logger.warning("dev_create_item: epic item-created notify failed: %s", exc)
         return jsonify(created), 201
     except Exception as exc:
         current_app.logger.error("dev_create_item failed: %s", exc)
@@ -331,6 +360,24 @@ def dev_update_item(item_id):
                         })
                 except Exception as exc:
                     current_app.logger.error("dev_update_item epic auto-activate failed: %s", exc)
+
+        # ── Epic item-done notification ──────────────────────────────────────
+        # Notify whoever originally reported the epic whenever a single item
+        # underneath it is completed — independent of whether every item in
+        # the epic is done yet (that's handled separately below).
+        if becoming_done:
+            item_epic_id = (rows[0] if rows else {}).get("epic_id")
+            if item_epic_id is not None:
+                try:
+                    epic_rows = supabase_req("GET", "/epics", params={
+                        "epic_id": f"eq.{item_epic_id}",
+                        "select":  "epic_id,epic_name,reporter_name,reporter_email",
+                    })
+                    epic_row = epic_rows[0] if epic_rows else None
+                    if epic_row and epic_row.get("reporter_email"):
+                        send_epic_item_done_email(epic_row, rows[0], _display_name_for(dev_username))
+                except Exception as exc:
+                    current_app.logger.warning("dev_update_item: epic item-done notify failed: %s", exc)
 
         # ── Epic auto-resolve ─────────────────────────────────────────────────
         # When an item is marked done, check if every item in its epic is now

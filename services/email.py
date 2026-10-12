@@ -1194,6 +1194,18 @@ def _ticket_btn_html(issue_id: str | None) -> str:
             f'letter-spacing:.02em;">View Ticket &rarr;</a></div>')
 
 
+def _epic_btn_html(epic_id: str | None) -> str:
+    if not epic_id:
+        return ""
+    base = (GATEWAY_BASE_URL or "").rstrip("/")
+    url  = f"{base}/epics/{epic_id}"
+    return (f'<div style="margin-top:24px;">'
+            f'{_qr_block_html(url, heading="Share via QR Code", sublabel="Scan to open epic")}'
+            f'<a href="{url}" style="display:inline-block;padding:12px 28px;background:#C4972A;'
+            f'color:#0d0a06;text-decoration:none;border-radius:7px;font-size:14px;font-weight:700;'
+            f'letter-spacing:.02em;">View Epic &rarr;</a></div>')
+
+
 def _email_resolve_action_html(action_token: str | None) -> str:
     if not action_token:
         return ""
@@ -1521,6 +1533,119 @@ def send_issue_promoted_to_epic_email(issue: dict, epic: dict, promoted_by_name:
     msg["Reply-To"] = issue.get("email", from_addr)
     msg.attach(MIMEText(html, "html"))
     return _smtp_send(msg, [it_email])
+
+
+def send_epic_item_created_email(epic: dict, item: dict, created_by_name: str) -> bool:
+    """Notifies the person who originally reported an epic (who may never
+    have had a gateway account — reporter_name/email are copied onto the
+    epic at promotion time, not looked up live) that a new work item was
+    added underneath it."""
+    reporter_email = (epic.get("reporter_email") or "").strip()
+    if not reporter_email:
+        return False
+
+    from_addr     = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    it_email      = EMAIL_CONFIG["developer_email"] or from_addr
+    reporter_name = epic.get("reporter_name") or "there"
+    epic_name     = epic.get("epic_name", "")
+    epic_id       = epic.get("epic_id", "")
+    item_title    = item.get("title") or "Untitled item"
+
+    def _he(s): return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid #C4972A;">
+      <h2 style="margin:0;font-size:22px;color:#fff;">New Work Item Added</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">{_he(epic_name)}</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 16px;font-size:15px;">Hello <strong>{_he(reporter_name)}</strong>,</p>
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#374151;">
+        <strong>{_he(created_by_name)}</strong> added a new work item under the epic you reported,
+        <strong>{_he(epic_name)}</strong>.
+      </p>
+
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+        <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">New Item</p>
+        <p style="margin:0;font-size:15px;font-weight:600;color:#1e293b;">{_he(item_title)}</p>
+      </div>
+
+      <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">
+        You can track progress on this epic, or reach the IT team, at
+        <a href="mailto:{_he(it_email)}" style="color:#C4972A;text-decoration:none;font-weight:600;">{_he(it_email)}</a>.
+      </p>
+      {_epic_btn_html(epic_id)}
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    msg            = MIMEMultipart("alternative")
+    msg["Subject"] = f"New Item Added to Your Epic — {epic_name}"
+    msg["From"]    = from_addr
+    msg["To"]      = reporter_email
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [reporter_email])
+
+
+def send_epic_item_done_email(epic: dict, item: dict, completed_by_name: str) -> bool:
+    """Notifies the epic's reporter whenever a single work item underneath
+    it is completed (independent of whether every item in the epic is done
+    yet — that triggers the epic's own auto-resolve/auto-done flow)."""
+    reporter_email = (epic.get("reporter_email") or "").strip()
+    if not reporter_email:
+        return False
+
+    from_addr     = EMAIL_CONFIG["sender_email"] or EMAIL_CONFIG["smtp_user"]
+    it_email      = EMAIL_CONFIG["developer_email"] or from_addr
+    reporter_name = epic.get("reporter_name") or "there"
+    epic_name     = epic.get("epic_name", "")
+    epic_id       = epic.get("epic_id", "")
+    item_title    = item.get("title") or "Untitled item"
+
+    def _he(s): return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#1e293b;margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#0f0d08 100%);padding:28px 32px;border-bottom:3px solid #15803d;">
+      <h2 style="margin:0;font-size:22px;color:#fff;">Work Item Completed</h2>
+      <p style="margin:6px 0 0;color:rgba(255,255,255,.65);font-size:14px;">{_he(epic_name)}</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 16px;font-size:15px;">Hello <strong>{_he(reporter_name)}</strong>,</p>
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#374151;">
+        <strong>{_he(completed_by_name)}</strong> marked a work item as done under the epic you reported,
+        <strong>{_he(epic_name)}</strong>.
+      </p>
+
+      <div style="background:#f0fdf4;border:1px solid rgba(21,128,61,.18);border-left:4px solid #15803d;border-radius:0 6px 6px 0;padding:16px 20px;margin-bottom:24px;">
+        <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Completed Item</p>
+        <p style="margin:0;font-size:15px;font-weight:600;color:#1e293b;">&#10003;&nbsp;{_he(item_title)}</p>
+      </div>
+
+      <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">
+        You can track progress on this epic, or reach the IT team, at
+        <a href="mailto:{_he(it_email)}" style="color:#C4972A;text-decoration:none;font-weight:600;">{_he(it_email)}</a>.
+      </p>
+      {_epic_btn_html(epic_id)}
+    </div>
+    <div style="background:#f1f5f9;padding:14px 32px;font-size:12px;color:#94a3b8;">RGMC Group &mdash; Internal Systems Portal</div>
+  </div>
+</body>
+</html>"""
+
+    msg            = MIMEMultipart("alternative")
+    msg["Subject"] = f"Work Item Completed — {epic_name}"
+    msg["From"]    = from_addr
+    msg["To"]      = reporter_email
+    msg.attach(MIMEText(html, "html"))
+    return _smtp_send(msg, [reporter_email])
 
 
 def send_issue_promoted_to_dev_email(issue: dict, dev_item: dict, assignee_name: str, promoted_by_name: str) -> bool:

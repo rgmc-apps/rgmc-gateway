@@ -90,7 +90,7 @@ def _find_system_by_tag(tag: str) -> dict | None:
 
 @webhooks_bp.post("/api/webhooks/bot-feature-request")
 def bot_feature_request():
-    """Creates an issue (ticket_type-less feature request) from the IT Teams
+    """Creates an issue (ticket_type: change_request) from the IT Teams
     bot's `feature <system tag> <request> | <description>` command."""
     secret = request.headers.get("X-API-Key", "")
     if not IT_BOT_API_KEY or not hmac.compare_digest(secret, IT_BOT_API_KEY):
@@ -121,6 +121,7 @@ def bot_feature_request():
         "department":       "",
         "title":            title or description[:80],
         "description":      full_description,
+        "ticket_type":      "change_request",
         "request_category": "Software/Application",
         "priority":         "P2",
     }
