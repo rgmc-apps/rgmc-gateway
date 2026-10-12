@@ -606,6 +606,30 @@ const _MW_DEV_STATUS_COLOR = {
 const _MW_DEV_STATUS_LABEL = {
   pending: 'Pending', ongoing: 'Ongoing', coding: 'Coding', testing: 'Testing', done: 'Done',
 };
+const _MW_ISSUE_STATUS_COLOR = {
+  new: '#6b7280', open: '#3b82f6', in_progress: '#f59e0b',
+  resolved: '#22c55e', closed: '#6b7280', cancelled: '#ef4444',
+};
+const _MW_ISSUE_STATUS_LABEL = {
+  new: 'New', open: 'Open', in_progress: 'In Progress',
+  resolved: 'Resolved', closed: 'Closed', cancelled: 'Cancelled',
+};
+const _MW_ISSUE_ACTIVE_STATUSES = new Set(['resolved', 'closed', 'cancelled']);
+
+function _mwIssueItemHtml(iss) {
+  const status = iss.status || 'open';
+  const color  = _MW_ISSUE_STATUS_COLOR[status] || '#6b7280';
+  const label  = _MW_ISSUE_STATUS_LABEL[status] || status;
+  const ticket = iss.ticket_number ? `<span class="mw-code">${escapeHtml(iss.ticket_number)}</span>` : '';
+  const title  = escapeHtml((iss.title || _clStripHtml(iss.description) || 'Untitled issue').slice(0, 72));
+  return `<div class="mw-item">
+    <span class="mw-status-dot" style="background:${color}" title="${escapeHtml(label)}"></span>
+    <span class="mw-item-body">
+      ${ticket}
+      <span class="mw-item-title">${title}</span>
+    </span>
+  </div>`;
+}
 
 async function loadMyWork(session) {
   const section = document.getElementById('myWorkSection');
@@ -621,9 +645,11 @@ async function loadMyWork(session) {
   const headers = { 'X-Gateway-Username': session.username };
   const showDev = session.isDeveloper || session.isAdmin;
 
-  const [tasksRes, devRes] = await Promise.allSettled([
+  const [tasksRes, devRes, myIssuesRes, filedIssuesRes] = await Promise.allSettled([
     fetch('/api/user/tasks?scope=mine', { headers }),
     showDev ? fetch('/api/dev/items', { headers }) : Promise.resolve(null),
+    fetch('/api/user/issues/mine', { headers }),
+    fetch('/api/user/issues/filed', { headers }),
   ]);
 
   const tasks = tasksRes.status === 'fulfilled' && tasksRes.value?.ok
@@ -632,14 +658,26 @@ async function loadMyWork(session) {
   const devItems = (devRes.status === 'fulfilled' && devRes.value?.ok)
     ? await devRes.value.json().catch(() => [])
     : [];
+  const myIssuesRaw = myIssuesRes.status === 'fulfilled' && myIssuesRes.value?.ok
+    ? await myIssuesRes.value.json().catch(() => [])
+    : [];
+  const filedIssuesRaw = filedIssuesRes.status === 'fulfilled' && filedIssuesRes.value?.ok
+    ? await filedIssuesRes.value.json().catch(() => [])
+    : [];
 
   const activeTasks   = Array.isArray(tasks) ? tasks.filter(t => t.status !== 'done' && t.status !== 'closed').slice(0, 5) : [];
   const assignedItems = Array.isArray(devItems)
     ? devItems.filter(d => d.assigned_to === session.username && d.status !== 'done').slice(0, 5)
     : [];
+  const myIssues = Array.isArray(myIssuesRaw)
+    ? myIssuesRaw.filter(i => !_MW_ISSUE_ACTIVE_STATUSES.has(i.status)).slice(0, 5)
+    : [];
+  const filedIssues = Array.isArray(filedIssuesRaw)
+    ? filedIssuesRaw.filter(i => !_MW_ISSUE_ACTIVE_STATUSES.has(i.status)).slice(0, 5)
+    : [];
 
   // Empty state — no active work
-  if (!activeTasks.length && !assignedItems.length) {
+  if (!activeTasks.length && !assignedItems.length && !myIssues.length && !filedIssues.length) {
     cols.innerHTML = `
       <div class="mw-empty-state">
         <div class="mw-empty-orb" aria-hidden="true">
@@ -713,6 +751,40 @@ async function loadMyWork(session) {
         }).join('')}
       </div>
       <a href="/developer" class="mw-view-all">View all in Dev Board
+        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>`;
+  }
+
+  // Issues assigned to me — only if any exist
+  if (myIssues.length) {
+    html += `<div class="mw-col">
+      <div class="mw-col-header">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Issues Assigned to Me
+        <span class="mw-col-count">${myIssues.length}</span>
+      </div>
+      <div class="mw-items">
+        ${myIssues.map(_mwIssueItemHtml).join('')}
+      </div>
+      <a href="/workspace?issues=mine" class="mw-view-all">View all in Workspace
+        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>`;
+  }
+
+  // Issues I filed — only if any exist
+  if (filedIssues.length) {
+    html += `<div class="mw-col">
+      <div class="mw-col-header">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Issues I Filed
+        <span class="mw-col-count">${filedIssues.length}</span>
+      </div>
+      <div class="mw-items">
+        ${filedIssues.map(_mwIssueItemHtml).join('')}
+      </div>
+      <a href="/workspace?issues=filed" class="mw-view-all">View all in Workspace
         <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </a>
     </div>`;

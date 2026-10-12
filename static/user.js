@@ -129,11 +129,11 @@ function switchIssueSubtab(subtab) {
     if (panel) panel.style.display = s === subtab ? '' : 'none';
   });
   if (_issues[subtab] === null) {
-    loadIssues(subtab);
-  } else {
-    _wsPopulateCompanyFilter(_issues[subtab]);
-    wsIssApplyFilters();
+    return loadIssues(subtab);
   }
+  _wsPopulateCompanyFilter(_issues[subtab]);
+  wsIssApplyFilters();
+  return Promise.resolve();
 }
 
 function wsIssSwitchStatus(status) {
@@ -1876,8 +1876,10 @@ document.addEventListener('DOMContentLoaded', () => {
     greetEl.textContent = `Welcome back, ${session.firstName} — your issues, team, and tasks in one place.`;
   }
 
-  /* Load initial data */
-  loadIssues('team').then(() => hidePageLoader());
+  /* Load initial data — deep-link to a specific issues subtab via ?issues=mine|filed */
+  const issuesParam   = new URLSearchParams(location.search).get('issues');
+  const initialSubtab = (issuesParam === 'mine' || issuesParam === 'filed') ? issuesParam : 'team';
+  switchIssueSubtab(initialSubtab).then(() => hidePageLoader());
   _ensureTeamMembersLoaded(); // pre-fetch so assignee dropdowns open instantly
   loadUtStatuses(); // pre-load statuses so the kanban is ready when user clicks Tasks tab
   initUtPhysicsDrag();
