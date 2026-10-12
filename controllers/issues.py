@@ -1381,10 +1381,13 @@ def admin_promote_issue_to_user_task(issue_id):
 
     user_task_id = new_task[0]["id"] if new_task else None
     if user_task_id:
+        issue_patch = {"user_task_id": user_task_id, "status": "in_progress"}
+        if assigned_to:
+            issue_patch["assigned_to"] = assigned_to  # always update assigned_to
+        if dept_id:
+            issue_patch["request_to_department_id"] = dept_id
         try:
-            supabase_req("PATCH", "/issues",
-                         data={"user_task_id": user_task_id, "status": "in_progress"},
-                         params={"id": f"eq.{issue_id}"})
+            supabase_req("PATCH", "/issues", data=issue_patch, params={"id": f"eq.{issue_id}"})
         except Exception as exc:
             current_app.logger.error("promote-user-task link issue failed: %s", exc)
 

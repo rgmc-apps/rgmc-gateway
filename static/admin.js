@@ -1679,6 +1679,7 @@ async function loadIssues() {
     if (!res.ok) throw new Error(await res.text());
     const all = await res.json();
     _issuesCache = all;
+    await _ensureAllUsers();
 
     if (window._OPEN_ISSUE_ID) {
       const targetId = window._OPEN_ISSUE_ID;
@@ -2254,7 +2255,7 @@ function issExportPDF() {
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;max-width:260px">${escHtml(r.title||'—')}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap">${escHtml(r.company_name||'—')}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap">${escHtml(r.employee_name||'—')}</td>
-      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap">${escHtml(r.assigned_to||'—')}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap">${escHtml(r.assigned_to ? _fullNameForUsername(r.assigned_to) : '—')}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center">
         <span style="display:inline-block;padding:2px 8px;border-radius:9px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;background:${priorityColor((r.priority||'').toUpperCase())}20;color:${priorityColor((r.priority||'').toUpperCase())}">${escHtml(r.priority||'—')}</span>
       </td>
@@ -2720,7 +2721,7 @@ function renderIssueRow(issue) {
     <td>${statusBadge}</td>
     <td>${confirmedCell}</td>
     <td class="iss-connected-cell" onclick="event.stopPropagation()">${connectedHtml}</td>
-    <td>${issue.assigned_to ? `<code class="mono-val">${escHtml(issue.assigned_to)}</code>` : '<span class="text-muted">—</span>'}</td>
+    <td>${issue.assigned_to ? escHtml(_fullNameForUsername(issue.assigned_to)) : '<span class="text-muted">—</span>'}</td>
     <td class="date-cell">${fmtDateTime(issue.created_at)}</td>
   </tr>`;
 }
@@ -2734,6 +2735,22 @@ async function _ensureDevelopers() {
       _developersCache = all.filter(u => u.is_developer);
     }
   } catch { /* non-fatal */ }
+}
+
+async function _ensureAllUsers() {
+  if (_usersCache.length > 0) return _usersCache;
+  try {
+    const res = await fetch('/api/admin/users', { headers: authHeaders() });
+    _usersCache = res.ok ? await res.json() : [];
+  } catch { _usersCache = []; }
+  return _usersCache;
+}
+
+function _fullNameForUsername(username) {
+  if (!username) return '';
+  const u = _usersCache.find(x => x.username === username);
+  if (!u) return username;
+  return u.display_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || username;
 }
 
 /* Populates the "Legacy Ticket Details" block shown for issues brought in

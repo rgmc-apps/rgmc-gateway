@@ -125,6 +125,7 @@ async function loadIssuesPage() {
     const res = await fetch('/api/issues/scoped', { headers: authHeaders() });
     if (!res.ok) throw new Error((await res.json()).error || 'Failed to load issues');
     _ipIssuesCache = await res.json();
+    await _ipEnsureAllUsers();
     _ipPopulateCompanyFilter();
     ipApplyFilters();
     _ipRenderAnalytics(_ipIssuesCache);
@@ -334,7 +335,7 @@ function ipExportPDF() {
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;max-width:260px">${escHtml(r.title||'—')}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap">${escHtml(r.company_name||'—')}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap">${escHtml(r.employee_name||'—')}</td>
-      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap">${escHtml(r.assigned_to||'—')}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap">${escHtml(r.assigned_to ? _ipFullNameForUsername(r.assigned_to) : '—')}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center">
         <span style="display:inline-block;padding:2px 8px;border-radius:9px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;background:${priorityColor((r.priority||'').toUpperCase())}20;color:${priorityColor((r.priority||'').toUpperCase())}">${escHtml(r.priority||'—')}</span>
       </td>
@@ -517,7 +518,7 @@ function _ipRenderRow(issue) {
     <td>${statusBadge}</td>
     <td>${confirmedCell}</td>
     <td class="iss-connected-cell" onclick="event.stopPropagation()">${connectedHtml}</td>
-    <td>${issue.assigned_to ? `<code class="mono-val">${escHtml(issue.assigned_to)}</code>` : '<span class="text-muted">—</span>'}</td>
+    <td>${issue.assigned_to ? escHtml(_ipFullNameForUsername(issue.assigned_to)) : '<span class="text-muted">—</span>'}</td>
     <td class="date-cell">${fmtDateTime(issue.created_at)}<br>${_ipAgePill(issue)}</td>
   </tr>`;
 }
@@ -861,6 +862,13 @@ async function _ipEnsureAllUsers() {
     _ipAllUsersCache = res.ok ? await res.json() : [];
   } catch { _ipAllUsersCache = []; }
   return _ipAllUsersCache;
+}
+
+function _ipFullNameForUsername(username) {
+  if (!username) return '';
+  const u = (_ipAllUsersCache || []).find(x => x.username === username);
+  if (!u) return username;
+  return u.display_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || username;
 }
 
 async function _ipEnsureDepartments() {
