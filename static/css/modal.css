@@ -13,6 +13,12 @@
 }
 .modal-overlay.open { display: flex; }
 
+/* "New System" is only ever opened as a follow-up action from inside another
+   modal (dev item form, epic form) — it must stack above whichever modal
+   triggered it, not behind it (DOM order alone would put it behind the
+   epic modal, which is declared later in the markup). */
+#addSystemModal.open { z-index: 1100; }
+
 .modal {
   background: var(--bg-modal);
   border: 1px solid var(--border);
