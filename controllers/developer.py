@@ -724,6 +724,25 @@ def dev_get_members():
     return jsonify(rows or [])
 
 
+@developer_bp.get("/api/dev/users")
+def dev_get_all_users():
+    """Lightweight directory of every user (not just developers), for the
+    epic Reporter/Assignee search-as-you-type fields — a reporter may be
+    anyone in the org, not only someone on the dev team."""
+    _, err = _require_developer()
+    if err:
+        return jsonify(err[0]), err[1]
+    try:
+        rows = supabase_req("GET", "/users", params={
+            "select": "username,first_name,last_name,display_name,email",
+            "order":  "first_name.asc",
+        })
+    except Exception as exc:
+        current_app.logger.error("dev_get_all_users failed: %s", exc)
+        return jsonify({"error": "Failed to fetch users"}), 500
+    return jsonify(rows or [])
+
+
 @developer_bp.get("/api/dev/dev-performance")
 def dev_dev_performance():
     _, err = _require_developer()

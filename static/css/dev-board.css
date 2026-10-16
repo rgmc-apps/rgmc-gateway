@@ -1199,6 +1199,50 @@
   color: var(--gold);
 }
 
+/* ── Reporter / Assignee searchable combobox (epic modal) ── */
+.person-search-wrap {
+  position: relative;
+}
+.person-search-dropdown {
+  position: absolute;
+  z-index: 500;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-modal);
+  border: 1px solid var(--gold-border);
+  border-radius: var(--radius-sm, 6px);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.45);
+  max-height: 220px;
+  overflow-y: auto;
+  display: none;
+}
+.person-search-dropdown.open { display: block; }
+.person-search-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 7px 12px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.person-search-item:hover,
+.person-search-item.active { background: var(--gold-dim); }
+.person-search-item-name {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.person-search-item-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.person-search-empty {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 /* ── Items panel header count ── */
 .epic-items-header-count {
   margin-left: 2px;
@@ -1399,13 +1443,15 @@
   overflow: visible;
 }
 
-/* 3. The form column:
-      - overflow: visible so the sys-multi dropdown is never clipped by
-        this scroll container (modal-xl's overflow:hidden is the true boundary).
+/* 3. The form column scrolls on its own (the grid row height is fixed by
+      item-detail-body, so without this the lower fields are simply clipped
+      by modal-body's overflow:hidden with no way to reach them).
       - proper bottom padding so the description textarea bottom isn't flush
         against the edge before the sticky footer. */
 #epicDetailModal .item-detail-form {
-  overflow: visible;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
   padding-bottom: 24px;
 }
 

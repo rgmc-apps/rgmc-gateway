@@ -1245,7 +1245,13 @@
               <div class="epic-people-row">
                 <div class="form-group">
                   <label class="form-label" for="epicReporterName"><span class="form-label-tag">Reporter</span> Name</label>
-                  <input class="form-input" type="text" id="epicReporterName" placeholder="Who reported this?">
+                  <div class="person-search-wrap" id="epicReporterNameWrap">
+                    <input class="form-input" type="text" id="epicReporterName" placeholder="Who reported this?"
+                      autocomplete="off" oninput="_epicPersonSearchInput('reporter')"
+                      onfocus="_epicPersonSearchInput('reporter')" onblur="_epicPersonSearchBlur('reporter')"
+                      onkeydown="_epicPersonSearchKey(event,'reporter')">
+                    <div class="person-search-dropdown" id="epicReporterNameDropdown"></div>
+                  </div>
                 </div>
                 <div class="form-group">
                   <label class="form-label" for="epicReporterEmail"><span class="form-label-tag">Reporter</span> Email</label>
@@ -1255,7 +1261,13 @@
               <div class="epic-people-row">
                 <div class="form-group">
                   <label class="form-label" for="epicAssigneeName"><span class="form-label-tag">Assignee</span> Name</label>
-                  <input class="form-input" type="text" id="epicAssigneeName" placeholder="Who owns this epic?">
+                  <div class="person-search-wrap" id="epicAssigneeNameWrap">
+                    <input class="form-input" type="text" id="epicAssigneeName" placeholder="Who owns this epic?"
+                      autocomplete="off" oninput="_epicPersonSearchInput('assignee')"
+                      onfocus="_epicPersonSearchInput('assignee')" onblur="_epicPersonSearchBlur('assignee')"
+                      onkeydown="_epicPersonSearchKey(event,'assignee')">
+                    <div class="person-search-dropdown" id="epicAssigneeNameDropdown"></div>
+                  </div>
                 </div>
                 <div class="form-group">
                   <label class="form-label" for="epicAssigneeEmail"><span class="form-label-tag">Assignee</span> Email</label>

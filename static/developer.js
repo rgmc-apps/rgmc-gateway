@@ -74,6 +74,7 @@ let _items               = [];
 let _systems             = [];
 let _members             = {};   // username → { displayName, avatarUrl, githubUsername, isAdmin, isDeveloper, company, department, position }
 let _membersList         = [];   // raw array from /api/dev/members, for the Team view
+let _allUsersCache       = null; // raw array from /api/dev/users (every user, for the epic Reporter/Assignee search)
 let _editingId           = null;
 let _filter              = 'all'; // 'all' | 'mine'
 let _doneRemarksCallback = null;
@@ -3102,6 +3103,115 @@ function closeEpicSysDropdown() {
   document.getElementById('epicSysMultiWrap')?.classList.remove('is-open');
 }
 
+/* ── Reporter / Assignee searchable combobox (epic modal) ──
+   Free-text inputs backed by a filtered suggestion list from every user in
+   the org; picking a suggestion also fills in that user's email. Typing a
+   name that isn't a gateway user at all is still accepted as-is on save. */
+const _EPIC_PERSON_FIELDS = {
+  reporter: { name: 'epicReporterName', email: 'epicReporterEmail', dropdown: 'epicReporterNameDropdown' },
+  assignee: { name: 'epicAssigneeName', email: 'epicAssigneeEmail', dropdown: 'epicAssigneeNameDropdown' },
+};
+let _epicPersonActiveIndex = -1;
+
+async function _ensureAllUsers() {
+  if (_allUsersCache) return _allUsersCache;
+  try {
+    const res = await fetch('/api/dev/users', { headers: authHeaders() });
+    _allUsersCache = res.ok ? await res.json() : [];
+  } catch { _allUsersCache = []; }
+  return _allUsersCache;
+}
+
+function _personDisplayName(u) {
+  return u.display_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username;
+}
+
+function _matchPersons(query) {
+  const users = _allUsersCache || [];
+  const q = query.trim().toLowerCase();
+  const pool = q
+    ? users.filter(u => {
+        const hay = `${_personDisplayName(u)} ${u.username || ''} ${u.email || ''}`.toLowerCase();
+        return hay.includes(q);
+      })
+    : users;
+  return pool.slice(0, 8);
+}
+
+async function _epicPersonSearchInput(role) {
+  const f = _EPIC_PERSON_FIELDS[role];
+  await _ensureAllUsers();
+  const query   = document.getElementById(f.name).value;
+  const matches = _matchPersons(query);
+  _epicPersonActiveIndex = -1;
+  _renderPersonDropdown(role, matches);
+}
+
+function _renderPersonDropdown(role, matches) {
+  const f    = _EPIC_PERSON_FIELDS[role];
+  const el   = document.getElementById(f.dropdown);
+  if (!el) return;
+  el.innerHTML = matches.length
+    ? matches.map((u, i) => `
+      <div class="person-search-item${i === _epicPersonActiveIndex ? ' active' : ''}"
+           onmousedown="event.preventDefault()" onclick="_epicPersonSelect('${role}', ${i})">
+        <span class="person-search-item-name">${escHtml(_personDisplayName(u))}</span>
+        ${u.email ? `<span class="person-search-item-meta">${escHtml(u.email)}</span>` : ''}
+      </div>`).join('')
+    : '<div class="person-search-empty">No matching user — will be saved as typed.</div>';
+  el._matches = matches;
+  el.classList.add('open');
+}
+
+function _epicPersonSelect(role, index) {
+  const f       = _EPIC_PERSON_FIELDS[role];
+  const el      = document.getElementById(f.dropdown);
+  const matches = el?._matches || [];
+  const u       = matches[index];
+  if (!u) return;
+  document.getElementById(f.name).value  = _personDisplayName(u);
+  document.getElementById(f.email).value = u.email || '';
+  _closePersonDropdown(role);
+}
+
+function _epicPersonSearchBlur(role) {
+  setTimeout(() => _closePersonDropdown(role), 120);
+}
+
+function _closePersonDropdown(role) {
+  const f = _EPIC_PERSON_FIELDS[role];
+  document.getElementById(f.dropdown)?.classList.remove('open');
+  _epicPersonActiveIndex = -1;
+}
+
+function _closeAllPersonDropdowns() {
+  Object.keys(_EPIC_PERSON_FIELDS).forEach(_closePersonDropdown);
+}
+
+function _epicPersonSearchKey(event, role) {
+  const f  = _EPIC_PERSON_FIELDS[role];
+  const el = document.getElementById(f.dropdown);
+  const matches = el?._matches || [];
+  if (!el?.classList.contains('open') || !matches.length) return;
+
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    _epicPersonActiveIndex = (_epicPersonActiveIndex + 1) % matches.length;
+    _renderPersonDropdown(role, matches);
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    _epicPersonActiveIndex = (_epicPersonActiveIndex - 1 + matches.length) % matches.length;
+    _renderPersonDropdown(role, matches);
+  } else if (event.key === 'Enter') {
+    if (_epicPersonActiveIndex >= 0) {
+      event.preventDefault();
+      _epicPersonSelect(role, _epicPersonActiveIndex);
+    }
+  } else if (event.key === 'Escape') {
+    _closePersonDropdown(role);
+  }
+}
+
 /* ── Load epics ── */
 async function loadEpics() {
   try {
@@ -3768,6 +3878,7 @@ function openEpicModal(epicIdOrNull) {
 
 function closeEpicModal() {
   closeEpicSysDropdown();
+  _closeAllPersonDropdowns();
   document.getElementById('epicDetailModal').classList.remove('open');
   const anyOpen = document.querySelector('.modal-overlay.open:not(#epicDetailModal)');
   if (!anyOpen) document.body.style.overflow = '';
