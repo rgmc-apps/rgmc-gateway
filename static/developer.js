@@ -1510,20 +1510,35 @@ function renderCard(item, idx = 0) {
 }
 
 /* ── Move item (arrow buttons) ── */
+function _itemNeedsStoryPoints(item, newStatus) {
+  return !!item && item.status === 'pending' && newStatus !== 'pending' && item.story_points == null;
+}
+
 async function moveItem(id, newStatus) {
   const item = _items.find(i => i.id === id);
   if (!item) return;
-  if (newStatus === 'done' && item.status !== 'done') {
-    openDoneRemarksModal((remarks, actionIds, files) => _execMoveItem(id, newStatus, remarks, actionIds, files));
-    return;
+
+  const needsDoneRemarks = newStatus === 'done' && item.status !== 'done';
+  const proceed = (storyPoints) => {
+    if (needsDoneRemarks) {
+      openDoneRemarksModal((remarks, actionIds, files) => _execMoveItem(id, newStatus, remarks, actionIds, files, storyPoints));
+    } else {
+      _execMoveItem(id, newStatus, null, [], [], storyPoints);
+    }
+  };
+
+  if (_itemNeedsStoryPoints(item, newStatus)) {
+    openStoryPointsPrompt(item, proceed);
+  } else {
+    proceed(null);
   }
-  await _execMoveItem(id, newStatus, null, [], []);
 }
 
-async function _execMoveItem(id, newStatus, remarks, actionIds = [], files = []) {
+async function _execMoveItem(id, newStatus, remarks, actionIds = [], files = [], storyPoints = null) {
   const item = _items.find(i => i.id === id);
   if (!item) return;
   const patch = { status: newStatus };
+  if (storyPoints != null) patch.story_points = storyPoints;
   if (newStatus === 'done' && !item.actual_end_date) {
     patch.actual_end_date = new Date().toISOString().slice(0, 10);
   }
@@ -1698,7 +1713,12 @@ async function _onDragRelease() {
 
   const item         = _items.find(i => i.id === id);
   const newStatus    = activeCol?.dataset.status;
-  const movingColumn = !!(item && newStatus && newStatus !== item.status && newStatus !== 'done');
+  // "done" and a from-pending move without story points both need a blocking
+  // prompt first — route those through moveItem() (below) instead of patching
+  // optimistically, same as the arrow buttons.
+  const needsGate     = !!(item && newStatus && newStatus !== item.status
+                           && (newStatus === 'done' || _itemNeedsStoryPoints(item, newStatus)));
+  const movingColumn  = !!(item && newStatus && newStatus !== item.status && !needsGate);
 
   if (movingColumn && !_rm.matches && document.startViewTransition) {
     // Let the View Transition morph the card straight from the drop point into
@@ -1732,8 +1752,9 @@ async function _onDragRelease() {
   el.remove();
   ghost.remove();
 
-  if (item && newStatus === 'done' && newStatus !== item.status) {
-    // Re-render so the card stays visible in its current column while the remarks modal is open
+  if (needsGate) {
+    // Re-render so the card stays visible in its current column while the
+    // story-points / remarks modal is open
     renderBoard();
     await moveItem(id, newStatus);
   } else if (movingColumn) {
@@ -1989,6 +2010,56 @@ function confirmMarkDone() {
   const cb = _doneRemarksCallback;
   closeDoneRemarksModal();
   if (cb) cb(remarks, actionIds, files);
+}
+
+/* ── Story points prompt (shown when an item leaves Pending without points set) ── */
+let _spPromptCallback = null;
+
+function openStoryPointsPrompt(item, onResolve) {
+  _spPromptCallback = onResolve;
+  document.getElementById('spPromptItemTitle').textContent = item?.title ? item.title.slice(0, 60) : '';
+  document.getElementById('spPromptInput').value = '';
+  document.getElementById('spPromptError').style.display = 'none';
+  document.getElementById('spPromptModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('spPromptInput')?.focus(), 60);
+}
+
+function _closeSpPromptModal() {
+  document.getElementById('spPromptModal').classList.remove('open');
+  const anyOpen = document.querySelector('.modal-overlay.open:not(#spPromptModal)');
+  if (!anyOpen) document.body.style.overflow = '';
+}
+
+function skipStoryPointsPrompt() {
+  _closeSpPromptModal();
+  const cb = _spPromptCallback;
+  _spPromptCallback = null;
+  if (cb) cb(null);
+}
+
+function overlayCloseStoryPoints(e) {
+  if (e.target === document.getElementById('spPromptModal')) skipStoryPointsPrompt();
+}
+
+function confirmStoryPointsPrompt() {
+  const raw   = document.getElementById('spPromptInput').value.trim();
+  const errEl = document.getElementById('spPromptError');
+  if (!raw) {
+    errEl.textContent   = 'Enter a story point value, or skip for now.';
+    errEl.style.display = '';
+    return;
+  }
+  const sp = parseFloat(raw);
+  if (isNaN(sp) || sp <= 0) {
+    errEl.textContent   = 'Please enter a valid story point value.';
+    errEl.style.display = '';
+    return;
+  }
+  _closeSpPromptModal();
+  const cb = _spPromptCallback;
+  _spPromptCallback = null;
+  if (cb) cb(sp);
 }
 
 async function deleteItemFromDetail() {

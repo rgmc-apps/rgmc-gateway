@@ -98,17 +98,23 @@
   min-width: 0;
 }
 
-/* ── Sidebar stack (access panel + dev status, right column) ── */
+/* ── Sidebar stack (access panel + dev status, right column) ──
+   The whole stack is the sticky unit (not just the first card) — sticking
+   only .access-panel let it ride over .dev-status-panel while scrolling,
+   since both shared one containing block but only one of them moved with
+   the viewport. Pinning the flex container keeps their relative position
+   fixed, so they scroll and release together with no overlap. */
 .portal-sidebar {
   display: flex;
   flex-direction: column;
   gap: 18px;
-}
-
-/* ── Access Panel (sticky sidebar) ── */
-.access-panel {
   position: sticky;
   top: 94px;
+  align-self: start;
+}
+
+/* ── Access Panel ── */
+.access-panel {
   border-radius: var(--radius-lg);
   overflow: hidden;
   border: 1px solid var(--gold-border);

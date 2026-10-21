@@ -1191,6 +1191,34 @@
     </div>
   </div>
 
+  <!-- ── Story Points Prompt (shown when an item leaves Pending without points set) ── -->
+  <div id="spPromptModal" class="modal-overlay" onclick="overlayCloseStoryPoints(event)">
+    <div class="modal" style="max-width:380px;">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Set Story Points</h3>
+          <p class="modal-site-name" id="spPromptItemTitle" style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></p>
+        </div>
+        <button class="modal-close" onclick="skipStoryPointsPrompt()" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+        <p class="form-label-hint" style="margin:0;">This item is leaving Pending without an estimate. Add story points now, or skip and set them later.</p>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="spPromptInput">Story Points</label>
+          <input class="form-input" type="number" id="spPromptInput" min="0.25" step="0.25" placeholder="e.g. 3" onkeydown="if(event.key==='Enter')confirmStoryPointsPrompt()">
+        </div>
+        <div id="spPromptError" class="form-state form-error" style="display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-modal-cancel" onclick="skipStoryPointsPrompt()">Skip for now</button>
+        <button type="button" class="btn-modal-submit" onclick="confirmStoryPointsPrompt()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Save &amp; Continue
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Archive Modal ── -->
   <!-- ── Epic Detail Modal ── -->
   <div id="epicDetailModal" class="modal-overlay">
