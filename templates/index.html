@@ -23,7 +23,13 @@
         <div class="header-divider"></div>
         <div class="header-tagline">Internal Systems Portal</div>
       </a>
-      <div id="headerUser" class="header-user"></div>
+      <div class="header-right-group">
+        <button type="button" class="btn-cmd-palette" onclick="openGlobalSearch()" title="Search systems &amp; screens">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Search
+        </button>
+        <div id="headerUser" class="header-user"></div>
+      </div>
     </div>
   </header>
 
@@ -367,7 +373,10 @@
     </section>
 
   </div><!-- /portal-content -->
-  <aside class="access-panel" id="accessPanel" aria-label="Your access overview"></aside>
+  <div class="portal-sidebar">
+    <aside class="access-panel" id="accessPanel" aria-label="Your access overview"></aside>
+    <aside class="dev-status-panel" id="devStatusPanel" aria-label="Developer status overview" style="display:none"></aside>
+  </div><!-- /portal-sidebar -->
   </div><!-- /portal-layout -->
   </main>
 
@@ -1053,6 +1062,39 @@
     </div>
   </div>
 
+  <!-- Global Search -->
+  <div id="gsOverlay" class="cmd-overlay" aria-hidden="true">
+    <div class="cmd-panel">
+      <div class="cmd-search-wrap">
+        <svg class="cmd-search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="gsInput" class="cmd-input" placeholder="Search systems or screens…" autocomplete="off" spellcheck="false" oninput="_gsOnInput(this.value)">
+        <button type="button" class="cmd-close-btn" onclick="closeGlobalSearch()" aria-label="Close">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="cmd-results" id="gsResults"></div>
+      <div class="cmd-footer">
+        <span class="cmd-hint"><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
+        <span class="cmd-hint"><kbd>Enter</kbd> Select</span>
+        <span class="cmd-hint"><kbd>Esc</kbd> Close</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Details Modal -->
+  <div id="gsSystemModal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="gsSysModalTitle"></h3>
+          <div id="gsSysModalSubtitle"></div>
+        </div>
+        <button class="modal-close" onclick="closeGsSystemModal()" aria-label="Close">&times;</button>
+      </div>
+      <div class="gs-sys-body" id="gsSysModalBody"></div>
+    </div>
+  </div>
+
   <script>
     // Site list for JS filtering — populated server-side
     const ALL_SITES = {{ sites | tojson }};
@@ -1063,5 +1105,6 @@
   <script src="/static/user-search.js"></script>
   <script src="/static/script.js"></script>
   <script src="/static/outage-notifier.js"></script>
+  <script src="/static/global-search.js"></script>
 </body>
 </html>

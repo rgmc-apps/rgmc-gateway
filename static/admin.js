@@ -3262,7 +3262,7 @@ function resetIssueModal() {
 function _renderCommentAttachments(urls) {
   if (!urls || !urls.length) return '';
   return `<div class="comment-attach-grid">${urls.map(u =>
-    `<a href="${escHtml(u)}" target="_blank" rel="noopener" class="comment-attach-thumb"><img src="${escHtml(u)}" alt="attachment" loading="lazy"></a>`
+    `<button type="button" class="comment-attach-thumb" onclick="openImageLightbox('${escHtml(u)}')"><img src="${escHtml(u)}" alt="attachment" loading="lazy"></button>`
   ).join('')}</div>`;
 }
 

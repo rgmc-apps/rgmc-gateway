@@ -106,11 +106,6 @@ class CommentEditor {
     }
     ta.addEventListener('keydown', e => this._onKeydown(e));
 
-    previewPanel.addEventListener('click', e => {
-      const img = e.target.closest('.ce-inline-img');
-      if (img) window.open(img.getAttribute('src'), '_blank', 'noopener');
-    });
-
     const mentionBox = document.createElement('div');
     mentionBox.className = 'ce-mention-dropdown';
     mentionBox.style.display = 'none';

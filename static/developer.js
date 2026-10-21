@@ -75,6 +75,7 @@ let _systems             = [];
 let _members             = {};   // username → { displayName, avatarUrl, githubUsername, isAdmin, isDeveloper, company, department, position }
 let _membersList         = [];   // raw array from /api/dev/members, for the Team view
 let _allUsersCache       = null; // raw array from /api/dev/users (every user, for the epic Reporter/Assignee search)
+let _addSystemFromEpic   = false; // true when "New System" was opened from inside the epic modal — forces is_wip true
 let _editingId           = null;
 let _filter              = 'all'; // 'all' | 'mine'
 let _doneRemarksCallback = null;
@@ -1656,6 +1657,33 @@ function _getColAt(x, y) {
   return null;
 }
 
+function _applyDragStatus(item, newStatus) {
+  const dragPatch = { status: newStatus, actual_end_date: null };
+  item.status = newStatus;
+  item.actual_end_date = null;
+  if ((newStatus === 'ongoing' || newStatus === 'coding') && !item.start_date) {
+    dragPatch.start_date = new Date().toISOString().slice(0, 10);
+    item.start_date = dragPatch.start_date;
+  }
+  return dragPatch;
+}
+
+async function _persistDragPatch(id, item, rollback, dragPatch) {
+  try {
+    const res = await fetch(`/api/dev/items/${encodeURIComponent(id)}`, {
+      method:  'PATCH',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify(dragPatch),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+  } catch (err) {
+    Object.assign(item, rollback);
+    showToast(`Could not move card: ${err.message}`);
+  } finally {
+    renderBoard();
+  }
+}
+
 async function _onDragRelease() {
   if (!_drag) return;
   cancelAnimationFrame(_drag.raf);
@@ -1668,9 +1696,29 @@ async function _onDragRelease() {
   const { el, ghost, id, activeCol } = _drag;
   _drag = null;
 
-  const item      = _items.find(i => i.id === id);
-  const newStatus = activeCol?.dataset.status;
+  const item         = _items.find(i => i.id === id);
+  const newStatus    = activeCol?.dataset.status;
+  const movingColumn = !!(item && newStatus && newStatus !== item.status && newStatus !== 'done');
 
+  if (movingColumn && !_rm.matches && document.startViewTransition) {
+    // Let the View Transition morph the card straight from the drop point into
+    // its settled slot in the new column (same card-<id> name the status arrow
+    // buttons already use), instead of snapping back to the old slot first.
+    document.startViewTransition(() => {
+      el.remove();
+      ghost.remove();
+      const rollback  = { status: item.status, actual_end_date: item.actual_end_date, start_date: item.start_date };
+      const dragPatch = _applyDragStatus(item, newStatus);
+      renderBoard();
+      document.getElementById(`card-${id}`)?.classList.add('kcard-saving');
+      _persistDragPatch(id, item, rollback, dragPatch); // not awaited — don't delay the transition on the network
+    });
+    return;
+  }
+
+  // Dropped back in the same column, moved to "done" (handled by the remarks
+  // modal below), reduced motion, or no View Transition support — spring the
+  // card back into its old slot before re-rendering.
   const gr = ghost.getBoundingClientRect();
   if (!_rm.matches) {
     el.style.transition = 'transform 0.28s cubic-bezier(0.16,1,0.3,1), box-shadow 0.28s ease';
@@ -1684,37 +1732,16 @@ async function _onDragRelease() {
   el.remove();
   ghost.remove();
 
-  if (item && newStatus && newStatus !== item.status) {
-    if (newStatus === 'done') {
-      // Re-render so the card stays visible in its current column while the remarks modal is open
-      renderBoard();
-      await moveItem(id, newStatus);
-    } else {
-      // Optimistic update: show card in the new column immediately
-      const rollback = { status: item.status, actual_end_date: item.actual_end_date, start_date: item.start_date };
-      const dragPatch = { status: newStatus, actual_end_date: null };
-      item.status = newStatus;
-      item.actual_end_date = null;
-      if ((newStatus === 'ongoing' || newStatus === 'coding') && !item.start_date) {
-        dragPatch.start_date = new Date().toISOString().slice(0, 10);
-        item.start_date = dragPatch.start_date;
-      }
-      renderBoard();
-      document.getElementById(`card-${id}`)?.classList.add('kcard-saving');
-      try {
-        const res = await fetch(`/api/dev/items/${encodeURIComponent(id)}`, {
-          method:  'PATCH',
-          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-          body:    JSON.stringify(dragPatch),
-        });
-        if (!res.ok) throw new Error((await res.json()).error || 'Failed');
-      } catch (err) {
-        Object.assign(item, rollback);
-        showToast(`Could not move card: ${err.message}`);
-      } finally {
-        renderBoard();
-      }
-    }
+  if (item && newStatus === 'done' && newStatus !== item.status) {
+    // Re-render so the card stays visible in its current column while the remarks modal is open
+    renderBoard();
+    await moveItem(id, newStatus);
+  } else if (movingColumn) {
+    const rollback  = { status: item.status, actual_end_date: item.actual_end_date, start_date: item.start_date };
+    const dragPatch = _applyDragStatus(item, newStatus);
+    renderBoard();
+    document.getElementById(`card-${id}`)?.classList.add('kcard-saving');
+    await _persistDragPatch(id, item, rollback, dragPatch);
   } else {
     renderBoard();
   }
@@ -2348,7 +2375,14 @@ function openAddSystemModal() {
   document.getElementById('addSysFormActions').style.display = '';
   document.getElementById('addSysFormLoading').style.display = 'none';
   document.getElementById('addSysFormError').style.display   = 'none';
-  toggleNewSysWip(false);
+
+  _addSystemFromEpic = !!document.getElementById('epicDetailModal')?.classList.contains('open');
+  const wipCb = document.getElementById('newSysIsWip');
+  wipCb.checked  = _addSystemFromEpic;
+  wipCb.disabled = _addSystemFromEpic;
+  document.getElementById('newSysWipAutoHint').style.display = _addSystemFromEpic ? '' : 'none';
+  toggleNewSysWip(_addSystemFromEpic);
+
   document.getElementById('addSystemModal').classList.add('open');
 }
 
@@ -2362,6 +2396,8 @@ function toggleNewSysWip(isWip) {
 
 function closeAddSystemModal() {
   document.getElementById('addSystemModal').classList.remove('open');
+  document.getElementById('newSysIsWip').disabled = false;
+  _addSystemFromEpic = false;
 }
 
 function overlayCloseAddSystem(e) {
@@ -2379,7 +2415,7 @@ async function saveNewSystem(e) {
   const backupLabel  = document.getElementById('newSysBackupLabel').value.trim() || null;
   const sortOrder    = parseInt(document.getElementById('newSysSortOrder').value, 10) || 0;
   const isVisible    = document.getElementById('newSysIsVisible').checked;
-  const isWip        = document.getElementById('newSysIsWip').checked;
+  const isWip        = _addSystemFromEpic || document.getElementById('newSysIsWip').checked;
 
   if (!id || !name) {
     document.getElementById('addSysFormError').style.display = '';
@@ -4452,7 +4488,7 @@ function _initEpicCommentAvatar() {
 function _renderCommentAttachments(urls) {
   if (!urls || !urls.length) return '';
   return `<div class="comment-attach-grid">${urls.map(u =>
-    `<a href="${escHtml(u)}" target="_blank" rel="noopener" class="comment-attach-thumb"><img src="${escHtml(u)}" alt="attachment" loading="lazy"></a>`
+    `<button type="button" class="comment-attach-thumb" onclick="openImageLightbox('${escHtml(u)}')"><img src="${escHtml(u)}" alt="attachment" loading="lazy"></button>`
   ).join('')}</div>`;
 }
 

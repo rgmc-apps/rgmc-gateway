@@ -35,6 +35,13 @@ def index():
     )
 
 
+@public_bp.get("/api/systems")
+def get_systems():
+    """Full systems list for the global search widget — same data index.html
+    already embeds inline as ALL_SITES, exposed as JSON for every other page."""
+    return jsonify(get_sites())
+
+
 @public_bp.get("/report-issue")
 def report_issue_page():
     return render_template("report_issue.html")

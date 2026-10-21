@@ -592,6 +592,9 @@ function applySession(session) {
 
   // 11. Load My Active Work panel
   loadMyWork(session);
+
+  // 12. Load Developer Status sidebar widget (developers/admins only)
+  loadDevStatus(session);
 }
 
 /* ── My Active Work panel ─────────────────────────────────────────────────── */
@@ -969,6 +972,99 @@ function buildAccessPanel(session) {
     </div>`;
 
   requestAnimationFrame(() => panel.classList.add('ap-ready'));
+}
+
+/* ── Developer Status (compact sidebar widget) ── */
+
+const _DSP_LEVEL_LABEL = { idle: 'Idle', busy: 'Busy', verybusy: 'Very Busy' };
+const _DSP_LEVEL_COLOR = { idle: '#6b7280', busy: '#f59e0b', verybusy: '#ef4444' };
+
+function _dspWorkloadLevel(count) {
+  if (count === 0) return 'idle';
+  if (count <= 3)  return 'busy';
+  return 'verybusy';
+}
+
+async function loadDevStatus(session) {
+  const panel = document.getElementById('devStatusPanel');
+  if (!panel || !session?.username) return;
+
+  // Same gate as the Dev Board / Dev Items endpoints (is_developer or is_admin)
+  if (!(session.isDeveloper || session.isAdmin)) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  const headers = { 'X-Gateway-Username': session.username };
+  const [membersRes, itemsRes] = await Promise.allSettled([
+    fetch('/api/dev/members', { headers }),
+    fetch('/api/dev/items',   { headers }),
+  ]);
+
+  const members = membersRes.status === 'fulfilled' && membersRes.value?.ok
+    ? await membersRes.value.json().catch(() => []) : [];
+  const items = itemsRes.status === 'fulfilled' && itemsRes.value?.ok
+    ? await itemsRes.value.json().catch(() => []) : [];
+
+  if (!Array.isArray(members) || !members.length) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  const activeCounts = {};
+  (Array.isArray(items) ? items : []).forEach(it => {
+    if (it.status === 'done' || !it.assigned_to) return;
+    activeCounts[it.assigned_to] = (activeCounts[it.assigned_to] || 0) + 1;
+  });
+
+  const devs = members.map(m => {
+    const count = activeCounts[m.username] || 0;
+    return {
+      name:  m.display_name || [m.first_name, m.last_name].filter(Boolean).join(' ') || m.username,
+      count,
+      level: _dspWorkloadLevel(count),
+    };
+  }).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+  const summary = { idle: 0, busy: 0, verybusy: 0 };
+  devs.forEach(d => summary[d.level]++);
+
+  const summaryHtml = ['idle', 'busy', 'verybusy'].map(level => `
+    <span class="dsp-summary-chip">
+      <span class="dsp-dot" style="background:${_DSP_LEVEL_COLOR[level]}"></span>${_DSP_LEVEL_LABEL[level]} <b>${summary[level]}</b>
+    </span>`).join('');
+
+  const rowsHtml = devs.map(d => `
+    <div class="dsp-dev-row" title="${escapeHtml(d.name)} — ${_DSP_LEVEL_LABEL[d.level]} (${d.count} active dev item${d.count === 1 ? '' : 's'})">
+      <span class="dsp-dev-dot" style="background:${_DSP_LEVEL_COLOR[d.level]}"></span>
+      <span class="dsp-dev-name">${escapeHtml(d.name)}</span>
+      <span class="dsp-dev-count">${d.count}</span>
+    </div>`).join('');
+
+  const svgPeople = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+
+  panel.innerHTML = `
+    <div class="dsp-gold-bar"></div>
+    <div class="dsp-inner">
+      <div class="dsp-header">
+        <div class="dsp-icon">${svgPeople}</div>
+        <div class="dsp-header-text">
+          <div class="dsp-title">Developer Status</div>
+          <div class="dsp-subtitle">Team workload</div>
+        </div>
+      </div>
+      <div class="dsp-divider"></div>
+      <div class="dsp-section">
+        <div class="dsp-summary-row">${summaryHtml}</div>
+      </div>
+      <div class="dsp-divider"></div>
+      <div class="dsp-section dsp-list-section">
+        <div class="dsp-list">${rowsHtml}</div>
+      </div>
+    </div>`;
+
+  panel.style.display = '';
+  requestAnimationFrame(() => panel.classList.add('dsp-ready'));
 }
 
 /* ── Changelog ── */

@@ -38,6 +38,30 @@ def _display_name_for(username: str) -> str:
     return username
 
 
+def _sync_system_wip_from_epics(system_ids) -> None:
+    """For each system id, clear its WIP flag once every epic linked to it is Done.
+
+    Systems created from the epic "New System" modal start out as WIP (see
+    dev_create_system). This closes the loop: once all epics referencing a
+    system reach epic_status 'done', the system is no longer "work in progress".
+    """
+    for sid in (system_ids or []):
+        if not sid:
+            continue
+        try:
+            linked_epics = supabase_req("GET", "/epics", params={
+                "system_ids": f"cs.{{{sid}}}",
+                "select":     "epic_status",
+            }) or []
+            if linked_epics and all(e.get("epic_status") == "done" for e in linked_epics):
+                supabase_req("PATCH", "/systems", data={"is_wip": False}, params={
+                    "id":     f"eq.{sid}",
+                    "is_wip": "eq.true",
+                })
+        except Exception as exc:
+            current_app.logger.warning("_sync_system_wip_from_epics failed for system %s: %s", sid, exc)
+
+
 @developer_bp.get("/developer")
 def developer_page():
     return render_template("developer.html")
@@ -409,6 +433,7 @@ def dev_update_item(item_id):
                                     "username": dev_username,
                                     "comment":  f'All dev items completed — epic "{epic_name}" automatically marked as Done.',
                                 })
+                                _sync_system_wip_from_epics(updated_epic[0].get("system_ids"))
                         except Exception as exc:
                             current_app.logger.error("dev_update_item epic auto-done failed: %s", exc)
 
@@ -837,6 +862,8 @@ def dev_update_epic(epic_id):
     patch["date_modified"] = datetime.now(timezone.utc).isoformat()
     try:
         rows = supabase_req("PATCH", "/epics", data=patch, params={"epic_id": f"eq.{epic_id}"})
+        if rows and patch.get("epic_status") == "done":
+            _sync_system_wip_from_epics(rows[0].get("system_ids"))
         return jsonify(rows[0] if rows else {})
     except Exception as exc:
         current_app.logger.error("dev_update_epic failed: %s", exc)

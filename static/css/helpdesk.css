@@ -589,6 +589,9 @@
   overflow: hidden;
   border: 1px solid var(--border);
   flex-shrink: 0;
+  padding: 0;
+  background: none;
+  cursor: zoom-in;
 }
 .comment-attach-thumb img {
   width: 100%;
