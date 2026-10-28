@@ -86,9 +86,11 @@
           <div class="form-row">
             <!-- Impact -->
             <div class="form-group">
-              <label class="form-label" for="ghBusinessImpact">How much is this affecting work?</label>
-              <select class="form-input" id="ghBusinessImpact" name="business_impact" onchange="ghComputePriority()">
-                <option value="">— Choose one —</option>
+              <label class="form-label" for="ghBusinessImpact">How much is this affecting work?
+                <span class="form-label-hint">(set automatically from Type of Request)</span>
+              </label>
+              <select class="form-input" id="ghBusinessImpact" name="business_impact" onchange="ghComputePriority()" disabled>
+                <option value="">— Select a type of request first —</option>
                 <option value="high">Affects the whole company or multiple teams</option>
                 <option value="medium">Affects my department or team</option>
                 <option value="low">Affects only me</option>
@@ -96,9 +98,11 @@
             </div>
             <!-- Urgency -->
             <div class="form-group">
-              <label class="form-label" for="ghUrgency">How soon does this need attention?</label>
-              <select class="form-input" id="ghUrgency" name="urgency" onchange="ghComputePriority()">
-                <option value="">— Choose one —</option>
+              <label class="form-label" for="ghUrgency">How soon does this need attention?
+                <span class="form-label-hint">(set automatically from Type of Request)</span>
+              </label>
+              <select class="form-input" id="ghUrgency" name="urgency" onchange="ghComputePriority()" disabled>
+                <option value="">— Select a type of request first —</option>
                 <option value="high">Right away — cannot continue without this</option>
                 <option value="medium">As soon as possible — but I can manage for now</option>
                 <option value="low">Whenever possible — it can wait</option>
@@ -120,52 +124,7 @@
 
           <hr class="hd-divider">
 
-          <!-- ── SECTION 3: About You ──────────────────────────── -->
-          <div class="hd-section-label">About You</div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label" for="ghName">Full Name <span class="required">*</span></label>
-              <input class="form-input" type="text" id="ghName" name="employee_name"
-                placeholder="Juan dela Cruz" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="ghEmail">Email Address <span class="required">*</span></label>
-              <input class="form-input" type="email" id="ghEmail" name="email"
-                placeholder="you@rgmcgroup.com" required>
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label" for="ghPhone">Viber / Phone Number <span class="required">*</span></label>
-              <input class="form-input" type="tel" id="ghPhone" name="viber_number"
-                placeholder="+63 9XX XXX XXXX" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="ghCompany">Company <span class="required">*</span></label>
-              <select class="form-input" id="ghCompany" name="company_name" required>
-                <option value="" disabled selected>Select your company…</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-group form-group-full">
-            <label class="form-label" for="ghDepartment">Your Department
-              <span class="form-label-hint">(optional)</span>
-            </label>
-            <select class="form-input" id="ghDepartment" name="department" onchange="ghOnUserDeptChange()">
-              <option value="">— Select your department —</option>
-            </select>
-            <div id="ghDepartment-other-wrap" style="display:none;margin-top:8px;">
-              <input class="form-input" type="text" id="ghDepartment-other-input"
-                placeholder="Please specify your department…" autocomplete="off">
-            </div>
-          </div>
-
-          <hr class="hd-divider">
-
-          <!-- ── SECTION 4: Details of Your Concern ───────────── -->
+          <!-- ── SECTION 3: Details of Your Concern ───────────── -->
           <div class="hd-section-label">Details of Your Concern</div>
 
           <div class="form-row">
@@ -192,7 +151,7 @@
             <label class="form-label" for="ghRequestType">Type of Request
               <span class="form-label-hint">(optional)</span>
             </label>
-            <select class="form-input" id="ghRequestType" name="request_type_name" disabled>
+            <select class="form-input" id="ghRequestType" name="request_type_name" disabled onchange="ghOnRequestTypeChange()">
               <option value="">— Select a category first —</option>
             </select>
           </div>
@@ -234,6 +193,51 @@
               </div>
             </div>
             <div class="hd-file-previews" id="ghFilePreviews" style="display:none;"></div>
+          </div>
+
+          <hr class="hd-divider">
+
+          <!-- ── SECTION 4: About You ──────────────────────────── -->
+          <div class="hd-section-label">About You</div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="ghName">Full Name <span class="required">*</span></label>
+              <input class="form-input" type="text" id="ghName" name="employee_name"
+                placeholder="Juan dela Cruz" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="ghEmail">Email Address <span class="required">*</span></label>
+              <input class="form-input" type="email" id="ghEmail" name="email"
+                placeholder="you@rgmcgroup.com" required>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="ghPhone">Viber / Phone Number <span class="required">*</span></label>
+              <input class="form-input" type="tel" id="ghPhone" name="viber_number"
+                placeholder="+63 9XX XXX XXXX" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="ghCompany">Company <span class="required">*</span></label>
+              <select class="form-input" id="ghCompany" name="company_name" required>
+                <option value="" disabled selected>Select your company…</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group form-group-full">
+            <label class="form-label" for="ghDepartment">Your Department
+              <span class="form-label-hint">(optional)</span>
+            </label>
+            <select class="form-input" id="ghDepartment" name="department" onchange="ghOnUserDeptChange()">
+              <option value="">— Select your department —</option>
+            </select>
+            <div id="ghDepartment-other-wrap" style="display:none;margin-top:8px;">
+              <input class="form-input" type="text" id="ghDepartment-other-input"
+                placeholder="Please specify your department…" autocomplete="off">
+            </div>
           </div>
 
           <!-- Actions -->

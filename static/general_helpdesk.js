@@ -242,6 +242,20 @@ async function _loadCategories(group = '') {
   } catch { /* non-fatal */ }
 }
 
+let _ghTypeDefaults = {};
+
+function ghSetImpactUrgency(businessImpact, urgency) {
+  document.getElementById('ghBusinessImpact').value = businessImpact || '';
+  document.getElementById('ghUrgency').value        = urgency || '';
+  ghComputePriority();
+}
+
+function ghOnRequestTypeChange() {
+  const typeSel  = document.getElementById('ghRequestType');
+  const defaults = _ghTypeDefaults[typeSel.value];
+  ghSetImpactUrgency(defaults?.business_impact, defaults?.urgency);
+}
+
 async function ghOnCategoryChange() {
   const catSel    = document.getElementById('ghCategory');
   const category  = catSel.value;
@@ -250,6 +264,8 @@ async function ghOnCategoryChange() {
 
   typeSel.innerHTML = '<option value="">Loading…</option>';
   typeSel.disabled  = true;
+  _ghTypeDefaults = {};
+  ghSetImpactUrgency('', '');
 
   if (!category) {
     typeSel.innerHTML       = '<option value="">— Select a category first —</option>';
@@ -279,6 +295,7 @@ async function ghOnCategoryChange() {
     opt.value = item.request_type;
     opt.textContent = item.request_type;
     typeSel.appendChild(opt);
+    _ghTypeDefaults[item.request_type] = { business_impact: item.business_impact, urgency: item.urgency };
   });
   typeSel.disabled        = items.length === 0;
   typeGroup.style.display = items.length > 0 ? '' : 'none';
@@ -403,6 +420,8 @@ async function ghSubmit(e) {
 
   const resolvedDept = await deptOtherResolve('ghDepartment', 'ghDepartment-other-input');
   fd.set('department', resolvedDept);
+  fd.set('business_impact', document.getElementById('ghBusinessImpact').value);
+  fd.set('urgency', document.getElementById('ghUrgency').value);
 
   try {
     const res  = await fetch('/api/general-helpdesk', { method: 'POST', body: fd });

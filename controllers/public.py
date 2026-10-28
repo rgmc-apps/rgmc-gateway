@@ -134,7 +134,7 @@ def get_helpdesk_request_types():
         "request_category": f"eq.{category}",
         "is_visible":       "eq.true",
         "order":            "id.asc",
-        "select":           "id,request_type",
+        "select":           "id,request_type,business_impact,urgency",
     })
     return jsonify(rows or [])
 
@@ -184,7 +184,7 @@ def get_general_helpdesk_request_types():
         "request_category": f"eq.{category}",
         "is_visible":       "eq.true",
         "order":            "id.asc",
-        "select":           "id,request_type",
+        "select":           "id,request_type,business_impact,urgency",
     })
     return jsonify(rows or [])
 

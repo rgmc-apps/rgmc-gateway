@@ -1092,7 +1092,7 @@ const CMD_ACTIONS = [
   { id: 'view-epics',     section: 'Views',    label: 'Epics',          desc: 'Switch to epics view',          icon: 'epics',     action: () => setViewMode('epics') },
   { id: 'create-item',    section: 'Actions',  label: 'New Dev Item',   desc: 'Create a new dev item',         icon: 'add',       action: () => openDetailModal(null) },
   { id: 'filter-all',     section: 'Filters',  label: 'All Items',      desc: 'Show all dev items',            icon: 'filter',    action: () => setFilter('all') },
-  { id: 'filter-mine',    section: 'Filters',  label: 'My Issues',      desc: 'Show only items assigned to you', icon: 'user',   action: () => setFilter('mine') },
+  { id: 'filter-mine',    section: 'Filters',  label: 'My Issues',      desc: 'Show items assigned to or filed by you', icon: 'user',   action: () => setFilter('mine') },
   { id: 'nav-portal',     section: 'Navigate', label: 'Portal',         desc: 'Go back to main portal',        icon: 'portal',    action: () => { location.href = '/'; } },
   { id: 'nav-profile',    section: 'Navigate', label: 'My Profile',     desc: 'View and edit your profile',    icon: 'user',      action: () => { location.href = '/profile'; } },
   { id: 'nav-signout',    section: 'Navigate', label: 'Sign Out',       desc: 'Sign out of your account',      icon: 'signout',   action: () => devSignOut() },
@@ -1360,7 +1360,7 @@ function renderBoard() {
   const counts      = {};
   const colItemsMap = {};
   const me      = loadSession()?.username || '';
-  const visible = (_filter === 'mine' ? _items.filter(i => i.assigned_to === me) : _items).filter(i => !i.is_parked);
+  const visible = (_filter === 'mine' ? _items.filter(i => i.assigned_to === me || i.created_by === me) : _items).filter(i => !i.is_parked);
 
   STATUSES.forEach(status => {
     const col  = document.getElementById(`cards-${status}`);
@@ -1395,7 +1395,7 @@ function renderBoard() {
       ? items.map((item, idx) => renderCard(item, idx)).join('')
       : `<div class="kanban-empty">
            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
-           ${_filter === 'mine' ? 'None assigned to you' : 'No items'}
+           ${_filter === 'mine' ? 'None assigned to or filed by you' : 'No items'}
          </div>`;
     // Restore ambient canvas (innerHTML removes it)
     if (_ambiences[status]) col.prepend(_ambiences[status].canvas);
@@ -2576,7 +2576,7 @@ function sortListBy(col) {
 
 function _getListItems() {
   const me = loadSession()?.username || '';
-  let items = _filter === 'mine' ? _items.filter(i => i.assigned_to === me) : _items.slice();
+  let items = _filter === 'mine' ? _items.filter(i => i.assigned_to === me || i.created_by === me) : _items.slice();
 
   const search  = (document.getElementById('listSearch')?.value       || '').toLowerCase().trim();
   const statusF = document.getElementById('listStatusFilter')?.value  || '';
@@ -2701,7 +2701,7 @@ function renderListView() {
   const typeF     = document.getElementById('listTypeFilter')?.value  || '';
   const devF      = document.getElementById('listDevFilter')?.value   || '';
   const sysF      = document.getElementById('listSysFilter')?.value   || '';
-  let parked = (_filter === 'mine' ? _items.filter(i => i.assigned_to === me) : _items.slice())
+  let parked = (_filter === 'mine' ? _items.filter(i => i.assigned_to === me || i.created_by === me) : _items.slice())
     .filter(i => i.is_parked);
   if (searchVal) parked = parked.filter(i =>
     (i.title || '').toLowerCase().includes(searchVal) ||
@@ -2839,7 +2839,7 @@ function renderListView() {
 function renderAnalytics() {
   if (_viewMode !== 'analytics') return;
   const me    = loadSession()?.username || '';
-  const items = _filter === 'mine' ? _items.filter(i => i.assigned_to === me) : _items;
+  const items = _filter === 'mine' ? _items.filter(i => i.assigned_to === me || i.created_by === me) : _items;
   _renderAnaKpis(items);
   _renderAnaTypeChart(items);
   _renderAnaAgingChart(items);

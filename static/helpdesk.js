@@ -276,6 +276,19 @@ async function _loadCategories() {
 
 const HD_SOFTWARE_CATEGORY = 'Software/Application';
 let _hdSoftwareSuggestions = [];
+let _hdTypeDefaults = {};
+
+function hdSetImpactUrgency(businessImpact, urgency) {
+  document.getElementById('hdBusinessImpact').value = businessImpact || '';
+  document.getElementById('hdUrgency').value        = urgency || '';
+  hdComputePriority();
+}
+
+function hdOnRequestTypeChange() {
+  const typeSel  = document.getElementById('hdRequestType');
+  const defaults = _hdTypeDefaults[typeSel.value];
+  hdSetImpactUrgency(defaults?.business_impact, defaults?.urgency);
+}
 
 async function hdOnCategoryChange() {
   const category  = document.getElementById('hdCategory').value;
@@ -289,6 +302,8 @@ async function hdOnCategoryChange() {
   subSel.disabled  = true;
   typeSel.innerHTML = '<option value="">Loading…</option>';
   typeSel.disabled  = true;
+  _hdTypeDefaults = {};
+  hdSetImpactUrgency('', '');
 
   if (!category) {
     subSel.innerHTML  = '<option value="">— Select category first —</option>';
@@ -328,6 +343,7 @@ async function hdOnCategoryChange() {
     opt.value = item.request_type;
     opt.textContent = item.request_type;
     typeSel.appendChild(opt);
+    _hdTypeDefaults[item.request_type] = { business_impact: item.business_impact, urgency: item.urgency };
   });
   typeSel.disabled = typeItems.length === 0;
 }
@@ -493,6 +509,8 @@ async function hdSubmit(e) {
   const resolvedDept = await deptOtherResolve('hdDepartment', 'hdDepartment-other-input');
   fd.set('department', resolvedDept);
   fd.set('request_subcategory', hdGetSubcategoryValue());
+  fd.set('business_impact', document.getElementById('hdBusinessImpact').value);
+  fd.set('urgency', document.getElementById('hdUrgency').value);
 
   try {
     const res  = await fetch('/api/helpdesk', { method: 'POST', body: fd });

@@ -587,6 +587,8 @@ def config_create_request_type():
         "request_category": cat,
         "request_type":     typ,
         "is_visible":       bool(data.get("is_visible", True)),
+        "business_impact":  str(data.get("business_impact", "")).strip() or None,
+        "urgency":          str(data.get("urgency", "")).strip() or None,
     }
     try:
         rows = supabase_req("POST", "/request_type", data=payload,
@@ -611,6 +613,8 @@ def config_update_request_type(type_id):
     if "request_category" in data: patch["request_category"] = str(data["request_category"]).strip()
     if "request_type"     in data: patch["request_type"]     = str(data["request_type"]).strip()
     if "is_visible"       in data: patch["is_visible"]       = bool(data["is_visible"])
+    if "business_impact"  in data: patch["business_impact"]  = str(data["business_impact"]).strip() or None
+    if "urgency"          in data: patch["urgency"]          = str(data["urgency"]).strip() or None
     if not patch:
         return jsonify({"error": "Nothing to update"}), 400
     try:

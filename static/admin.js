@@ -5676,12 +5676,14 @@ function _renderCfgTypes() {
   }
   wrap.innerHTML = `
     <table class="admin-table">
-      <thead><tr><th>ID</th><th>Category</th><th>Request Type</th><th>Visible</th><th></th></tr></thead>
+      <thead><tr><th>ID</th><th>Category</th><th>Request Type</th><th>Business Impact</th><th>Urgency</th><th>Visible</th><th></th></tr></thead>
       <tbody>${_cfgTypesCache.map(t => `
         <tr>
           <td><code class="mono-val">${t.id}</code></td>
           <td>${escHtml(t.request_category)}</td>
           <td>${escHtml(t.request_type)}</td>
+          <td>${t.business_impact ? escHtml(t.business_impact) : '—'}</td>
+          <td>${t.urgency ? escHtml(t.urgency) : '—'}</td>
           <td>${t.is_visible !== false ? '<span class="badge-visible">Visible</span>' : '<span class="badge-hidden">Hidden</span>'}</td>
           <td class="action-cell">
             <button class="btn-tbl-secondary" onclick='openCfgTypeModal(${JSON.stringify(t)})'>Edit</button>
@@ -5709,6 +5711,8 @@ async function openCfgTypeModal(type) {
     ).join('');
 
   document.getElementById('cfgTypeRequestType').value = type?.request_type ?? '';
+  document.getElementById('cfgTypeBusinessImpact').value = type?.business_impact ?? '';
+  document.getElementById('cfgTypeUrgency').value        = type?.urgency ?? '';
   document.getElementById('cfgTypeVisible').checked   = type ? (type.is_visible !== false) : true;
   _resetCfgModal('cfgType');
   document.getElementById('cfgTypeModal').classList.add('open');
@@ -5727,23 +5731,29 @@ function overlayCfgType(e) {
 
 async function saveCfgType(e) {
   e.preventDefault();
-  const category    = document.getElementById('cfgTypeCategory').value;
-  const requestType = document.getElementById('cfgTypeRequestType').value.trim();
-  const isVisible   = document.getElementById('cfgTypeVisible').checked;
+  const category       = document.getElementById('cfgTypeCategory').value;
+  const requestType    = document.getElementById('cfgTypeRequestType').value.trim();
+  const businessImpact = document.getElementById('cfgTypeBusinessImpact').value;
+  const urgency        = document.getElementById('cfgTypeUrgency').value;
+  const isVisible      = document.getElementById('cfgTypeVisible').checked;
   if (!category)    { _showCfgError('cfgType', 'Category is required.'); return; }
   if (!requestType) { _showCfgError('cfgType', 'Request Type name is required.'); return; }
   _setCfgLoading('cfgType', true);
+  const body = JSON.stringify({
+    request_category: category, request_type: requestType, is_visible: isVisible,
+    business_impact: businessImpact, urgency: urgency,
+  });
   try {
     let res;
     if (_cfgTypeEditId) {
       res = await fetch(`/api/admin/config/request-types/${_cfgTypeEditId}`, {
         method: 'PATCH', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ request_category: category, request_type: requestType, is_visible: isVisible }),
+        body,
       });
     } else {
       res = await fetch('/api/admin/config/request-types', {
         method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ request_category: category, request_type: requestType, is_visible: isVisible }),
+        body,
       });
     }
     if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
