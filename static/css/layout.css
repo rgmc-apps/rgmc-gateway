@@ -83,14 +83,7 @@
   padding: 110px 32px 88px;
 }
 
-/* ── Portal Layout (content + sidebar) ── */
-.portal-layout {
-  display: grid;
-  grid-template-columns: 1fr 252px;
-  gap: 28px;
-  align-items: start;
-}
-
+/* ── Portal Layout ── */
 .portal-content {
   display: flex;
   flex-direction: column;
@@ -98,19 +91,64 @@
   min-width: 0;
 }
 
-/* ── Sidebar stack (access panel + dev status, right column) ──
-   The whole stack is the sticky unit (not just the first card) — sticking
-   only .access-panel let it ride over .dev-status-panel while scrolling,
-   since both shared one containing block but only one of them moved with
-   the viewport. Pinning the flex container keeps their relative position
-   fixed, so they scroll and release together with no overlap. */
-.portal-sidebar {
+/* ── Portal Tabs (Systems / Recent Changes / Your Access) ── */
+.gw-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: -8px;
+}
+
+.gw-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 4px 14px;
+  margin-right: 26px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  cursor: pointer;
+  position: relative;
+  top: 1px;
+  transition: color 0.22s var(--ease), border-color 0.22s var(--ease);
+}
+.gw-tab svg { opacity: 0.55; transition: opacity 0.22s var(--ease); flex-shrink: 0; }
+.gw-tab:hover { color: var(--text-secondary); }
+.gw-tab:hover svg { opacity: 0.8; }
+.gw-tab.active { color: var(--gold-light); border-bottom-color: var(--gold); }
+.gw-tab.active svg { opacity: 1; color: var(--gold); }
+
+.gw-tab-panel {
   display: flex;
   flex-direction: column;
+  gap: 36px;
+  animation: gwTabIn 0.32s var(--ease-spring) both;
+}
+
+@keyframes gwTabIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Your Access tab: access panel + dev status side by side ── */
+.gw-access-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 18px;
-  position: sticky;
-  top: 94px;
-  align-self: start;
+}
+.gw-access-grid .access-panel,
+.gw-access-grid .dev-status-panel {
+  flex: 1 1 300px;
+  max-width: 380px;
 }
 
 /* ── Access Panel ── */
@@ -537,16 +575,6 @@ a.ap-feature:hover { background: rgba(255,255,255,0.04); }
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
-}
-
-/* Responsive — hide sidebar below 900px */
-@media (max-width: 900px) {
-  .portal-layout {
-    grid-template-columns: 1fr;
-  }
-  .portal-sidebar {
-    display: none;
-  }
 }
 
 /* ── Section ── */

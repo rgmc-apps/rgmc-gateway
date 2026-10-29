@@ -35,7 +35,6 @@
 
   <!-- Main (hidden until authenticated) -->
   <main class="main" id="mainContent" style="visibility:hidden">
-  <div class="portal-layout">
   <div class="portal-content">
 
     <!-- My Active Work -->
@@ -50,6 +49,24 @@
         <!-- populated by JS -->
       </div>
     </section>
+
+    <!-- Portal Tabs -->
+    <nav class="gw-tabs" role="tablist" aria-label="Portal sections">
+      <button type="button" class="gw-tab active" id="gwTabBtn-systems" role="tab" aria-selected="true" aria-controls="gwTabPanel-systems" onclick="switchPortalTab('systems')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Systems
+      </button>
+      <button type="button" class="gw-tab" id="gwTabBtn-changes" role="tab" aria-selected="false" aria-controls="gwTabPanel-changes" onclick="switchPortalTab('changes')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>
+        Recent Changes
+      </button>
+      <button type="button" class="gw-tab" id="gwTabBtn-access" role="tab" aria-selected="false" aria-controls="gwTabPanel-access" onclick="switchPortalTab('access')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Your Access
+      </button>
+    </nav>
+
+    <div class="gw-tab-panel" id="gwTabPanel-systems" role="tabpanel" aria-labelledby="gwTabBtn-systems">
 
     <!-- View Toggle -->
     <div class="view-toggle-bar">
@@ -333,6 +350,10 @@
       </div><!-- /sb-health -->
     </section>
 
+    </div><!-- /gwTabPanel-systems -->
+
+    <div class="gw-tab-panel" id="gwTabPanel-changes" role="tabpanel" aria-labelledby="gwTabBtn-changes" hidden>
+
     <!-- Recent Changes / Changelog -->
     <section class="section changelog-section" id="changelogSection" data-sec="changelog" style="display:none">
       <div class="section-label" id="changelogLabel">
@@ -372,12 +393,16 @@
       </div><!-- /sb-changelog -->
     </section>
 
+    </div><!-- /gwTabPanel-changes -->
+
+    <div class="gw-tab-panel" id="gwTabPanel-access" role="tabpanel" aria-labelledby="gwTabBtn-access" hidden>
+      <div class="gw-access-grid">
+        <aside class="access-panel" id="accessPanel" aria-label="Your access overview"></aside>
+        <aside class="dev-status-panel" id="devStatusPanel" aria-label="Developer status overview" style="display:none"></aside>
+      </div>
+    </div><!-- /gwTabPanel-access -->
+
   </div><!-- /portal-content -->
-  <div class="portal-sidebar">
-    <aside class="access-panel" id="accessPanel" aria-label="Your access overview"></aside>
-    <aside class="dev-status-panel" id="devStatusPanel" aria-label="Developer status overview" style="display:none"></aside>
-  </div><!-- /portal-sidebar -->
-  </div><!-- /portal-layout -->
   </main>
 
   <footer class="site-footer">

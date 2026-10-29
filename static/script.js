@@ -1892,8 +1892,32 @@ function _applySectionStates() {
   });
 }
 
+/* ── Portal Tabs ── */
+
+const _GW_TABS = ['systems', 'changes', 'access'];
+const _GW_TAB_KEY = 'rgmc-portal-tab';
+
+function switchPortalTab(name) {
+  if (!_GW_TABS.includes(name)) return;
+  _GW_TABS.forEach(t => {
+    const active = t === name;
+    const panel  = document.getElementById(`gwTabPanel-${t}`);
+    const btn    = document.getElementById(`gwTabBtn-${t}`);
+    if (panel) panel.hidden = !active;
+    if (btn) {
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-selected', String(active));
+    }
+  });
+  localStorage.setItem(_GW_TAB_KEY, name);
+}
+
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', () => {
+  // Restore last active portal tab
+  const savedTab = localStorage.getItem(_GW_TAB_KEY);
+  if (savedTab && savedTab !== 'systems') switchPortalTab(savedTab);
+
   // Check for existing session — shows gate or restores portal
   initGate();
 
