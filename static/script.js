@@ -1894,7 +1894,7 @@ function _applySectionStates() {
 
 /* ── Portal Tabs ── */
 
-const _GW_TABS = ['systems', 'changes', 'access'];
+const _GW_TABS = ['systems', 'health', 'changes', 'access'];
 const _GW_TAB_KEY = 'rgmc-portal-tab';
 
 function switchPortalTab(name) {

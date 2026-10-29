@@ -56,6 +56,10 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
         Systems
       </button>
+      <button type="button" class="gw-tab" id="gwTabBtn-health" role="tab" aria-selected="false" aria-controls="gwTabPanel-health" onclick="switchPortalTab('health')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        Health Status
+      </button>
       <button type="button" class="gw-tab" id="gwTabBtn-changes" role="tab" aria-selected="false" aria-controls="gwTabPanel-changes" onclick="switchPortalTab('changes')">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>
         Recent Changes
@@ -322,6 +326,10 @@
     </section>
     {% endif %}
 
+    </div><!-- /gwTabPanel-systems -->
+
+    <div class="gw-tab-panel" id="gwTabPanel-health" role="tabpanel" aria-labelledby="gwTabBtn-health" hidden>
+
     <!-- Health Check Section -->
     <section class="section health-section" data-sec="health">
       <div class="health-header-row">
@@ -350,7 +358,7 @@
       </div><!-- /sb-health -->
     </section>
 
-    </div><!-- /gwTabPanel-systems -->
+    </div><!-- /gwTabPanel-health -->
 
     <div class="gw-tab-panel" id="gwTabPanel-changes" role="tabpanel" aria-labelledby="gwTabBtn-changes" hidden>
 
