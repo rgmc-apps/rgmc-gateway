@@ -595,6 +595,9 @@ function applySession(session) {
 
   // 12. Load Developer Status sidebar widget (developers/admins only)
   loadDevStatus(session);
+
+  // 13. Load Issues I Filed tab
+  loadFiledIssues(session);
 }
 
 /* ── My Active Work panel ─────────────────────────────────────────────────── */
@@ -807,6 +810,62 @@ function _mwFormatDate(iso) {
   if (diff < 0) return `${Math.abs(diff)}d overdue`;
   if (diff <= 7) return `${diff}d left`;
   return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+}
+
+/* ── Issues I Filed tab ───────────────────────────────────────────────────── */
+
+async function loadFiledIssues(session) {
+  const feed    = document.getElementById('filedIssuesFeed');
+  const countEl = document.getElementById('filedIssuesCount');
+  if (!feed || !session?.username) return;
+
+  try {
+    const res    = await fetch('/api/user/issues/filed', { headers: { 'X-Gateway-Username': session.username } });
+    const data   = res.ok ? await res.json().catch(() => []) : [];
+    const issues = Array.isArray(data) ? data : [];
+
+    if (countEl) {
+      countEl.textContent   = String(issues.length);
+      countEl.style.display = issues.length ? '' : 'none';
+    }
+
+    feed.innerHTML = issues.length
+      ? issues.map(_fiEntryHtml).join('')
+      : '<div class="changelog-empty">You haven\'t filed any issues yet.</div>';
+  } catch {
+    feed.innerHTML = '<div class="changelog-empty">Couldn\'t load your filed issues.</div>';
+  }
+}
+
+function _fiEntryHtml(iss) {
+  const status   = iss.status || 'open';
+  const color    = _MW_ISSUE_STATUS_COLOR[status] || '#6b7280';
+  const label    = _MW_ISSUE_STATUS_LABEL[status] || status;
+  const title    = escapeHtml((iss.title || _clStripHtml(iss.description) || 'Untitled issue').slice(0, 120));
+  const ticket   = iss.ticket_number ? `<span class="cl-sys-pill">${escapeHtml(iss.ticket_number)}</span>` : '';
+  const category = iss.request_category || iss.ticket_type;
+  const assignee = iss.assigned_to ? `<span class="cl-assignee">→ ${escapeHtml(iss.assigned_to)}</span>` : '<span>Unassigned</span>';
+  const timeStr  = _clTimeAgo(iss.created_at);
+
+  return `
+  <div class="cl-entry">
+    <div class="cl-icon" style="background:${color}1f;color:${color}">
+      <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    </div>
+    <div class="cl-body">
+      <div class="cl-top">
+        <span class="cl-type-badge" style="background:${color}1f;color:${color};border:1px solid ${color}3d;">${escapeHtml(label)}</span>
+        ${ticket}
+        ${category ? `<span class="cl-sys-pill">${escapeHtml(category)}</span>` : ''}
+      </div>
+      <div class="cl-title" title="${title}">${title}</div>
+      <div class="cl-meta">
+        ${assignee}
+        <span class="cl-meta-sep">·</span>
+        <span>${escapeHtml(timeStr)}</span>
+      </div>
+    </div>
+  </div>`;
 }
 
 function buildAccessPanel(session) {
@@ -1894,7 +1953,7 @@ function _applySectionStates() {
 
 /* ── Portal Tabs ── */
 
-const _GW_TABS = ['systems', 'health', 'changes', 'access'];
+const _GW_TABS = ['systems', 'health', 'changes', 'filed', 'access'];
 const _GW_TAB_KEY = 'rgmc-portal-tab';
 
 function switchPortalTab(name) {
