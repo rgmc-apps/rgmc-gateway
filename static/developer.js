@@ -78,6 +78,15 @@ let _allUsersCache       = null; // raw array from /api/dev/users (every user, f
 let _addSystemFromEpic   = false; // true when "New System" was opened from inside the epic modal — forces is_wip true
 let _editingId           = null;
 let _filter              = 'all'; // 'all' | 'mine'
+
+// "My Issues" = assigned to me, or filed by me and not yet assigned to anyone
+// else. A plain `created_by === me` check (no assigned_to guard) used to also
+// match items you filed/promoted that are now assigned to someone else —
+// e.g. a dept head promoting an issue into a dev item for a developer — which
+// showed up as "mine" even though someone else owns the work now.
+function _isMyDevItem(item, me) {
+  return item.assigned_to === me || (!item.assigned_to && item.created_by === me);
+}
 let _doneRemarksCallback = null;
 let _devActionsCache     = null;
 let _devResPendingFiles  = [];
@@ -1092,7 +1101,7 @@ const CMD_ACTIONS = [
   { id: 'view-epics',     section: 'Views',    label: 'Epics',          desc: 'Switch to epics view',          icon: 'epics',     action: () => setViewMode('epics') },
   { id: 'create-item',    section: 'Actions',  label: 'New Dev Item',   desc: 'Create a new dev item',         icon: 'add',       action: () => openDetailModal(null) },
   { id: 'filter-all',     section: 'Filters',  label: 'All Items',      desc: 'Show all dev items',            icon: 'filter',    action: () => setFilter('all') },
-  { id: 'filter-mine',    section: 'Filters',  label: 'My Issues',      desc: 'Show items assigned to or filed by you', icon: 'user',   action: () => setFilter('mine') },
+  { id: 'filter-mine',    section: 'Filters',  label: 'My Issues',      desc: 'Show items assigned to you, or unassigned items you filed', icon: 'user',   action: () => setFilter('mine') },
   { id: 'nav-portal',     section: 'Navigate', label: 'Portal',         desc: 'Go back to main portal',        icon: 'portal',    action: () => { location.href = '/'; } },
   { id: 'nav-profile',    section: 'Navigate', label: 'My Profile',     desc: 'View and edit your profile',    icon: 'user',      action: () => { location.href = '/profile'; } },
   { id: 'nav-signout',    section: 'Navigate', label: 'Sign Out',       desc: 'Sign out of your account',      icon: 'signout',   action: () => devSignOut() },
@@ -1360,7 +1369,7 @@ function renderBoard() {
   const counts      = {};
   const colItemsMap = {};
   const me      = loadSession()?.username || '';
-  const visible = (_filter === 'mine' ? _items.filter(i => i.assigned_to === me || i.created_by === me) : _items).filter(i => !i.is_parked);
+  const visible = (_filter === 'mine' ? _items.filter(i => _isMyDevItem(i, me)) : _items).filter(i => !i.is_parked);
 
   STATUSES.forEach(status => {
     const col  = document.getElementById(`cards-${status}`);
@@ -2576,7 +2585,7 @@ function sortListBy(col) {
 
 function _getListItems() {
   const me = loadSession()?.username || '';
-  let items = _filter === 'mine' ? _items.filter(i => i.assigned_to === me || i.created_by === me) : _items.slice();
+  let items = _filter === 'mine' ? _items.filter(i => _isMyDevItem(i, me)) : _items.slice();
 
   const search  = (document.getElementById('listSearch')?.value       || '').toLowerCase().trim();
   const statusF = document.getElementById('listStatusFilter')?.value  || '';
@@ -2701,7 +2710,7 @@ function renderListView() {
   const typeF     = document.getElementById('listTypeFilter')?.value  || '';
   const devF      = document.getElementById('listDevFilter')?.value   || '';
   const sysF      = document.getElementById('listSysFilter')?.value   || '';
-  let parked = (_filter === 'mine' ? _items.filter(i => i.assigned_to === me || i.created_by === me) : _items.slice())
+  let parked = (_filter === 'mine' ? _items.filter(i => _isMyDevItem(i, me)) : _items.slice())
     .filter(i => i.is_parked);
   if (searchVal) parked = parked.filter(i =>
     (i.title || '').toLowerCase().includes(searchVal) ||
@@ -2839,7 +2848,7 @@ function renderListView() {
 function renderAnalytics() {
   if (_viewMode !== 'analytics') return;
   const me    = loadSession()?.username || '';
-  const items = _filter === 'mine' ? _items.filter(i => i.assigned_to === me || i.created_by === me) : _items;
+  const items = _filter === 'mine' ? _items.filter(i => _isMyDevItem(i, me)) : _items;
   _renderAnaKpis(items);
   _renderAnaTypeChart(items);
   _renderAnaAgingChart(items);
