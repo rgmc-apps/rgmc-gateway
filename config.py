@@ -17,6 +17,12 @@ GATEWAY_BASE_URL     = os.environ.get("GATEWAY_BASE_URL", "")
 IT_BOT_URL     = os.environ.get("IT_BOT_URL", "")
 IT_BOT_API_KEY = os.environ.get("IT_BOT_API_KEY", "")
 
+# Microsoft Entra Application (client) ID of the RGMC IT Bot's Azure App
+# Registration — same value as the bot's own BOT_ID env var. Used to build the
+# "Connect on MS Teams" deep link shown after a ticket is submitted, so no
+# network call to the bot is needed just to draw that button.
+IT_BOT_TEAMS_APP_ID = os.environ.get("IT_BOT_TEAMS_APP_ID", "")
+
 # GitHub OAuth App — lets developers link their GitHub account from their profile.
 # Register at: https://github.com/settings/developers → New OAuth App
 # Authorization callback URL must be: {GATEWAY_BASE_URL}/api/profile/github/callback

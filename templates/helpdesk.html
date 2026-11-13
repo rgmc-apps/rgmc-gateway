@@ -44,7 +44,7 @@
           <p class="ri-card-sub">All fields marked <span class="required">*</span> are required.</p>
         </div>
 
-        <form id="hdForm" onsubmit="hdSubmit(event)">
+        <form id="hdForm" onsubmit="hdSubmit(event)" data-teams-app-id="{{ it_bot_teams_app_id }}">
 
           <!-- ── SECTION 1: Ticket Information ─────────────────── -->
           <div class="hd-section-label">Ticket Information</div>
@@ -252,6 +252,15 @@
             </div>
           </div>
 
+          {% if it_bot_teams_app_id %}
+          <div class="form-group form-group-full">
+            <label class="ri-teams-optin-label">
+              <input type="checkbox" id="hdTeamsOptIn">
+              <span><strong>Notify me on Microsoft Teams</strong> — get a DM here whenever this ticket's status changes.</span>
+            </label>
+          </div>
+          {% endif %}
+
           <!-- Actions -->
           <div id="hdFormActions" class="ri-form-actions">
             <button type="submit" class="ri-submit-btn" id="hdSubmitBtn">
@@ -268,6 +277,10 @@
               <div id="hdSuccessMsg" style="font-weight:600;"></div>
               <div class="ri-success-sub">The IT team will be in touch shortly.</div>
             </div>
+          </div>
+          <div id="hdTeamsConnect" class="ri-teams-connect" style="display:none;">
+            <a id="hdTeamsConnectLink" href="#" target="_blank" rel="noopener" class="ri-teams-connect-btn">Connect on Microsoft Teams</a>
+            <div class="ri-teams-connect-hint">Opens a chat with the RGMC IT Bot — just hit send on the pre-filled message to start getting updates.</div>
           </div>
           <div id="hdError" class="form-state form-error" style="display:none;">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>

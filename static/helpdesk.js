@@ -501,6 +501,10 @@ async function hdSubmit(e) {
   document.getElementById('hdLoading').style.display     = 'flex';
   document.getElementById('hdSuccess').style.display     = 'none';
   document.getElementById('hdError').style.display       = 'none';
+  document.getElementById('hdTeamsConnect').style.display = 'none';
+
+  const wantsTeamsNotify = !!document.getElementById('hdTeamsOptIn')?.checked;
+  const teamsAppId       = document.getElementById('hdForm').dataset.teamsAppId;
 
   const fd = new FormData(document.getElementById('hdForm'));
   _hdFiles.forEach(f => fd.append('attachments', f));
@@ -524,6 +528,11 @@ async function hdSubmit(e) {
         ? `${baseMsg} We recognized this as a known issue (${data.matched_fix.fix_name}), so it's already linked to our fix records.`
         : baseMsg;
       document.getElementById('hdSuccess').style.display  = 'flex';
+      if (wantsTeamsNotify && teamsAppId && data.ticket_number) {
+        const msg = encodeURIComponent(`follow ${data.ticket_number}`);
+        document.getElementById('hdTeamsConnectLink').href = `https://teams.microsoft.com/l/chat/0/0?users=28:${teamsAppId}&message=${msg}`;
+        document.getElementById('hdTeamsConnect').style.display = 'flex';
+      }
       document.getElementById('hdForm').reset();
       // Reset UI state after form reset
       document.querySelectorAll('.hd-ticket-option').forEach(el => el.classList.remove('selected'));

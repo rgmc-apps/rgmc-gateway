@@ -43,7 +43,7 @@
           <p class="ri-card-sub">All fields marked <span class="required">*</span> are required.</p>
         </div>
 
-        <form id="riForm" onsubmit="riSubmit(event)">
+        <form id="riForm" onsubmit="riSubmit(event)" data-teams-app-id="{{ it_bot_teams_app_id }}">
           <input type="hidden" id="riSiteName" name="site_name">
 
           <div class="form-row">
@@ -189,6 +189,15 @@
             </div>
           </div>
 
+          {% if it_bot_teams_app_id %}
+          <div class="form-group form-group-full">
+            <label class="ri-teams-optin-label">
+              <input type="checkbox" id="riTeamsOptIn">
+              <span><strong>Notify me on Microsoft Teams</strong> — get a DM here whenever this report's status changes.</span>
+            </label>
+          </div>
+          {% endif %}
+
           <!-- Action row -->
           <div id="riFormActions" class="ri-form-actions">
             <button type="submit" class="ri-submit-btn" id="riSubmitBtn">
@@ -205,6 +214,10 @@
               <div id="riSuccessMsg" style="font-weight:600;"></div>
               <div class="ri-success-sub">The IT team will be in touch shortly.</div>
             </div>
+          </div>
+          <div id="riTeamsConnect" class="ri-teams-connect" style="display:none;">
+            <a id="riTeamsConnectLink" href="#" target="_blank" rel="noopener" class="ri-teams-connect-btn">Connect on Microsoft Teams</a>
+            <div class="ri-teams-connect-hint">Opens a chat with the RGMC IT Bot — just hit send on the pre-filled message to start getting updates.</div>
           </div>
 
           <div id="riAccountSuggestion" class="ri-account-suggestion" style="display:none;">

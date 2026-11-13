@@ -303,8 +303,12 @@ async function riSubmit(e) {
   document.getElementById('riFormActions').style.display = 'none';
   document.getElementById('riLoading').style.display     = 'flex';
   document.getElementById('riSuccess').style.display     = 'none';
+  document.getElementById('riTeamsConnect').style.display = 'none';
+
+  const wantsTeamsNotify = !!document.getElementById('riTeamsOptIn')?.checked;
 
   const form = document.getElementById('riForm');
+  const teamsAppId = form.dataset.teamsAppId;
   const fd   = new FormData(form);
 
   const fileInput = document.getElementById('riAttachments');
@@ -327,6 +331,11 @@ async function riSubmit(e) {
     if (data.success) {
       document.getElementById('riSuccessMsg').textContent = data.message || 'Your report has been submitted.';
       document.getElementById('riSuccess').style.display = 'flex';
+      if (wantsTeamsNotify && teamsAppId && data.ticket_number) {
+        const msg = encodeURIComponent(`follow ${data.ticket_number}`);
+        document.getElementById('riTeamsConnectLink').href = `https://teams.microsoft.com/l/chat/0/0?users=28:${teamsAppId}&message=${msg}`;
+        document.getElementById('riTeamsConnect').style.display = 'flex';
+      }
       document.getElementById('riAccountSuggestion').style.display = 'flex';
       form.reset();
       document.getElementById('riSiteName').value = siteName;

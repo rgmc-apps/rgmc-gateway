@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, current_app
 
-from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
+from config import SUPABASE_URL, SUPABASE_SERVICE_KEY, IT_BOT_TEAMS_APP_ID
 from services.supabase import supabase_req
 from services.email import send_helpdesk_email, send_helpdesk_confirmation_email
 from services.auto_assign import apply_auto_assignment
@@ -12,7 +12,7 @@ general_helpdesk_bp = Blueprint("general_helpdesk", __name__)
 
 @general_helpdesk_bp.get("/general-helpdesk")
 def general_helpdesk_page():
-    return render_template("general_helpdesk.html")
+    return render_template("general_helpdesk.html", it_bot_teams_app_id=IT_BOT_TEAMS_APP_ID)
 
 
 @general_helpdesk_bp.post("/api/general-helpdesk")

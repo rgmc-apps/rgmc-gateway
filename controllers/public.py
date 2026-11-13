@@ -3,7 +3,7 @@ import requests
 from datetime import datetime, timedelta, timezone
 from flask import Blueprint, render_template, jsonify, request, redirect, current_app
 
-from config import HEALTH_CHECKS, EMAIL_CONFIG
+from config import HEALTH_CHECKS, EMAIL_CONFIG, IT_BOT_TEAMS_APP_ID
 from services.sites import get_sites
 from services.supabase import supabase_req, resolve_action_names
 from services.epics import build_epic_comment_feed
@@ -44,12 +44,12 @@ def get_systems():
 
 @public_bp.get("/report-issue")
 def report_issue_page():
-    return render_template("report_issue.html")
+    return render_template("report_issue.html", it_bot_teams_app_id=IT_BOT_TEAMS_APP_ID)
 
 
 @public_bp.get("/helpdesk")
 def helpdesk_page():
-    return render_template("helpdesk.html")
+    return render_template("helpdesk.html", it_bot_teams_app_id=IT_BOT_TEAMS_APP_ID)
 
 
 @public_bp.get("/api/users/search")

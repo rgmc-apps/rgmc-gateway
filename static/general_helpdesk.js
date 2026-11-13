@@ -413,6 +413,10 @@ async function ghSubmit(e) {
   document.getElementById('ghLoading').style.display     = 'flex';
   document.getElementById('ghSuccess').style.display     = 'none';
   document.getElementById('ghError').style.display       = 'none';
+  document.getElementById('ghTeamsConnect').style.display = 'none';
+
+  const wantsTeamsNotify = !!document.getElementById('ghTeamsOptIn')?.checked;
+  const teamsAppId       = document.getElementById('ghForm').dataset.teamsAppId;
 
   const fd = new FormData(document.getElementById('ghForm'));
   _ghFiles.forEach(f => fd.append('attachments', f));
@@ -435,6 +439,11 @@ async function ghSubmit(e) {
         ? `${baseMsg} We recognized this as a known issue (${data.matched_fix.fix_name}), so it's already linked to our fix records.`
         : baseMsg;
       document.getElementById('ghSuccess').style.display  = 'flex';
+      if (wantsTeamsNotify && teamsAppId && data.ticket_number) {
+        const msg = encodeURIComponent(`follow ${data.ticket_number}`);
+        document.getElementById('ghTeamsConnectLink').href = `https://teams.microsoft.com/l/chat/0/0?users=28:${teamsAppId}&message=${msg}`;
+        document.getElementById('ghTeamsConnect').style.display = 'flex';
+      }
       document.getElementById('ghForm').reset();
       document.querySelectorAll('.hd-ticket-option').forEach(el => el.classList.remove('selected'));
       ghComputePriority();
