@@ -107,13 +107,30 @@ def get_helpdesk_subcategories():
     if not category:
         return jsonify([])
     if category == "Software/Application":
-        rows = supabase_req("GET", "/systems", params={
-            "is_visible":          "eq.true",
-            "is_helpdesk_visible": "eq.true",
-            "order":               "sort_order.asc,name.asc",
-            "select":              "id,name",
-        })
-        items = [{"value": r["id"], "label": r["name"]} for r in (rows or [])]
+        grouped = request.args.get("grouped", "").strip().lower() in ("1", "true", "yes")
+        if grouped:
+            # Helpdesk form: collapse systems down to the distinct, admin-set
+            # sub-category groupings instead of listing every system by name.
+            rows = supabase_req("GET", "/systems", params={
+                "is_visible":          "eq.true",
+                "is_helpdesk_visible": "eq.true",
+                "order":               "sort_order.asc,name.asc",
+                "select":              "system_sub_category",
+            })
+            seen, items = set(), []
+            for r in (rows or []):
+                sub = (r.get("system_sub_category") or "").strip()
+                if sub and sub not in seen:
+                    seen.add(sub)
+                    items.append({"value": sub, "label": sub})
+        else:
+            rows = supabase_req("GET", "/systems", params={
+                "is_visible":          "eq.true",
+                "is_helpdesk_visible": "eq.true",
+                "order":               "sort_order.asc,name.asc",
+                "select":              "id,name",
+            })
+            items = [{"value": r["id"], "label": r["name"]} for r in (rows or [])]
     else:
         rows = supabase_req("GET", "/non_software_items", params={
             "category":   f"eq.{category}",

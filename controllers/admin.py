@@ -330,7 +330,7 @@ def admin_update_system(system_id):
             return jsonify({"error": str(exc)}), 500
 
     data    = request.get_json(silent=True) or {}
-    allowed = {"name", "category", "primary_url", "primary_label", "backup_url", "backup_label", "sort_order", "is_visible", "is_helpdesk_visible", "is_task", "tags", "is_windows_based", "windows_launcher_url", "windows_manifest_url", "git_link"}
+    allowed = {"name", "category", "primary_url", "primary_label", "backup_url", "backup_label", "sort_order", "is_visible", "is_helpdesk_visible", "is_task", "tags", "is_windows_based", "windows_launcher_url", "windows_manifest_url", "git_link", "system_sub_category"}
     patch   = {k: v for k, v in data.items() if k in allowed}
     if not patch:
         return jsonify({"error": "No valid fields"}), 400

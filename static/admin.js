@@ -1105,6 +1105,7 @@ function openSystemModal(system) {
   document.getElementById('sysBackupUrl').value    = system?.backup_url    ?? '';
   document.getElementById('sysBackupLabel').value  = system?.backup_label  ?? '';
   document.getElementById('sysGitLink').value      = system?.git_link      ?? '';
+  document.getElementById('sysSubCategory').value  = system?.system_sub_category ?? '';
   document.getElementById('sysSortOrder').value    = system?.sort_order    ?? 0;
   document.getElementById('sysIsVisible').checked  = system ? (system.is_visible !== false) : true;
   document.getElementById('sysIsHelpdeskVisible').checked = system ? (system.is_helpdesk_visible !== false) : true;
@@ -1253,6 +1254,7 @@ async function saveSystem(e) {
   const backupUrl   = document.getElementById('sysBackupUrl').value.trim() || null;
   const backupLabel = document.getElementById('sysBackupLabel').value.trim() || null;
   const gitLink     = document.getElementById('sysGitLink').value.trim() || null;
+  const subCategory = document.getElementById('sysSubCategory').value.trim() || null;
   const sortOrder   = parseInt(document.getElementById('sysSortOrder').value, 10) || 0;
   const isVisible   = document.getElementById('sysIsVisible').checked;
   const isHelpdeskVisible = document.getElementById('sysIsHelpdeskVisible').checked;
@@ -1274,7 +1276,7 @@ async function saveSystem(e) {
   document.getElementById('sysFormActions').style.display = 'none';
   document.getElementById('sysFormLoading').style.display = '';
 
-  const payload = { name, category, is_task: isTask, is_windows_based: isWindows, primary_url: primaryUrl, primary_label: primaryLabel, backup_url: backupUrl, backup_label: backupLabel, git_link: gitLink, sort_order: sortOrder, is_visible: isVisible, is_helpdesk_visible: isHelpdeskVisible, tags };
+  const payload = { name, category, is_task: isTask, is_windows_based: isWindows, primary_url: primaryUrl, primary_label: primaryLabel, backup_url: backupUrl, backup_label: backupLabel, git_link: gitLink, system_sub_category: subCategory, sort_order: sortOrder, is_visible: isVisible, is_helpdesk_visible: isHelpdeskVisible, tags };
 
   try {
     let res, savedId;

@@ -350,7 +350,7 @@ waitress-serve --port=8000 app:app
 | `GET` | `/api/companies` | List all companies |
 | `GET` | `/api/departments` | List active departments |
 | `GET` | `/api/helpdesk/categories` | IT helpdesk categories (group=IT) |
-| `GET` | `/api/helpdesk/subcategories?category=<name>` | Subcategories or systems for a category |
+| `GET` | `/api/helpdesk/subcategories?category=<name>` | Subcategories or systems for a category (add `&grouped=true` for Software/Application to get distinct `system_sub_category` groups instead of individual systems) |
 | `GET` | `/api/helpdesk/request-types?category=<name>` | Request types for a category |
 | `GET` | `/api/general-helpdesk/categories` | Non-IT helpdesk categories |
 | `GET` | `/api/general-helpdesk/request-types?category=<name>` | Request types for non-IT category |
