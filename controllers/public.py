@@ -109,20 +109,22 @@ def get_helpdesk_subcategories():
     if category == "Software/Application":
         grouped = request.args.get("grouped", "").strip().lower() in ("1", "true", "yes")
         if grouped:
-            # Helpdesk form: collapse systems down to the distinct, admin-set
-            # sub-category groupings instead of listing every system by name.
+            # Helpdesk form: collapse systems down to their admin-set
+            # sub-category groupings, falling back to the exact system name
+            # for any system that hasn't been assigned a sub-category yet —
+            # so every visible system contributes something selectable.
             rows = supabase_req("GET", "/systems", params={
                 "is_visible":          "eq.true",
                 "is_helpdesk_visible": "eq.true",
                 "order":               "sort_order.asc,name.asc",
-                "select":              "system_sub_category",
+                "select":              "name,system_sub_category",
             })
             seen, items = set(), []
             for r in (rows or []):
-                sub = (r.get("system_sub_category") or "").strip()
-                if sub and sub not in seen:
-                    seen.add(sub)
-                    items.append({"value": sub, "label": sub})
+                label = (r.get("system_sub_category") or "").strip() or (r.get("name") or "").strip()
+                if label and label not in seen:
+                    seen.add(label)
+                    items.append({"value": label, "label": label})
         else:
             rows = supabase_req("GET", "/systems", params={
                 "is_visible":          "eq.true",

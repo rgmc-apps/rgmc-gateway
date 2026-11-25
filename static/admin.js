@@ -3399,6 +3399,7 @@ async function saveIssuePatch() {
 /* ── Promote Modal ── */
 let _promoteType        = null;
 let _promoteSystemsData = [];
+let _promoteSystemsAllData = [];
 
 async function openPromoteModal(type) {
   if (!_editingIssueId) return;
@@ -3450,12 +3451,37 @@ async function _loadPromoteSystems(preSelectSiteName) {
       const res = await fetch('/api/admin/systems', { headers: authHeaders() });
       if (res.ok) _systemsCache = await res.json();
     }
-    _promoteSystemsData = (_systemsCache || []).filter(s => !s.is_task);
+    _promoteSystemsAllData = (_systemsCache || []).filter(s => !s.is_task);
   } catch {
-    _promoteSystemsData = [];
+    _promoteSystemsAllData = [];
+  }
+
+  // Helpdesk tickets store the chosen sub-category in site_name — narrow the
+  // picker to systems in that group when any match, so the admin doesn't have
+  // to hunt through every system to find the one actually affected.
+  const bySubCategory = preSelectSiteName
+    ? _promoteSystemsAllData.filter(s => (s.system_sub_category || '').toLowerCase() === preSelectSiteName.toLowerCase())
+    : [];
+  _promoteSystemsData = bySubCategory.length ? bySubCategory : _promoteSystemsAllData;
+
+  const hint = document.getElementById('promoteSystemsFilterHint');
+  if (hint) {
+    if (bySubCategory.length) {
+      hint.innerHTML = `Showing systems in "${escHtml(preSelectSiteName)}" — <a href="#" onclick="event.preventDefault();showAllPromoteSystems()">show all</a>`;
+      hint.style.display = '';
+    } else {
+      hint.style.display = 'none';
+    }
   }
 
   _renderPromoteSystems(preSelectSiteName);
+}
+
+function showAllPromoteSystems() {
+  _promoteSystemsData = _promoteSystemsAllData;
+  const hint = document.getElementById('promoteSystemsFilterHint');
+  if (hint) hint.style.display = 'none';
+  _renderPromoteSystems(null);
 }
 
 function _renderPromoteSystems(preSelectSiteName) {
