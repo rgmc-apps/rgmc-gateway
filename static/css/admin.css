@@ -219,6 +219,20 @@
   cursor: not-allowed;
 }
 
+/* ── Bulk action bar (shown above a table when rows are selected) ── */
+.admin-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(196,151,42,0.08);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.admin-bulk-bar .btn-admin-secondary { padding: 6px 14px; }
+
 /* ── Table wrapper ── */
 .admin-table-wrap {
   background: var(--bg-card);

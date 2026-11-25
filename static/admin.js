@@ -946,6 +946,7 @@ let _sysTagsList      = [];
 let _pingResults      = {};
 let _sysSearchQuery   = '';
 let _winPendingFiles  = { launcher: null, manifest: null };
+let _sysSelectedIds   = new Set();
 
 async function loadSystems() {
   const wrap = document.getElementById('systems-body');
@@ -954,27 +955,33 @@ async function loadSystems() {
     const res = await fetch('/api/admin/systems', { headers: authHeaders() });
     if (!res.ok) throw new Error(await res.text());
     _systemsCache = await res.json();
+    _sysSelectedIds.forEach(id => { if (!_systemsCache.some(s => s.id === id)) _sysSelectedIds.delete(id); });
     _renderSystemsTable();
   } catch (err) {
     wrap.innerHTML = `<div class="admin-error">Failed to load systems: ${escHtml(err.message)}</div>`;
   }
 }
 
-function _renderSystemsTable() {
-  const wrap = document.getElementById('systems-body');
-  if (!wrap) return;
-
+function _filteredSystems() {
   const q = _sysSearchQuery.toLowerCase().trim();
-  const rows = q
+  return q
     ? _systemsCache.filter(s =>
         (s.name            || '').toLowerCase().includes(q) ||
         (s.category        || '').toLowerCase().includes(q) ||
+        (s.system_sub_category || '').toLowerCase().includes(q) ||
         (s.tags            || '').toLowerCase().includes(q) ||
         (s.primary_url     || '').toLowerCase().includes(q) ||
         (s.git_link        || '').toLowerCase().includes(q) ||
         (s.is_task ? 'task' : 'system').includes(q)
       )
     : _systemsCache;
+}
+
+function _renderSystemsTable() {
+  const wrap = document.getElementById('systems-body');
+  if (!wrap) return;
+
+  const rows = _filteredSystems();
 
   if (_systemsCache.length === 0) {
     wrap.innerHTML = '<div class="admin-empty">No systems found. Add one above.</div>';
@@ -985,11 +992,22 @@ function _renderSystemsTable() {
     return;
   }
 
+  const n = _sysSelectedIds.size;
+  const bulkBar = n ? `
+    <div class="admin-bulk-bar">
+      <span>${n} selected</span>
+      <button type="button" class="btn-admin-secondary" onclick="openSysBulkEditModal()">Bulk Edit…</button>
+      <button type="button" class="btn-admin-secondary" onclick="clearSysSelection()">Clear</button>
+    </div>` : '';
+  const allChecked = rows.length > 0 && rows.every(s => _sysSelectedIds.has(s.id));
+
   wrap.innerHTML = `
+    ${bulkBar}
     <table class="admin-table">
       <thead>
         <tr>
-          <th>Name</th><th>Type</th><th>Category</th><th>Visible</th>
+          <th style="width:28px;"><input type="checkbox" ${allChecked ? 'checked' : ''} onchange="toggleSysSelectAll(this.checked)" aria-label="Select all"></th>
+          <th>Name</th><th>Type</th><th>Category</th><th>Sub-category</th><th>Visible</th>
           <th>Primary URL</th><th>Label</th><th>Backup URL</th>
           <th>Git</th><th>Tags</th><th>Status</th><th>Order</th><th style="width:36px;"></th>
         </tr>
@@ -1014,6 +1032,109 @@ function sysClearSearch() {
   _renderSystemsTable();
 }
 
+/* ── Bulk select + bulk edit ── */
+
+function toggleSysRowSelect(id, checked) {
+  if (checked) _sysSelectedIds.add(id); else _sysSelectedIds.delete(id);
+  _renderSystemsTable();
+}
+
+function toggleSysSelectAll(checked) {
+  _filteredSystems().forEach(s => checked ? _sysSelectedIds.add(s.id) : _sysSelectedIds.delete(s.id));
+  _renderSystemsTable();
+}
+
+function clearSysSelection() {
+  _sysSelectedIds.clear();
+  _renderSystemsTable();
+}
+
+function onSysBulkToggle(checkboxId, fieldId) {
+  document.getElementById(fieldId).disabled = !document.getElementById(checkboxId).checked;
+}
+
+function openSysBulkEditModal() {
+  const n = _sysSelectedIds.size;
+  if (!n) return;
+
+  document.getElementById('sysBulkEditCount').textContent =
+    `Applies to ${n} selected system${n === 1 ? '' : 's'}.`;
+  document.getElementById('sysBulkSubmitCount').textContent = n;
+
+  document.getElementById('sysBulkApplySubCategory').checked = false;
+  document.getElementById('sysBulkSubCategory').value = '';
+  document.getElementById('sysBulkSubCategory').disabled = true;
+  document.getElementById('sysBulkApplyHelpdeskVisible').checked = false;
+  document.getElementById('sysBulkHelpdeskVisible').value = 'true';
+  document.getElementById('sysBulkHelpdeskVisible').disabled = true;
+  document.getElementById('sysBulkApplyVisible').checked = false;
+  document.getElementById('sysBulkVisible').value = 'true';
+  document.getElementById('sysBulkVisible').disabled = true;
+
+  document.getElementById('sysBulkEditActions').style.display = '';
+  document.getElementById('sysBulkEditLoading').style.display = 'none';
+  document.getElementById('sysBulkEditError').style.display   = 'none';
+
+  document.getElementById('sysBulkEditModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSysBulkEditModal() {
+  document.getElementById('sysBulkEditModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function overlayCloseSysBulkEdit(e) {
+  if (e.target === document.getElementById('sysBulkEditModal')) closeSysBulkEditModal();
+}
+
+async function submitSysBulkEdit() {
+  const patch = {};
+  if (document.getElementById('sysBulkApplySubCategory').checked) {
+    patch.system_sub_category = document.getElementById('sysBulkSubCategory').value.trim() || null;
+  }
+  if (document.getElementById('sysBulkApplyHelpdeskVisible').checked) {
+    patch.is_helpdesk_visible = document.getElementById('sysBulkHelpdeskVisible').value === 'true';
+  }
+  if (document.getElementById('sysBulkApplyVisible').checked) {
+    patch.is_visible = document.getElementById('sysBulkVisible').value === 'true';
+  }
+
+  const errEl = document.getElementById('sysBulkEditError');
+  if (!Object.keys(patch).length) {
+    errEl.style.display = '';
+    document.getElementById('sysBulkEditErrorMsg').textContent = 'Select at least one field to update.';
+    return;
+  }
+
+  document.getElementById('sysBulkEditActions').style.display  = 'none';
+  document.getElementById('sysBulkEditLoading').style.display  = '';
+  errEl.style.display = 'none';
+
+  const ids = [..._sysSelectedIds];
+  try {
+    const results = await Promise.all(ids.map(id =>
+      fetch(`/api/admin/systems/${encodeURIComponent(id)}`, {
+        method:  'PATCH',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body:    JSON.stringify(patch),
+      })
+    ));
+    const failed = results.filter(r => !r.ok).length;
+    closeSysBulkEditModal();
+    clearSysSelection();
+    await loadSystems();
+    showToast(failed
+      ? `Updated ${ids.length - failed} of ${ids.length} systems — ${failed} failed.`
+      : `Updated ${ids.length} system${ids.length === 1 ? '' : 's'}.`);
+  } catch (err) {
+    document.getElementById('sysBulkEditLoading').style.display = 'none';
+    document.getElementById('sysBulkEditActions').style.display = '';
+    errEl.style.display = '';
+    document.getElementById('sysBulkEditErrorMsg').textContent = err.message;
+  }
+}
+
 function renderSystemRow(s) {
   const catClass = { RGMC: 'label-rgmc', SBIC: 'label-sbic', 'NAV Sites': 'label-nav' }[s.category] || 'label-rgmc';
   const visibleBadge = s.is_visible !== false
@@ -1029,9 +1150,11 @@ function renderSystemRow(s) {
     : '<span class="text-muted">—</span>';
   const dropId = `sdrop-${s.id}`;
   return `<tr oncontextmenu="return openRowContextMenu(event,'${dropId}')">
+    <td><input type="checkbox" class="sys-row-chk" ${_sysSelectedIds.has(s.id) ? 'checked' : ''} onchange="toggleSysRowSelect('${escHtml(s.id)}', this.checked)" aria-label="Select ${escHtml(s.name)}"></td>
     <td><span class="user-name">${escHtml(s.name)}</span></td>
     <td>${typeBadge}</td>
     <td><span class="label-badge ${catClass}">${escHtml(s.category)}</span></td>
+    <td>${s.system_sub_category ? escHtml(s.system_sub_category) : '<span class="text-muted">—</span>'}</td>
     <td>${visibleBadge}</td>
     <td>${primaryUrlCell}</td>
     <td>${escHtml(s.primary_label || '—')}</td>
