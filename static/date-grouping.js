@@ -68,3 +68,12 @@ function dgGroupHeaderRowHtml(colspan, label, count) {
 function dgGroupHeaderDivHtml(label, count) {
   return `<div class="dg-group-header"><span class="dg-group-label">${label}</span><span class="dg-group-count">${count} item${count !== 1 ? 's' : ''}</span></div>`;
 }
+
+/* Inline-styled group header for the standalone PDF/print documents (no app stylesheet there). */
+function dgPdfGroupHeaderRowHtml(colspan, label, count) {
+  return `<tr style="background:#f3f0e8">
+    <td colspan="${colspan}" style="padding:8px 10px;border-bottom:2px solid #c8a84b;font-size:11px;font-weight:700;color:#7a6830;text-transform:uppercase;letter-spacing:.04em">
+      ${label} <span style="font-weight:500;color:#9a8a5a;text-transform:none;letter-spacing:0">(${count} item${count !== 1 ? 's' : ''})</span>
+    </td>
+  </tr>`;
+}

@@ -316,6 +316,9 @@ function ipExportPDF() {
   if (from && to) filterParts.push(`Date: ${from} – ${to}`);
   else if (from)  filterParts.push(`From: ${from}`);
   else if (to)    filterParts.push(`To: ${to}`);
+  const groupBy = document.getElementById('ipGroupBy')?.value || '';
+  const GROUP_LABELS = { quarter: 'Year / Quarter', month: 'Year / Month', week: 'Year / Week' };
+  if (groupBy) filterParts.push(`Grouped by: ${GROUP_LABELS[groupBy]}`);
 
   const counts = { new: 0, open: 0, in_progress: 0, resolved: 0, closed: 0 };
   rows.forEach(r => { const s = (r.status||'new').toLowerCase(); if (s in counts) counts[s]++; });
@@ -329,7 +332,7 @@ function ipExportPDF() {
   const statusLabel = s => ({ new:'New', open:'Open', in_progress:'In Progress', resolved:'Resolved', closed:'Closed' }[s] || s);
   const statusColor = s => ({ new:'#6b7280', open:'#3b82f6', in_progress:'#f59e0b', resolved:'#22c55e', closed:'#8b5cf6' }[s] || '#888');
 
-  const tableRows = rows.map((r, i) => `
+  const _ipPdfRowHtml = (r, i) => `
     <tr style="background:${i%2===0?'#fff':'#f9fafb'}">
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;color:#6b7280;white-space:nowrap">${escHtml(r.ticket_number||'—')}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;max-width:260px">${escHtml(r.title||'—')}</td>
@@ -343,7 +346,12 @@ function ipExportPDF() {
         <span style="display:inline-block;padding:2px 8px;border-radius:9px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;background:${statusColor((r.status||'new').toLowerCase())}20;color:${statusColor((r.status||'new').toLowerCase())}">${statusLabel((r.status||'new').toLowerCase())}</span>
       </td>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap;color:#6b7280">${fmtDate(r.created_at)}</td>
-    </tr>`).join('');
+    </tr>`;
+
+  const ipPdfGroups = dgGroupItems(rows, groupBy, 'created_at');
+  const tableRows = ipPdfGroups
+    ? ipPdfGroups.map(g => dgPdfGroupHeaderRowHtml(8, g.label, g.items.length) + g.items.map(_ipPdfRowHtml).join('')).join('')
+    : rows.map(_ipPdfRowHtml).join('');
 
   const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8">

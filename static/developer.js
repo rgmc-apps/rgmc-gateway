@@ -2847,6 +2847,122 @@ function renderListView() {
   }
 }
 
+function devListExportPDF() {
+  const items = _getListItems().filter(i => !i.is_parked);
+
+  const groupBy = document.getElementById('listGroupBy')?.value || '';
+  const GROUP_LABELS = { quarter: 'Year / Quarter', month: 'Year / Month', week: 'Year / Week' };
+
+  const filterParts = [];
+  const search  = (document.getElementById('listSearch')?.value      || '').trim();
+  const statusF = document.getElementById('listStatusFilter')?.value || '';
+  const typeF   = document.getElementById('listTypeFilter')?.value   || '';
+  const devF    = document.getElementById('listDevFilter')?.value    || '';
+  const sysF    = document.getElementById('listSysFilter')?.value    || '';
+  if (_filter === 'mine') filterParts.push('My Issues');
+  if (search)   filterParts.push(`Search: "${search}"`);
+  if (statusF)  filterParts.push(`Status: ${statusF}`);
+  if (typeF)    filterParts.push(`Type: ${typeF}`);
+  if (devF)     filterParts.push(`Developer: ${_members[devF]?.displayName || devF}`);
+  if (sysF)     filterParts.push(`System: ${_systems.find(s => s.id === sysF)?.name || sysF}`);
+  if (groupBy)  filterParts.push(`Grouped by: ${GROUP_LABELS[groupBy]}`);
+
+  const now = new Date();
+  const reportDate = now.toLocaleDateString('en-PH', { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' });
+
+  const statusCounts = { pending: 0, ongoing: 0, coding: 0, testing: 0, done: 0 };
+  items.forEach(i => { if (i.status in statusCounts) statusCounts[i.status]++; });
+
+  const _devPdfRowHtml = (item, i) => {
+    const assignee = item.assigned_to || item.created_by;
+    const devName  = _members[assignee]?.displayName || assignee || '—';
+    const rawType  = item.dev_item_type || '';
+    const typeDisp = rawType.startsWith('Others: ') ? rawType.slice('Others: '.length) : rawType;
+    const sClr     = DP_STAT_COLOR[item.status] || '#6b7280';
+    return `
+    <tr style="background:${i%2===0?'#fff':'#f9fafb'}">
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;color:#6b7280;white-space:nowrap">${escHtml(item.dev_item_code||'—')}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;max-width:260px">${escHtml(item.title||'—')}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center">
+        <span style="display:inline-block;padding:2px 8px;border-radius:9px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;background:${sClr}20;color:${sClr}">${escHtml(item.status||'—')}</span>
+      </td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap">${escHtml(typeDisp||'—')}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap">${escHtml(devName)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap;color:#6b7280">${fmtDate(item.start_date)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap;color:#6b7280">${fmtDate(item.estimated_end_date)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;text-align:center">${item.story_points ?? '—'}</td>
+    </tr>`;
+  };
+
+  const devPdfGroups = dgGroupItems(items, groupBy, 'created_at');
+  const tableRows = devPdfGroups
+    ? devPdfGroups.map(g => dgPdfGroupHeaderRowHtml(8, g.label, g.items.length) + g.items.map(_devPdfRowHtml).join('')).join('')
+    : items.map(_devPdfRowHtml).join('');
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>Dev Items Report — RGMC Group</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; color: #111827; background: #fff; padding: 32px 40px; }
+  @media print {
+    body { padding: 16px 20px; }
+    .no-print { display: none; }
+  }
+</style>
+</head><body>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #c8a84b;padding-bottom:18px;margin-bottom:24px">
+  <div>
+    <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#c8a84b;margin-bottom:4px">RGMC Group</div>
+    <h1 style="font-size:22px;font-weight:700;color:#111827">Dev Items Report</h1>
+    ${filterParts.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${filterParts.map(f=>`<span style="display:inline-block;padding:2px 9px;background:#f3f0e8;border:1px solid #c8a84b40;border-radius:9px;font-size:10px;font-weight:600;color:#7a6830">${escHtml(f)}</span>`).join('')}</div>` : ''}
+  </div>
+  <div style="text-align:right">
+    <div style="font-size:11px;color:#6b7280">Generated</div>
+    <div style="font-size:12px;font-weight:600;color:#374151">${reportDate}</div>
+    <div style="font-size:11px;color:#6b7280;margin-top:4px">${items.length} item${items.length!==1?'s':''} total</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px">
+  ${[['Pending',statusCounts.pending,DP_STAT_COLOR.pending],['Ongoing',statusCounts.ongoing,DP_STAT_COLOR.ongoing],['Coding',statusCounts.coding,DP_STAT_COLOR.coding],['Testing',statusCounts.testing,DP_STAT_COLOR.testing],['Done',statusCounts.done,DP_STAT_COLOR.done]].map(([label,count,color])=>`
+  <div style="border:1px solid #e5e7eb;border-top:3px solid ${color};border-radius:8px;padding:12px 14px">
+    <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;margin-bottom:6px">${label}</div>
+    <div style="font-size:22px;font-weight:700;color:${color}">${count}</div>
+  </div>`).join('')}
+</div>
+
+<table style="width:100%;border-collapse:collapse;font-size:12px">
+  <thead>
+    <tr style="background:#f9fafb">
+      <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Code</th>
+      <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Title</th>
+      <th style="padding:9px 10px;text-align:center;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Status</th>
+      <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Type</th>
+      <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Developer</th>
+      <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Start</th>
+      <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Est. End</th>
+      <th style="padding:9px 10px;text-align:center;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">SP</th>
+    </tr>
+  </thead>
+  <tbody>${tableRows}</tbody>
+</table>
+
+${items.length === 0 ? '<div style="text-align:center;padding:40px;color:#9ca3af;font-size:14px">No dev items match the current filter.</div>' : ''}
+
+<div style="margin-top:32px;padding-top:14px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center">
+  <div style="font-size:10px;color:#9ca3af">RGMC Group — Confidential</div>
+  <button class="no-print" onclick="window.print()" style="padding:8px 18px;background:#c8a84b;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">Print / Save PDF</button>
+</div>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => win.print(), 600);
+}
+
 /* ══════════════════════════════════════════════════════════════════════════════
    Analytics view
    ══════════════════════════════════════════════════════════════════════════════ */
