@@ -425,10 +425,6 @@ ${rows.length === 0 ? '<div style="text-align:center;padding:40px;color:#9ca3af;
 function _ipRenderTable(rows) {
   const wrap = document.getElementById('ipIssuesBody');
   const total = rows.length;
-  const pages = Math.max(1, Math.ceil(total / _ipPerPage));
-  if (_ipPage > pages) _ipPage = pages;
-  const start = (_ipPage - 1) * _ipPerPage;
-  const pageRows = rows.slice(start, start + _ipPerPage);
 
   if (!total) {
     wrap.innerHTML = '<div class="admin-empty">No issues match the current filters.</div>';
@@ -443,9 +439,7 @@ function _ipRenderTable(rows) {
     if (i.linked_issue_id) _ipLinkedTargetIds.add(i.linked_issue_id);
   }
 
-  wrap.innerHTML = `
-    <table class="admin-table">
-      <thead>
+  const thead = `
         <tr>
           <th>Ticket / System</th>
           <th>Reporter</th>
@@ -456,8 +450,32 @@ function _ipRenderTable(rows) {
           <th>Connected</th>
           <th>Assigned To</th>
           <th>Reported</th>
-        </tr>
-      </thead>
+        </tr>`;
+
+  const groupBy = document.getElementById('ipGroupBy')?.value || '';
+  const groups  = dgGroupItems(rows, groupBy, 'created_at');
+
+  if (groups) {
+    // Grouping overrides pagination — show every matching row, bucketed under date headers.
+    const body = groups.map(g =>
+      dgGroupHeaderRowHtml(9, g.label, g.items.length) + g.items.map(_ipRenderRow).join('')
+    ).join('');
+    wrap.innerHTML = `
+    <table class="admin-table">
+      <thead>${thead}</thead>
+      <tbody>${body}</tbody>
+    </table>`;
+    return;
+  }
+
+  const pages = Math.max(1, Math.ceil(total / _ipPerPage));
+  if (_ipPage > pages) _ipPage = pages;
+  const start = (_ipPage - 1) * _ipPerPage;
+  const pageRows = rows.slice(start, start + _ipPerPage);
+
+  wrap.innerHTML = `
+    <table class="admin-table">
+      <thead>${thead}</thead>
       <tbody>${pageRows.map(_ipRenderRow).join('')}</tbody>
     </table>
     <div class="iss-pagination">

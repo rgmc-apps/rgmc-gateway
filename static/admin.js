@@ -2612,14 +2612,7 @@ function _renderIssueTable(rows) {
   const wrap = document.getElementById('issues-body');
   if (!wrap) return;
 
-  const total   = rows.length;
-  const perPage = _issPerPage === 0 ? total : _issPerPage;
-  const pages   = perPage > 0 ? Math.ceil(total / perPage) : 1;
-  if (_issPage > pages) _issPage = Math.max(1, pages);
-  const start   = (_issPage - 1) * perPage;
-  const end     = perPage > 0 ? Math.min(start + perPage, total) : total;
-  const pageRows = rows.slice(start, end);
-
+  const total = rows.length;
   if (!total) {
     wrap.innerHTML = '<div class="admin-empty">No issues match the current filters.</div>';
     return;
@@ -2632,9 +2625,10 @@ function _renderIssueTable(rows) {
     if (i.linked_issue_id) _linkedTargetIds.add(i.linked_issue_id);
   }
 
-  wrap.innerHTML = `
-    <table class="admin-table">
-      <thead>
+  const groupBy = document.getElementById('issGroupBy')?.value || '';
+  const groups  = dgGroupItems(rows, groupBy, 'created_at');
+
+  const thead = `
         <tr>
           <th>Ticket / System</th>
           <th>Reporter</th>
@@ -2645,8 +2639,31 @@ function _renderIssueTable(rows) {
           <th>Connected</th>
           <th>Assigned To</th>
           <th>Reported</th>
-        </tr>
-      </thead>
+        </tr>`;
+
+  if (groups) {
+    // Grouping overrides pagination — show every matching row, bucketed under date headers.
+    const body = groups.map(g =>
+      dgGroupHeaderRowHtml(9, g.label, g.items.length) + g.items.map(renderIssueRow).join('')
+    ).join('');
+    wrap.innerHTML = `
+    <table class="admin-table">
+      <thead>${thead}</thead>
+      <tbody>${body}</tbody>
+    </table>`;
+    return;
+  }
+
+  const perPage = _issPerPage === 0 ? total : _issPerPage;
+  const pages   = perPage > 0 ? Math.ceil(total / perPage) : 1;
+  if (_issPage > pages) _issPage = Math.max(1, pages);
+  const start   = (_issPage - 1) * perPage;
+  const end     = perPage > 0 ? Math.min(start + perPage, total) : total;
+  const pageRows = rows.slice(start, end);
+
+  wrap.innerHTML = `
+    <table class="admin-table">
+      <thead>${thead}</thead>
       <tbody>${pageRows.map(renderIssueRow).join('')}</tbody>
     </table>
     ${_renderIssPagination(total, start, end, pages)}`;

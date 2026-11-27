@@ -415,6 +415,12 @@
         <h2 class="section-title">Issues I Filed</h2>
         <span class="mw-col-count" id="filedIssuesCount" style="display:none;"></span>
         <div class="cl-sec-controls">
+          <select class="iss-filter-input iss-filter-select dg-group-select" id="filedIssuesGroupBy" onchange="_renderFiledIssues()" title="Group by date reported" style="height:28px;font-size:12px;min-width:140px;">
+            <option value="">No grouping</option>
+            <option value="quarter">Year / Quarter</option>
+            <option value="month">Year / Month</option>
+            <option value="week">Year / Week</option>
+          </select>
           <a href="/workspace?issues=filed" class="mw-view-all" style="margin:0;padding:0;border:none;">Manage in Workspace
             <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </a>
@@ -1165,6 +1171,7 @@
   <script src="/static/linkify.js"></script>
   <script src="/static/dept-other.js"></script>
   <script src="/static/user-search.js"></script>
+  <script src="/static/date-grouping.js"></script>
   <script src="/static/script.js"></script>
   <script src="/static/outage-notifier.js"></script>
   <script src="/static/global-search.js"></script>

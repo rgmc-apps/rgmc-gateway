@@ -205,6 +205,12 @@
         <select id="listSysFilter" class="dev-list-select" onchange="renderListView()">
           <option value="">All Systems</option>
         </select>
+        <select id="listGroupBy" class="dev-list-select dg-group-select" onchange="renderListView()" title="Group by created date">
+          <option value="">No grouping</option>
+          <option value="quarter">Year / Quarter</option>
+          <option value="month">Year / Month</option>
+          <option value="week">Year / Week</option>
+        </select>
         <span class="dev-list-count-badge" id="listCount"></span>
       </div>
       <div class="dev-list-table-wrap">
@@ -1560,6 +1566,7 @@
   <script src="/static/comment-render.js"></script>
   <script src="/static/comment-editor.js"></script>
   <script src="/static/user-hovercard.js"></script>
+  <script src="/static/date-grouping.js"></script>
   <script src="/static/developer.js"></script>
   <script src="/static/outage-notifier.js"></script>
   <script src="/static/global-search.js"></script>

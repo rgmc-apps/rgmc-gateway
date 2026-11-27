@@ -1,80 +1,90 @@
 # Handoff
 
 ## Goal
-Four pieces of work this session, across two repos (`C:\claude\rgmc-gateway` and `C:\claude\rgmc-it-bot`):
+Add a "system sub-category" concept to the RGMC Gateway's `systems` table, purely as a user-facing generic grouping name (e.g. several distinct backend systems that end users just call by one common name), and thread it through four places end to end:
 
-1. **Resume/verify a prior session's work** (inherited context): the `index.html` tab-split (Systems / Health Status / Recent Changes / Your Access) and its "all tabs visible at once" CSS-specificity bug fix. Verified live in a browser — done, no new work needed.
-2. **Let helpdesk/report-issue reporters connect MS Teams** so the RGMC IT Bot can DM them updates on their own ticket, even if they have no RGMC Gateway account — explicit user request: *"find a way to have an option for the reporters to connect their ms teams when filing for a helpdesk ticket to keep them updated using the it bot"*.
-3. **Add an "Issues I Filed" tab to the index page** for monitoring — explicit user request: *"also add the 'issues i filed' portion on the index screen for monitoring of issues that the user filed"*.
-4. **Fix the "My Issues" filter on the dev board** (`/developer`) — explicit user request: *"check the my issues filter. there are dev items that are not mine but are still displayed. use claude on chrome to see the actual issue: https://rgmc-gateway.cloud.run/developer"*.
+1. A new `systems.system_sub_category` DB column, admin-managed.
+2. The IT helpdesk form's (`/helpdesk`) Software/Application sub-category dropdown, narrowed to show only the distinct values admins have set up (falling back to a system's exact name if it has no sub-category set, so nothing becomes unreachable).
+3. A new "Sub-category" input field on the admin page's Systems tab add/edit modal, and a new "Sub-category" column on the systems list table.
+4. The dev-board "Promote to Dev Item" modal's systems picker (reached from a helpdesk issue), narrowed to only show systems in the same sub-category group as the issue being promoted, with a fallback to the full list and a "show all" escape hatch.
+5. (Final ask this session) A bulk-edit capability on the admin Systems list so admins can multi-select rows and update `system_sub_category`, `is_helpdesk_visible`, and `is_visible` across many systems in one action.
+
+No explicit acceptance criteria beyond "it works" were given — this was an iterative, turn-by-turn feature build where each turn extended the previous one. The user's own working style in this session (confirmed implicitly by accepting each step without correction) was: small, surgical diffs; delete dead code rather than leave it disabled; reuse existing CSS classes/modal patterns instead of inventing new ones.
 
 ## Current State
-**All four pieces are implemented, verified, committed, and pushed to `origin/master` on both repos.** Confirmed via `git status --short` (clean on both) and `git rev-list --left-right --count origin/master...master` (`0  0` on both — local and remote are identical). Note: these commits/pushes were **not** run by me in this session (no `git add`/`commit`/`push` tool calls were made) — something external (a hook, or the user) committed the working tree after each edit. The commits that landed:
-- `rgmc-gateway`: `9fe8907` (teams notification), `1bfcf9e` (issues i filed portion), `c945ac7` (dev item filters).
-- `rgmc-it-bot`: `7f98f16` (DI-0243 handoff modifications — the Teams-follow feature).
+**Everything described above is implemented, committed, and pushed to `origin/master`.** Confirmed via `git status --short` (clean) and `git rev-list --left-right --count origin/master...master` → `0  0`.
 
-**Piece 2 — Teams opt-in on ticket forms:** Done and verified in a local browser (dev server, no real Supabase/DB). Checkbox + "Connect on Microsoft Teams" deep-link button render correctly on all 3 forms (`/helpdesk`, `/general-helpdesk`, `/report-issue`) when `IT_BOT_TEAMS_APP_ID` is set; hidden when blank. Deep-link construction (`https://teams.microsoft.com/l/chat/0/0?users=28:<appid>&message=follow%20<ticket>`) verified via JS injection to work correctly. **Not live** — needs the `bot_ticket_followers` SQL migration run against Supabase and `IT_BOT_TEAMS_APP_ID` set in the gateway's deployed env (see Next Step).
+Commits this session (newest first):
+- `02381fb` — "systems table modifications" → bulk-edit feature (checkboxes, bulk bar, bulk-edit modal).
+- `6c8f728` — "added system modifications" → Sub-category column on the systems list table + grouped-dropdown fallback-to-name logic.
+- `0a54c5c` — "added system sub-category for helpdesk systems" → the original DB column, helpdesk dropdown simplification, admin field, promote-modal filter.
 
-**Piece 3 — Issues I Filed tab:** Done and verified in a local browser (fake localStorage session + mocked fetch, since no real DB here). Tab switches correctly, empty state and populated state both render correctly with status-colored rows, persists across reload via existing `_GW_TAB_KEY` localStorage mechanism.
-
-**Piece 4 — My Issues filter fix:** Done and **verified against live production data** by logging into the real deployed site (`https://rgmc-gateway.cloud.run/developer`, already authenticated as the user "Erwin"/`earellano` in their own Chrome profile) via Claude-in-Chrome and inspecting the actual `_items` array in the page's JS context. Confirmed the bug was real and large: **25 dev items** assigned to other people (`gseregia`, `jmpunzalan`) were showing under "My Issues" purely because `earellano` had created/promoted them. The fix (`static/developer.js`) is committed and pushed, but **the live Cloud Run deployment is still running the old, buggy code** — this is a frontend-only static JS file, so it needs an actual redeploy to take effect. I did not deploy anything.
+**Not done / not verified:**
+- The SQL migration (`supabase-migrations/system_sub_category_migration.sql`) has **not been run** against the real Supabase project. Until it is, `system_sub_category` doesn't exist as a column in production, and every code path that reads/writes it will silently no-op or error depending on Supabase's behavior for unknown columns (likely a 400 from PostgREST on insert/select with an unknown column name — **this will break the admin Systems panel entirely** in production until the migration runs, since `admin_get_systems()` does `select: "*"` and the new `select: "name,system_sub_category"` call in the grouped subcategories endpoint would fail).
+- No live/browser verification was done this session at all (unlike the prior session's Claude-in-Chrome checks) — all verification here was `node -c` / `py -c ast.parse` syntax checks only, plus careful manual tracing of call sites. **Functional/UI behavior has not been exercised in a running app.**
+- This dev environment has no `.env`/Supabase credentials, so even local end-to-end testing (the localStorage-session-injection trick used in the prior session) wasn't attempted this time.
 
 ## Files Actively Being Edited
-Nothing mid-change — everything below is complete and committed. Listed by repo/commit:
+Nothing is mid-change — everything below is complete and committed.
 
-### `rgmc-gateway` — Teams opt-in (commit `9fe8907`)
-- `config.py` — added `IT_BOT_TEAMS_APP_ID = os.environ.get("IT_BOT_TEAMS_APP_ID", "")`.
-- `.env.example` — documented the new var (placeholder `same-value-as-bot-BOT_ID`).
-- `controllers/public.py` — `report_issue_page()` and `helpdesk_page()` now pass `it_bot_teams_app_id=IT_BOT_TEAMS_APP_ID` to `render_template`.
-- `controllers/general_helpdesk.py` — same, for `general_helpdesk_page()`.
-- `templates/helpdesk.html`, `templates/general_helpdesk.html`, `templates/report_issue.html` — each got: a `data-teams-app-id="{{ it_bot_teams_app_id }}"` attribute on the `<form>`; a `{% if it_bot_teams_app_id %}` checkbox block (`#hdTeamsOptIn` / `#ghTeamsOptIn` / `#riTeamsOptIn`) right before the submit button; a `#hdTeamsConnect` / `#ghTeamsConnect` / `#riTeamsConnect` block inside the success panel with a `#…TeamsConnectLink` anchor.
-- `static/helpdesk.js`, `static/general_helpdesk.js`, `static/report_issue.js` — each `*Submit()` handler now reads the checkbox + `data-teams-app-id` before resetting the form, and on success (if checked + app id present + `data.ticket_number` returned) builds the `teams.microsoft.com/l/chat/0/0?users=28:<id>&message=follow%20<ticket>` deep link and reveals the connect block.
-- `static/css/report-issue.css` — added `.ri-teams-optin-label` and `.ri-teams-connect`/`.ri-teams-connect-btn`/`.ri-teams-connect-hint` (purple/Teams-branded, `#5b5fc7`). No other CSS files touched.
+### `supabase-migrations/system_sub_category_migration.sql` (new file, commit `0a54c5c`)
+`ALTER TABLE systems ADD COLUMN IF NOT EXISTS system_sub_category TEXT;` — safe to re-run, not yet applied to the real DB.
 
-### `rgmc-it-bot` — Ticket-follower notifications (commit `7f98f16`)
-- `supabase_setup.sql` — new `public.bot_ticket_followers` table (`ticket_number`, `conversation_id`, `email`, `service_url`, `conversation_ref`, `tenant_id`; unique on `(ticket_number, conversation_id)`) + index. **Not yet run against the real Supabase project** — this is the main blocker for the Teams feature going live.
-- `src/types/index.ts` — added `BotTicketFollower` interface.
-- `src/services/supabase.ts` — added `getFollowersByTicketNumber`, `upsertTicketFollower`, `deleteTicketFollower`.
-- `src/services/userLinkService.ts` — added `followTicket(context, ticketNumber)` / `unfollowTicket(context, ticketNumber)`, mirroring the existing `linkPersonalChat`/`unlinkPersonalChat` pattern but keyed by ticket number (via `getTicketByNumber`) instead of a Gateway username, since public-helpdesk reporters often have no Gateway account.
-- `src/bot.ts` — added `case 'follow':` / `case 'unfollow':` chat commands (personal 1:1 chat only), imports updated accordingly.
-- `src/services/notificationService.ts` — `notifyTicketCreated` and `notifyTicketUpdated` now also call a new internal `notifyTicketFollowers(ticket, card, adapter)` helper that DMs everyone following that `ticket_number`, in addition to the existing channel-subscription fan-out.
-- `src/cards/helpCard.ts` — added `follow <NUMBER>` / `unfollow <NUMBER>` rows to the in-bot `help` command reference.
-- `README.md` — added the two new commands to the "Personal (1:1 chat) commands" table.
-- TypeScript compiles clean (`npx tsc --noEmit` → exit 0, verified this session).
+### `controllers/public.py` (commits `0a54c5c`, `6c8f728`)
+`get_helpdesk_subcategories()` (the `/api/helpdesk/subcategories` route): for `category == "Software/Application"`, added a `?grouped=true` query param. When present, selects `name,system_sub_category` from `/systems` (visible + helpdesk-visible only) and for each row uses `system_sub_category` if set, else falls back to `name`, deduplicating by that resulting label into `{value, label}` pairs. When `grouped` is absent (default), behavior is unchanged — returns one `{value: id, label: name}` per system, as before.
 
-### `rgmc-gateway` — Issues I Filed tab (commit `1bfcf9e`)
-- `templates/index.html` — new `gwTabBtn-filed` / `gwTabPanel-filed` tab (inserted between "Recent Changes" and "Your Access"), containing a `.section` with `data-sec="filed-issues"`, a `#filedIssuesCount` badge, a "Manage in Workspace →" link to `/workspace?issues=filed`, and a `#filedIssuesFeed` container.
-- `static/script.js` — `_GW_TABS` array extended to `['systems','health','changes','filed','access']` (line 1956); new `loadFiledIssues(session)` (line 817, calls existing `/api/user/issues/filed` endpoint — **no backend changes were needed**, that endpoint already existed in `controllers/user_page.py:116`) and `_fiEntryHtml(iss)` (line 840) row renderer added before `buildAccessPanel`; `loadFiledIssues(session)` added as init step 13 in `applySession()` (line ~600).
-- No new CSS — row rendering reuses existing `.cl-entry`/`.cl-icon`/`.cl-body`/`.cl-top`/`.cl-title`/`.cl-meta`/`.cl-sys-pill`/`.cl-assignee` classes from `static/css/layout.css` (the changelog feed's classes), with inline per-status colors sourced from the existing `_MW_ISSUE_STATUS_COLOR`/`_MW_ISSUE_STATUS_LABEL` maps.
+### `controllers/admin.py` (commit `0a54c5c`)
+`admin_update_system()`'s PATCH `allowed` field set (line ~333) now includes `"system_sub_category"`, so admin edits to it actually persist. (`admin_create_system()`'s POST path already passed through arbitrary JSON fields unfiltered, so no change was needed there.)
 
-### `rgmc-gateway` — My Issues filter fix (commit `c945ac7`)
-- `static/developer.js`:
-  - Added `_isMyDevItem(item, me)` helper at line 87: `item.assigned_to === me || (!item.assigned_to && item.created_by === me)`.
-  - Replaced the duplicated inline condition `i.assigned_to === me || i.created_by === me` with `_isMyDevItem(i, me)` at all 4 call sites: `renderBoard()` (line 1372), `_getListItems()` (line 2588), `renderListView()`'s parked-items filter (line 2713), `renderAnalytics()` (line 2851).
-  - Updated the `filter-mine` command-palette description string (around line 1095) from `"Show items assigned to or filed by you"` to `"Show items assigned to you, or unassigned items you filed"`.
-  - Did **not** change the Kanban empty-state message text (`"None assigned to or filed by you"`, ~line 1407) — left as-is, still close enough to accurate.
+### `templates/admin.html` (commits `0a54c5c`, `6c8f728`, `02381fb`)
+- Added `#sysSubCategory` text input in the `#systemModal` add/edit form, right after `#sysGitLink` (~line 1044).
+- Added `#sysBulkEditModal` — a new modal (placed right after `#systemModal` closes, before the Issue Detail Modal comment) with three independently-toggleable fields: Set Sub-category (text), Set Helpdesk Visibility (select true/false), Set Access Request Form Visibility (select true/false). Each field has its own "apply this field" checkbox (`#sysBulkApplySubCategory`/`#sysBulkApplyHelpdeskVisible`/`#sysBulkApplyVisible`) wired via `onSysBulkToggle()` so unchecked fields are left untouched on submit.
+
+### `static/admin.js` (commits `0a54c5c`, `6c8f728`, `02381fb`)
+- `openSystemModal()` / `saveSystem()`: read/write `#sysSubCategory` ↔ `system_sub_category`, included in the PATCH/POST payload.
+- `_loadPromoteSystems(preSelectSiteName)`: now narrows `_promoteSystemsData` to systems whose `system_sub_category` matches the issue's `site_name` (helpdesk tickets store the chosen sub-category there), falling back to the full list if nothing matches. Added `_promoteSystemsAllData` (unfiltered) and `showAllPromoteSystems()` to reverse the narrowing via a hint link (`#promoteSystemsFilterHint`, added in `templates/admin.html`).
+- `_renderSystemsTable()` / `renderSystemRow()`: added a "Sub-category" `<th>`/`<td>` (showing `s.system_sub_category` or a muted "—"), included `system_sub_category` in the existing search-filter predicate.
+- **New this session's last turn** — bulk edit:
+  - `_sysSelectedIds` (a `Set`) tracks selected system IDs across re-renders; cleaned up in `loadSystems()` if a previously-selected id no longer exists after reload.
+  - `_filteredSystems()` — factored out of `_renderSystemsTable()` so both the table render and "select all" share the same search-filtered row set.
+  - Row checkbox (`toggleSysRowSelect`), header select-all checkbox (`toggleSysSelectAll`), `clearSysSelection()`.
+  - A gold-tinted bulk-action bar (`.admin-bulk-bar`) rendered above the table when `_sysSelectedIds.size > 0`, with "Bulk Edit…" and "Clear" buttons.
+  - `openSysBulkEditModal()` / `closeSysBulkEditModal()` / `overlayCloseSysBulkEdit()` / `onSysBulkToggle()` / `submitSysBulkEdit()`: the last one builds a `patch` object from only the checked fields, then `Promise.all`s one `PATCH /api/admin/systems/<id>` per selected system (there is **no bulk API endpoint** — this loops the existing single-system PATCH route), reports partial failures via `showToast`, reloads, and clears selection.
+
+### `static/css/admin.css` (commit `02381fb`)
+Added `.admin-bulk-bar` / `.admin-bulk-bar .btn-admin-secondary` rules (gold-tinted bar, reusing existing button classes) right before `.admin-table-wrap`.
+
+### `templates/helpdesk.html` (commit `0a54c5c`)
+Removed the free-text `#hdSubcategoryInput` + `#hdSubcategorySuggest` suggestion-box markup from the `hd-subcat-wrap` form-group — the Software/Application sub-category field is now a plain `<select id="hdSubcategory">`, same control type used for every other category.
+
+### `static/helpdesk.js` (commit `0a54c5c`)
+Removed the entire free-text/suggestion-mode system: deleted `_hdSoftwareSuggestions`, `_hdSetSubcategoryMode()`, `hdSubcategoryInputChanged()`, `hdRenderSubcategorySuggestions()`, `hdSelectSubcategorySuggestion()`, `hdHideSubcategorySuggest()`. `hdOnCategoryChange()` now always populates `#hdSubcategory` as a plain select; for Software/Application it fetches `/api/helpdesk/subcategories?category=...&grouped=true` (the other categories keep their existing non-grouped URL). `hdGetSubcategoryValue()`/`hdSetSubcategoryValue()` simplified to read/write the select directly (no more dual select/input mode). The `?system=` URL-param pre-fill branch in `_applyUrlParams()` was simplified accordingly (this branch is dead code in practice — no link in the codebase ever constructs `/helpdesk?system=...`, confirmed via repo-wide grep).
+
+### `static/css/helpdesk.css` (commit `0a54c5c`)
+Removed the now-unused `.hd-subcat-wrap` / `.hd-subcat-suggest` / `.hd-subcat-suggest-item` rules (confirmed zero remaining references before deleting).
+
+### `README.md` (commits `0a54c5c`, `6c8f728`)
+Updated the `/api/helpdesk/subcategories` endpoint doc row to describe the `&grouped=true` param and its fallback-to-name behavior.
 
 ## Failed Attempts
-Nothing failed outright this session — both bug investigation and all 3 feature additions worked on the first implementation. Worth recording as "not attempted / not possible here" rather than failures:
+Nothing failed outright — no dead ends this session. One design decision worth recording as "considered and rejected" rather than failed:
 
-- **Could not fully end-to-end test the Teams opt-in or Issues-Filed tab against a real backend**: this dev environment has no `.env`/Supabase credentials (`.env.example` only). Verification was done by (a) booting the Flask dev server locally with `IT_BOT_TEAMS_APP_ID` set via inline env var, and (b) faking a `rgmc_gateway_session` localStorage entry + monkey-patching `window.fetch` in the browser console to simulate API responses, since the real login flow (`/verify-username`) requires a DB-backed `users` table lookup that isn't reachable here.
-- **Could not deploy the My Issues fix**: confirmed the bug live and confirmed the fix's correctness against real production data (via Claude-in-Chrome JS injection, read-only — no writes made to production), but actually shipping the fix requires a Cloud Run redeploy, which is outside this session's access/scope.
-- **GateGuard fact-forcing friction**: this session's `settings` have a hook that blocks the *first* `Edit`/`Write` to any given file each session unless a fact-forcing preamble (importers/callers + verbatim user instruction) was stated via an actual tool call (not just prose) immediately prior. Hit this ~20 times across both repos. Not a dead end, just overhead — the pattern that works is: `Grep`/search for the file's call sites as a real tool call, *then* state the facts in prose, *then* retry the `Edit`. Stating facts in prose alone (without a fresh matching tool call that turn) does **not** satisfy it and the edit gets denied again.
+- **Considered**: giving `report_issue.js`'s "Affected System" dropdown and its `riShowSystemFallback()` search-picker the same `grouped=true` treatment as the helpdesk form. **Rejected because**: both of those consumers need individual exact system names (to pinpoint precisely which system is broken for a bug report), not generic groups — confirmed by reading `riSelectFallbackSystem()`/`riFilterSystems()`, which store the picked value directly into `#riSiteName` for exact identification. Left both untouched, calling `/api/helpdesk/subcategories?category=...` without `&grouped=true` (the default/legacy per-system behavior), which was preserved unchanged specifically so this wouldn't regress.
 
 ## Next Step
-**No further code changes are pending.** The next step is operational/deployment, to be done by the user (I don't have deploy credentials or Azure/Supabase access from this environment):
+**The single most important action: run the migration against the real Supabase project**, then verify live:
 
-1. **Run the new SQL** from `C:\claude\rgmc-it-bot\supabase_setup.sql` (the `bot_ticket_followers` block, added this session) against the shared Supabase project — required before `follow`/`unfollow` bot commands will work.
-2. **Set `IT_BOT_TEAMS_APP_ID`** in the gateway's deployed environment (Cloud Run env vars) to the same value as the bot's own `BOT_ID` (the Azure App Registration's Application/client ID — findable at portal.azure.com → Microsoft Entra ID → App registrations → "RGMC IT Bot" → Overview). Until this is set, the Teams checkbox stays hidden (safe default) — confirmed via the `{% if it_bot_teams_app_id %}` guard in all 3 templates.
-3. **Redeploy `rgmc-gateway`** to Cloud Run — this ships the My Issues filter fix (piece 4, the most urgent since it's a confirmed-live bug affecting real data), the Issues I Filed tab (piece 3), and the Teams opt-in UI (piece 2, inert until step 2 above is also done).
-4. **Redeploy `rgmc-it-bot`** to wherever it's hosted — ships the `follow`/`unfollow` commands and the per-ticket-follower notification fan-out.
-5. After deploying, if the user wants it re-verified live, repeat the same Claude-in-Chrome approach used this session: navigate to `https://rgmc-gateway.cloud.run/developer`, click "My Issues", and spot-check that `gseregia`/other-assignee items (e.g. the previously-confirmed `DI-0178`, `DI-0053`, `DI-0175`, etc.) no longer appear.
+1. In Supabase → SQL Editor, run `supabase-migrations/system_sub_category_migration.sql` (`ALTER TABLE systems ADD COLUMN IF NOT EXISTS system_sub_category TEXT;`). This is a blocker — without it, `controllers/public.py`'s `select: "name,system_sub_category"` query will likely fail against the live DB.
+2. Redeploy `rgmc-gateway` to Cloud Run (same situation as the prior handoff — this session made no deploy, has no deploy credentials in this environment).
+3. Once deployed, as the admin: open `/admin` → Systems tab → edit a couple of existing systems (e.g. the `nav-*` ones, which are a natural grouping candidate) and set the same `system_sub_category` value on 2+ of them via the **new bulk-edit flow** (select rows → Bulk Edit… → check "Set Sub-category" → type a value → Apply) to smoke-test both the per-row field and the new bulk path in one pass.
+4. Visit `/helpdesk`, select category "Software/Application", and confirm the sub-category dropdown shows the grouped value once (not once per system) plus individual names for any still-uncategorized system.
+5. File a test ticket against that sub-category, then from the admin Issues panel use "Promote to Dev Item" on it and confirm the systems picker auto-narrows to just that group (and that the "show all" link works).
 
 ## Context & Gotchas
-- **The organization's internal-portal login is real and DB-backed** (`/verify-username` hits a Supabase `users` table) — there is no way to log into the local dev server without either real credentials or the localStorage-session-injection trick described above. This trick is safe/appropriate here because it's the user's own local app instance, not a third party's.
-- **`created_by` on a `dev_items` row means "who created/promoted this row in the DB"**, not "who originally reported the underlying issue" — this distinction is exactly what caused the My Issues bug. A department head or admin who promotes an issue into a dev item for a developer becomes that item's `created_by` forever, even after reassignment. The fix's `!item.assigned_to` guard preserves the one legitimate use of `created_by` (tracking items you filed that nobody's picked up yet — confirmed 39 such items exist for `earellano` in production) while killing the bug (confirmed 25 items assigned to others were wrongly included).
-- **The "Issues I Filed" tab and the existing `/workspace?issues=filed` subtab are intentionally not the same UI.** Workspace has a full modal (reopen, confirm-fix, QR share) built around `.issue-card`/`.iss-badge` classes and a dozen `iss-modal-*` DOM ids that don't exist on `index.html`. Rather than duplicate that, the index tab is read-only and links out to Workspace via "Manage in Workspace →" for anything beyond glancing at status — this was a deliberate scope decision, not an oversight.
-- **Teams bot deep-link format**: `https://teams.microsoft.com/l/chat/0/0?users=28:<appId>&message=<url-encoded text>` — the `28:` prefix is required by Teams to address a bot identity (vs. a `8:` or bare GUID for a person). This is documented in the bot's own `README.md` setup steps (`BOT_ID` = Azure App Registration's Application/client ID).
-- **Local dev server quirks** (carried over from before this session, still true): must invoke Python as `py`, not `python`/`python3`. The app boots fine with zero `.env` (Flask routes that touch Supabase just no-op/return empty), which is what made local UI verification possible at all.
-- **This session is a continuation of the tab-split work from the previous handoff** (index.html tabs, CSS-specificity `[hidden]` fix) — that was already done and merely re-verified live in a browser at the start of this session, not re-done.
-- **All git commits/pushes seen in this session's final `git log` happened without me running any git commands** — some external process (likely a save/auto-commit hook tied to this harness, given the "COST NOTICE"/"SCOPE WARNING" system reminders seen throughout) is committing and pushing after edits. Don't assume a clean `git status` means a human reviewed and approved these commits — flag this to the user if it looks surprising.
+- **`issue.site_name` doubles as the ticket's chosen value for IT helpdesk tickets** — `controllers/issues.py:377`: `site_name = form_data["request_subcategory"] or form_data["request_category"]`. This is *why* the promote-modal filter in `admin.js` can key off `issue.site_name` to match `systems.system_sub_category` — no new field was needed to thread the sub-category through to the promote flow.
+- **The grouped endpoint's dedup is a simple Python `set()` over rows ordered by `sort_order.asc,name.asc`** — a sub-category group's position in the dropdown is wherever its *first* (lowest sort_order) member system falls, not alphabetical by group name. Acceptable for now; revisit if admins complain about dropdown ordering feeling random.
+- **`request.args.get("grouped", "").strip().lower() in ("1", "true", "yes")`** is the exact truthy-check used for the new query param — match this pattern if adding similar boolean query flags elsewhere in this file.
+- **No real bulk API exists.** The admin bulk-edit feature is N parallel `PATCH` calls via `Promise.all`, one per selected system (`static/admin.js:submitSysBulkEdit`). Fine at current scale (~19 systems total), but if the systems list grows into the hundreds this should become a real batch endpoint.
+- **GateGuard fact-forcing hook** (same as the prior session) blocks the *first* `Edit`/`Write` to any given file each session unless a real search tool call (Grep/Glob/Bash-find, not just prose) targeting that exact file immediately precedes it, followed by a stated facts preamble. Hit this ~8 times this session on `controllers/public.py`, `controllers/admin.py`, `templates/admin.html`, `static/admin.js`, `templates/helpdesk.html`, `static/helpdesk.js`, `static/css/helpdesk.css`, `README.md`, `static/css/admin.css`. Pattern that works: a fresh `Grep`/search call in the *same turn*, immediately before the `Edit`/`Write` call — stating facts in prose alone without a matching tool call that turn does not satisfy it.
+- **All git commits/pushes in this session happened without any `git add`/`commit`/`push` tool calls from me** — same external auto-commit behavior noted in the prior handoff. Confirmed clean `git status` and `0 0` ahead/behind after each logical chunk of work, but this is not a substitute for human review of the diffs.
+- **Local dev server quirk** (carried over, unverified this session but presumably still true): invoke Python as `py`, not `python`/`python3`.

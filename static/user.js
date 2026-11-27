@@ -196,7 +196,7 @@ function renderOpenIssuesTable(openIssues) {
   section.style.display = '';
 
   const STATUS_LABEL = { new: 'New', open: 'Open' };
-  tbody.innerHTML = openIssues.map(iss => {
+  const _renderOpenIssRow = iss => {
     const id      = escHtml(iss.id);
     const ticket  = escHtml(iss.ticket_number || '—');
     const title   = escHtml(iss.title || _descPreview(iss.description, 100) || '(No title)');
@@ -228,7 +228,13 @@ function renderOpenIssuesTable(openIssues) {
         </button>
       </td>
     </tr>`;
-  }).join('');
+  };
+
+  const groupBy = document.getElementById('wsIssGroupBy')?.value || '';
+  const groups  = dgGroupItems(openIssues, groupBy, 'created_at');
+  tbody.innerHTML = groups
+    ? groups.map(g => dgGroupHeaderRowHtml(8, g.label, g.items.length) + g.items.map(_renderOpenIssRow).join('')).join('')
+    : openIssues.map(_renderOpenIssRow).join('');
 }
 
 function wsIssClearSearch() {
@@ -446,7 +452,11 @@ function renderIssueList(scope, issues, preFiltered) {
     return;
   }
 
-  listEl.innerHTML = issues.map(iss => renderIssueCard(iss)).join('');
+  const groupBy = document.getElementById('wsIssGroupBy')?.value || '';
+  const groups  = dgGroupItems(issues, groupBy, 'created_at');
+  listEl.innerHTML = groups
+    ? groups.map(g => dgGroupHeaderDivHtml(g.label, g.items.length) + g.items.map(renderIssueCard).join('')).join('')
+    : issues.map(renderIssueCard).join('');
 }
 
 function renderIssueCard(iss) {

@@ -147,6 +147,12 @@
         <select class="iss-filter-input iss-filter-select" id="wsIssFilterCompany" onchange="wsIssApplyFilters()">
           <option value="">All Companies</option>
         </select>
+        <select class="iss-filter-input iss-filter-select dg-group-select" id="wsIssGroupBy" onchange="wsIssApplyFilters()" title="Group by date reported">
+          <option value="">No grouping</option>
+          <option value="quarter">Year / Quarter</option>
+          <option value="month">Year / Month</option>
+          <option value="week">Year / Week</option>
+        </select>
       </div>
 
       <!-- Date preset row -->
@@ -810,6 +816,7 @@
   <script src="/static/comment-render.js"></script>
   <script src="/static/comment-editor.js"></script>
   <script src="/static/user-hovercard.js"></script>
+  <script src="/static/date-grouping.js"></script>
   <script src="/static/user.js"></script>
   <script src="/static/global-search.js"></script>
 </body>

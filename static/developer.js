@@ -2740,7 +2740,7 @@ function renderListView() {
     return;
   }
 
-  tbody.innerHTML = items.map(item => {
+  const _renderDevListRow = item => {
     const sysIds    = _parseSystemIds(item);
     const sysNames  = sysIds.map(id => _systems.find(s => s.id === id)?.name).filter(Boolean);
     const elapsed   = daysElapsed(item);
@@ -2790,7 +2790,13 @@ function renderListView() {
       <td class="dlt-td">${_spCell(item)}</td>
       <td class="dlt-td">${elapsed !== null ? `<span class="dlt-elapsed-val">${elapsed}d</span>` : `<span class="dlt-muted">—</span>`}</td>
     </tr>`;
-  }).join('');
+  };
+
+  const listGroupBy = document.getElementById('listGroupBy')?.value || '';
+  const listGroups  = dgGroupItems(items, listGroupBy, 'created_at');
+  tbody.innerHTML = listGroups
+    ? listGroups.map(g => dgGroupHeaderRowHtml(11, g.label, g.items.length) + g.items.map(_renderDevListRow).join('')).join('')
+    : items.map(_renderDevListRow).join('');
 
   // Parked section
   const parkedSection = document.getElementById('parkedSection');

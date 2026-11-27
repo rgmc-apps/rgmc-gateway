@@ -814,27 +814,44 @@ function _mwFormatDate(iso) {
 
 /* ── Issues I Filed tab ───────────────────────────────────────────────────── */
 
+let _fiIssuesCache = [];
+
 async function loadFiledIssues(session) {
   const feed    = document.getElementById('filedIssuesFeed');
   const countEl = document.getElementById('filedIssuesCount');
   if (!feed || !session?.username) return;
 
   try {
-    const res    = await fetch('/api/user/issues/filed', { headers: { 'X-Gateway-Username': session.username } });
-    const data   = res.ok ? await res.json().catch(() => []) : [];
-    const issues = Array.isArray(data) ? data : [];
+    const res  = await fetch('/api/user/issues/filed', { headers: { 'X-Gateway-Username': session.username } });
+    const data = res.ok ? await res.json().catch(() => []) : [];
+    _fiIssuesCache = Array.isArray(data) ? data : [];
 
     if (countEl) {
-      countEl.textContent   = String(issues.length);
-      countEl.style.display = issues.length ? '' : 'none';
+      countEl.textContent   = String(_fiIssuesCache.length);
+      countEl.style.display = _fiIssuesCache.length ? '' : 'none';
     }
-
-    feed.innerHTML = issues.length
-      ? issues.map(_fiEntryHtml).join('')
-      : '<div class="changelog-empty">You haven\'t filed any issues yet.</div>';
+    _renderFiledIssues();
   } catch {
     feed.innerHTML = '<div class="changelog-empty">Couldn\'t load your filed issues.</div>';
   }
+}
+
+function _renderFiledIssues() {
+  const feed = document.getElementById('filedIssuesFeed');
+  if (!feed) return;
+  const issues = _fiIssuesCache;
+
+  if (!issues.length) {
+    feed.innerHTML = '<div class="changelog-empty">You haven\'t filed any issues yet.</div>';
+    return;
+  }
+
+  const groupBy = document.getElementById('filedIssuesGroupBy')?.value || '';
+  const groups  = dgGroupItems(issues, groupBy, 'created_at');
+
+  feed.innerHTML = groups
+    ? groups.map(g => dgGroupHeaderDivHtml(g.label, g.items.length) + g.items.map(_fiEntryHtml).join('')).join('')
+    : issues.map(_fiEntryHtml).join('');
 }
 
 function _fiEntryHtml(iss) {
